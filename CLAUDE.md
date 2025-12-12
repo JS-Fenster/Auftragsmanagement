@@ -7,9 +7,9 @@
 
 ## Zentrale Wissensbasis (IMMER einlesen!)
 
-> **Basis-Anweisungen:** `Z:/IT-Sammlung/KI_Automation_Hub/KI_Automation/CLAUDE.md`
-> **DB-Wissen:** `Z:/IT-Sammlung/KI_Automation_Hub/KI_Automation/docs/ERP_Datenbank.md`
-> **Ideen & Planung:** `Z:/IT-Sammlung/KI_Automation_Hub/JS_Prozesse/CLAUDE.md`
+> **Basis-Anweisungen:** `../KI-Automation/CLAUDE.md`
+> **DB-Wissen:** `../KI-Automation/docs/ERP_Datenbank.md`
+> **Ideen & Planung:** `../JS-Prozesse/CLAUDE.md`
 > **Projektplan:** `docs/Auftragsmanagement_Projektplan.md`
 
 ---
