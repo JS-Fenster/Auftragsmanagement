@@ -7,9 +7,9 @@
 
 ## Zentrale Wissensbasis (IMMER einlesen!)
 
-> **Basis-Anweisungen:** `Z:/IT-Sammlung/KI_Automation/CLAUDE.md`
-> **DB-Wissen:** `Z:/IT-Sammlung/KI_Automation/docs/ERP_Datenbank.md`
-> **Ideen & Planung:** `Z:/IT-Sammlung/JS_Prozesse/CLAUDE.md`
+> **Basis-Anweisungen:** `Z:/IT-Sammlung/KI_Automation_Hub/KI_Automation/CLAUDE.md`
+> **DB-Wissen:** `Z:/IT-Sammlung/KI_Automation_Hub/KI_Automation/docs/ERP_Datenbank.md`
+> **Ideen & Planung:** `Z:/IT-Sammlung/KI_Automation_Hub/JS_Prozesse/CLAUDE.md`
 > **Projektplan:** `docs/Auftragsmanagement_Projektplan.md`
 
 ---
@@ -114,3 +114,4 @@ Siehe `docs/Auftragsmanagement_Projektplan.md` fuer Details.
 | 2025-12-12 | Repo neu strukturiert | Code aus `_archive/ReparaturPortal` uebernommen |
 | 2025-12-12 | Projektplan hierher | `docs/Auftragsmanagement_Projektplan.md` |
 | 2025-12-12 | node_modules entfernt | Nur Source-Code im Repo |
+| 2025-12-12 | Hub-Struktur | Alle Repos jetzt unter `KI_Automation_Hub/` |
