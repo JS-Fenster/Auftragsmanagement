@@ -8,6 +8,7 @@ const { getPool, closePool } = require('./config/database');
 // Import Routes
 const customersRouter = require('./routes/customers');
 const repairsRouter = require('./routes/repairs');
+const syncRouter = require('./routes/sync');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -27,15 +28,16 @@ app.use((req, res, next) => {
 app.get('/api/health', (req, res) => {
     res.json({
         status: 'OK',
-        message: 'Reparatur-Portal Backend läuft',
+        message: 'Auftragsmanagement Backend laeuft',
         timestamp: new Date().toISOString(),
-        version: '1.0.0'
+        version: '2.0.0'
     });
 });
 
 // API Routes
 app.use('/api/customers', customersRouter);
 app.use('/api/repairs', repairsRouter);
+app.use('/api/sync', syncRouter);
 
 // 404 Handler
 app.use((req, res) => {
@@ -66,12 +68,11 @@ const startServer = async () => {
         app.listen(PORT, () => {
             console.log('');
             console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-            console.log('  🔧 Reparatur-Portal Backend gestartet');
+            console.log('  Auftragsmanagement Backend gestartet');
             console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-            console.log(`  🌐 Server läuft auf: http://localhost:${PORT}`);
-            console.log(`  📊 Health Check: http://localhost:${PORT}/api/health`);
-            console.log(`  👥 Kunden API: http://localhost:${PORT}/api/customers`);
-            console.log(`  🔧 Reparatur API: http://localhost:${PORT}/api/repairs`);
+            console.log(`  Server laeuft auf: http://localhost:${PORT}`);
+            console.log(`  Health Check: http://localhost:${PORT}/api/health`);
+            console.log(`  Sync API: http://localhost:${PORT}/api/sync`);
             console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
             console.log('');
         });

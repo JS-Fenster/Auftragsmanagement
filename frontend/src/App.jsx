@@ -1,22 +1,21 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { Home, Users, Wrench, Calendar, Map, Settings, LogOut } from 'lucide-react';
+import { Home, FolderKanban, ClipboardList, Users, Settings, RefreshCw } from 'lucide-react';
 
 // Pages
 import Dashboard from './pages/Dashboard';
-import Customers from './pages/Customers';
-import Repairs from './pages/Repairs';
-import Appointments from './pages/Appointments';
-import RouteOptimization from './pages/RouteOptimization';
+import Projekte from './pages/Projekte';
+import ProjektDetail from './pages/ProjektDetail';
+import Auftraege from './pages/Auftraege';
+import Kunden from './pages/Kunden';
 
 function Navigation() {
   const location = useLocation();
 
   const navItems = [
     { path: '/', icon: Home, label: 'Dashboard' },
-    { path: '/customers', icon: Users, label: 'Kunden' },
-    { path: '/repairs', icon: Wrench, label: 'Reparaturen' },
-    { path: '/appointments', icon: Calendar, label: 'Termine' },
-    { path: '/route', icon: Map, label: 'Routenplanung' },
+    { path: '/projekte', icon: FolderKanban, label: 'Projekte' },
+    { path: '/auftraege', icon: ClipboardList, label: 'Auftraege' },
+    { path: '/kunden', icon: Users, label: 'Kunden' },
   ];
 
   return (
@@ -25,22 +24,23 @@ function Navigation() {
         <div className="flex justify-between h-16">
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
-              <Wrench className="h-8 w-8 text-primary-600" />
+              <FolderKanban className="h-8 w-8 text-blue-600" />
               <span className="ml-2 text-xl font-bold text-gray-900">
-                Reparatur-Portal
+                Auftragsmanagement
               </span>
             </div>
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
               {navItems.map((item) => {
                 const Icon = item.icon;
-                const isActive = location.pathname === item.path;
+                const isActive = location.pathname === item.path ||
+                  (item.path !== '/' && location.pathname.startsWith(item.path));
                 return (
                   <Link
                     key={item.path}
                     to={item.path}
                     className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
                       isActive
-                        ? 'border-primary-500 text-gray-900'
+                        ? 'border-blue-500 text-gray-900'
                         : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
                     }`}
                   >
@@ -55,10 +55,30 @@ function Navigation() {
             <button className="p-2 rounded-full text-gray-400 hover:text-gray-500">
               <Settings className="h-6 w-6" />
             </button>
-            <button className="ml-3 p-2 rounded-full text-gray-400 hover:text-gray-500">
-              <LogOut className="h-6 w-6" />
-            </button>
           </div>
+        </div>
+      </div>
+
+      {/* Mobile Navigation */}
+      <div className="sm:hidden border-t border-gray-200">
+        <div className="flex justify-around py-2">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = location.pathname === item.path ||
+              (item.path !== '/' && location.pathname.startsWith(item.path));
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`flex flex-col items-center px-3 py-2 text-xs ${
+                  isActive ? 'text-blue-600' : 'text-gray-500'
+                }`}
+              >
+                <Icon className="h-5 w-5 mb-1" />
+                {item.label}
+              </Link>
+            );
+          })}
         </div>
       </div>
     </nav>
@@ -70,13 +90,13 @@ function App() {
     <Router>
       <div className="min-h-screen bg-gray-50">
         <Navigation />
-        <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
           <Routes>
             <Route path="/" element={<Dashboard />} />
-            <Route path="/customers" element={<Customers />} />
-            <Route path="/repairs" element={<Repairs />} />
-            <Route path="/appointments" element={<Appointments />} />
-            <Route path="/route" element={<RouteOptimization />} />
+            <Route path="/projekte" element={<Projekte />} />
+            <Route path="/projekte/:code" element={<ProjektDetail />} />
+            <Route path="/auftraege" element={<Auftraege />} />
+            <Route path="/kunden" element={<Kunden />} />
           </Routes>
         </main>
       </div>

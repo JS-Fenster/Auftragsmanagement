@@ -1,12 +1,13 @@
 {
-  "name": "reparatur-portal-frontend",
-  "version": "1.0.0",
-  "description": "Frontend für Reparatur-Portal - Fenster & Türen Service",
+  "name": "auftragsmanagement-frontend",
+  "version": "2.0.0",
+  "description": "Auftragsmanagement Web-App - JS Fenster & Tueren",
   "private": true,
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.20.0",
+    "@supabase/supabase-js": "^2.39.0",
     "axios": "^1.6.2",
     "lucide-react": "^0.294.0",
     "date-fns": "^2.30.0"

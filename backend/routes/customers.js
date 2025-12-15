@@ -1,31 +1,22 @@
 const express = require('express');
 const router = express.Router();
-const { getPool, sql } = require('../config/database');
+const { supabase } = require('../config/database');
 
 // GET alle Kunden
 router.get('/', async (req, res) => {
     try {
-        const pool = await getPool();
-        const result = await pool.request()
-            .query(`
-                SELECT TOP 1000
-                    KAnsprechpCode as Code,
-                    Name,
-                    Vorname,
-                    Telefon,
-                    [E-Mail] as EMail,
-                    Straße as Strasse,
-                    Plz as PLZ,
-                    Ort,
-                    Erstkontakt as Angelegt
-                FROM dbo.KAnsprechp
-                ORDER BY Erstkontakt DESC
-            `);
+        const { data, error } = await supabase
+            .from('erp_kunden')
+            .select('code, firma1, firma2, name, strasse, plz, ort, telefon, mobil, email')
+            .order('code', { ascending: false })
+            .limit(1000);
+
+        if (error) throw error;
 
         res.json({
             success: true,
-            data: result.recordset,
-            count: result.recordset.length
+            data: data,
+            count: data.length
         });
     } catch (error) {
         console.error('Fehler beim Abrufen der Kunden:', error);
@@ -40,25 +31,25 @@ router.get('/', async (req, res) => {
 // GET einzelner Kunde
 router.get('/:code', async (req, res) => {
     try {
-        const pool = await getPool();
-        const result = await pool.request()
-            .input('code', sql.Int, req.params.code)
-            .query(`
-                SELECT *
-                FROM dbo.KAnsprechp
-                WHERE KAnsprechpCode = @code
-            `);
+        const { data, error } = await supabase
+            .from('erp_kunden')
+            .select('*')
+            .eq('code', req.params.code)
+            .single();
 
-        if (result.recordset.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Kunde nicht gefunden'
-            });
+        if (error) {
+            if (error.code === 'PGRST116') {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Kunde nicht gefunden'
+                });
+            }
+            throw error;
         }
 
         res.json({
             success: true,
-            data: result.recordset[0]
+            data: data
         });
     } catch (error) {
         console.error('Fehler beim Abrufen des Kunden:', error);
@@ -70,118 +61,66 @@ router.get('/:code', async (req, res) => {
     }
 });
 
-// POST neuen Kunden anlegen
-router.post('/', async (req, res) => {
-    try {
-        const { name, vorname, telefon, email, strasse, plz, ort } = req.body;
-
-        const pool = await getPool();
-        const result = await pool.request()
-            .input('name', sql.NVarChar, name)
-            .input('vorname', sql.NVarChar, vorname || '')
-            .input('telefon', sql.NVarChar, telefon || '')
-            .input('email', sql.NVarChar, email || '')
-            .input('strasse', sql.NVarChar, strasse || '')
-            .input('plz', sql.NVarChar, plz || '')
-            .input('ort', sql.NVarChar, ort || '')
-            .query(`
-                INSERT INTO dbo.KAnsprechp (Name, Vorname, Telefon, [E-Mail], Straße, Plz, Ort, Erstkontakt)
-                OUTPUT INSERTED.KAnsprechpCode as Code
-                VALUES (@name, @vorname, @telefon, @email, @strasse, @plz, @ort, GETDATE())
-            `);
-
-        res.status(201).json({
-            success: true,
-            message: 'Kunde erfolgreich angelegt',
-            code: result.recordset[0].Code
-        });
-    } catch (error) {
-        console.error('Fehler beim Anlegen des Kunden:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Fehler beim Anlegen des Kunden',
-            error: error.message
-        });
-    }
-});
-
-// PATCH Kunde aktualisieren
-router.patch('/:code', async (req, res) => {
-    try {
-        const { name, vorname, telefon, email, strasse, plz, ort } = req.body;
-
-        const pool = await getPool();
-        await pool.request()
-            .input('code', sql.Int, req.params.code)
-            .input('name', sql.NVarChar, name)
-            .input('vorname', sql.NVarChar, vorname)
-            .input('telefon', sql.NVarChar, telefon)
-            .input('email', sql.NVarChar, email)
-            .input('strasse', sql.NVarChar, strasse)
-            .input('plz', sql.NVarChar, plz)
-            .input('ort', sql.NVarChar, ort)
-            .query(`
-                UPDATE dbo.KAnsprechp
-                SET Name = @name,
-                    Vorname = @vorname,
-                    Telefon = @telefon,
-                    [E-Mail] = @email,
-                    Straße = @strasse,
-                    Plz = @plz,
-                    Ort = @ort,
-                    LetzteÄnderung = GETDATE()
-                WHERE KAnsprechpCode = @code
-            `);
-
-        res.json({
-            success: true,
-            message: 'Kunde erfolgreich aktualisiert'
-        });
-    } catch (error) {
-        console.error('Fehler beim Aktualisieren des Kunden:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Fehler beim Aktualisieren des Kunden',
-            error: error.message
-        });
-    }
-});
-
 // GET Kunden suchen
 router.get('/search/:term', async (req, res) => {
     try {
-        const searchTerm = `%${req.params.term}%`;
-        const pool = await getPool();
-        const result = await pool.request()
-            .input('term', sql.NVarChar, searchTerm)
-            .query(`
-                SELECT TOP 50
-                    KAnsprechpCode as Code,
-                    Name,
-                    Vorname,
-                    Telefon,
-                    [E-Mail] as EMail,
-                    Straße as Strasse,
-                    Plz as PLZ,
-                    Ort
-                FROM dbo.KAnsprechp
-                WHERE Name LIKE @term
-                   OR Vorname LIKE @term
-                   OR Telefon LIKE @term
-                   OR [E-Mail] LIKE @term
-                ORDER BY Name
-            `);
+        const searchTerm = req.params.term;
+
+        const { data, error } = await supabase
+            .from('erp_kunden')
+            .select('code, firma1, firma2, name, strasse, plz, ort, telefon, mobil, email')
+            .or(`firma1.ilike.%${searchTerm}%,firma2.ilike.%${searchTerm}%,name.ilike.%${searchTerm}%,telefon.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,ort.ilike.%${searchTerm}%`)
+            .order('firma1')
+            .limit(50);
+
+        if (error) throw error;
 
         res.json({
             success: true,
-            data: result.recordset,
-            count: result.recordset.length
+            data: data,
+            count: data.length
         });
     } catch (error) {
         console.error('Fehler bei der Kundensuche:', error);
         res.status(500).json({
             success: false,
             message: 'Fehler bei der Kundensuche',
+            error: error.message
+        });
+    }
+});
+
+// GET Kunde mit Projekten
+router.get('/:code/projekte', async (req, res) => {
+    try {
+        const { data: kunde, error: kundeError } = await supabase
+            .from('erp_kunden')
+            .select('*')
+            .eq('code', req.params.code)
+            .single();
+
+        if (kundeError) throw kundeError;
+
+        const { data: projekte, error: projekteError } = await supabase
+            .from('erp_projekte')
+            .select('*')
+            .eq('kunden_code', req.params.code)
+            .order('datum', { ascending: false });
+
+        if (projekteError) throw projekteError;
+
+        res.json({
+            success: true,
+            data: {
+                kunde: kunde,
+                projekte: projekte
+            }
+        });
+    } catch (error) {
+        console.error('Fehler beim Abrufen der Kundenprojekte:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Fehler beim Abrufen der Kundenprojekte',
             error: error.message
         });
     }

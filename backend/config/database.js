@@ -1,43 +1,42 @@
-const sql = require('mssql');
+const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
-const config = {
-    server: process.env.DB_SERVER,
-    database: process.env.DB_DATABASE,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    options: {
-        encrypt: false, // Für lokales Netzwerk
-        trustServerCertificate: true,
-        enableArithAbort: true
-    },
-    pool: {
-        max: 10,
-        min: 0,
-        idleTimeoutMillis: 30000
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+    throw new Error('SUPABASE_URL and SUPABASE_SERVICE_KEY must be set in .env');
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Test connection by checking if we can access the database
+const testConnection = async () => {
+    const { data, error } = await supabase
+        .from('erp_kunden')
+        .select('code')
+        .limit(1);
+
+    if (error) {
+        throw new Error(`Supabase connection failed: ${error.message}`);
     }
+    return true;
 };
 
-let pool = null;
-
+// Compatibility wrapper for getPool (returns supabase client)
 const getPool = async () => {
-    if (!pool) {
-        pool = await sql.connect(config);
-        console.log('✅ SQL Server verbunden');
-    }
-    return pool;
+    await testConnection();
+    return supabase;
 };
 
 const closePool = async () => {
-    if (pool) {
-        await pool.close();
-        pool = null;
-        console.log('SQL Server Verbindung geschlossen');
-    }
+    // Supabase client doesn't need explicit closing
+    console.log('Supabase connection closed');
 };
 
 module.exports = {
+    supabase,
     getPool,
     closePool,
-    sql
+    testConnection
 };

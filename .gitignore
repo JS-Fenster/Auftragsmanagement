@@ -25,3 +25,13 @@ Thumbs.db
 # Temp
 *.tmp
 *.bak
+
+# Build
+dist/
+frontend/dist/
+
+# Claude Code
+.claude/
+.mcp.json
+nul
+*.exe
