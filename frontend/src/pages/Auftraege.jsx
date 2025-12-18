@@ -19,30 +19,55 @@ function Auftraege() {
 
   const loadData = async () => {
     try {
-      // Alle Daten parallel laden
-      const [
-        { data: angeboteData },
-        { data: kundenData },
-        { data: projekteData },
-        { data: statusData }
-      ] = await Promise.all([
+      // Erst Auftraege und Status laden
+      const [{ data: angeboteData }, { data: statusData }] = await Promise.all([
         supabase
           .from('erp_angebote')
           .select('*')
           .not('auftrags_datum', 'is', null)
           .order('auftrags_datum', { ascending: false }),
-        supabase.from('erp_kunden').select('code, firma1, name, ort'),
-        supabase.from('erp_projekte').select('code, nummer, name'),
         supabase.from('auftrag_status').select('*')
       ]);
 
-      // Lookup-Maps erstellen
+      // Benoetigte Codes extrahieren
+      const kundenCodes = [...new Set(
+        (angeboteData || [])
+          .map(a => a.kunden_code)
+          .filter(code => code && code !== 0)
+      )];
+
+      const projektCodes = [...new Set(
+        (angeboteData || [])
+          .map(a => a.projekt_code)
+          .filter(code => code && code !== 0)
+      )];
+
+      // Kunden und Projekte nur fuer benoetigte Codes laden
       const kundenMap = {};
-      kundenData?.forEach(k => kundenMap[k.code] = k);
-
       const projekteMap = {};
-      projekteData?.forEach(p => projekteMap[p.code] = p);
+      const chunkSize = 300;
 
+      // Kunden laden
+      for (let i = 0; i < kundenCodes.length; i += chunkSize) {
+        const chunk = kundenCodes.slice(i, i + chunkSize);
+        const { data: kundenData } = await supabase
+          .from('erp_kunden')
+          .select('code, firma1, name, ort')
+          .in('code', chunk);
+        kundenData?.forEach(k => kundenMap[k.code] = k);
+      }
+
+      // Projekte laden
+      for (let i = 0; i < projektCodes.length; i += chunkSize) {
+        const chunk = projektCodes.slice(i, i + chunkSize);
+        const { data: projekteData } = await supabase
+          .from('erp_projekte')
+          .select('code, nummer, name')
+          .in('code', chunk);
+        projekteData?.forEach(p => projekteMap[p.code] = p);
+      }
+
+      // Status-Map erstellen
       const statusMap = {};
       statusData?.forEach(s => statusMap[s.projekt_code] = s);
 

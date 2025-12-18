@@ -19,23 +19,37 @@ function Projekte() {
 
   const loadData = async () => {
     try {
-      // Projekte und Kunden parallel laden
-      const [{ data: projekteData }, { data: kundenData }] = await Promise.all([
-        supabase
-          .from('erp_projekte')
-          .select('*')
-          .order('datum', { ascending: false })
-          .limit(500),
-        supabase
-          .from('erp_kunden')
-          .select('code, firma1, name, ort')
-      ]);
+      // Erst Projekte laden
+      const { data: projekteData } = await supabase
+        .from('erp_projekte')
+        .select('*')
+        .order('datum', { ascending: false })
+        .limit(500);
 
-      // Kunden als Lookup-Map
+      // Dann nur die benoetigten Kunden laden (anhand der kunden_codes)
+      const kundenCodes = [...new Set(
+        (projekteData || [])
+          .map(p => p.kunden_code)
+          .filter(code => code && code !== 0)
+      )];
+
       const kundenMap = {};
-      kundenData?.forEach(k => {
-        kundenMap[k.code] = k;
-      });
+
+      if (kundenCodes.length > 0) {
+        // Supabase erlaubt max ~300 IDs pro IN-Query, daher chunken
+        const chunkSize = 300;
+        for (let i = 0; i < kundenCodes.length; i += chunkSize) {
+          const chunk = kundenCodes.slice(i, i + chunkSize);
+          const { data: kundenData } = await supabase
+            .from('erp_kunden')
+            .select('code, firma1, name, ort')
+            .in('code', chunk);
+
+          kundenData?.forEach(k => {
+            kundenMap[k.code] = k;
+          });
+        }
+      }
 
       setProjekte(projekteData || []);
       setKunden(kundenMap);
