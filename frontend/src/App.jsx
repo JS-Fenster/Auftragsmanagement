@@ -14,7 +14,7 @@ function Navigation() {
   const navItems = [
     { path: '/', icon: Home, label: 'Dashboard' },
     { path: '/projekte', icon: FolderKanban, label: 'Projekte' },
-    { path: '/auftraege', icon: ClipboardList, label: 'Auftraege' },
+    { path: '/auftraege', icon: ClipboardList, label: 'Aufträge' },
     { path: '/kunden', icon: Users, label: 'Kunden' },
   ];
 

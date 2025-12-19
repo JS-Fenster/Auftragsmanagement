@@ -28,13 +28,13 @@ export const WORKFLOW_STATUS = [
 // Projekt-Typen aus Notiz-Feld
 export const PROJEKT_TYPEN = {
   'DKF': 'Dreh-Kipp-Fenster',
-  'HT': 'Haustuer',
-  'IT': 'Innentuer',
+  'HT': 'Haustür',
+  'IT': 'Innentür',
   'VR': 'Vorbau-Rollladen',
   'RAFF': 'Raffstore',
   'ISS': 'Insektenschutz',
   'REP': 'Reparatur',
-  'GT': 'Glastuer',
+  'GT': 'Glastür',
   'EA': 'Einzelauftrag'
 };
 

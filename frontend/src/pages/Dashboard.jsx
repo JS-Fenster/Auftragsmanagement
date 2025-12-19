@@ -154,7 +154,7 @@ function Dashboard() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-600 mt-1">
-            Uebersicht Auftragsmanagement
+            Übersicht Auftragsmanagement
           </p>
         </div>
 
@@ -206,7 +206,7 @@ function Dashboard() {
           link="/projekte"
         />
         <StatCard
-          title="Auftraege"
+          title="Aufträge"
           value={stats.auftraege.toLocaleString('de-DE')}
           icon={ClipboardList}
           color="text-green-600"

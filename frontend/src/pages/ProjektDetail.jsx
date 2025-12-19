@@ -202,7 +202,7 @@ function ProjektDetail() {
       <div className="text-center py-12">
         <p className="text-gray-500">Projekt nicht gefunden</p>
         <Link to="/projekte" className="text-blue-600 hover:underline mt-2 inline-block">
-          Zurueck zur Liste
+          Zurück zur Liste
         </Link>
       </div>
     );
@@ -222,7 +222,7 @@ function ProjektDetail() {
             className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-2"
           >
             <ArrowLeft className="h-4 w-4 mr-1" />
-            Zurueck
+            Zurück
           </Link>
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
             {projekt.nummer}
@@ -282,7 +282,7 @@ function ProjektDetail() {
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <FileText className="h-5 w-5 text-gray-400" />
-              Angebote / Auftraege ({angebote.length})
+              Angebote / Aufträge ({angebote.length})
             </h2>
             {angebote.length === 0 ? (
               <p className="text-gray-500 text-sm">Keine Angebote vorhanden</p>
@@ -338,7 +338,7 @@ function ProjektDetail() {
                           {r.datum && format(new Date(r.datum), 'dd.MM.yyyy')}
                           {r.zahlbar_bis && (
                             <span className="ml-2">
-                              (faellig: {format(new Date(r.zahlbar_bis), 'dd.MM.yyyy')})
+                              (fällig: {format(new Date(r.zahlbar_bis), 'dd.MM.yyyy')})
                             </span>
                           )}
                         </div>

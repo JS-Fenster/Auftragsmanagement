@@ -176,9 +176,9 @@ function Auftraege() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Auftraege</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Aufträge</h1>
           <p className="text-gray-600 mt-1">
-            {filteredAuftraege.length} Auftraege - Gesamt: {totalWert.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+            {filteredAuftraege.length} Aufträge - Gesamt: {totalWert.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
           </p>
         </div>
       </div>
@@ -266,7 +266,7 @@ function Auftraege() {
               {filteredAuftraege.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
-                    Keine Auftraege gefunden
+                    Keine Aufträge gefunden
                   </td>
                 </tr>
               ) : (
