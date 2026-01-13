@@ -35,3 +35,7 @@ frontend/dist/
 .mcp.json
 nul
 *.exe
+
+# Claude temp files
+tmpclaude-*
+*.cwd
