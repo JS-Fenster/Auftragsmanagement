@@ -15,7 +15,7 @@ Ihr benötigt folgende Informationen:
 ### CMD-Fenster 1 öffnen:
 
 ```cmd
-cd Z:\IT-Sammlung\KI_Automation\Claude_SQL_Server_Automation\ReparaturPortal\backend
+cd backend
 
 npm install
 
@@ -48,7 +48,7 @@ npm start
 ### CMD-Fenster 2 öffnen:
 
 ```cmd
-cd Z:\IT-Sammlung\KI_Automation\Claude_SQL_Server_Automation\ReparaturPortal\frontend
+cd frontend
 
 npm install
 
