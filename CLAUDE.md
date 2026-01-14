@@ -5,13 +5,11 @@
 
 ---
 
-## Zentrale Wissensbasis (IMMER einlesen!)
+## Wissensbasis
 
-> **Basis-Anweisungen:** `../KI-Automation/CLAUDE.md`
-> **DB-Wissen:** `../KI-Automation/docs/ERP_Datenbank.md`
+> **Globale Regeln:** `BOOTSTRAP/CLAUDE.md` + `KB/STANDARDS/code_standards.md`
+> **DB-Wissen:** `../KI_Automation/docs/ERP_Datenbank.md`
 > **Projektplan:** `docs/Auftragsmanagement_Projektplan.md`
-
-**WICHTIG:** JS-Prozesse/IDEEN NICHT einlesen! Fokus auf Implementierung, kein neuer Ideen-Kontext.
 
 ---
 
@@ -102,16 +100,7 @@ Siehe `docs/Auftragsmanagement_Projektplan.md` fuer Details.
 
 ---
 
-## Changelog (Struktur-Aenderungen)
+## Sicherheitshinweis
 
-> **WICHTIG:** Bei relevanten Aenderungen hier dokumentieren!
-
-| Datum | Aenderung | Details |
-|-------|-----------|---------|
-| 2025-12-12 | Repo neu strukturiert | Code aus `_archive/ReparaturPortal` uebernommen |
-| 2025-12-12 | Projektplan hierher | `docs/Auftragsmanagement_Projektplan.md` |
-| 2025-12-12 | node_modules entfernt | Nur Source-Code im Repo |
-| 2025-12-12 | Hub-Struktur | Alle Repos jetzt unter `KI_Automation_Hub/` |
-| 2025-12-15 | Ideen-Kontext entfernt | Fokus auf Implementierung, JS-Prozesse nicht mehr einlesen |
-| 2025-12-15 | Supabase-Sektion | Projekt-URL dokumentiert |
-- Supabase Projekt Auftragsmanagement API Key (Service Role Secret): eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzbWpnZHVqbHBueWRic2Z1aWVrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTc2NjQ1NywiZXhwIjoyMDgxMzQyNDU3fQ.xdzy1wAqVZ_MZgs9PjPpz3mofbffBM5lHAUBrZnC_ks
+> **TODO:** API-Key spaeter in `.env` verschieben!
+> Aktuell noch in Entwicklung - bei Produktivgang bereinigen.
