@@ -70,8 +70,8 @@ Das Frontend kann direkt deployed werden:
 ### 2. Environment Variables (Netlify Dashboard)
 
 ```
-VITE_SUPABASE_URL=https://rsmjgdujlpnydbsfuiek.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+VITE_SUPABASE_URL=https://<PROJECT_ID>.supabase.co
+VITE_SUPABASE_ANON_KEY=<SUPABASE_ANON_KEY>
 VITE_API_URL=https://??? (siehe Sync-Loesung unten)
 ```
 

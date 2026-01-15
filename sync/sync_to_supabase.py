@@ -54,11 +54,23 @@ except ImportError:
 SQL_SERVER = os.getenv("SQL_SERVER", "localhost")  # localhost wenn Tunnel aktiv
 SQL_DATABASE = os.getenv("SQL_DATABASE", "WorkM001")
 SQL_USER = os.getenv("SQL_USER", "sa")
-SQL_PASSWORD = os.getenv("SQL_PASSWORD", "Work4all!")
+SQL_PASSWORD = os.getenv("SQL_PASSWORD")
 
 # Supabase
-SUPABASE_URL = os.getenv("SUPABASE_URL", "https://rsmjgdujlpnydbsfuiek.supabase.co")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")  # Service Role Key!
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")  # Service Role Key!
+
+# Pflicht-Umgebungsvariablen pruefen
+_required_vars = {
+    'SQL_PASSWORD': SQL_PASSWORD,
+    'SUPABASE_URL': SUPABASE_URL,
+    'SUPABASE_KEY': SUPABASE_KEY
+}
+_missing = [k for k, v in _required_vars.items() if not v]
+if _missing:
+    print(f"FEHLER: Fehlende Umgebungsvariablen: {', '.join(_missing)}")
+    print("Bitte .env Datei pruefen!")
+    sys.exit(1)
 
 
 # =============================================================================
