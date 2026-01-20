@@ -1,0 +1,225 @@
+// =============================================================================
+// API Client for Admin Review
+// =============================================================================
+
+const SUPABASE_URL = 'https://rsmjgdujlpnydbsfuiek.supabase.co';
+
+// =============================================================================
+// Types
+// =============================================================================
+
+export interface ReviewDocument {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  kategorie: string;
+  kategorie_manual: string | null;
+  email_kategorie: string | null;
+  email_kategorie_confidence: number | null;
+  email_kategorie_manual: string | null;
+  email_betreff: string | null;
+  email_von_email: string | null;
+  email_von_name: string | null;
+  email_postfach: string | null;
+  email_hat_anhaenge: boolean;
+  email_anhaenge_count: number;
+  email_anhaenge_meta: AttachmentMeta[] | null;
+  processing_status: string;
+  processing_last_error: string | null;
+  review_status: 'pending' | 'approved' | 'corrected' | null;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
+  dokument_url: string | null;
+  source: string | null;
+  rule_fingerprint: string | null;
+}
+
+export interface AttachmentMeta {
+  id: string;
+  name: string;
+  size: number;
+  contentType: string;
+  storagePath: string;
+  hash: string;
+}
+
+export interface ReviewStats {
+  review_status: {
+    pending: number;
+    approved: number;
+    corrected: number;
+  };
+  suspects_48h: {
+    sonstiges_dokument: number;
+    sonstiges_email: number;
+    sonstiges_percent: string;
+  };
+  errors_total: number;
+  pending_reviews: number;
+  last_updated: string;
+}
+
+export interface Categories {
+  dokument_kategorien: string[];
+  email_kategorien: string[];
+}
+
+export interface QueueResponse {
+  items: ReviewDocument[];
+  count: number;
+  offset: number;
+  limit: number;
+}
+
+export interface LabelUpdateRequest {
+  action: 'approve' | 'correct';
+  kategorie_manual?: string;
+  email_kategorie_manual?: string;
+  reviewed_by?: string;
+}
+
+export interface PreviewResponse {
+  signed_url: string;
+  expires_in: number;
+  path: string;
+}
+
+// =============================================================================
+// API Client
+// =============================================================================
+
+export class AdminReviewApi {
+  private apiKey: string;
+  private baseUrl: string;
+
+  constructor(apiKey: string) {
+    this.apiKey = apiKey;
+    this.baseUrl = `${SUPABASE_URL}/functions/v1/admin-review`;
+  }
+
+  private async fetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+    const url = `${this.baseUrl}${path}`;
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': this.apiKey,
+        ...options.headers,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: response.statusText }));
+      throw new Error(errorData.error || `HTTP ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  // Health check
+  async health(): Promise<{ status: string; version: string }> {
+    return this.fetch('?health=1');
+  }
+
+  // Get categories
+  async getCategories(): Promise<Categories> {
+    return this.fetch('/categories');
+  }
+
+  // Get statistics
+  async getStats(): Promise<ReviewStats> {
+    return this.fetch('/stats');
+  }
+
+  // Get review queue
+  async getQueue(params: {
+    status?: string;
+    only_suspect?: boolean;
+    kategorie?: string;
+    email_kategorie?: string;
+    limit?: number;
+    offset?: number;
+    since?: string;
+    until?: string;
+  } = {}): Promise<QueueResponse> {
+    const searchParams = new URLSearchParams();
+    if (params.status) searchParams.set('status', params.status);
+    if (params.only_suspect) searchParams.set('only_suspect', '1');
+    if (params.kategorie) searchParams.set('kategorie', params.kategorie);
+    if (params.email_kategorie) searchParams.set('email_kategorie', params.email_kategorie);
+    if (params.limit) searchParams.set('limit', String(params.limit));
+    if (params.offset) searchParams.set('offset', String(params.offset));
+    if (params.since) searchParams.set('since', params.since);
+    if (params.until) searchParams.set('until', params.until);
+
+    const query = searchParams.toString();
+    return this.fetch(query ? `?${query}` : '');
+  }
+
+  // Update label
+  async updateLabel(documentId: string, data: LabelUpdateRequest): Promise<{ success: boolean }> {
+    return this.fetch(`/${documentId}/label`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Get preview URL
+  async getPreviewUrl(path: string): Promise<PreviewResponse> {
+    return this.fetch(`/preview?path=${encodeURIComponent(path)}`);
+  }
+
+  // Get rule suggestions
+  async getRuleSuggestions(): Promise<{
+    suggestions: Array<{
+      fingerprint: string;
+      confirmed_count: number;
+      suggested_email_kategorie: string | null;
+      suggested_kategorie: string | null;
+    }>;
+    count: number;
+  }> {
+    return this.fetch('/rule-suggestions');
+  }
+}
+
+// =============================================================================
+// Helper Functions
+// =============================================================================
+
+export function formatDate(dateString: string): string {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+export function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+export function getConfidenceColor(confidence: number | null): string {
+  if (confidence === null) return 'text-gray-400';
+  if (confidence >= 0.8) return 'text-green-600';
+  if (confidence >= 0.6) return 'text-yellow-600';
+  return 'text-red-600';
+}
+
+export function getStatusBadgeColor(status: string | null): string {
+  switch (status) {
+    case 'approved':
+      return 'bg-green-100 text-green-800';
+    case 'corrected':
+      return 'bg-blue-100 text-blue-800';
+    case 'pending':
+      return 'bg-yellow-100 text-yellow-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+}
