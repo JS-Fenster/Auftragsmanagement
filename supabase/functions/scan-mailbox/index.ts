@@ -1,9 +1,22 @@
 // =============================================================================
 // Scan Mailbox - Analyse bestehender E-Mails
-// Version: 6 - 2026-01-14
+// Version: 8.0 - 2026-01-15
 // =============================================================================
 // Ruft bestehende E-Mails aus einem Postfach ab zur Analyse.
 // Speichert NICHTS - nur zur Uebersicht.
+//
+// v8.0 Changes:
+// - NEU: ImmutableId Support fuer stabile Message-IDs
+// - Jede Email liefert jetzt: id (mutable) + immutable_id (stabil)
+// - ImmutableId bleibt gleich wenn Mail verschoben wird
+// - Graph API: Prefer: IdType="ImmutableId" Header
+//
+// v7.1 Changes:
+// - Health-Check vor API-Key Validation (fuer Monitoring ohne Auth)
+//
+// v7 Changes:
+// - API-Key Protection jetzt PFLICHT (nicht mehr optional)
+// - verify_jwt=false, stattdessen x-api-key Header erforderlich
 //
 // v6 Changes:
 // - Token Hardening: trim(), extractAadErrorCode(), safe logging
@@ -14,6 +27,32 @@
 // v5 Changes:
 // - Folder-ID wird zu displayName aufgeloest
 // =============================================================================
+//
+// ============================================================================
+// ImmutableId Dokumentation (v8.0)
+// ============================================================================
+//
+// WAS IST IMMUTABLEID?
+// - Standard Graph Message-IDs (z.B. AAMkADY...) aendern sich wenn die Email
+//   in einen anderen Ordner verschoben wird (Inbox -> Archiv etc.)
+// - ImmutableId ist eine stabile ID die NICHT wechselt bei Ordner-Verschiebung
+// - Sinnvoll fuer: Deduplizierung, externe Referenzen, Webhook-Stability
+//
+// WIE FUNKTIONIERT ES?
+// - Graph API Request mit Header: Prefer: IdType="ImmutableId"
+// - Das "id" Feld in der Response enthaelt dann die ImmutableId
+// - Format ist anders (laenger, anderer Prefix)
+//
+// EINSCHRAENKUNGEN:
+// - ImmutableId aendert sich bei: Item-Restore, Mailbox-Migration
+// - Nicht 100% immutable, aber stabil fuer normale Operationen
+// - Beide IDs sind Base64-encoded, aber unterschiedlich aufgebaut
+//
+// VERWENDUNG IN SCAN-MAILBOX:
+// - Macht 2 API Calls: einen mit, einen ohne ImmutableId Header
+// - Liefert beide IDs fuer Vergleich/Analyse
+// - Spaeter: email-webhook kann ImmutableId fuer documents.email_message_id nutzen
+// ============================================================================
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
@@ -27,14 +66,15 @@ const SCAN_MAILBOX_API_KEY = Deno.env.get("SCAN_MAILBOX_API_KEY");
 const INTERNAL_API_KEY = Deno.env.get("INTERNAL_API_KEY");
 
 // =============================================================================
-// v6: API Key Validation (optional)
+// v7: API Key Validation (PFLICHT - nicht mehr optional)
 // =============================================================================
 
 function validateApiKey(req: Request): { valid: boolean; reason?: string } {
   const expectedKey = SCAN_MAILBOX_API_KEY || INTERNAL_API_KEY;
   if (!expectedKey) {
-    // No key configured = allow (backwards compatibility)
-    return { valid: true };
+    // v7: Kein Key konfiguriert = FEHLER (nicht mehr erlaubt)
+    console.error("[AUTH] CRITICAL: No API key configured - rejecting request");
+    return { valid: false, reason: "No API key configured on server" };
   }
 
   const apiKeyHeader = req.headers.get("x-api-key");
@@ -296,6 +336,7 @@ interface GraphResponse {
 
 interface EmailSummary {
   id: string;
+  immutable_id?: string; // v8.0: Stabile ID die bei Ordner-Verschiebung gleich bleibt
   datum: string;
   von_email: string;
   von_name: string;
@@ -307,20 +348,27 @@ interface EmailSummary {
   gelesen: boolean;
 }
 
+// v8.0: useImmutableId Parameter fuer stabile IDs
 async function fetchEmails(
   accessToken: string,
   mailbox: string,
   folder: string,
-  count: number
+  count: number,
+  useImmutableId: boolean = false
 ): Promise<EmailSummary[]> {
   const url = `https://graph.microsoft.com/v1.0/users/${mailbox}/mailFolders/${folder}/messages?$top=${count}&$orderby=receivedDateTime desc&$select=id,subject,bodyPreview,from,toRecipients,receivedDateTime,sentDateTime,hasAttachments,importance,isRead`;
 
-  const response = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-  });
+  // v8.0: ImmutableId Header wenn gewuenscht
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${accessToken}`,
+    "Content-Type": "application/json",
+  };
+
+  if (useImmutableId) {
+    headers["Prefer"] = 'IdType="ImmutableId"';
+  }
+
+  const response = await fetch(url, { headers });
 
   if (!response.ok) {
     const error = await response.text();
@@ -341,6 +389,41 @@ async function fetchEmails(
     wichtigkeit: email.importance,
     gelesen: email.isRead,
   }));
+}
+
+// v8.0: Fetch mit beiden IDs (mutable + immutable)
+async function fetchEmailsWithBothIds(
+  accessToken: string,
+  mailbox: string,
+  folder: string,
+  count: number
+): Promise<EmailSummary[]> {
+  // Parallel beide Varianten abrufen
+  const [emailsStandard, emailsImmutable] = await Promise.all([
+    fetchEmails(accessToken, mailbox, folder, count, false),
+    fetchEmails(accessToken, mailbox, folder, count, true),
+  ]);
+
+  // Merge: Standard IDs + ImmutableIds zusammenfuehren
+  // Match ueber datum + betreff (beide sind in derselben Reihenfolge)
+  return emailsStandard.map((email, index) => {
+    // Primaer: gleicher Index (da gleiche Sortierung)
+    const immutableMatch = emailsImmutable[index];
+
+    // Fallback: Match ueber datum + betreff falls Index nicht passt
+    const fallbackMatch = !immutableMatch
+      ? emailsImmutable.find(
+          (e) => e.datum === email.datum && e.betreff === email.betreff
+        )
+      : null;
+
+    const immutableId = immutableMatch?.id || fallbackMatch?.id || null;
+
+    return {
+      ...email,
+      immutable_id: immutableId || undefined,
+    };
+  });
 }
 
 // =============================================================================
@@ -490,28 +573,19 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  // v6: API Key Validation (optional)
-  const authResult = validateApiKey(req);
-  if (!authResult.valid) {
-    return new Response(
-      JSON.stringify({ error: authResult.reason }),
-      { status: 401, headers: { "Content-Type": "application/json" } }
-    );
-  }
-
-  // Parse parameters
-  const mailbox = url.searchParams.get("mailbox") || "info@js-fenster.de";
+  // Parse action parameter for health check
   const action = url.searchParams.get("action") || "emails";
-  const folder = url.searchParams.get("folder") || "inbox";
-  const count = Math.min(parseInt(url.searchParams.get("count") || "50"), 200);
 
-  // Health check (action=health)
+  // Health check (action=health) - v7.1: vor API-Key fuer Monitoring
   if (action === "health") {
     return new Response(
       JSON.stringify({
         service: "scan-mailbox",
-        version: "6.0.0",
+        version: "8.0.0",
         status: "ready",
+        features: {
+          immutableId: true, // v8.0: Stabile Message-IDs
+        },
         configured: {
           azure: !!(AZURE_TENANT_ID && AZURE_CLIENT_ID && AZURE_CLIENT_SECRET),
           apiKeyProtection: !!(SCAN_MAILBOX_API_KEY || INTERNAL_API_KEY),
@@ -520,6 +594,20 @@ Deno.serve(async (req: Request) => {
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   }
+
+  // v7: API Key Validation (PFLICHT) - fuer alle anderen Actions
+  const authResult = validateApiKey(req);
+  if (!authResult.valid) {
+    return new Response(
+      JSON.stringify({ error: authResult.reason }),
+      { status: 401, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  // Parse remaining parameters
+  const mailbox = url.searchParams.get("mailbox") || "info@js-fenster.de";
+  const folder = url.searchParams.get("folder") || "inbox";
+  const count = Math.min(parseInt(url.searchParams.get("count") || "50"), 200);
 
   try {
     const accessToken = await getAccessToken();
@@ -546,7 +634,10 @@ Deno.serve(async (req: Request) => {
     const folderDisplayName = await resolveFolderName(accessToken, mailbox, folder);
     console.log(`Folder resolved: ${folder} -> ${folderDisplayName}`);
 
-    const emails = await fetchEmails(accessToken, mailbox, folder, count);
+    // v8.0: Fetch mit beiden IDs (mutable + immutable)
+    console.log(`[v8.0] Fetching with ImmutableId support...`);
+    const emails = await fetchEmailsWithBothIds(accessToken, mailbox, folder, count);
+    console.log(`[v8.0] Got ${emails.length} emails with both ID types`);
 
     const emailsWithGuess = emails.map((email) => ({
       ...email,

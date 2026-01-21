@@ -1,7 +1,40 @@
 // =============================================================================
 // Process Document - OCR + GPT Kategorisierung
-// Version: 17.1 - 2026-01-14
+// Version: 23 - 2026-01-21
 // =============================================================================
+// Aenderungen v23:
+// - NEU: Kategorien Reiseunterlagen, Kundenbestellung, Zahlungsavis
+// - NEU: Heuristik fuer Kundenbestellung (PO vom Kunden, Prio 95)
+// - NEU: Heuristik fuer Reiseunterlagen (Hotel/Flug/Bahn, Prio 70)
+// - NEU: Heuristik fuer Zahlungsavis (Belastungsanzeige/Lastschrift, Prio 78)
+// - VERBESSERT: Bestellung-Heuristik auf ausgehende Dokumente eingeschraenkt
+//
+// Aenderungen v22:
+// - NEU: Heuristik-Regeln VOR GPT (Keyword-basierte Klassifizierung)
+// - NEU: Kategorien Produktdatenblatt, Finanzierung, Leasing
+// - NEU: kategorisiert_von Feld (rule/gpt)
+// - NEU: Prioritaets-System fuer Bestellung vs Auftragsbestaetigung
+//
+// Aenderungen v21:
+// - NEU: Taxonomie-Update - Kategorien alphabetisch, Aliase, neue Kategorien
+// - NEU: Kategorien Gutschrift, Abnahmeprotokoll, Reklamation, Vertrag
+// - NEU: Brief_eingehend / Brief_ausgehend (ersetzt Brief_von_*/Brief_an_*)
+// - NEU: canonicalizeKategorie() fuer Alias-Mapping
+// - ENTFERNT: Angebotsanfrage (-> Kundenanfrage), Archiv (-> Sonstiges_Dokument)
+//
+// Aenderungen v20:
+// - NEU: Unterschriftserkennung (empfang_unterschrift, unterschrift)
+// - NEU: Business-Logik unterschrift_erforderlich (Auftragsbestaetigung, Serviceauftrag, Montageauftrag)
+// - NEU: Kategorien Lieferantenangebot, Bild
+//
+// Aenderungen v19:
+// - NEU: source='scanner' bei DB-Insert (fuer Constraint + Analytics)
+//
+// Aenderungen v18:
+// - API-Key Vereinheitlichung: NUR noch INTERNAL_API_KEY
+// - PROCESS_DOCUMENT_API_KEY entfernt (nicht mehr benoetigt)
+// - API-Key jetzt PFLICHT (kein backwards compatibility mehr)
+//
 // Aenderungen v17.1:
 // - Fix: sanitizeFileName fuer Storage-Pfade (Umlaute -> ASCII)
 //
@@ -14,14 +47,14 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { SYSTEM_PROMPT } from "./prompts.ts";
+import { canonicalizeKategorie, applyHeuristicRules } from "../_shared/categories.ts";
 import * as XLSX from "npm:xlsx@0.18.5";
 import JSZip from "npm:jszip@3.10.1";
 
 const MISTRAL_API_KEY = Deno.env.get("MISTRAL_API_KEY")!;
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
 
-// v17: API Key Protection
-const PROCESS_DOCUMENT_API_KEY = Deno.env.get("PROCESS_DOCUMENT_API_KEY");
+// v18: API Key Protection - NUR INTERNAL_API_KEY
 const INTERNAL_API_KEY = Deno.env.get("INTERNAL_API_KEY");
 
 const supabase = createClient(
@@ -30,21 +63,19 @@ const supabase = createClient(
 );
 
 // =============================================================================
-// v17: API Key Validation
+// v18: API Key Validation (PFLICHT - nur INTERNAL_API_KEY)
 // =============================================================================
 
 function validateApiKey(req: Request): { valid: boolean; reason?: string } {
-  // Check if any API key is configured
-  const expectedKey = PROCESS_DOCUMENT_API_KEY || INTERNAL_API_KEY;
-  if (!expectedKey) {
-    // No key configured = allow (backwards compatibility during transition)
-    console.log("[AUTH] No API key configured - allowing request");
-    return { valid: true };
+  // v18: Nur INTERNAL_API_KEY, PFLICHT
+  if (!INTERNAL_API_KEY) {
+    console.error("[AUTH] CRITICAL: INTERNAL_API_KEY not configured - rejecting request");
+    return { valid: false, reason: "No API key configured on server" };
   }
 
   // Check x-api-key header first
   const apiKeyHeader = req.headers.get("x-api-key");
-  if (apiKeyHeader && apiKeyHeader === expectedKey) {
+  if (apiKeyHeader && apiKeyHeader === INTERNAL_API_KEY) {
     console.log("[AUTH] Valid x-api-key header");
     return { valid: true };
   }
@@ -53,7 +84,7 @@ function validateApiKey(req: Request): { valid: boolean; reason?: string } {
   const authHeader = req.headers.get("authorization");
   if (authHeader) {
     const match = authHeader.match(/^Bearer\s+(.+)$/i);
-    if (match && match[1] === expectedKey) {
+    if (match && match[1] === INTERNAL_API_KEY) {
       console.log("[AUTH] Valid Bearer token");
       return { valid: true };
     }
@@ -257,13 +288,13 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         service: "process-document",
-        version: "17.1.0",
+        version: "23.0.0",
         status: "ready",
         configured: {
           mistral: !!MISTRAL_API_KEY,
           openai: !!OPENAI_API_KEY,
           supabase: !!(Deno.env.get("SUPABASE_URL") && Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")),
-          apiKeyProtection: !!(PROCESS_DOCUMENT_API_KEY || INTERNAL_API_KEY),
+          internalApiKey: !!INTERNAL_API_KEY,
         },
         supportedFormats: {
           ocr: OCR_SUPPORTED_EXTENSIONS,
@@ -467,6 +498,7 @@ Deno.serve(async (req: Request) => {
           file_hash: fileHash,
           text_hash: null,
           bemerkungen: `Mediendatei: ${file.name}`,
+          source: "scanner",
         })
         .select("id")
         .single();
@@ -527,9 +559,29 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // v22: Apply heuristic rules BEFORE GPT
+    const heuristicResult = applyHeuristicRules(extractedText, file.name);
+    let kategorisiertVon = "gpt";
+    let forcedKategorie: string | null = null;
+
+    if (heuristicResult.kategorie && heuristicResult.confidence === "high") {
+      console.log(`[HEURISTIC] High confidence match: ${heuristicResult.kategorie} (${heuristicResult.reason})`);
+      forcedKategorie = heuristicResult.kategorie;
+      kategorisiertVon = "rule";
+    } else if (heuristicResult.kategorie) {
+      console.log(`[HEURISTIC] Medium confidence match: ${heuristicResult.kategorie} (${heuristicResult.reason}) - GPT will verify`);
+    }
+
     // Categorize + Extract with GPT-5.2
     const extractedData = await categorizeAndExtract(extractedText);
-    console.log(`Categorized as: ${extractedData.kategorie}`);
+
+    // v22: Override kategorie if heuristic had high confidence
+    if (forcedKategorie) {
+      console.log(`[HEURISTIC] Overriding GPT kategorie "${extractedData.kategorie}" with rule-based "${forcedKategorie}"`);
+      extractedData.kategorie = forcedKategorie;
+    }
+
+    console.log(`Categorized as: ${extractedData.kategorie} (by ${kategorisiertVon})`);
 
     // Upload file to Storage
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -550,10 +602,12 @@ Deno.serve(async (req: Request) => {
     const dokumentUrl = uploadData.path;
     console.log(`Uploaded to: ${dokumentUrl}`);
 
-    // Add extraction method to hints
+    // Add extraction method and categorization source to hints
     const hinweiseMitMethode = [
       ...(extractedData.extraktions_hinweise || []),
       `Extraktionsmethode: ${extractionMethod}`,
+      `Kategorisiert von: ${kategorisiertVon}`,
+      ...(heuristicResult.reason ? [`Heuristik: ${heuristicResult.reason}`] : []),
     ];
 
     // Insert into database
@@ -581,6 +635,7 @@ Deno.serve(async (req: Request) => {
       success: true,
       id: insertData.id,
       kategorie: extractedData.kategorie,
+      kategorisiert_von: kategorisiertVon,
       dokument_url: dokumentUrl,
       extraktions_qualitaet: extractedData.extraktions_qualitaet,
       extraction_method: extractionMethod,
@@ -716,6 +771,13 @@ async function categorizeAndExtract(ocrText: string): Promise<ExtractedDocument>
   return JSON.parse(content) as ExtractedDocument;
 }
 
+// v20: Kategorien die eine Unterschrift erfordern
+const UNTERSCHRIFT_ERFORDERLICH_KATEGORIEN = [
+  "Auftragsbestaetigung",
+  "Serviceauftrag",
+  "Montageauftrag",
+];
+
 function buildDatabaseRecord(
   extracted: ExtractedDocument,
   ocrText: string,
@@ -723,8 +785,14 @@ function buildDatabaseRecord(
   fileHash: string,
   textHash: string
 ): Record<string, unknown> {
+  // v21: Canonicalize kategorie (alias mapping)
+  const kategorie = canonicalizeKategorie(extracted.kategorie) || extracted.kategorie;
+
+  // v20: Business-Logik fuer unterschrift_erforderlich
+  const unterschriftErforderlich = UNTERSCHRIFT_ERFORDERLICH_KATEGORIEN.includes(kategorie);
+
   return {
-    kategorie: extracted.kategorie,
+    kategorie: kategorie,
     dokument_url: dokumentUrl,
     ocr_text: ocrText,
     extraktions_zeitstempel: new Date().toISOString(),
@@ -732,6 +800,11 @@ function buildDatabaseRecord(
     extraktions_hinweise: extracted.extraktions_hinweise,
     file_hash: fileHash,
     text_hash: textHash,
+    source: "scanner",
+    // v20: Unterschrift-Felder
+    empfang_unterschrift: extracted.empfang_unterschrift,
+    unterschrift: extracted.unterschrift,
+    unterschrift_erforderlich: unterschriftErforderlich,
     dokument_datum: extracted.dokument_datum,
     dokument_nummer: extracted.dokument_nummer,
     dokument_richtung: extracted.dokument_richtung,
@@ -790,6 +863,9 @@ interface ExtractedDocument {
   dokument_datum: string | null;
   dokument_nummer: string | null;
   dokument_richtung: string | null;
+  // v20: Unterschrift-Felder
+  empfang_unterschrift: boolean;
+  unterschrift: string | null;
   aussteller: {
     firma: string | null;
     name: string | null;
@@ -857,27 +933,46 @@ const EXTRACTION_SCHEMA = {
   properties: {
     kategorie: {
       type: "string",
+      // v23: + Kundenbestellung, Reiseunterlagen, Zahlungsavis
       enum: [
-        "Preisanfrage",
+        "Abnahmeprotokoll",
         "Angebot",
+        "Aufmassblatt",
         "Auftragsbestaetigung",
+        "Ausgangsrechnung",
         "Bestellung",
+        "Bild",
+        "Brief_ausgehend",
+        "Brief_eingehend",
+        "Brief_von_Finanzamt",
         "Eingangslieferschein",
         "Eingangsrechnung",
+        "Finanzierung",
+        "Formular",
+        "Gutschrift",
+        "Kundenanfrage",
+        "Kundenbestellung",
         "Kundenlieferschein",
-        "Montageauftrag",
-        "Ausgangsrechnung",
-        "Zahlungserinnerung",
+        "Leasing",
+        "Lieferantenangebot",
         "Mahnung",
+        "Montageauftrag",
         "Notiz",
+        "Preisanfrage",
+        "Produktdatenblatt",
+        "Reiseunterlagen",
+        "Reklamation",
+        "Serviceauftrag",
         "Skizze",
-        "Brief_an_Kunde",
-        "Brief_von_Kunde",
-        "Brief_von_Finanzamt",
-        "Brief_von_Amt",
         "Sonstiges_Dokument",
+        "Vertrag",
+        "Zahlungsavis",
+        "Zahlungserinnerung",
       ],
     },
+    // v20: Unterschrift-Felder
+    empfang_unterschrift: { type: "boolean" },
+    unterschrift: { type: ["string", "null"] },
     extraktions_qualitaet: {
       type: "string",
       enum: ["hoch", "mittel", "niedrig"],
@@ -985,6 +1080,8 @@ const EXTRACTION_SCHEMA = {
     "dokument_datum",
     "dokument_nummer",
     "dokument_richtung",
+    "empfang_unterschrift",
+    "unterschrift",
     "aussteller",
     "empfaenger",
     "positionen",

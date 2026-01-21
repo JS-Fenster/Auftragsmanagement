@@ -1,17 +1,48 @@
 // =============================================================================
-// Admin Review API - Review Queue, Labeling, Preview
-// Version: 1.0.0 - 2026-01-20
+// Admin Review API - Review Queue, Labeling, Preview, Rules, Learning Loop
+// Version: 1.7.0 - 2026-01-21
+// =============================================================================
+// Aenderungen v1.7.0:
+// - NEU: Kategorien Reiseunterlagen, Kundenbestellung, Zahlungsavis
+// - NEU: Shared categories v2.2 mit erweiterten Heuristik-Regeln
+//
+// Aenderungen v1.6.0:
+// - NEU: Kategorien Produktdatenblatt, Finanzierung, Leasing
+// - NEU: Shared categories v2.0 mit Heuristik-Support
+//
+// Aenderungen v1.5.0:
+// - NEU: Taxonomie-Update - shared categories, canonicalize
+// - NEU: Kategorien Gutschrift, Abnahmeprotokoll, Reklamation, Vertrag
+// - NEU: Brief_eingehend / Brief_ausgehend (ersetzt Brief_von_*/Brief_an_*)
+// - ENTFERNT: Angebotsanfrage, Archiv, Brief_von_Kunde, Brief_an_Kunde, Brief_von_Amt
+//
+// Aenderungen v1.4.0:
+// - NEU: Unterschrift-Felder in Queue/Label Response
+// - NEU: Unterschrift-Felder manuell editierbar
+// - NEU: Kategorien Lieferantenangebot, Bild
 // =============================================================================
 // Endpoints:
 //   GET  /admin-review                  - Get review queue
-//   POST /admin-review/:id/label        - Update labels (approve/correct)
+//   POST /admin-review/:id/label        - Update labels (approve/correct) + learning
 //   GET  /admin-review/preview?path=... - Get signed URL for attachment
 //   GET  /admin-review/stats            - Get review statistics
 //   GET  /admin-review/categories       - Get valid categories
+//   GET  /admin-review/clusters         - Get evidence clusters for rule generation
+//   GET  /admin-review/settings         - Get rules settings
+//   POST /admin-review/settings         - Update rules settings
+//   GET  /admin-review/rules            - Get classification rules
+//   POST /admin-review/rules/:id/activate - Activate a draft rule
+//   POST /admin-review/rules/:id/disable  - Disable a rule
+//   POST /admin-review/rules/:id/pause    - Pause a rule
 // =============================================================================
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import {
+  VALID_DOKUMENT_KATEGORIEN,
+  VALID_EMAIL_KATEGORIEN,
+  canonicalizeKategorie,
+} from "../_shared/categories.ts";
 
 // Environment
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -21,27 +52,9 @@ const INTERNAL_API_KEY = Deno.env.get("INTERNAL_API_KEY");
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 // =============================================================================
-// Valid Categories (must match CHECK constraints in DB)
+// Valid Categories - imported from shared module
 // =============================================================================
-
-const VALID_DOKUMENT_KATEGORIEN = [
-  "Preisanfrage", "Angebot", "Auftragsbestaetigung", "Bestellung",
-  "Eingangslieferschein", "Eingangsrechnung", "Kundenlieferschein",
-  "Montageauftrag", "Ausgangsrechnung", "Zahlungserinnerung", "Mahnung",
-  "Notiz", "Skizze", "Brief_an_Kunde", "Brief_von_Kunde",
-  "Brief_von_Finanzamt", "Brief_von_Amt", "Sonstiges_Dokument",
-  "Video", "Audio", "Office_Dokument", "Archiv",
-  "Email_Eingehend", "Email_Ausgehend", "Email_Anhang"
-];
-
-const VALID_EMAIL_KATEGORIEN = [
-  "Bewerbung", "Lead_Anfrage", "BAFA_Foerderung", "Versicherung_Schaden",
-  "Lieferstatus_Update", "Rechnung_Eingang", "Rechnung_Gesendet",
-  "Auftragserteilung", "Bestellbestaetigung", "Angebot_Anforderung",
-  "Reklamation", "Serviceanfrage", "Anforderung_Unterlagen",
-  "Terminanfrage", "Kundenanfrage", "Newsletter_Werbung",
-  "Antwort_oder_Weiterleitung", "Sonstiges"
-];
+// VALID_DOKUMENT_KATEGORIEN and VALID_EMAIL_KATEGORIEN imported from _shared/categories.ts
 
 // =============================================================================
 // API Key Validation
@@ -106,6 +119,47 @@ function generateFingerprint(doc: {
 }
 
 // =============================================================================
+// Helper: Get content type from file extension
+// =============================================================================
+
+function getContentTypeFromPath(path: string): string {
+  const ext = path.split('.').pop()?.toLowerCase() || '';
+  const mimeTypes: Record<string, string> = {
+    'pdf': 'application/pdf',
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'png': 'image/png',
+    'gif': 'image/gif',
+    'webp': 'image/webp',
+    'tiff': 'image/tiff',
+    'tif': 'image/tiff',
+    'bmp': 'image/bmp',
+  };
+  return mimeTypes[ext] || 'application/octet-stream';
+}
+
+// =============================================================================
+// Helper: Build primary_file from dokument_url
+// =============================================================================
+
+function buildPrimaryFile(dokument_url: string | null): {
+  storagePath: string;
+  fileName: string;
+  contentType: string;
+} | null {
+  if (!dokument_url) return null;
+
+  const fileName = dokument_url.split('/').pop() || dokument_url;
+  const contentType = getContentTypeFromPath(dokument_url);
+
+  return {
+    storagePath: dokument_url,
+    fileName,
+    contentType,
+  };
+}
+
+// =============================================================================
 // GET /admin-review - Review Queue
 // =============================================================================
 
@@ -150,6 +204,8 @@ async function getReviewQueue(params: ReviewQueueParams) {
       email_hat_anhaenge,
       email_anhaenge_count,
       email_anhaenge_meta,
+      email_body_text,
+      inhalt_zusammenfassung,
       processing_status,
       processing_last_error,
       review_status,
@@ -157,7 +213,10 @@ async function getReviewQueue(params: ReviewQueueParams) {
       reviewed_by,
       dokument_url,
       source,
-      rule_fingerprint
+      rule_fingerprint,
+      unterschrift_erforderlich,
+      empfang_unterschrift,
+      unterschrift
     `)
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
@@ -189,15 +248,21 @@ async function getReviewQueue(params: ReviewQueueParams) {
     );
   }
 
-  const { data, error, count } = await query;
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(`Query failed: ${error.message}`);
   }
 
+  // Add primary_file to each document
+  const items = (data || []).map(doc => ({
+    ...doc,
+    primary_file: buildPrimaryFile(doc.dokument_url),
+  }));
+
   return {
-    items: data || [],
-    count: data?.length || 0,
+    items,
+    count: items.length,
     offset,
     limit,
   };
@@ -212,10 +277,27 @@ interface LabelUpdateBody {
   kategorie_manual?: string;
   email_kategorie_manual?: string;
   reviewed_by?: string;
+  // v1.4.0: Unterschrift-Felder
+  empfang_unterschrift?: boolean;
+  unterschrift?: string | null;
+  unterschrift_erforderlich?: boolean;
 }
 
 async function updateLabel(documentId: string, body: LabelUpdateBody) {
-  const { action, kategorie_manual, email_kategorie_manual, reviewed_by } = body;
+  const {
+    action,
+    kategorie_manual: kategorie_manual_raw,
+    email_kategorie_manual,
+    reviewed_by,
+    empfang_unterschrift,
+    unterschrift,
+    unterschrift_erforderlich,
+  } = body;
+
+  // v1.5.0: Canonicalize kategorie (alias mapping)
+  const kategorie_manual = kategorie_manual_raw
+    ? canonicalizeKategorie(kategorie_manual_raw) || kategorie_manual_raw
+    : undefined;
 
   // Validate categories if provided
   if (kategorie_manual && !VALID_DOKUMENT_KATEGORIEN.includes(kategorie_manual)) {
@@ -231,6 +313,17 @@ async function updateLabel(documentId: string, body: LabelUpdateBody) {
     reviewed_by: reviewed_by || "admin",
     review_status: action === "approve" ? "approved" : "corrected",
   };
+
+  // v1.4.0: Unterschrift-Felder (immer aktualisieren wenn angegeben, auch bei approve)
+  if (empfang_unterschrift !== undefined) {
+    updateData.empfang_unterschrift = empfang_unterschrift;
+  }
+  if (unterschrift !== undefined) {
+    updateData.unterschrift = unterschrift;
+  }
+  if (unterschrift_erforderlich !== undefined) {
+    updateData.unterschrift_erforderlich = unterschrift_erforderlich;
+  }
 
   if (action === "correct") {
     if (kategorie_manual) {
@@ -270,12 +363,70 @@ async function updateLabel(documentId: string, body: LabelUpdateBody) {
     throw new Error(`Update failed: ${error.message}`);
   }
 
+  // =========================================================================
+  // Learning Loop: Extract features and add to evidence cluster
+  // =========================================================================
+  let clusterId: string | null = null;
+  let clusterStatus: string | null = null;
+
+  // Only process for corrections (not approvals of existing correct classifications)
+  if (action === "correct" && (kategorie_manual || email_kategorie_manual)) {
+    try {
+      // Step 1: Extract features from document
+      const { error: extractError } = await supabase.rpc("extract_document_features", {
+        doc_id: documentId,
+      });
+
+      if (extractError) {
+        console.error(`[LEARNING] Failed to extract features for ${documentId}: ${extractError.message}`);
+      } else {
+        console.log(`[LEARNING] Extracted features for document ${documentId}`);
+      }
+
+      // Step 2: Add to evidence cluster
+      const targetEmailKat = email_kategorie_manual || null;
+      const targetKat = kategorie_manual || null;
+
+      const { data: clusterResult, error: clusterError } = await supabase.rpc("add_evidence_to_cluster", {
+        doc_id: documentId,
+        target_email_kat: targetEmailKat,
+        target_kat: targetKat,
+      });
+
+      if (clusterError) {
+        console.error(`[LEARNING] Failed to add to cluster: ${clusterError.message}`);
+      } else if (clusterResult) {
+        clusterId = clusterResult;
+        console.log(`[LEARNING] Added document ${documentId} to cluster ${clusterId}`);
+
+        // Check cluster status (if ready for rule generation)
+        const { data: cluster } = await supabase
+          .from("rule_evidence_clusters")
+          .select("status, evidence_count")
+          .eq("id", clusterId)
+          .single();
+
+        if (cluster) {
+          clusterStatus = cluster.status;
+          console.log(`[LEARNING] Cluster ${clusterId}: ${cluster.evidence_count} evidence, status=${cluster.status}`);
+        }
+      }
+    } catch (learningError) {
+      // Don't fail the main operation if learning fails
+      console.error(`[LEARNING] Error in learning loop: ${learningError}`);
+    }
+  }
+
   return {
     success: true,
     document_id: documentId,
     action,
     review_status: updateData.review_status,
     rule_fingerprint: fingerprint,
+    learning: clusterId ? {
+      cluster_id: clusterId,
+      cluster_status: clusterStatus,
+    } : null,
   };
 }
 
@@ -283,72 +434,77 @@ async function updateLabel(documentId: string, body: LabelUpdateBody) {
 // GET /admin-review/preview - Signed URL for Storage
 // =============================================================================
 
+// Signed URL TTL in seconds (short for security)
+const SIGNED_URL_TTL = 120;
+
 async function getPreviewUrl(path: string) {
   if (!path) {
     throw new Error("Missing path parameter");
   }
 
-  // Create signed URL (valid for 5 minutes)
+  // Create signed URL (valid for 2 minutes - short TTL for security)
   const { data, error } = await supabase.storage
     .from("documents")
-    .createSignedUrl(path, 300);
+    .createSignedUrl(path, SIGNED_URL_TTL);
 
   if (error) {
     throw new Error(`Failed to create signed URL: ${error.message}`);
   }
 
+  // SECURITY: Never log the signed URL
   return {
     signed_url: data.signedUrl,
-    expires_in: 300,
+    expires_in: SIGNED_URL_TTL,
     path,
   };
 }
 
 // =============================================================================
-// GET /admin-review/stats - Review Statistics
+// GET /admin-review/stats - Review Statistics (FIXED: proper count handling)
 // =============================================================================
 
 async function getReviewStats() {
   // Get counts by review_status
-  const { data: statusCounts, error: statusError } = await supabase
+  const { data: statusCounts } = await supabase
     .from("documents")
     .select("review_status")
     .not("review_status", "is", null);
 
-  // Get suspect counts (last 48h)
+  // Get suspect counts (last 48h) - using proper count
   const since48h = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
 
-  const { data: sonstigesDokument } = await supabase
+  // FIX: Use count properly - don't use head:true, get actual count from response
+  const { count: sonstigesDokumentCount } = await supabase
     .from("documents")
-    .select("id", { count: "exact", head: true })
+    .select("*", { count: "exact", head: true })
     .eq("kategorie", "Sonstiges_Dokument")
     .gte("created_at", since48h);
 
-  const { data: sonstigesEmail } = await supabase
+  const { count: sonstigesEmailCount } = await supabase
     .from("documents")
-    .select("id", { count: "exact", head: true })
+    .select("*", { count: "exact", head: true })
     .eq("email_kategorie", "Sonstiges")
     .gte("created_at", since48h);
 
-  const { data: errors } = await supabase
+  const { count: errorsCount } = await supabase
     .from("documents")
-    .select("id", { count: "exact", head: true })
+    .select("*", { count: "exact", head: true })
     .eq("processing_status", "error");
 
-  const { data: pendingReviews } = await supabase
+  const { count: pendingReviewsCount } = await supabase
     .from("documents")
-    .select("id", { count: "exact", head: true })
+    .select("*", { count: "exact", head: true })
     .eq("review_status", "pending");
 
-  const { data: total48h } = await supabase
+  const { count: total48hCount } = await supabase
     .from("documents")
-    .select("id", { count: "exact", head: true })
+    .select("*", { count: "exact", head: true })
     .gte("created_at", since48h);
 
-  // Calculate percentages
-  const sonstigesDokumentCount = sonstigesDokument?.length || 0;
-  const sonstigesEmailCount = sonstigesEmail?.length || 0;
-  const total48hCount = total48h?.length || 1;
+  // Calculate percentages with proper null handling
+  const sonstigesDok = sonstigesDokumentCount || 0;
+  const sonstigesEmail = sonstigesEmailCount || 0;
+  const total48h = total48hCount || 1;
 
   return {
     review_status: {
@@ -357,12 +513,12 @@ async function getReviewStats() {
       corrected: statusCounts?.filter(d => d.review_status === "corrected").length || 0,
     },
     suspects_48h: {
-      sonstiges_dokument: sonstigesDokumentCount,
-      sonstiges_email: sonstigesEmailCount,
-      sonstiges_percent: ((sonstigesDokumentCount + sonstigesEmailCount) / total48hCount * 100).toFixed(1),
+      sonstiges_dokument: sonstigesDok,
+      sonstiges_email: sonstigesEmail,
+      sonstiges_percent: ((sonstigesDok + sonstigesEmail) / total48h * 100).toFixed(1),
     },
-    errors_total: errors?.length || 0,
-    pending_reviews: pendingReviews?.length || 0,
+    errors_total: errorsCount || 0,
+    pending_reviews: pendingReviewsCount || 0,
     last_updated: new Date().toISOString(),
   };
 }
@@ -423,6 +579,362 @@ async function getRuleSuggestions() {
 }
 
 // =============================================================================
+// GET /admin-review/clusters - Get Evidence Clusters
+// =============================================================================
+
+interface ClustersQueryParams {
+  status?: string; // pending|ready|rule_generated|all
+  limit?: number;
+  offset?: number;
+}
+
+async function getClusters(params: ClustersQueryParams) {
+  const { status = "all", limit = 50, offset = 0 } = params;
+
+  let query = supabase
+    .from("rule_evidence_clusters")
+    .select(`
+      id,
+      created_at,
+      updated_at,
+      cluster_key,
+      target_email_kategorie,
+      target_kategorie,
+      evidence_count,
+      evidence_document_ids,
+      status,
+      generated_rule_id
+    `)
+    .order("evidence_count", { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (status && status !== "all") {
+    query = query.eq("status", status);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(`Failed to load clusters: ${error.message}`);
+  }
+
+  // Get example documents for each cluster
+  const clusters = await Promise.all((data || []).map(async (cluster) => {
+    let examples: Array<{
+      id: string;
+      email_betreff: string | null;
+      email_von_email: string | null;
+      email_von_name: string | null;
+    }> = [];
+
+    if (cluster.evidence_document_ids && cluster.evidence_document_ids.length > 0) {
+      const { data: exampleDocs } = await supabase
+        .from("documents")
+        .select("id, email_betreff, email_von_email, email_von_name")
+        .in("id", cluster.evidence_document_ids.slice(0, 5));
+      examples = exampleDocs || [];
+    }
+
+    return {
+      ...cluster,
+      examples,
+    };
+  }));
+
+  // Get counts by status
+  const { data: countData } = await supabase
+    .from("rule_evidence_clusters")
+    .select("status");
+
+  const counts = {
+    pending: 0,
+    ready: 0,
+    rule_generated: 0,
+  };
+  for (const row of countData || []) {
+    if (row.status in counts) {
+      counts[row.status as keyof typeof counts]++;
+    }
+  }
+
+  return {
+    clusters,
+    count: clusters.length,
+    offset,
+    limit,
+    counts,
+  };
+}
+
+// =============================================================================
+// GET /admin-review/settings - Get Rules Settings
+// =============================================================================
+
+async function getSettings() {
+  const { data, error } = await supabase
+    .from("app_config")
+    .select("key, value, description")
+    .in("key", [
+      "rules_activation_mode",
+      "rules_min_evidence",
+      "rules_min_backtest_matches",
+      "rules_min_precision"
+    ]);
+
+  if (error) {
+    throw new Error(`Failed to load settings: ${error.message}`);
+  }
+
+  // Convert to object
+  const settings: Record<string, string> = {};
+  for (const row of data || []) {
+    settings[row.key] = row.value;
+  }
+
+  return {
+    activation_mode: settings.rules_activation_mode || "manual",
+    thresholds: {
+      min_evidence: parseInt(settings.rules_min_evidence || "5"),
+      min_backtest_matches: parseInt(settings.rules_min_backtest_matches || "20"),
+      min_precision: parseFloat(settings.rules_min_precision || "0.95"),
+    },
+  };
+}
+
+// =============================================================================
+// POST /admin-review/settings - Update Rules Settings
+// =============================================================================
+
+interface SettingsUpdateBody {
+  activation_mode?: "manual" | "auto";
+  min_evidence?: number;
+  min_backtest_matches?: number;
+  min_precision?: number;
+}
+
+async function updateSettings(body: SettingsUpdateBody) {
+  const updates: Array<{ key: string; value: string }> = [];
+
+  if (body.activation_mode) {
+    if (!["manual", "auto"].includes(body.activation_mode)) {
+      throw new Error("Invalid activation_mode. Must be 'manual' or 'auto'");
+    }
+    updates.push({ key: "rules_activation_mode", value: body.activation_mode });
+  }
+  if (body.min_evidence !== undefined) {
+    if (body.min_evidence < 1 || body.min_evidence > 100) {
+      throw new Error("min_evidence must be between 1 and 100");
+    }
+    updates.push({ key: "rules_min_evidence", value: String(body.min_evidence) });
+  }
+  if (body.min_backtest_matches !== undefined) {
+    if (body.min_backtest_matches < 1 || body.min_backtest_matches > 1000) {
+      throw new Error("min_backtest_matches must be between 1 and 1000");
+    }
+    updates.push({ key: "rules_min_backtest_matches", value: String(body.min_backtest_matches) });
+  }
+  if (body.min_precision !== undefined) {
+    if (body.min_precision < 0.5 || body.min_precision > 1.0) {
+      throw new Error("min_precision must be between 0.5 and 1.0");
+    }
+    updates.push({ key: "rules_min_precision", value: String(body.min_precision) });
+  }
+
+  // Update each setting
+  for (const { key, value } of updates) {
+    const { error } = await supabase
+      .from("app_config")
+      .update({ value, updated_at: new Date().toISOString() })
+      .eq("key", key);
+
+    if (error) {
+      throw new Error(`Failed to update ${key}: ${error.message}`);
+    }
+  }
+
+  return { success: true, updated: updates.length };
+}
+
+// =============================================================================
+// GET /admin-review/rules - Get Classification Rules
+// =============================================================================
+
+interface RulesQueryParams {
+  status?: string; // draft|active|disabled|paused|all
+  limit?: number;
+  offset?: number;
+}
+
+async function getRules(params: RulesQueryParams) {
+  const { status = "all", limit = 50, offset = 0 } = params;
+
+  let query = supabase
+    .from("classification_rules")
+    .select(`
+      id,
+      created_at,
+      updated_at,
+      name,
+      description,
+      conditions,
+      target_email_kategorie,
+      target_kategorie,
+      status,
+      activated_by,
+      activated_at,
+      paused_reason,
+      evidence_count,
+      evidence_document_ids,
+      backtest_matches,
+      precision_estimate,
+      validation_metrics,
+      misfire_count,
+      last_misfire_at,
+      created_by
+    `)
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (status && status !== "all") {
+    query = query.eq("status", status);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(`Failed to load rules: ${error.message}`);
+  }
+
+  // Get example documents for each rule
+  const rules = await Promise.all((data || []).map(async (rule) => {
+    // Get up to 3 example documents
+    let examples: Array<{
+      id: string;
+      email_betreff: string | null;
+      email_von_email: string | null;
+    }> = [];
+
+    if (rule.evidence_document_ids && rule.evidence_document_ids.length > 0) {
+      const { data: exampleDocs } = await supabase
+        .from("documents")
+        .select("id, email_betreff, email_von_email")
+        .in("id", rule.evidence_document_ids.slice(0, 3));
+      examples = exampleDocs || [];
+    }
+
+    return {
+      ...rule,
+      examples,
+    };
+  }));
+
+  // Get counts by status
+  const { data: countData } = await supabase
+    .from("classification_rules")
+    .select("status");
+
+  const counts = {
+    draft: 0,
+    active: 0,
+    disabled: 0,
+    paused: 0,
+  };
+  for (const row of countData || []) {
+    if (row.status in counts) {
+      counts[row.status as keyof typeof counts]++;
+    }
+  }
+
+  return {
+    rules,
+    count: rules.length,
+    offset,
+    limit,
+    counts,
+  };
+}
+
+// =============================================================================
+// POST /admin-review/rules/:id/activate - Manually Activate a Rule
+// =============================================================================
+
+async function activateRule(ruleId: string) {
+  // Get current rule
+  const { data: rule, error: fetchError } = await supabase
+    .from("classification_rules")
+    .select("status, evidence_count")
+    .eq("id", ruleId)
+    .single();
+
+  if (fetchError || !rule) {
+    throw new Error(`Rule not found: ${ruleId}`);
+  }
+
+  if (rule.status === "active") {
+    throw new Error("Rule is already active");
+  }
+
+  // Update to active
+  const { error } = await supabase
+    .from("classification_rules")
+    .update({
+      status: "active",
+      activated_by: "manual",
+      activated_at: new Date().toISOString(),
+      paused_reason: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", ruleId);
+
+  if (error) {
+    throw new Error(`Failed to activate rule: ${error.message}`);
+  }
+
+  return { success: true, rule_id: ruleId, new_status: "active" };
+}
+
+// =============================================================================
+// POST /admin-review/rules/:id/disable - Disable a Rule
+// =============================================================================
+
+async function disableRule(ruleId: string) {
+  const { error } = await supabase
+    .from("classification_rules")
+    .update({
+      status: "disabled",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", ruleId);
+
+  if (error) {
+    throw new Error(`Failed to disable rule: ${error.message}`);
+  }
+
+  return { success: true, rule_id: ruleId, new_status: "disabled" };
+}
+
+// =============================================================================
+// POST /admin-review/rules/:id/pause - Pause a Rule
+// =============================================================================
+
+async function pauseRule(ruleId: string, reason?: string) {
+  const { error } = await supabase
+    .from("classification_rules")
+    .update({
+      status: "paused",
+      paused_reason: reason || "Manually paused",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", ruleId);
+
+  if (error) {
+    throw new Error(`Failed to pause rule: ${error.message}`);
+  }
+
+  return { success: true, rule_id: ruleId, new_status: "paused" };
+}
+
+// =============================================================================
 // Main Handler
 // =============================================================================
 
@@ -442,7 +954,7 @@ Deno.serve(async (req: Request) => {
       return new Response(
         JSON.stringify({
           service: "admin-review",
-          version: "1.0.0",
+          version: "1.7.0",
           status: "ready",
           configured: {
             supabase: !!(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY),
@@ -498,11 +1010,89 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // Route: GET /admin-review/clusters
+    if (req.method === "GET" && pathParts[1] === "clusters") {
+      const params: ClustersQueryParams = {
+        status: url.searchParams.get("status") || "all",
+        limit: parseInt(url.searchParams.get("limit") || "50"),
+        offset: parseInt(url.searchParams.get("offset") || "0"),
+      };
+      const result = await getClusters(params);
+      return new Response(
+        JSON.stringify(result),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Route: GET /admin-review/rule-suggestions
     if (req.method === "GET" && pathParts[1] === "rule-suggestions") {
       const suggestions = await getRuleSuggestions();
       return new Response(
         JSON.stringify(suggestions),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Route: GET /admin-review/settings
+    if (req.method === "GET" && pathParts[1] === "settings") {
+      const settings = await getSettings();
+      return new Response(
+        JSON.stringify(settings),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Route: POST /admin-review/settings
+    if (req.method === "POST" && pathParts[1] === "settings") {
+      const body: SettingsUpdateBody = await req.json();
+      const result = await updateSettings(body);
+      return new Response(
+        JSON.stringify(result),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Route: GET /admin-review/rules
+    if (req.method === "GET" && pathParts[1] === "rules" && pathParts.length === 2) {
+      const params: RulesQueryParams = {
+        status: url.searchParams.get("status") || "all",
+        limit: parseInt(url.searchParams.get("limit") || "50"),
+        offset: parseInt(url.searchParams.get("offset") || "0"),
+      };
+      const result = await getRules(params);
+      return new Response(
+        JSON.stringify(result),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Route: POST /admin-review/rules/:id/activate
+    if (req.method === "POST" && pathParts[1] === "rules" && pathParts[3] === "activate") {
+      const ruleId = pathParts[2];
+      const result = await activateRule(ruleId);
+      return new Response(
+        JSON.stringify(result),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Route: POST /admin-review/rules/:id/disable
+    if (req.method === "POST" && pathParts[1] === "rules" && pathParts[3] === "disable") {
+      const ruleId = pathParts[2];
+      const result = await disableRule(ruleId);
+      return new Response(
+        JSON.stringify(result),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Route: POST /admin-review/rules/:id/pause
+    if (req.method === "POST" && pathParts[1] === "rules" && pathParts[3] === "pause") {
+      const ruleId = pathParts[2];
+      const body = await req.json().catch(() => ({}));
+      const result = await pauseRule(ruleId, body.reason);
+      return new Response(
+        JSON.stringify(result),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

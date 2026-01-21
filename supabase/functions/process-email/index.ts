@@ -1,36 +1,85 @@
 // =============================================================================
 // Process Email - GPT Categorization + Attachment Handling
-// Version: 2.3 - 2026-01-14
+// Version: 3.1.1 - 2026-01-16
 // =============================================================================
 // Wird von email-webhook aufgerufen nachdem E-Mail in DB gespeichert wurde.
 //
-// v2.3 Changes:
-// - Fix: sanitizeFileName fuer Attachment-Pfade (Umlaute -> ASCII)
-// - Fix: process-document Aufruf mit FormData statt JSON
+// v3.1.1 Changes:
+// - NEW: Jeder Anhang erhaelt eigene Zeile in documents Tabelle
+// - NEW: bezug_email_id verknuepft Anhang mit E-Mail
+// - NEW: email_anhaenge_count und email_anhaenge_meta werden befuellt
+// - NEW: Kategorie "Email_Anhang" fuer Anhaenge
 //
-// v2.2 Changes:
-// - Token Hardening: trim(), extractAadErrorCode(), safe logging
-// - (portiert von email-webhook v3.5)
+// v3.0.0 Changes:
+// - UPGRADE: GPT-5.2 fuer Kategorisierung (Chat Completions API)
+// - UPGRADE: Supabase Client Library fuer Storage (Best Practice)
+// - FIX: Kompatibel mit neuen Supabase API Keys (sb_secret_...)
+// - Der Client transformiert neue Keys automatisch zu kurzlebigen JWTs
 //
-// v2.1 Changes:
-// - ImmutableId Header fuer stabile IDs bei Ordner-Verschiebungen
+// v2.10.2 Changes:
+// - FIX: Use SUPABASE_SVC_KEY as fallback for broken reserved secret
 //
-// v2.0 Changes:
-// - Processing-Status Management (queued->processing->done/error)
-// - Attachment Size Limit (25MB)
-// - SHA-256 Hash fuer Attachment-Deduplizierung
-// - Inline-Attachment Skip
+// v2.10 Changes:
+// - FIX: Storage upload returns detailed error (not just null)
+//
+// v2.9 Changes:
+// - DIAG: Umfassende Graph-Diagnose (hasAttachments, $expand=attachments)
+//
+// v2.6 Changes:
+// - FIX: GPT Kategorie in email_kategorie speichern (NICHT documents.kategorie)
+//
+// v2.5 Changes:
+// - API-Key Vereinheitlichung: NUR noch INTERNAL_API_KEY
 // =============================================================================
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
 
 // Environment variables
 const AZURE_TENANT_ID = Deno.env.get("AZURE_TENANT_ID");
 const AZURE_CLIENT_ID = Deno.env.get("AZURE_CLIENT_ID");
 const AZURE_CLIENT_SECRET = Deno.env.get("AZURE_CLIENT_SECRET");
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+// v3.0: Supabase Client handles both legacy JWT and new sb_secret_... keys
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SVC_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+// v3.0: Supabase Client fuer Storage und DB Operations
+// Der Client transformiert neue API Keys (sb_secret_...) automatisch zu kurzlebigen JWTs
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+// v2.5: API Key Protection - NUR INTERNAL_API_KEY fuer alle Calls
+const INTERNAL_API_KEY = Deno.env.get("INTERNAL_API_KEY");
+
+// =============================================================================
+// v2.5: API Key Validation (PFLICHT - nur INTERNAL_API_KEY)
+// =============================================================================
+
+function validateApiKey(req: Request): { valid: boolean; reason?: string } {
+  // v2.5: Nur INTERNAL_API_KEY, PFLICHT
+  if (!INTERNAL_API_KEY) {
+    console.error("[AUTH] CRITICAL: INTERNAL_API_KEY not configured - rejecting request");
+    return { valid: false, reason: "No API key configured on server" };
+  }
+
+  const apiKeyHeader = req.headers.get("x-api-key");
+  if (apiKeyHeader && apiKeyHeader === INTERNAL_API_KEY) {
+    console.log("[AUTH] Valid x-api-key header");
+    return { valid: true };
+  }
+
+  const authHeader = req.headers.get("authorization");
+  if (authHeader) {
+    const match = authHeader.match(/^Bearer\s+(.+)$/i);
+    if (match && match[1] === INTERNAL_API_KEY) {
+      console.log("[AUTH] Valid Bearer token");
+      return { valid: true };
+    }
+  }
+
+  console.warn("[AUTH] Rejected - invalid or missing API key");
+  return { valid: false, reason: "Invalid or missing API key" };
+}
 
 // Attachment whitelist
 const ALLOWED_EXTENSIONS = [
@@ -113,6 +162,26 @@ interface GraphAttachment {
   size: number;
   contentBytes?: string;
   isInline: boolean;
+}
+
+// v3.1: Attachment processing result with document reference
+interface AttachmentResult {
+  hash: string;
+  attachmentDocId: string;
+  fileName: string;
+  fileSize: number;
+  contentType: string;
+  storagePath: string;
+}
+
+// v3.1: Metadata for email_anhaenge_meta field
+interface AttachmentMeta {
+  id: string;           // Document ID of the attachment
+  name: string;         // Original filename
+  size: number;         // File size in bytes
+  contentType: string;  // MIME type
+  storagePath: string;  // Path in Storage bucket
+  hash: string;         // SHA256 hash
 }
 
 // =============================================================================
@@ -219,6 +288,8 @@ Antwort im JSON-Format:
 }`;
 
   try {
+    // v3.0: GPT-5.2 mit Chat Completions API (weiterhin unterstuetzt)
+    // reasoning.effort: "none" fuer einfache Klassifizierung (kein CoT noetig)
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -226,19 +297,24 @@ Antwort im JSON-Format:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "gpt-5.2",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.3,
         max_tokens: 200,
+        // v3.0: GPT-5.2 spezifische Parameter
+        reasoning: { effort: "none" },  // Keine Chain-of-Thought fuer simple Klassifizierung
       }),
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[GPT] API error: ${response.status} - ${errorText.substring(0, 100)}`);
       throw new Error(`GPT API error: ${response.status}`);
     }
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || "";
+    console.log(`[GPT] Model: gpt-5.2, Response length: ${content.length}`);
 
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
@@ -275,12 +351,177 @@ function isAllowedAttachment(name: string, contentType: string): boolean {
   );
 }
 
+// v2.9: Diagnose-Interface fuer Attachment-Analyse
+interface AttachmentDiagnostics {
+  message_exists: boolean;
+  message_subject?: string;
+  message_hasAttachments?: boolean;
+  message_receivedDateTime?: string;
+  attachments_endpoint_count: number;
+  attachments_expand_count: number;
+  attachment_types: string[];
+  raw_attachments: Array<{
+    name: string;
+    odataType: string;
+    size: number;
+    contentType: string;
+    isInline: boolean;
+    hasContentBytes: boolean;
+  }>;
+  diagnosis: string;
+}
+
+// v2.9: Umfassende Graph-Diagnose
+async function diagnoseAttachments(
+  postfach: string,
+  messageId: string,
+  accessToken: string
+): Promise<AttachmentDiagnostics> {
+  const result: AttachmentDiagnostics = {
+    message_exists: false,
+    attachments_endpoint_count: 0,
+    attachments_expand_count: 0,
+    attachment_types: [],
+    raw_attachments: [],
+    diagnosis: "unknown",
+  };
+
+  const maskedPostfach = postfach.replace(/(.{3}).*(@.*)/, "$1***$2");
+
+  // Step 1: Fetch message details with hasAttachments
+  console.log(`[DIAG] Step 1: Fetching message details...`);
+  const messageUrl = `https://graph.microsoft.com/v1.0/users/${postfach}/messages/${messageId}?$select=id,subject,hasAttachments,receivedDateTime,from`;
+
+  const msgResponse = await fetch(messageUrl, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+      Prefer: 'IdType="ImmutableId"',
+    },
+  });
+
+  if (!msgResponse.ok) {
+    const errText = await msgResponse.text();
+    console.error(`[DIAG] Message fetch FAILED: ${msgResponse.status} - ${errText.substring(0, 100)}`);
+    result.diagnosis = `message_not_found: ${msgResponse.status}`;
+    return result;
+  }
+
+  const msgData = await msgResponse.json();
+  result.message_exists = true;
+  result.message_subject = msgData.subject;
+  result.message_hasAttachments = msgData.hasAttachments;
+  result.message_receivedDateTime = msgData.receivedDateTime;
+  console.log(`[DIAG] Message: subject="${msgData.subject}", hasAttachments=${msgData.hasAttachments}`);
+
+  // Step 2: Try /attachments endpoint
+  console.log(`[DIAG] Step 2: Fetching via /attachments endpoint...`);
+  const attachUrl = `https://graph.microsoft.com/v1.0/users/${postfach}/messages/${messageId}/attachments`;
+
+  const attachResponse = await fetch(attachUrl, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+      Prefer: 'IdType="ImmutableId"',
+    },
+  });
+
+  if (attachResponse.ok) {
+    const attachData = await attachResponse.json();
+    const attachments = attachData.value || [];
+    result.attachments_endpoint_count = attachments.length;
+    console.log(`[DIAG] /attachments returned ${attachments.length} item(s)`);
+
+    for (const att of attachments) {
+      const odataType = att["@odata.type"] || "unknown";
+      result.attachment_types.push(odataType);
+      result.raw_attachments.push({
+        name: att.name || "(no name)",
+        odataType,
+        size: att.size || 0,
+        contentType: att.contentType || "unknown",
+        isInline: att.isInline || false,
+        hasContentBytes: !!att.contentBytes,
+      });
+      console.log(`[DIAG]   - ${att.name}: type=${odataType}, size=${att.size}, isInline=${att.isInline}, hasBytes=${!!att.contentBytes}`);
+    }
+  } else {
+    console.error(`[DIAG] /attachments FAILED: ${attachResponse.status}`);
+  }
+
+  // Step 3: Try $expand=attachments
+  console.log(`[DIAG] Step 3: Fetching via $expand=attachments...`);
+  const expandUrl = `https://graph.microsoft.com/v1.0/users/${postfach}/messages/${messageId}?$expand=attachments`;
+
+  const expandResponse = await fetch(expandUrl, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+      Prefer: 'IdType="ImmutableId"',
+    },
+  });
+
+  if (expandResponse.ok) {
+    const expandData = await expandResponse.json();
+    const expandAttachments = expandData.attachments || [];
+    result.attachments_expand_count = expandAttachments.length;
+    console.log(`[DIAG] $expand=attachments returned ${expandAttachments.length} item(s)`);
+
+    // If we got more attachments here, add them
+    if (expandAttachments.length > result.raw_attachments.length) {
+      result.raw_attachments = [];
+      result.attachment_types = [];
+      for (const att of expandAttachments) {
+        const odataType = att["@odata.type"] || "unknown";
+        result.attachment_types.push(odataType);
+        result.raw_attachments.push({
+          name: att.name || "(no name)",
+          odataType,
+          size: att.size || 0,
+          contentType: att.contentType || "unknown",
+          isInline: att.isInline || false,
+          hasContentBytes: !!att.contentBytes,
+        });
+      }
+    }
+  } else {
+    console.error(`[DIAG] $expand FAILED: ${expandResponse.status}`);
+  }
+
+  // Step 4: Generate diagnosis
+  if (result.message_hasAttachments && result.attachments_endpoint_count === 0 && result.attachments_expand_count === 0) {
+    result.diagnosis = "hasAttachments=true but no attachments returned - possible cloud/reference attachment or Graph sync issue";
+  } else if (result.attachments_endpoint_count > 0) {
+    const allInline = result.raw_attachments.every(a => a.isInline);
+    const noContentBytes = result.raw_attachments.every(a => !a.hasContentBytes);
+
+    if (allInline) {
+      result.diagnosis = "all attachments are inline (signatures/images)";
+    } else if (noContentBytes) {
+      result.diagnosis = "attachments exist but no contentBytes - may be referenceAttachment or cloud links";
+    } else {
+      result.diagnosis = "attachments available with contentBytes";
+    }
+  } else if (!result.message_hasAttachments) {
+    result.diagnosis = "message has no attachments (hasAttachments=false)";
+  } else {
+    result.diagnosis = "unknown state";
+  }
+
+  console.log(`[DIAG] Diagnosis: ${result.diagnosis}`);
+  return result;
+}
+
 async function fetchAttachments(
   postfach: string,
   messageId: string,
   accessToken: string
 ): Promise<GraphAttachment[]> {
   const url = `https://graph.microsoft.com/v1.0/users/${postfach}/messages/${messageId}/attachments`;
+
+  // v2.7: Detailed logging
+  const maskedPostfach = postfach.replace(/(.{3}).*(@.*)/, "$1***$2");
+  console.log(`[ATTACH] Graph fetch: users/${maskedPostfach}/messages/${messageId.substring(0, 20)}...`);
 
   const response = await fetch(url, {
     headers: {
@@ -290,40 +531,112 @@ async function fetchAttachments(
     },
   });
 
+  // v2.7: Log response status
+  console.log(`[ATTACH] Graph response: ${response.status} ${response.statusText}`);
+
   if (!response.ok) {
-    console.error(`Failed to fetch attachments: ${await response.text()}`);
+    const errorText = await response.text();
+    console.error(`[ATTACH] Graph fetch FAILED: ${errorText.substring(0, 200)}`);
     return [];
   }
 
   const data = await response.json();
-  return data.value || [];
+  const attachments = data.value || [];
+  console.log(`[ATTACH] Graph returned ${attachments.length} attachment(s)`);
+  return attachments;
+}
+
+// =============================================================================
+// v3.1: Create document row for attachment
+// =============================================================================
+
+async function createAttachmentDocument(
+  emailDocumentId: string,
+  fileName: string,
+  originalFileName: string,
+  fileSize: number,
+  contentType: string,
+  storagePath: string,
+  hash: string,
+  emailBetreff: string
+): Promise<string | null> {
+  const docData = {
+    kategorie: "Email_Anhang",
+    bezug_email_id: emailDocumentId,
+    dokument_url: storagePath,
+    // NOTE: dokument_full_url is a generated column - do NOT set it
+    file_hash: hash,
+    source: "email_attachment",
+    // Additional metadata
+    email_betreff: `Anhang: ${originalFileName} (von: ${emailBetreff})`,
+    processing_status: "done",
+    processed_at: new Date().toISOString(),
+  };
+
+  try {
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/documents`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          apikey: SUPABASE_SERVICE_ROLE_KEY!,
+          "Content-Type": "application/json",
+          Prefer: "return=representation",
+        },
+        body: JSON.stringify(docData),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[ATTACH-DOC] Failed to create document: ${errorText.substring(0, 200)}`);
+      return null;
+    }
+
+    const created = await response.json();
+    const docId = created[0]?.id;
+    console.log(`[ATTACH-DOC] Created document ${docId} for attachment ${originalFileName}`);
+    return docId;
+  } catch (error) {
+    console.error(`[ATTACH-DOC] Error creating document: ${error}`);
+    return null;
+  }
 }
 
 async function processAttachment(
   attachment: GraphAttachment,
   documentId: string,
-  _postfach: string
-): Promise<{ hash: string } | null> {
+  emailBetreff: string
+): Promise<AttachmentResult | { error: string } | null> {
+  // v2.7: Detailed attachment info logging
+  console.log(`[ATTACH] === Evaluating: ${attachment.name} ===`);
+  console.log(`[ATTACH]   size: ${attachment.size} bytes`);
+  console.log(`[ATTACH]   contentType: ${attachment.contentType}`);
+  console.log(`[ATTACH]   isInline: ${attachment.isInline}`);
+  console.log(`[ATTACH]   hasContentBytes: ${!!attachment.contentBytes}`);
+
   if (!attachment.contentBytes) {
-    console.log(`Attachment ${attachment.name} has no content - skipping`);
+    console.log(`[ATTACH]   chosen=NO | reason: no contentBytes`);
     return null;
   }
 
   if (!isAllowedAttachment(attachment.name, attachment.contentType)) {
-    console.log(`Attachment ${attachment.name} not in whitelist - skipping`);
+    console.log(`[ATTACH]   chosen=NO | reason: not in whitelist (ext/mime)`);
     return null;
   }
 
   if (isLikelyInlineAttachment(attachment.name, attachment.isInline)) {
-    console.log(`Attachment ${attachment.name} is inline/signature - skipping`);
+    console.log(`[ATTACH]   chosen=NO | reason: inline/signature image`);
     return null;
   }
 
   if (attachment.size > MAX_ATTACHMENT_SIZE_BYTES) {
-    console.log(`Attachment ${attachment.name} exceeds size limit (${attachment.size} > ${MAX_ATTACHMENT_SIZE_BYTES}) - skipping`);
+    console.log(`[ATTACH]   chosen=NO | reason: exceeds size limit (${attachment.size} > ${MAX_ATTACHMENT_SIZE_BYTES})`);
     return null;
   }
 
+  console.log(`[ATTACH]   chosen=YES | processing...`);
   console.log(`Processing attachment: ${attachment.name} (${attachment.size} bytes)`);
 
   const binaryContent = Uint8Array.from(atob(attachment.contentBytes), (c) =>
@@ -332,24 +645,45 @@ async function processAttachment(
 
   const safeFileName = sanitizeFileName(attachment.name);
   const storagePath = `email-attachments/${documentId}/${safeFileName}`;
-  const storageUrl = `${SUPABASE_URL}/storage/v1/object/documents/${storagePath}`;
 
-  const uploadResponse = await fetch(storageUrl, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-      "Content-Type": attachment.contentType,
-      "x-upsert": "true",
-    },
-    body: binaryContent,
-  });
+  // v2.7: Log upload attempt
+  console.log(`[ATTACH]   upload target: ${storagePath}`);
 
-  if (!uploadResponse.ok) {
-    console.error(`Failed to upload attachment: ${await uploadResponse.text()}`);
-    return null;
+  // v3.0: Supabase Client fuer Storage Upload (Best Practice)
+  // Der Client transformiert neue API Keys (sb_secret_...) automatisch
+  const { data: uploadData, error: uploadError } = await supabase.storage
+    .from("documents")
+    .upload(storagePath, binaryContent, {
+      contentType: attachment.contentType,
+      upsert: true,
+    });
+
+  if (uploadError) {
+    console.error(`[ATTACH]   upload FAILED: ${uploadError.message}`);
+    return { error: `storage_upload_failed: ${uploadError.message}` };
   }
 
-  console.log(`Uploaded attachment to: ${storagePath}`);
+  console.log(`[ATTACH]   upload OK: ${uploadData?.path || storagePath}`);
+
+  // v3.1: Calculate hash first (needed for document creation)
+  const hash = await calculateSHA256(binaryContent);
+  console.log(`[ATTACH]   hash: ${hash.substring(0, 16)}...`);
+
+  // v3.1: Create document row for this attachment
+  const attachmentDocId = await createAttachmentDocument(
+    documentId,
+    safeFileName,
+    attachment.name,
+    attachment.size,
+    attachment.contentType,
+    storagePath,
+    hash,
+    emailBetreff
+  );
+
+  if (!attachmentDocId) {
+    console.error(`[ATTACH]   WARNING: Document creation failed, but file was uploaded`);
+  }
 
   const processableTypes = [
     "application/pdf",
@@ -361,7 +695,7 @@ async function processAttachment(
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   ];
 
-  // v2.3: Call process-document with FormData (correct format)
+  // v2.3.1: Call process-document with FormData + API Key
   if (processableTypes.includes(attachment.contentType)) {
     try {
       const processUrl = `${SUPABASE_URL}/functions/v1/process-document`;
@@ -371,11 +705,18 @@ async function processAttachment(
       const blob = new Blob([binaryContent], { type: attachment.contentType });
       formData.append("file", blob, safeFileName);
 
+      // v2.5: Use INTERNAL_API_KEY for process-document call
+      const headers: Record<string, string> = {};
+      if (INTERNAL_API_KEY) {
+        headers["x-api-key"] = INTERNAL_API_KEY;
+        console.log("[INTERNAL] Using INTERNAL_API_KEY for process-document call");
+      } else {
+        console.warn("[INTERNAL] INTERNAL_API_KEY not set - process-document call will fail");
+      }
+
       const processResponse = await fetch(processUrl, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-        },
+        headers,
         body: formData,
       });
 
@@ -391,9 +732,17 @@ async function processAttachment(
     }
   }
 
-  const hash = await calculateSHA256(binaryContent);
-  console.log(`Attachment hash: ${hash.substring(0, 16)}...`);
-  return { hash };
+  console.log(`[ATTACH]   SUCCESS: ${attachment.name} processed with doc_id=${attachmentDocId}`);
+
+  // v3.1: Return full attachment result
+  return {
+    hash,
+    attachmentDocId: attachmentDocId || "",
+    fileName: attachment.name,
+    fileSize: attachment.size,
+    contentType: attachment.contentType,
+    storagePath,
+  };
 }
 
 // =============================================================================
@@ -470,9 +819,39 @@ async function getEmailDocument(documentId: string): Promise<EmailDocument | nul
   return data[0] || null;
 }
 
-async function updateDocumentCategory(
+// v3.1: Update email attachment metadata
+async function updateEmailAttachmentMeta(
   documentId: string,
-  kategorie: string,
+  attachmentMetas: AttachmentMeta[]
+): Promise<void> {
+  const response = await fetch(
+    `${SUPABASE_URL}/rest/v1/documents?id=eq.${documentId}`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        apikey: SUPABASE_SERVICE_ROLE_KEY!,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email_anhaenge_count: attachmentMetas.length,
+        email_anhaenge_meta: attachmentMetas,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[EMAIL-META] Failed to update attachment metadata: ${errorText.substring(0, 100)}`);
+  } else {
+    console.log(`[EMAIL-META] Updated email with ${attachmentMetas.length} attachment(s) metadata`);
+  }
+}
+
+// v2.6: Update email_kategorie (NOT documents.kategorie - avoids CHECK constraint violation)
+async function updateEmailCategory(
+  documentId: string,
+  emailKategorie: string,
   zusammenfassung: string
 ): Promise<void> {
   const response = await fetch(
@@ -485,7 +864,8 @@ async function updateDocumentCategory(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        kategorie,
+        // v2.6: Write to email_kategorie, NOT kategorie (which stays Email_Eingehend/Ausgehend)
+        email_kategorie: emailKategorie,
         inhalt_zusammenfassung: zusammenfassung,
         kategorisiert_am: new Date().toISOString(),
         kategorisiert_von: "process-email-gpt",
@@ -494,7 +874,7 @@ async function updateDocumentCategory(
   );
 
   if (!response.ok) {
-    throw new Error(`Failed to update document: ${await response.text()}`);
+    throw new Error(`Failed to update email category: ${await response.text()}`);
   }
 }
 
@@ -503,17 +883,18 @@ async function updateDocumentCategory(
 // =============================================================================
 
 Deno.serve(async (req: Request) => {
-  // Health check
+  // Health check (no auth required for GET)
   if (req.method === "GET") {
     return new Response(
       JSON.stringify({
         service: "process-email",
-        version: "2.3.0",
+        version: "3.1.1",
         status: "ready",
         configured: {
           azure: !!(AZURE_TENANT_ID && AZURE_CLIENT_ID && AZURE_CLIENT_SECRET),
           openai: !!OPENAI_API_KEY,
           supabase: !!(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY),
+          internalApiKey: !!INTERNAL_API_KEY,
         },
         allowedExtensions: ALLOWED_EXTENSIONS,
         maxAttachmentSize: MAX_ATTACHMENT_SIZE_BYTES,
@@ -527,6 +908,15 @@ Deno.serve(async (req: Request) => {
       status: 405,
       headers: { "Content-Type": "application/json" },
     });
+  }
+
+  // v2.4: API Key Validation (PFLICHT fuer POST)
+  const authResult = validateApiKey(req);
+  if (!authResult.valid) {
+    return new Response(
+      JSON.stringify({ error: authResult.reason }),
+      { status: 401, headers: { "Content-Type": "application/json" } }
+    );
   }
 
   try {
@@ -561,33 +951,117 @@ Deno.serve(async (req: Request) => {
       doc.email_richtung || "eingehend"
     );
 
-    console.log(`Category: ${kategorie}`);
-    await updateDocumentCategory(body.document_id, kategorie, zusammenfassung);
+    console.log(`Email category: ${kategorie}`);
+    await updateEmailCategory(body.document_id, kategorie, zusammenfassung);
 
     // Step 2: Process Attachments
     let attachmentsProcessed = 0;
     const attachmentHashes: string[] = [];
+    // v3.1: Collect attachment metadata for email_anhaenge_meta
+    const attachmentMetas: AttachmentMeta[] = [];
+
+    // v2.8: Debug info collection
+    const _debug: Record<string, unknown> = {
+      graph_fetch_url: null,
+      graph_response_status: null,
+      graph_attachment_count: null,
+      attachments_raw: [] as Array<{
+        name: string;
+        size: number;
+        contentType: string;
+        isInline: boolean;
+        hasContentBytes: boolean;
+        decision: string;
+        reason?: string;
+        attachmentDocId?: string;
+      }>,
+    };
 
     try {
       const accessToken = await getAccessToken();
+
+      // v2.9: Run comprehensive diagnostics FIRST
+      const diagnostics = await diagnoseAttachments(
+        body.postfach,
+        body.email_message_id,
+        accessToken
+      );
+      _debug.diagnostics = diagnostics;
+
+      // v2.8: Build debug URL
+      const graphUrl = `https://graph.microsoft.com/v1.0/users/${body.postfach}/messages/${body.email_message_id}/attachments`;
+      _debug.graph_fetch_url = graphUrl.replace(body.postfach, body.postfach.replace(/(.{3}).*(@.*)/, "$1***$2"));
+
       const attachments = await fetchAttachments(
         body.postfach,
         body.email_message_id,
         accessToken
       );
 
-      console.log(`Found ${attachments.length} attachments`);
+      _debug.graph_response_status = 200; // If we got here, it was 200
+      _debug.graph_attachment_count = attachments.length;
+
+      console.log(`[ATTACH] Found ${attachments.length} total attachment(s) from Graph`);
 
       for (const attachment of attachments) {
-        const result = await processAttachment(attachment, body.document_id, body.postfach);
-        if (result) {
+        // v2.8: Collect raw attachment info
+        const attachDebug: typeof _debug.attachments_raw extends Array<infer T> ? T : never = {
+          name: attachment.name,
+          size: attachment.size,
+          contentType: attachment.contentType,
+          isInline: attachment.isInline,
+          hasContentBytes: !!attachment.contentBytes,
+          decision: "pending",
+        };
+
+        // v3.1: Pass email subject for attachment document naming
+        const result = await processAttachment(attachment, body.document_id, doc.email_betreff || "");
+
+        // v3.1: Check for AttachmentResult (has attachmentDocId) vs error/null
+        if (result && "attachmentDocId" in result) {
           attachmentHashes.push(result.hash);
           attachmentsProcessed++;
+          attachDebug.decision = "YES";
+          attachDebug.attachmentDocId = result.attachmentDocId;
+
+          // v3.1: Collect metadata for email_anhaenge_meta
+          attachmentMetas.push({
+            id: result.attachmentDocId,
+            name: result.fileName,
+            size: result.fileSize,
+            contentType: result.contentType,
+            storagePath: result.storagePath,
+            hash: result.hash,
+          });
+        } else {
+          attachDebug.decision = "NO";
+          // Determine reason - check ALL conditions
+          if (!attachment.contentBytes) attachDebug.reason = "no contentBytes";
+          else if (!isAllowedAttachment(attachment.name, attachment.contentType)) attachDebug.reason = "not in whitelist";
+          else if (isLikelyInlineAttachment(attachment.name, attachment.isInline)) attachDebug.reason = "inline/signature";
+          else if (attachment.size > MAX_ATTACHMENT_SIZE_BYTES) attachDebug.reason = "too large";
+          else if (result && "error" in result) attachDebug.reason = result.error;
+          else attachDebug.reason = "upload_or_processing_failed";
         }
+        (_debug.attachments_raw as Array<unknown>).push(attachDebug);
+      }
+
+      // v3.1: Update email with attachment metadata
+      if (attachmentMetas.length > 0) {
+        await updateEmailAttachmentMeta(body.document_id, attachmentMetas);
       }
     } catch (attachmentError) {
-      console.error(`Attachment processing error: ${attachmentError}`);
+      console.error(`[ATTACH] Attachment processing error: ${attachmentError}`);
+      _debug.graph_error = String(attachmentError);
     }
+
+    // v2.7: Final summary
+    console.log(`[FINAL] ========================================`);
+    console.log(`[FINAL] document_id: ${body.document_id}`);
+    console.log(`[FINAL] attachments_processed: ${attachmentsProcessed}`);
+    console.log(`[FINAL] email_attachment_hashes count: ${attachmentHashes.length}`);
+    console.log(`[FINAL] processing_status: done`);
+    console.log(`[FINAL] ========================================`);
 
     await updateProcessingStatus(body.document_id, "done", undefined, attachmentHashes);
 
@@ -599,6 +1073,7 @@ Deno.serve(async (req: Request) => {
         zusammenfassung,
         attachments_processed: attachmentsProcessed,
         attachment_hashes: attachmentHashes,
+        _debug, // v2.8: Debug info
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );

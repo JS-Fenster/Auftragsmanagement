@@ -21,7 +21,7 @@ echo "=========================================="
 echo ""
 
 # Test 1: Health Check (no auth)
-echo "[1/6] Health Check..."
+echo "[1/7] Health Check..."
 HEALTH=$(curl -s "${BASE_URL}?health=1")
 if echo "$HEALTH" | grep -q '"status":"ready"'; then
   echo "  OK: Service is ready"
@@ -34,7 +34,7 @@ fi
 
 # Test 2: Categories Endpoint
 echo ""
-echo "[2/6] GET /categories..."
+echo "[2/7] GET /categories..."
 CATEGORIES=$(curl -s -H "x-api-key: $API_KEY" "${BASE_URL}/categories")
 if echo "$CATEGORIES" | grep -q '"email_kategorien"'; then
   EMAIL_CAT_COUNT=$(echo "$CATEGORIES" | grep -o '"email_kategorien":\[[^]]*\]' | tr ',' '\n' | wc -l)
@@ -48,7 +48,7 @@ fi
 
 # Test 3: Stats Endpoint
 echo ""
-echo "[3/6] GET /stats..."
+echo "[3/7] GET /stats..."
 STATS=$(curl -s -H "x-api-key: $API_KEY" "${BASE_URL}/stats")
 if echo "$STATS" | grep -q '"pending_reviews"'; then
   PENDING=$(echo "$STATS" | grep -o '"pending_reviews":[0-9]*' | cut -d':' -f2)
@@ -62,7 +62,7 @@ fi
 
 # Test 4: Queue Endpoint
 echo ""
-echo "[4/6] GET / (queue)..."
+echo "[4/7] GET / (queue)..."
 QUEUE=$(curl -s -H "x-api-key: $API_KEY" "${BASE_URL}?limit=5&status=all")
 if echo "$QUEUE" | grep -q '"items"'; then
   COUNT=$(echo "$QUEUE" | grep -o '"count":[0-9]*' | cut -d':' -f2)
@@ -75,7 +75,7 @@ fi
 
 # Test 5: Rule Suggestions Endpoint
 echo ""
-echo "[5/6] GET /rule-suggestions..."
+echo "[5/7] GET /rule-suggestions..."
 RULES=$(curl -s -H "x-api-key: $API_KEY" "${BASE_URL}/rule-suggestions")
 if echo "$RULES" | grep -q '"suggestions"'; then
   RULE_COUNT=$(echo "$RULES" | grep -o '"count":[0-9]*' | cut -d':' -f2)
@@ -86,9 +86,22 @@ else
   exit 1
 fi
 
-# Test 6: Auth Rejection (without key)
+# Test 6: Clusters Endpoint (Learning Loop)
 echo ""
-echo "[6/6] Auth rejection test (no key)..."
+echo "[6/7] GET /clusters..."
+CLUSTERS=$(curl -s -H "x-api-key: $API_KEY" "${BASE_URL}/clusters?status=ready")
+if echo "$CLUSTERS" | grep -q '"clusters"'; then
+  READY_COUNT=$(echo "$CLUSTERS" | grep -o '"ready":[0-9]*' | head -1 | cut -d':' -f2)
+  echo "  OK: ${READY_COUNT:-0} ready clusters"
+else
+  echo "  FAIL: Could not fetch clusters"
+  echo "  Response: $CLUSTERS"
+  exit 1
+fi
+
+# Test 7: Auth Rejection (without key)
+echo ""
+echo "[7/7] Auth rejection test (no key)..."
 NO_AUTH=$(curl -s "${BASE_URL}/stats")
 if echo "$NO_AUTH" | grep -q '"error"'; then
   echo "  OK: Correctly rejected request without API key"

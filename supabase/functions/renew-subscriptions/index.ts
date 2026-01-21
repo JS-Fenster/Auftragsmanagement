@@ -1,8 +1,12 @@
 // =============================================================================
 // Subscription Renewal Edge Function
-// Version: 1.1 - 2026-01-14
+// Version: 1.2 - 2026-01-15
 // =============================================================================
 // Scheduled function to renew Microsoft Graph subscriptions before they expire.
+//
+// v1.2 Changes:
+// - API-Key Protection jetzt PFLICHT (nicht mehr optional)
+// - verify_jwt=false, stattdessen x-api-key Header erforderlich
 //
 // v1.1 Changes:
 // - Token Hardening: trim(), extractAadErrorCode(), safe logging
@@ -19,7 +23,7 @@ const AZURE_CLIENT_SECRET = Deno.env.get("AZURE_CLIENT_SECRET");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-// v1.1: API Key Protection (optional)
+// v1.2: API Key Protection (PFLICHT)
 const RENEW_SUBSCRIPTIONS_API_KEY = Deno.env.get("RENEW_SUBSCRIPTIONS_API_KEY");
 const INTERNAL_API_KEY = Deno.env.get("INTERNAL_API_KEY");
 
@@ -27,14 +31,15 @@ const INTERNAL_API_KEY = Deno.env.get("INTERNAL_API_KEY");
 const SUBSCRIPTION_LIFETIME_MINUTES = 4200;
 
 // =============================================================================
-// v1.1: API Key Validation (optional)
+// v1.2: API Key Validation (PFLICHT - nicht mehr optional)
 // =============================================================================
 
 function validateApiKey(req: Request): { valid: boolean; reason?: string } {
   const expectedKey = RENEW_SUBSCRIPTIONS_API_KEY || INTERNAL_API_KEY;
   if (!expectedKey) {
-    // No key configured = allow (backwards compatibility)
-    return { valid: true };
+    // v1.2: Kein Key konfiguriert = FEHLER (nicht mehr erlaubt)
+    console.error("[AUTH] CRITICAL: No API key configured - rejecting request");
+    return { valid: false, reason: "No API key configured on server" };
   }
 
   const apiKeyHeader = req.headers.get("x-api-key");
@@ -259,7 +264,7 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         service: "renew-subscriptions",
-        version: "1.1.0",
+        version: "1.2.0",
         status: "ready",
         configured: {
           azure: !!(AZURE_TENANT_ID && AZURE_CLIENT_ID && AZURE_CLIENT_SECRET),
