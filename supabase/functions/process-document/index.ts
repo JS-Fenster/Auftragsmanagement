@@ -969,6 +969,7 @@ const EXTRACTION_SCHEMA = {
         "Vertrag",
         "Zahlungsavis",
         "Zahlungserinnerung",
+        "Zeichnung",
       ],
     },
     // v20: Unterschrift-Felder

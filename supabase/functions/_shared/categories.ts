@@ -4,6 +4,7 @@
 // =============================================================================
 // Aenderungen v2.3.0:
 // - NEU: Kategorie "Bauplan" (Grundriss, Schnitt, Ansicht, Lageplan, Architekt)
+// - NEU: Kategorie "Zeichnung" (technische Zeichnungen, CAD)
 // - NEU: Heuristik-Regel Bauplan (priority 88)
 //
 // Aenderungen v2.2.0:
@@ -63,6 +64,7 @@ export const VALID_DOKUMENT_KATEGORIEN = [
   "Video",
   "Zahlungsavis",          // v2.2.0: Belastungsanzeige, Lastschrift, Sammelabbuchung
   "Zahlungserinnerung",
+  "Zeichnung",             // v2.3.0: Technische Zeichnungen, CAD-Zeichnungen
 ];
 
 // =============================================================================
