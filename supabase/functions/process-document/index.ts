@@ -933,13 +933,14 @@ const EXTRACTION_SCHEMA = {
   properties: {
     kategorie: {
       type: "string",
-      // v23: + Kundenbestellung, Reiseunterlagen, Zahlungsavis
+      // v23: + Kundenbestellung, Reiseunterlagen, Zahlungsavis, Bauplan
       enum: [
         "Abnahmeprotokoll",
         "Angebot",
         "Aufmassblatt",
         "Auftragsbestaetigung",
         "Ausgangsrechnung",
+        "Bauplan",
         "Bestellung",
         "Bild",
         "Brief_ausgehend",

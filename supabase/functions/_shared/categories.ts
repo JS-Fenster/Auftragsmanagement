@@ -1,7 +1,11 @@
 // =============================================================================
 // Shared Category Definitions, Canonicalization, and Heuristic Rules
-// Version: 2.2.0 - 2026-01-21
+// Version: 2.3.0 - 2026-01-21
 // =============================================================================
+// Aenderungen v2.3.0:
+// - NEU: Kategorie "Bauplan" (Grundriss, Schnitt, Ansicht, Lageplan, Architekt)
+// - NEU: Heuristik-Regel Bauplan (priority 88)
+//
 // Aenderungen v2.2.0:
 // - NEU: Kategorie "Zahlungsavis" (Belastungsanzeige, Lastschrift, Sammelabbuchung)
 // - NEU: Heuristik-Regel Zahlungsavis (priority 78)
@@ -25,6 +29,7 @@ export const VALID_DOKUMENT_KATEGORIEN = [
   "Auftragsbestaetigung",
   "Audio",
   "Ausgangsrechnung",
+  "Bauplan",               // v2.3.0: Grundriss, Schnitt, Ansicht, Lageplan, Architekt
   "Bestellung",
   "Bild",
   "Brief_ausgehend",
@@ -187,6 +192,38 @@ const HEURISTIC_RULES: HeuristicRule[] = [
       "bestelldatum",
     ],
     priority: 90,
+  },
+
+  // v2.3.0: Bauplan (priority 88) - Architektenplaene, Grundrisse, Schnitte
+  // Gewinnt gegen Skizze wenn Bauplan-spezifische Keywords vorhanden
+  {
+    kategorie: "Bauplan",
+    keywords: [
+      "grundriss",
+      "schnitt",
+      "ansicht",
+      "lageplan",
+      "planstand",
+      "maßstab",
+      "massstab",
+      "m 1:",
+      "1:100",
+      "1:50",
+      "1:200",
+      "architekt",
+      "bauplan",
+      "bauzeichnung",
+      "geschoss",
+      "erdgeschoss",
+      "obergeschoss",
+      "kellergeschoss",
+      "dachgeschoss",
+      "baugenehmigung",
+      "bauantrag",
+      "flurkarte",
+      "kataster",
+    ],
+    priority: 88,
   },
 
   // Produktdatenblatt (priority 80)
