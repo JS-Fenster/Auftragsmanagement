@@ -412,6 +412,29 @@ const HEURISTIC_RULES: HeuristicRule[] = [
     ],
     priority: 78,
   },
+
+  // v2.3.0: Zeichnung (priority 72)
+  // Technische Zeichnungen, CAD - niedriger als Bauplan (88)
+  {
+    kategorie: "Zeichnung",
+    keywords: [
+      "technische zeichnung",
+      "detailzeichnung",
+      "cad",
+      "autocad",
+      "dwg",
+      "dxf",
+      "konstruktionszeichnung",
+      "fertigungszeichnung",
+      "explosionszeichnung",
+      "stückliste",
+      "stueckliste",
+      "bemaßung",
+      "bemassung",
+      "iso-ansicht",
+    ],
+    priority: 72,
+  },
 ];
 
 // =============================================================================
