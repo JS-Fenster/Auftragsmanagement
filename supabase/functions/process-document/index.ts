@@ -1,7 +1,20 @@
 // =============================================================================
 // Process Document - OCR + GPT Kategorisierung
-// Version: 23 - 2026-01-21
+// Version: 25 - 2026-01-22
 // =============================================================================
+// Aenderungen v25:
+// - NEU: UPDATE-Mode fuer Email-Anhaenge (document_id + storage_path Parameter)
+// - NEU: Wenn document_id uebergeben wird, UPDATE statt INSERT
+// - NEU: Wenn storage_path uebergeben wird, kein erneuter Upload
+// - NEU: Aktualisiert processing_status auf "done" nach Kategorisierung
+// - FIX: Email-Anhaenge erhalten jetzt korrekte Kategorie statt "Email_Anhang"
+//
+// Aenderungen v24:
+// - NEU: Automatische Bildkomprimierung vor Upload
+// - NEU: Bilder > 500KB werden auf max 1920px + JPEG Q80 komprimiert
+// - NEU: Logging der Komprimierungsersparnis
+// - NEU: compressImage() Funktion mit imagescript Library
+//
 // Aenderungen v23:
 // - NEU: Kategorien Reiseunterlagen, Kundenbestellung, Zahlungsavis
 // - NEU: Heuristik fuer Kundenbestellung (PO vom Kunden, Prio 95)
@@ -47,9 +60,11 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { SYSTEM_PROMPT } from "./prompts.ts";
-import { canonicalizeKategorie, applyHeuristicRules } from "../_shared/categories.ts";
+import { canonicalizeKategorie, applyHeuristicRules } from "./categories.ts";
 import * as XLSX from "npm:xlsx@0.18.5";
 import JSZip from "npm:jszip@3.10.1";
+// v24: Image compression
+import { Image } from "npm:imagescript@1.3.0";
 
 const MISTRAL_API_KEY = Deno.env.get("MISTRAL_API_KEY")!;
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
@@ -61,6 +76,117 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
+
+// =============================================================================
+// v24: Image Compression Configuration
+// =============================================================================
+
+const COMPRESSION_CONFIG = {
+  maxSizeBytes: 500 * 1024,      // Komprimiere wenn > 500KB
+  maxWidthOrHeight: 1920,        // Max Full-HD Aufloesung
+  jpegQuality: 80,               // JPEG Qualitaet (0-100)
+  enabled: true,                 // Komprimierung aktiviert
+};
+
+// Bildformate die komprimiert werden koennen
+const COMPRESSIBLE_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "bmp", "tiff", "tif"];
+
+/**
+ * v24: Komprimiert ein Bild wenn es groesser als der Schwellwert ist.
+ * - Reduziert auf max 1920px (laengste Seite)
+ * - Konvertiert zu JPEG mit Quality 80
+ * - Behaelt Original wenn bereits klein genug
+ */
+async function compressImage(
+  buffer: ArrayBuffer,
+  fileName: string
+): Promise<{
+  buffer: ArrayBuffer;
+  compressed: boolean;
+  originalSize: number;
+  newSize: number;
+  newMimeType: string;
+  newFileName: string;
+}> {
+  const originalSize = buffer.byteLength;
+  const ext = fileName.split(".").pop()?.toLowerCase() || "";
+
+  // Nicht komprimierbar oder deaktiviert
+  if (!COMPRESSION_CONFIG.enabled || !COMPRESSIBLE_EXTENSIONS.includes(ext)) {
+    return {
+      buffer,
+      compressed: false,
+      originalSize,
+      newSize: originalSize,
+      newMimeType: getMimeType(fileName),
+      newFileName: fileName,
+    };
+  }
+
+  // Bereits klein genug
+  if (originalSize <= COMPRESSION_CONFIG.maxSizeBytes) {
+    console.log(`[COMPRESS] ${fileName}: ${(originalSize / 1024).toFixed(0)}KB - bereits unter Schwellwert, uebersprungen`);
+    return {
+      buffer,
+      compressed: false,
+      originalSize,
+      newSize: originalSize,
+      newMimeType: getMimeType(fileName),
+      newFileName: fileName,
+    };
+  }
+
+  try {
+    console.log(`[COMPRESS] ${fileName}: ${(originalSize / 1024).toFixed(0)}KB - starte Komprimierung...`);
+
+    const bytes = new Uint8Array(buffer);
+    const image = await Image.decode(bytes);
+
+    const { width, height } = image;
+    const maxDim = COMPRESSION_CONFIG.maxWidthOrHeight;
+
+    // Resize wenn zu gross
+    if (width > maxDim || height > maxDim) {
+      if (width > height) {
+        image.resize(maxDim, Image.RESIZE_AUTO);
+      } else {
+        image.resize(Image.RESIZE_AUTO, maxDim);
+      }
+      console.log(`[COMPRESS] Resized: ${width}x${height} -> ${image.width}x${image.height}`);
+    }
+
+    // Encode als JPEG
+    const compressed = await image.encodeJPEG(COMPRESSION_CONFIG.jpegQuality);
+    const newSize = compressed.byteLength;
+    const savings = ((originalSize - newSize) / originalSize * 100).toFixed(1);
+
+    console.log(`[COMPRESS] ${fileName}: ${(originalSize / 1024).toFixed(0)}KB -> ${(newSize / 1024).toFixed(0)}KB (${savings}% gespart)`);
+
+    // Neuer Dateiname mit .jpg Extension
+    const baseName = fileName.replace(/\.[^/.]+$/, "");
+    const newFileName = `${baseName}.jpg`;
+
+    return {
+      buffer: compressed.buffer as ArrayBuffer,
+      compressed: true,
+      originalSize,
+      newSize,
+      newMimeType: "image/jpeg",
+      newFileName,
+    };
+  } catch (compressError) {
+    console.error(`[COMPRESS] Fehler bei ${fileName}:`, compressError);
+    // Bei Fehler: Original behalten
+    return {
+      buffer,
+      compressed: false,
+      originalSize,
+      newSize: originalSize,
+      newMimeType: getMimeType(fileName),
+      newFileName: fileName,
+    };
+  }
+}
 
 // =============================================================================
 // v18: API Key Validation (PFLICHT - nur INTERNAL_API_KEY)
@@ -288,7 +414,7 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         service: "process-document",
-        version: "23.0.0",
+        version: "25.0.0",
         status: "ready",
         configured: {
           mistral: !!MISTRAL_API_KEY,
@@ -299,6 +425,15 @@ Deno.serve(async (req: Request) => {
         supportedFormats: {
           ocr: OCR_SUPPORTED_EXTENSIONS,
           office: OFFICE_EXTENSIONS,
+        },
+        compression: {
+          enabled: COMPRESSION_CONFIG.enabled,
+          maxSizeKB: COMPRESSION_CONFIG.maxSizeBytes / 1024,
+          maxDimension: COMPRESSION_CONFIG.maxWidthOrHeight,
+          jpegQuality: COMPRESSION_CONFIG.jpegQuality,
+        },
+        features: {
+          updateMode: true,  // v25: Email attachment update mode
         },
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
@@ -327,6 +462,15 @@ Deno.serve(async (req: Request) => {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
 
+    // v25: UPDATE-Mode Parameter (von process-email)
+    const existingDocumentId = formData.get("document_id") as string | null;
+    const existingStoragePath = formData.get("storage_path") as string | null;
+    const isUpdateMode = !!existingDocumentId;
+
+    if (isUpdateMode) {
+      console.log(`[UPDATE-MODE] document_id: ${existingDocumentId}, storage_path: ${existingStoragePath}`);
+    }
+
     if (!file) {
       return new Response(JSON.stringify({ error: "No file provided" }), {
         status: 400,
@@ -338,7 +482,7 @@ Deno.serve(async (req: Request) => {
     const mimeType = getMimeType(file.name);
     const ocrSupportedByExt = isOcrSupported(file.name);
     const isOffice = isOfficeDocument(file.name);
-    console.log(`Processing file: ${file.name}, size: ${file.size} bytes, type: ${mimeType}, OCR: ${ocrSupportedByExt}, Office: ${isOffice}`);
+    console.log(`Processing file: ${file.name}, size: ${file.size} bytes, type: ${mimeType}, OCR: ${ocrSupportedByExt}, Office: ${isOffice}${isUpdateMode ? " [UPDATE-MODE]" : ""}`);
 
     // Step 1: Calculate file hash for exact duplicate detection
     const fileBuffer = await file.arrayBuffer();
@@ -350,30 +494,35 @@ Deno.serve(async (req: Request) => {
     console.log(`Detected file type: ${detectedType.type}, isOfficeDoc: ${detectedType.isOfficeDoc}`);
 
     // Step 2: Check for exact duplicate - SOFORT ABBRECHEN wenn gefunden
-    const { data: existingByFileHash } = await supabase
-      .from("documents")
-      .select("id, dokument_url, kategorie")
-      .eq("file_hash", fileHash)
-      .is("duplicate_of", null)
-      .limit(1)
-      .single();
+    // v25: Skip in UPDATE-MODE (das Dokument existiert bereits)
+    if (!isUpdateMode) {
+      const { data: existingByFileHash } = await supabase
+        .from("documents")
+        .select("id, dokument_url, kategorie")
+        .eq("file_hash", fileHash)
+        .is("duplicate_of", null)
+        .limit(1)
+        .single();
 
-    if (existingByFileHash) {
-      console.log(`DUPLIKAT: ${existingByFileHash.id} - Abbruch (spart OCR+GPT Kosten)`);
+      if (existingByFileHash) {
+        console.log(`DUPLIKAT: ${existingByFileHash.id} - Abbruch (spart OCR+GPT Kosten)`);
 
-      return new Response(JSON.stringify({
-        success: false,
-        duplicate: true,
-        duplicate_type: "exact",
-        duplicate_of: existingByFileHash.id,
-        duplicate_of_url: existingByFileHash.dokument_url,
-        duplicate_of_kategorie: existingByFileHash.kategorie,
-        message: "Exaktes Duplikat - Datei bereits verarbeitet",
-        file_hash: fileHash,
-      }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
+        return new Response(JSON.stringify({
+          success: false,
+          duplicate: true,
+          duplicate_type: "exact",
+          duplicate_of: existingByFileHash.id,
+          duplicate_of_url: existingByFileHash.dokument_url,
+          duplicate_of_kategorie: existingByFileHash.kategorie,
+          message: "Exaktes Duplikat - Datei bereits verarbeitet",
+          file_hash: fileHash,
+        }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    } else {
+      console.log(`[UPDATE-MODE] Duplikat-Check uebersprungen`);
     }
 
     // Determine extraction method
@@ -461,19 +610,47 @@ Deno.serve(async (req: Request) => {
         kategorie = getMediaCategory(file.name);
       }
 
-      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-      const safeFileName = sanitizeFileName(file.name);
-      const storagePath = `${kategorie}/${timestamp}_${safeFileName}`;
+      // v25: Skip upload in UPDATE-MODE for media files
+      let mediaStoragePath: string;
+      let mediaCompressionInfo: string | null = null;
 
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from("documents")
-        .upload(storagePath, fileBuffer, {
-          contentType: mimeType,
-          upsert: false,
-        });
+      if (isUpdateMode && existingStoragePath) {
+        // UPDATE-MODE: Use existing storage path
+        mediaStoragePath = existingStoragePath;
+        console.log(`[UPDATE-MODE] Using existing storage path for media: ${mediaStoragePath}`);
+      } else {
+        // NORMAL-MODE: Compress and upload
+        let mediaUploadBuffer: ArrayBuffer = fileBuffer;
+        let mediaUploadMimeType = mimeType;
+        let mediaUploadFileName = file.name;
 
-      if (uploadError) {
-        throw new Error(`Storage upload failed: ${uploadError.message}`);
+        if (isImage(file.name)) {
+          const compressionResult = await compressImage(fileBuffer, file.name);
+          mediaUploadBuffer = compressionResult.buffer;
+          mediaUploadMimeType = compressionResult.newMimeType;
+          mediaUploadFileName = compressionResult.newFileName;
+
+          if (compressionResult.compressed) {
+            const savedKB = ((compressionResult.originalSize - compressionResult.newSize) / 1024).toFixed(0);
+            const savedPct = ((compressionResult.originalSize - compressionResult.newSize) / compressionResult.originalSize * 100).toFixed(1);
+            mediaCompressionInfo = `Komprimiert: ${(compressionResult.originalSize / 1024).toFixed(0)}KB -> ${(compressionResult.newSize / 1024).toFixed(0)}KB (${savedPct}% / ${savedKB}KB gespart)`;
+          }
+        }
+
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+        const safeFileName = sanitizeFileName(mediaUploadFileName);
+        mediaStoragePath = `${kategorie}/${timestamp}_${safeFileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("documents")
+          .upload(mediaStoragePath, mediaUploadBuffer, {
+            contentType: mediaUploadMimeType,
+            upsert: false,
+          });
+
+        if (uploadError) {
+          throw new Error(`Storage upload failed: ${uploadError.message}`);
+        }
       }
 
       const hinweise = [
@@ -485,39 +662,74 @@ Deno.serve(async (req: Request) => {
       if (extractionError) {
         hinweise.push(`Fehler: ${extractionError.substring(0, 200)}`);
       }
-
-      const { data: insertData, error: insertError } = await supabase
-        .from("documents")
-        .insert({
-          kategorie: kategorie,
-          dokument_url: uploadData.path,
-          ocr_text: null,
-          extraktions_zeitstempel: new Date().toISOString(),
-          extraktions_qualitaet: "keine",
-          extraktions_hinweise: hinweise,
-          file_hash: fileHash,
-          text_hash: null,
-          bemerkungen: `Mediendatei: ${file.name}`,
-          source: "scanner",
-        })
-        .select("id")
-        .single();
-
-      if (insertError) {
-        throw new Error(`Database insert failed: ${insertError.message}`);
+      if (mediaCompressionInfo) {
+        hinweise.push(mediaCompressionInfo);
       }
 
-      console.log(`Inserted media file with ID: ${insertData.id}`);
+      let mediaResultId: string;
+
+      // v25: UPDATE-MODE vs INSERT-MODE for media files
+      if (isUpdateMode && existingDocumentId) {
+        console.log(`[UPDATE-MODE] Updating media document ${existingDocumentId} with category: ${kategorie}`);
+
+        const { error: updateError } = await supabase
+          .from("documents")
+          .update({
+            kategorie: kategorie,
+            ocr_text: null,
+            extraktions_zeitstempel: new Date().toISOString(),
+            extraktions_qualitaet: "keine",
+            extraktions_hinweise: hinweise,
+            file_hash: fileHash,
+            text_hash: null,
+            bemerkungen: `Mediendatei: ${file.name}`,
+            processing_status: "done",
+            processed_at: new Date().toISOString(),
+          })
+          .eq("id", existingDocumentId);
+
+        if (updateError) {
+          throw new Error(`Database update failed: ${updateError.message}`);
+        }
+
+        mediaResultId = existingDocumentId;
+        console.log(`[UPDATE-MODE] Updated media document ${mediaResultId}`);
+      } else {
+        const { data: insertData, error: insertError } = await supabase
+          .from("documents")
+          .insert({
+            kategorie: kategorie,
+            dokument_url: mediaStoragePath,
+            ocr_text: null,
+            extraktions_zeitstempel: new Date().toISOString(),
+            extraktions_qualitaet: "keine",
+            extraktions_hinweise: hinweise,
+            file_hash: fileHash,
+            text_hash: null,
+            bemerkungen: `Mediendatei: ${file.name}`,
+            source: "scanner",
+          })
+          .select("id")
+          .single();
+
+        if (insertError) {
+          throw new Error(`Database insert failed: ${insertError.message}`);
+        }
+
+        mediaResultId = insertData.id;
+        console.log(`Inserted media file with ID: ${mediaResultId}`);
+      }
 
       return new Response(JSON.stringify({
         success: true,
-        id: insertData.id,
+        id: mediaResultId,
         kategorie: kategorie,
-        dokument_url: uploadData.path,
+        dokument_url: mediaStoragePath,
         extraktions_qualitaet: "keine",
         file_hash: fileHash,
         message: "Mediendatei gespeichert (keine Textextraktion moeglich)",
         extraction_error: extractionError,
+        update_mode: isUpdateMode,
       }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -532,31 +744,34 @@ Deno.serve(async (req: Request) => {
     console.log(`Text hash: ${textHash}`);
 
     // Check for content duplicate
-    const { data: existingByTextHash } = await supabase
-      .from("documents")
-      .select("id, dokument_url, kategorie")
-      .eq("text_hash", textHash)
-      .is("duplicate_of", null)
-      .limit(1)
-      .single();
+    // v25: Skip in UPDATE-MODE
+    if (!isUpdateMode) {
+      const { data: existingByTextHash } = await supabase
+        .from("documents")
+        .select("id, dokument_url, kategorie")
+        .eq("text_hash", textHash)
+        .is("duplicate_of", null)
+        .limit(1)
+        .single();
 
-    if (existingByTextHash) {
-      console.log(`INHALTSDUPLIKAT: ${existingByTextHash.id} - Abbruch (spart GPT Kosten)`);
+      if (existingByTextHash) {
+        console.log(`INHALTSDUPLIKAT: ${existingByTextHash.id} - Abbruch (spart GPT Kosten)`);
 
-      return new Response(JSON.stringify({
-        success: false,
-        duplicate: true,
-        duplicate_type: "content",
-        duplicate_of: existingByTextHash.id,
-        duplicate_of_url: existingByTextHash.dokument_url,
-        duplicate_of_kategorie: existingByTextHash.kategorie,
-        message: "Inhaltsduplikat - Dokument mit gleichem Text bereits vorhanden",
-        file_hash: fileHash,
-        text_hash: textHash,
-      }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
+        return new Response(JSON.stringify({
+          success: false,
+          duplicate: true,
+          duplicate_type: "content",
+          duplicate_of: existingByTextHash.id,
+          duplicate_of_url: existingByTextHash.dokument_url,
+          duplicate_of_kategorie: existingByTextHash.kategorie,
+          message: "Inhaltsduplikat - Dokument mit gleichem Text bereits vorhanden",
+          file_hash: fileHash,
+          text_hash: textHash,
+        }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
     }
 
     // v22: Apply heuristic rules BEFORE GPT
@@ -583,24 +798,52 @@ Deno.serve(async (req: Request) => {
 
     console.log(`Categorized as: ${extractedData.kategorie} (by ${kategorisiertVon})`);
 
-    // Upload file to Storage
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const safeFileName = sanitizeFileName(file.name);
-    const storagePath = `${extractedData.kategorie}/${timestamp}_${safeFileName}`;
+    // v25: Skip upload in UPDATE-MODE (file already in storage)
+    let dokumentUrl: string;
+    let compressionInfo: string | null = null;
 
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from("documents")
-      .upload(storagePath, fileBuffer, {
-        contentType: mimeType,
-        upsert: false,
-      });
+    if (isUpdateMode && existingStoragePath) {
+      // UPDATE-MODE: Use existing storage path, no upload needed
+      dokumentUrl = existingStoragePath;
+      console.log(`[UPDATE-MODE] Using existing storage path: ${dokumentUrl}`);
+    } else {
+      // NORMAL-MODE: Compress and upload
+      let uploadBuffer: ArrayBuffer = fileBuffer;
+      let uploadMimeType = mimeType;
+      let uploadFileName = file.name;
 
-    if (uploadError) {
-      throw new Error(`Storage upload failed: ${uploadError.message}`);
+      if (isImage(file.name)) {
+        const compressionResult = await compressImage(fileBuffer, file.name);
+        uploadBuffer = compressionResult.buffer;
+        uploadMimeType = compressionResult.newMimeType;
+        uploadFileName = compressionResult.newFileName;
+
+        if (compressionResult.compressed) {
+          const savedKB = ((compressionResult.originalSize - compressionResult.newSize) / 1024).toFixed(0);
+          const savedPct = ((compressionResult.originalSize - compressionResult.newSize) / compressionResult.originalSize * 100).toFixed(1);
+          compressionInfo = `Komprimiert: ${(compressionResult.originalSize / 1024).toFixed(0)}KB -> ${(compressionResult.newSize / 1024).toFixed(0)}KB (${savedPct}% / ${savedKB}KB gespart)`;
+        }
+      }
+
+      // Upload file to Storage
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const safeFileName = sanitizeFileName(uploadFileName);
+      const storagePath = `${extractedData.kategorie}/${timestamp}_${safeFileName}`;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("documents")
+        .upload(storagePath, uploadBuffer, {
+          contentType: uploadMimeType,
+          upsert: false,
+        });
+
+      if (uploadError) {
+        throw new Error(`Storage upload failed: ${uploadError.message}`);
+      }
+
+      dokumentUrl = uploadData.path;
+      console.log(`Uploaded to: ${dokumentUrl}`);
     }
-
-    const dokumentUrl = uploadData.path;
-    console.log(`Uploaded to: ${dokumentUrl}`);
 
     // Add extraction method and categorization source to hints
     const hinweiseMitMethode = [
@@ -608,9 +851,10 @@ Deno.serve(async (req: Request) => {
       `Extraktionsmethode: ${extractionMethod}`,
       `Kategorisiert von: ${kategorisiertVon}`,
       ...(heuristicResult.reason ? [`Heuristik: ${heuristicResult.reason}`] : []),
+      ...(compressionInfo ? [compressionInfo] : []),
     ];
 
-    // Insert into database
+    // Build database record
     const dbRecord = buildDatabaseRecord(
       { ...extractedData, extraktions_hinweise: hinweiseMitMethode },
       extractedText,
@@ -619,21 +863,55 @@ Deno.serve(async (req: Request) => {
       textHash
     );
 
-    const { data: insertData, error: insertError } = await supabase
-      .from("documents")
-      .insert(dbRecord)
-      .select("id")
-      .single();
+    let resultId: string;
 
-    if (insertError) {
-      throw new Error(`Database insert failed: ${insertError.message}`);
+    // v25: UPDATE-MODE vs INSERT-MODE
+    if (isUpdateMode && existingDocumentId) {
+      // UPDATE existing document (from process-email)
+      console.log(`[UPDATE-MODE] Updating document ${existingDocumentId} with category: ${extractedData.kategorie}`);
+
+      // Remove source field for update (don't overwrite email_attachment source)
+      const { source: _source, ...updateRecord } = dbRecord;
+
+      // Add processing completion fields
+      const updateData = {
+        ...updateRecord,
+        processing_status: "done",
+        processed_at: new Date().toISOString(),
+        kategorisiert_am: new Date().toISOString(),
+        kategorisiert_von: kategorisiertVon === "rule" ? "rule" : "process-document-gpt",
+      };
+
+      const { error: updateError } = await supabase
+        .from("documents")
+        .update(updateData)
+        .eq("id", existingDocumentId);
+
+      if (updateError) {
+        throw new Error(`Database update failed: ${updateError.message}`);
+      }
+
+      resultId = existingDocumentId;
+      console.log(`[UPDATE-MODE] Updated document ${resultId} with category: ${extractedData.kategorie}`);
+    } else {
+      // INSERT new document (normal scanner mode)
+      const { data: insertData, error: insertError } = await supabase
+        .from("documents")
+        .insert(dbRecord)
+        .select("id")
+        .single();
+
+      if (insertError) {
+        throw new Error(`Database insert failed: ${insertError.message}`);
+      }
+
+      resultId = insertData.id;
+      console.log(`Inserted with ID: ${resultId}`);
     }
-
-    console.log(`Inserted with ID: ${insertData.id}`);
 
     return new Response(JSON.stringify({
       success: true,
-      id: insertData.id,
+      id: resultId,
       kategorie: extractedData.kategorie,
       kategorisiert_von: kategorisiertVon,
       dokument_url: dokumentUrl,
@@ -641,6 +919,7 @@ Deno.serve(async (req: Request) => {
       extraction_method: extractionMethod,
       file_hash: fileHash,
       text_hash: textHash,
+      update_mode: isUpdateMode,
     }), {
       status: 200,
       headers: { "Content-Type": "application/json" },

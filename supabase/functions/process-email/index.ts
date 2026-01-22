@@ -1,8 +1,16 @@
 // =============================================================================
 // Process Email - GPT Categorization + Attachment Handling
-// Version: 3.1.1 - 2026-01-16
+// Version: 4.0.0 - 2026-01-22
 // =============================================================================
 // Wird von email-webhook aufgerufen nachdem E-Mail in DB gespeichert wurde.
+//
+// v4.0.0 Changes:
+// - FIX: GPT reasoning.effort auf "medium" (war "none" - fuehrte zu schlechten Ergebnissen)
+// - FIX: Robustere Kategorie-Erkennung (case-insensitive, trim)
+// - FIX: Detailliertes Logging der GPT-Antwort fuer Debugging
+// - FIX: Attachment-Workflow - process-document updated jetzt existierendes Document
+// - NEW: Anhaenge erhalten processing_status="pending_ocr" bis process-document fertig
+// - NEW: process-document erhaelt document_id zum Updaten statt neu erstellen
 //
 // v3.1.1 Changes:
 // - NEW: Jeder Anhang erhaelt eigene Zeile in documents Tabelle
@@ -14,22 +22,6 @@
 // - UPGRADE: GPT-5.2 fuer Kategorisierung (Chat Completions API)
 // - UPGRADE: Supabase Client Library fuer Storage (Best Practice)
 // - FIX: Kompatibel mit neuen Supabase API Keys (sb_secret_...)
-// - Der Client transformiert neue Keys automatisch zu kurzlebigen JWTs
-//
-// v2.10.2 Changes:
-// - FIX: Use SUPABASE_SVC_KEY as fallback for broken reserved secret
-//
-// v2.10 Changes:
-// - FIX: Storage upload returns detailed error (not just null)
-//
-// v2.9 Changes:
-// - DIAG: Umfassende Graph-Diagnose (hasAttachments, $expand=attachments)
-//
-// v2.6 Changes:
-// - FIX: GPT Kategorie in email_kategorie speichern (NICHT documents.kategorie)
-//
-// v2.5 Changes:
-// - API-Key Vereinheitlichung: NUR noch INTERNAL_API_KEY
 // =============================================================================
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -288,8 +280,7 @@ Antwort im JSON-Format:
 }`;
 
   try {
-    // v3.0: GPT-5.2 mit Chat Completions API (weiterhin unterstuetzt)
-    // reasoning.effort: "none" fuer einfache Klassifizierung (kein CoT noetig)
+    // v4.0: GPT-5.2 mit reasoning.effort: "medium" fuer bessere Ergebnisse
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -300,31 +291,50 @@ Antwort im JSON-Format:
         model: "gpt-5.2",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.3,
-        max_tokens: 200,
-        // v3.0: GPT-5.2 spezifische Parameter
-        reasoning: { effort: "none" },  // Keine Chain-of-Thought fuer simple Klassifizierung
+        max_tokens: 400,  // Erhoeht fuer medium reasoning
+        // v4.0: reasoning.effort: "medium" statt "none" - bessere Kategorisierung
+        reasoning: { effort: "medium" },
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`[GPT] API error: ${response.status} - ${errorText.substring(0, 100)}`);
+      console.error(`[GPT] API error: ${response.status} - ${errorText.substring(0, 200)}`);
       throw new Error(`GPT API error: ${response.status}`);
     }
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || "";
+
+    // v4.0: Detailliertes Logging fuer Debugging
     console.log(`[GPT] Model: gpt-5.2, Response length: ${content.length}`);
+    console.log(`[GPT] Raw response (first 500 chars): ${content.substring(0, 500)}`);
 
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      if (VALID_CATEGORIES.includes(parsed.kategorie)) {
-        return {
-          kategorie: parsed.kategorie,
-          zusammenfassung: parsed.zusammenfassung || betreff,
-        };
+      try {
+        const parsed = JSON.parse(jsonMatch[0]);
+        console.log(`[GPT] Parsed kategorie: "${parsed.kategorie}"`);
+
+        // v4.0: Robustere Kategorie-Erkennung (case-insensitive, trim)
+        const matchedCategory = VALID_CATEGORIES.find(
+          cat => cat.toLowerCase() === parsed.kategorie?.toLowerCase()?.trim()
+        );
+
+        if (matchedCategory) {
+          console.log(`[GPT] Matched category: "${matchedCategory}"`);
+          return {
+            kategorie: matchedCategory,  // Normalisierte Version aus VALID_CATEGORIES
+            zusammenfassung: parsed.zusammenfassung || betreff,
+          };
+        } else {
+          console.warn(`[GPT] Category "${parsed.kategorie}" NOT in VALID_CATEGORIES, falling back to Sonstiges`);
+        }
+      } catch (parseError) {
+        console.error(`[GPT] JSON parse error: ${parseError}`);
       }
+    } else {
+      console.warn(`[GPT] No JSON found in response`);
     }
 
     return {
@@ -332,7 +342,7 @@ Antwort im JSON-Format:
       zusammenfassung: betreff || "(GPT Parse-Fehler)",
     };
   } catch (error) {
-    console.error(`GPT categorization error: ${error}`);
+    console.error(`[GPT] Categorization error: ${error}`);
     return {
       kategorie: "Sonstiges",
       zusammenfassung: betreff || "(GPT-Fehler)",
@@ -550,6 +560,8 @@ async function fetchAttachments(
 // v3.1: Create document row for attachment
 // =============================================================================
 
+// v4.0: Create attachment document with pending_ocr status
+// process-document will update this document with the actual category after OCR
 async function createAttachmentDocument(
   emailDocumentId: string,
   fileName: string,
@@ -561,6 +573,7 @@ async function createAttachmentDocument(
   emailBetreff: string
 ): Promise<string | null> {
   const docData = {
+    // v4.0: Kategorie bleibt Email_Anhang bis process-document sie ueberschreibt
     kategorie: "Email_Anhang",
     bezug_email_id: emailDocumentId,
     dokument_url: storagePath,
@@ -569,8 +582,9 @@ async function createAttachmentDocument(
     source: "email_attachment",
     // Additional metadata
     email_betreff: `Anhang: ${originalFileName} (von: ${emailBetreff})`,
-    processing_status: "done",
-    processed_at: new Date().toISOString(),
+    // v4.0: Status pending_ocr - wird von process-document auf done gesetzt
+    processing_status: "pending_ocr",
+    // processed_at wird von process-document gesetzt
   };
 
   try {
@@ -695,21 +709,25 @@ async function processAttachment(
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   ];
 
-  // v2.3.1: Call process-document with FormData + API Key
-  if (processableTypes.includes(attachment.contentType)) {
+  // v4.0: Call process-document with document_id for UPDATE mode
+  // process-document will update the existing document instead of creating a new one
+  if (processableTypes.includes(attachment.contentType) && attachmentDocId) {
     try {
       const processUrl = `${SUPABASE_URL}/functions/v1/process-document`;
 
-      // Build FormData with the file blob
+      // v4.0: FormData mit document_id fuer Update-Mode
       const formData = new FormData();
       const blob = new Blob([binaryContent], { type: attachment.contentType });
       formData.append("file", blob, safeFileName);
+      // v4.0: NEU - document_id signalisiert Update-Mode
+      formData.append("document_id", attachmentDocId);
+      // v4.0: NEU - storage_path damit process-document nicht nochmal hochlaedt
+      formData.append("storage_path", storagePath);
 
-      // v2.5: Use INTERNAL_API_KEY for process-document call
       const headers: Record<string, string> = {};
       if (INTERNAL_API_KEY) {
         headers["x-api-key"] = INTERNAL_API_KEY;
-        console.log("[INTERNAL] Using INTERNAL_API_KEY for process-document call");
+        console.log(`[INTERNAL] Calling process-document in UPDATE mode for doc ${attachmentDocId}`);
       } else {
         console.warn("[INTERNAL] INTERNAL_API_KEY not set - process-document call will fail");
       }
@@ -722,14 +740,17 @@ async function processAttachment(
 
       if (processResponse.ok) {
         const result = await processResponse.json();
-        console.log(`Triggered process-document for: ${attachment.name} -> ID: ${result.id || 'unknown'}`);
+        console.log(`[ATTACH] process-document completed for: ${attachment.name}`);
+        console.log(`[ATTACH]   Updated doc ${attachmentDocId} with category: ${result.kategorie || 'unknown'}`);
       } else {
         const errorText = await processResponse.text();
-        console.warn(`process-document returned ${processResponse.status}: ${errorText.substring(0, 100)}`);
+        console.warn(`[ATTACH] process-document returned ${processResponse.status}: ${errorText.substring(0, 200)}`);
       }
     } catch (error) {
-      console.log(`process-document not available: ${error}`);
+      console.error(`[ATTACH] process-document call failed: ${error}`);
     }
+  } else if (!attachmentDocId) {
+    console.warn(`[ATTACH] Skipping process-document - no document_id available`);
   }
 
   console.log(`[ATTACH]   SUCCESS: ${attachment.name} processed with doc_id=${attachmentDocId}`);
@@ -888,13 +909,17 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         service: "process-email",
-        version: "3.1.1",
+        version: "4.0.0",
         status: "ready",
         configured: {
           azure: !!(AZURE_TENANT_ID && AZURE_CLIENT_ID && AZURE_CLIENT_SECRET),
           openai: !!OPENAI_API_KEY,
           supabase: !!(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY),
           internalApiKey: !!INTERNAL_API_KEY,
+        },
+        features: {
+          gptReasoningEffort: "medium",  // v4.0
+          attachmentUpdateMode: true,     // v4.0
         },
         allowedExtensions: ALLOWED_EXTENSIONS,
         maxAttachmentSize: MAX_ATTACHMENT_SIZE_BYTES,
