@@ -1,7 +1,11 @@
 // =============================================================================
 // Shared Category Definitions, Canonicalization, and Heuristic Rules
-// Version: 2.3.0 - 2026-01-21
+// Version: 2.4.0 - 2026-01-22
 // =============================================================================
+// Aenderungen v2.4.0:
+// - NEU: Kategorie "Kassenbeleg" (Tankquittungen, Baumarkt-Bons, Barbelege)
+// - NEU: Heuristik-Regel Kassenbeleg (priority 82)
+//
 // Aenderungen v2.3.0:
 // - NEU: Kategorie "Bauplan" (Grundriss, Schnitt, Ansicht, Lageplan, Architekt)
 // - NEU: Kategorie "Zeichnung" (technische Zeichnungen, CAD)
@@ -44,6 +48,7 @@ export const VALID_DOKUMENT_KATEGORIEN = [
   "Finanzierung",
   "Formular",
   "Gutschrift",
+  "Kassenbeleg",            // v2.4.0: Tankquittungen, Baumarkt-Bons, Barbelege
   "Kundenanfrage",
   "Kundenbestellung",      // v2.1.0: PO vom Kunden an uns (eingehend)
   "Kundenlieferschein",
@@ -386,6 +391,38 @@ const HEURISTIC_RULES: HeuristicRule[] = [
       "doppelzimmer",
     ],
     priority: 70,
+  },
+
+  // v2.4.0: Kassenbeleg (priority 82)
+  // Tankquittungen, Baumarkt-Bons, Material-Belege, Bewirtung (alles was bar bezahlt wird)
+  // Priority ueber Eingangsrechnung (75) und Gutschrift (80)
+  {
+    kategorie: "Kassenbeleg",
+    keywords: [
+      "kassenbon",
+      "kassenbeleg",
+      "kassenquittung",
+      "quittung",
+      "bar bezahlt",
+      "barzahlung",
+      "tankquittung",
+      "tankstelle",
+      "baumarkt",
+      "hornbach",
+      "obi",
+      "toom",
+      "hagebau",
+      "globus",
+      "bewirtungsbeleg",
+      "bewirtung",
+      "ec-zahlung",
+      "kartenzahlung",
+      "trinkgeld",
+      "kasse:",
+      "bon-nr",
+      "tse-signatur",
+    ],
+    priority: 82,
   },
 
   // v2.2.0: Zahlungsavis (priority 78)

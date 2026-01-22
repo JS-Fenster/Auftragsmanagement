@@ -1,7 +1,10 @@
 // =============================================================================
 // Process Document - OCR + GPT Kategorisierung
-// Version: 23 - 2026-01-21
+// Version: 24 - 2026-01-22
 // =============================================================================
+// Aenderungen v24:
+// - NEU: Kategorie Kassenbeleg (Tankquittungen, Baumarkt-Bons, Barbelege)
+//
 // Aenderungen v23:
 // - NEU: Kategorien Reiseunterlagen, Kundenbestellung, Zahlungsavis
 // - NEU: Heuristik fuer Kundenbestellung (PO vom Kunden, Prio 95)
@@ -288,7 +291,7 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         service: "process-document",
-        version: "23.0.0",
+        version: "24.0.0",
         status: "ready",
         configured: {
           mistral: !!MISTRAL_API_KEY,
@@ -951,6 +954,7 @@ const EXTRACTION_SCHEMA = {
         "Finanzierung",
         "Formular",
         "Gutschrift",
+        "Kassenbeleg",
         "Kundenanfrage",
         "Kundenbestellung",
         "Kundenlieferschein",
