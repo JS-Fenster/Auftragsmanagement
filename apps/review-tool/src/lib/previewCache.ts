@@ -2,7 +2,7 @@
 // Preview Cache - LRU Cache with Blob/objectURL for instant preview loading
 // =============================================================================
 
-import { AdminReviewApi, ReviewDocument, AttachmentMeta } from './api';
+import { AdminReviewApi, ReviewDocument } from './api';
 
 // =============================================================================
 // Types

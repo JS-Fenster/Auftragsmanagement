@@ -1,7 +1,11 @@
 // =============================================================================
 // Admin Review API - Review Queue, Labeling, Preview, Rules, Learning Loop
-// Version: 1.7.0 - 2026-01-21
+// Version: 1.8.0 - 2026-01-21
 // =============================================================================
+// Aenderungen v1.8.0:
+// - FIX: Learning Loop Fehler jetzt sichtbar im Response (learning_status/learning_error)
+// - FIX: Besseres Logging mit doc_id und rpc-name
+//
 // Aenderungen v1.7.0:
 // - NEU: Kategorien Reiseunterlagen, Kundenbestellung, Zahlungsavis
 // - NEU: Shared categories v2.2 mit erweiterten Heuristik-Regeln
@@ -34,6 +38,7 @@
 //   POST /admin-review/rules/:id/activate - Activate a draft rule
 //   POST /admin-review/rules/:id/disable  - Disable a rule
 //   POST /admin-review/rules/:id/pause    - Pause a rule
+//   POST /admin-review/backfill         - Backfill learning data for existing corrections
 // =============================================================================
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -368,52 +373,66 @@ async function updateLabel(documentId: string, body: LabelUpdateBody) {
   // =========================================================================
   let clusterId: string | null = null;
   let clusterStatus: string | null = null;
+  let learningStatus: "ok" | "skipped" | "failed" = "skipped";
+  let learningError: string | null = null;
+  let featuresExtracted = 0;
 
   // Only process for corrections (not approvals of existing correct classifications)
   if (action === "correct" && (kategorie_manual || email_kategorie_manual)) {
     try {
       // Step 1: Extract features from document
-      const { error: extractError } = await supabase.rpc("extract_document_features", {
+      console.log(`[LEARNING] Starting feature extraction for doc=${documentId}`);
+      const { data: extractResult, error: extractError } = await supabase.rpc("extract_document_features", {
         doc_id: documentId,
       });
 
       if (extractError) {
-        console.error(`[LEARNING] Failed to extract features for ${documentId}: ${extractError.message}`);
+        console.error(`[LEARNING] RPC extract_document_features FAILED for doc=${documentId}: ${extractError.message}`);
+        learningStatus = "failed";
+        learningError = `extract_document_features: ${extractError.message}`;
       } else {
-        console.log(`[LEARNING] Extracted features for document ${documentId}`);
-      }
+        featuresExtracted = extractResult || 0;
+        console.log(`[LEARNING] Extracted ${featuresExtracted} features for doc=${documentId}`);
 
-      // Step 2: Add to evidence cluster
-      const targetEmailKat = email_kategorie_manual || null;
-      const targetKat = kategorie_manual || null;
+        // Step 2: Add to evidence cluster
+        const targetEmailKat = email_kategorie_manual || null;
+        const targetKat = kategorie_manual || null;
 
-      const { data: clusterResult, error: clusterError } = await supabase.rpc("add_evidence_to_cluster", {
-        doc_id: documentId,
-        target_email_kat: targetEmailKat,
-        target_kat: targetKat,
-      });
+        console.log(`[LEARNING] Adding to cluster: doc=${documentId}, email_kat=${targetEmailKat}, kat=${targetKat}`);
+        const { data: clusterResult, error: clusterError } = await supabase.rpc("add_evidence_to_cluster", {
+          doc_id: documentId,
+          target_email_kat: targetEmailKat,
+          target_kat: targetKat,
+        });
 
-      if (clusterError) {
-        console.error(`[LEARNING] Failed to add to cluster: ${clusterError.message}`);
-      } else if (clusterResult) {
-        clusterId = clusterResult;
-        console.log(`[LEARNING] Added document ${documentId} to cluster ${clusterId}`);
+        if (clusterError) {
+          console.error(`[LEARNING] RPC add_evidence_to_cluster FAILED for doc=${documentId}: ${clusterError.message}`);
+          learningStatus = "failed";
+          learningError = `add_evidence_to_cluster: ${clusterError.message}`;
+        } else if (clusterResult) {
+          clusterId = clusterResult;
+          learningStatus = "ok";
+          console.log(`[LEARNING] SUCCESS: doc=${documentId} added to cluster=${clusterId}`);
 
-        // Check cluster status (if ready for rule generation)
-        const { data: cluster } = await supabase
-          .from("rule_evidence_clusters")
-          .select("status, evidence_count")
-          .eq("id", clusterId)
-          .single();
+          // Check cluster status (if ready for rule generation)
+          const { data: cluster } = await supabase
+            .from("rule_evidence_clusters")
+            .select("status, evidence_count")
+            .eq("id", clusterId)
+            .single();
 
-        if (cluster) {
-          clusterStatus = cluster.status;
-          console.log(`[LEARNING] Cluster ${clusterId}: ${cluster.evidence_count} evidence, status=${cluster.status}`);
+          if (cluster) {
+            clusterStatus = cluster.status;
+            console.log(`[LEARNING] Cluster ${clusterId}: ${cluster.evidence_count} evidence, status=${cluster.status}`);
+          }
         }
       }
-    } catch (learningError) {
+    } catch (learningException) {
       // Don't fail the main operation if learning fails
-      console.error(`[LEARNING] Error in learning loop: ${learningError}`);
+      const errMsg = learningException instanceof Error ? learningException.message : String(learningException);
+      console.error(`[LEARNING] EXCEPTION in learning loop for doc=${documentId}: ${errMsg}`);
+      learningStatus = "failed";
+      learningError = `exception: ${errMsg}`;
     }
   }
 
@@ -423,9 +442,12 @@ async function updateLabel(documentId: string, body: LabelUpdateBody) {
     action,
     review_status: updateData.review_status,
     rule_fingerprint: fingerprint,
+    learning_status: learningStatus,
+    learning_error: learningError,
     learning: clusterId ? {
       cluster_id: clusterId,
       cluster_status: clusterStatus,
+      features_extracted: featuresExtracted,
     } : null,
   };
 }
@@ -579,6 +601,117 @@ async function getRuleSuggestions() {
 }
 
 // =============================================================================
+// POST /admin-review/backfill - Backfill learning data for existing corrections
+// =============================================================================
+
+interface BackfillResult {
+  total_found: number;
+  processed: number;
+  succeeded: number;
+  failed: number;
+  errors: Array<{ document_id: string; error: string }>;
+  clusters_created: number;
+  top_clusters: Array<{ cluster_key: string; evidence_count: number }>;
+}
+
+async function runBackfill(limit = 500): Promise<BackfillResult> {
+  console.log(`[BACKFILL] Starting backfill with limit=${limit}`);
+
+  // Find all corrected documents that have manual categories set
+  const { data: docs, error: fetchError } = await supabase
+    .from("documents")
+    .select("id, kategorie_manual, email_kategorie_manual")
+    .or("kategorie_manual.not.is.null,email_kategorie_manual.not.is.null")
+    .in("review_status", ["corrected", "approved"])
+    .limit(limit);
+
+  if (fetchError) {
+    throw new Error(`Failed to fetch documents: ${fetchError.message}`);
+  }
+
+  const result: BackfillResult = {
+    total_found: docs?.length || 0,
+    processed: 0,
+    succeeded: 0,
+    failed: 0,
+    errors: [],
+    clusters_created: 0,
+    top_clusters: [],
+  };
+
+  console.log(`[BACKFILL] Found ${result.total_found} documents to process`);
+
+  // Process each document
+  for (const doc of docs || []) {
+    result.processed++;
+
+    try {
+      // Step 1: Extract features
+      const { error: extractError } = await supabase.rpc("extract_document_features", {
+        doc_id: doc.id,
+      });
+
+      if (extractError) {
+        result.failed++;
+        result.errors.push({
+          document_id: doc.id,
+          error: `extract_document_features: ${extractError.message}`,
+        });
+        continue;
+      }
+
+      // Step 2: Add to cluster
+      const { error: clusterError } = await supabase.rpc("add_evidence_to_cluster", {
+        doc_id: doc.id,
+        target_email_kat: doc.email_kategorie_manual,
+        target_kat: doc.kategorie_manual,
+      });
+
+      if (clusterError) {
+        result.failed++;
+        result.errors.push({
+          document_id: doc.id,
+          error: `add_evidence_to_cluster: ${clusterError.message}`,
+        });
+        continue;
+      }
+
+      result.succeeded++;
+
+      // Log progress every 10 documents
+      if (result.processed % 10 === 0) {
+        console.log(`[BACKFILL] Progress: ${result.processed}/${result.total_found} (${result.succeeded} ok, ${result.failed} failed)`);
+      }
+    } catch (err) {
+      result.failed++;
+      result.errors.push({
+        document_id: doc.id,
+        error: `exception: ${err instanceof Error ? err.message : String(err)}`,
+      });
+    }
+  }
+
+  // Get cluster stats
+  const { data: clusters } = await supabase
+    .from("rule_evidence_clusters")
+    .select("cluster_key, evidence_count")
+    .order("evidence_count", { ascending: false })
+    .limit(10);
+
+  result.top_clusters = clusters || [];
+  result.clusters_created = clusters?.length || 0;
+
+  console.log(`[BACKFILL] Complete: ${result.succeeded} succeeded, ${result.failed} failed, ${result.clusters_created} clusters`);
+
+  // Truncate errors array for response (keep first 20)
+  if (result.errors.length > 20) {
+    result.errors = result.errors.slice(0, 20);
+  }
+
+  return result;
+}
+
+// =============================================================================
 // GET /admin-review/clusters - Get Evidence Clusters
 // =============================================================================
 
@@ -625,12 +758,15 @@ async function getClusters(params: ClustersQueryParams) {
       email_betreff: string | null;
       email_von_email: string | null;
       email_von_name: string | null;
+      dokument_url: string | null;
+      kategorie: string | null;
+      inhalt_zusammenfassung: string | null;
     }> = [];
 
     if (cluster.evidence_document_ids && cluster.evidence_document_ids.length > 0) {
       const { data: exampleDocs } = await supabase
         .from("documents")
-        .select("id, email_betreff, email_von_email, email_von_name")
+        .select("id, email_betreff, email_von_email, email_von_name, dokument_url, kategorie, inhalt_zusammenfassung")
         .in("id", cluster.evidence_document_ids.slice(0, 5));
       examples = exampleDocs || [];
     }
@@ -647,6 +783,7 @@ async function getClusters(params: ClustersQueryParams) {
     .select("status");
 
   const counts = {
+    collecting: 0,
     pending: 0,
     ready: 0,
     rule_generated: 0,
@@ -954,7 +1091,7 @@ Deno.serve(async (req: Request) => {
       return new Response(
         JSON.stringify({
           service: "admin-review",
-          version: "1.7.0",
+          version: "1.8.0",
           status: "ready",
           configured: {
             supabase: !!(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY),
@@ -1029,6 +1166,18 @@ Deno.serve(async (req: Request) => {
       const suggestions = await getRuleSuggestions();
       return new Response(
         JSON.stringify(suggestions),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Route: POST /admin-review/backfill - Backfill learning data for existing corrections
+    if (req.method === "POST" && pathParts[1] === "backfill") {
+      const body = await req.json().catch(() => ({}));
+      const limit = body.limit || 500;
+      console.log(`[BACKFILL] Received backfill request with limit=${limit}`);
+      const result = await runBackfill(limit);
+      return new Response(
+        JSON.stringify(result),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

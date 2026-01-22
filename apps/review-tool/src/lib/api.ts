@@ -161,13 +161,16 @@ export interface EvidenceCluster {
   target_kategorie: string | null;
   evidence_count: number;
   evidence_document_ids: string[];
-  status: 'pending' | 'ready' | 'rule_generated';
+  status: 'collecting' | 'pending' | 'ready' | 'rule_generated';
   generated_rule_id: string | null;
   examples: Array<{
     id: string;
     email_betreff: string | null;
     email_von_email: string | null;
     email_von_name: string | null;
+    dokument_url: string | null;
+    kategorie: string | null;
+    inhalt_zusammenfassung: string | null;
   }>;
 }
 
@@ -177,6 +180,7 @@ export interface ClustersResponse {
   offset: number;
   limit: number;
   counts: {
+    collecting: number;
     pending: number;
     ready: number;
     rule_generated: number;

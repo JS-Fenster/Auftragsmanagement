@@ -258,9 +258,10 @@ export function RulesPanel({ api, onClose }: RulesPanelProps) {
                   onChange={(e) => setClusterFilterStatus(e.target.value)}
                   className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
                 >
-                  <option value="all">Alle ({(clustersData?.counts.pending || 0) + (clustersData?.counts.ready || 0) + (clustersData?.counts.rule_generated || 0)})</option>
+                  <option value="all">Alle ({(clustersData?.counts.collecting || 0) + (clustersData?.counts.pending || 0) + (clustersData?.counts.ready || 0) + (clustersData?.counts.rule_generated || 0)})</option>
+                  <option value="collecting">Sammelnd ({clustersData?.counts.collecting || 0})</option>
+                  <option value="pending">Ausstehend ({clustersData?.counts.pending || 0})</option>
                   <option value="ready">Bereit ({clustersData?.counts.ready || 0})</option>
-                  <option value="pending">Sammelnd ({clustersData?.counts.pending || 0})</option>
                   <option value="rule_generated">Regel erstellt ({clustersData?.counts.rule_generated || 0})</option>
                 </select>
                 <button
@@ -656,8 +657,9 @@ function ClusterCard({ cluster, onGenerateRule, generating }: ClusterCardProps) 
 
   const getStatusLabel = (status: string) => {
     switch (status) {
+      case 'collecting': return 'Sammelnd';
+      case 'pending': return 'Ausstehend';
       case 'ready': return 'Bereit';
-      case 'pending': return 'Sammelnd';
       case 'rule_generated': return 'Regel erstellt';
       default: return status;
     }
@@ -737,12 +739,34 @@ function ClusterCard({ cluster, onGenerateRule, generating }: ClusterCardProps) 
           <ul className="mt-2 space-y-2">
             {cluster.examples.map(ex => (
               <li key={ex.id} className="text-sm bg-gray-50 p-2 rounded">
-                <div className="font-mono text-xs text-gray-600">{ex.email_von_email}</div>
+                {/* E-Mail-Infos */}
+                {ex.email_von_email && (
+                  <div className="font-mono text-xs text-gray-600">{ex.email_von_email}</div>
+                )}
                 {ex.email_von_name && (
                   <div className="text-xs text-gray-500">{ex.email_von_name}</div>
                 )}
                 {ex.email_betreff && (
                   <div className="text-sm text-gray-700 mt-1">{ex.email_betreff}</div>
+                )}
+                {/* Fallback fuer Dokumente ohne E-Mail-Felder */}
+                {!ex.email_von_email && !ex.email_betreff && (
+                  <>
+                    {ex.dokument_url && (
+                      <div className="font-mono text-xs text-gray-600">
+                        📄 {ex.dokument_url.split('/').pop()}
+                      </div>
+                    )}
+                    {ex.kategorie && (
+                      <div className="text-xs text-gray-500">Kategorie: {ex.kategorie}</div>
+                    )}
+                    {ex.inhalt_zusammenfassung && (
+                      <div className="text-sm text-gray-700 mt-1 line-clamp-2">{ex.inhalt_zusammenfassung}</div>
+                    )}
+                    {!ex.dokument_url && !ex.inhalt_zusammenfassung && (
+                      <div className="text-xs text-gray-400 italic">Dokument {ex.id.slice(0,8)}...</div>
+                    )}
+                  </>
                 )}
               </li>
             ))}

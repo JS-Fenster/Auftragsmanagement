@@ -188,8 +188,8 @@ export function DetailPanel({ document: doc, categories, api, onUpdate, onNextDo
 
   // Single-button UX: determine if this is a correction or confirmation
   const hasKategorieChanges = selectedEmailKategorie || selectedKategorie;
-  const hasUnterschriftChanges = unterschriftVorhanden !== null || unterschriftText !== '';
-  const hasChanges = hasKategorieChanges || hasUnterschriftChanges;
+  // hasUnterschriftChanges unused for now but kept for future use
+  void (unterschriftVorhanden !== null || unterschriftText !== '');
   const isCorrection = hasKategorieChanges; // Unterschrift-Aenderungen erfordern keine "correction"
 
   const handleSave = async () => {
