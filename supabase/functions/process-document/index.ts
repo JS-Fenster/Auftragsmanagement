@@ -1,7 +1,16 @@
 // =============================================================================
 // Process Document - OCR + GPT Kategorisierung
-// Version: 25 - 2026-01-22
+// Version: 27 - 2026-01-24
 // =============================================================================
+// Aenderungen v27:
+// - FIX: imagescript Import entfernt (Deno-Kompatibilitaetsproblem)
+// - Bildkomprimierung temporaer deaktiviert
+//
+// Aenderungen v26:
+// - FIX: processing_status wird jetzt auf "done" gesetzt bei Scanner-Dokumenten
+// - FIX: processed_at, kategorisiert_am, kategorisiert_von werden gesetzt
+// - buildDatabaseRecord erhält jetzt kategorisiertVon als Parameter
+//
 // Aenderungen v25:
 // - NEU: UPDATE-Mode fuer Email-Anhaenge (document_id + storage_path Parameter)
 // - NEU: Wenn document_id uebergeben wird, UPDATE statt INSERT
@@ -64,8 +73,9 @@ import { SYSTEM_PROMPT } from "./prompts.ts";
 import { canonicalizeKategorie, applyHeuristicRules } from "./categories.ts";
 import * as XLSX from "npm:xlsx@0.18.5";
 import JSZip from "npm:jszip@3.10.1";
-// v24: Image compression
-import { Image } from "npm:imagescript@1.3.0";
+// v24: Image compression - DISABLED due to Deno compatibility issues
+// import { Image } from "npm:imagescript@1.3.0";
+const Image: null = null; // Stub for disabled feature
 
 const MISTRAL_API_KEY = Deno.env.get("MISTRAL_API_KEY")!;
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
@@ -86,7 +96,7 @@ const COMPRESSION_CONFIG = {
   maxSizeBytes: 500 * 1024,      // Komprimiere wenn > 500KB
   maxWidthOrHeight: 1920,        // Max Full-HD Aufloesung
   jpegQuality: 80,               // JPEG Qualitaet (0-100)
-  enabled: true,                 // Komprimierung aktiviert
+  enabled: false,                // DISABLED - imagescript incompatible with Edge Functions
 };
 
 // Bildformate die komprimiert werden koennen
@@ -415,7 +425,7 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         service: "process-document",
-        version: "25.0.0",
+        version: "27.0.0",
         status: "ready",
         configured: {
           mistral: !!MISTRAL_API_KEY,
@@ -696,19 +706,24 @@ Deno.serve(async (req: Request) => {
         mediaResultId = existingDocumentId;
         console.log(`[UPDATE-MODE] Updated media document ${mediaResultId}`);
       } else {
+        // v26: processing_status wird jetzt gesetzt
+        const now = new Date().toISOString();
         const { data: insertData, error: insertError } = await supabase
           .from("documents")
           .insert({
             kategorie: kategorie,
             dokument_url: mediaStoragePath,
             ocr_text: null,
-            extraktions_zeitstempel: new Date().toISOString(),
+            extraktions_zeitstempel: now,
             extraktions_qualitaet: "keine",
             extraktions_hinweise: hinweise,
             file_hash: fileHash,
             text_hash: null,
             bemerkungen: `Mediendatei: ${file.name}`,
             source: "scanner",
+            processing_status: "done",
+            processed_at: now,
+            kategorisiert_von: "media-type",
           })
           .select("id")
           .single();
@@ -856,12 +871,14 @@ Deno.serve(async (req: Request) => {
     ];
 
     // Build database record
+    // v26: kategorisiertVon wird jetzt übergeben
     const dbRecord = buildDatabaseRecord(
       { ...extractedData, extraktions_hinweise: hinweiseMitMethode },
       extractedText,
       dokumentUrl,
       fileHash,
-      textHash
+      textHash,
+      kategorisiertVon
     );
 
     let resultId: string;
@@ -1063,7 +1080,8 @@ function buildDatabaseRecord(
   ocrText: string,
   dokumentUrl: string,
   fileHash: string,
-  textHash: string
+  textHash: string,
+  kategorisiertVon: string = "gpt"  // v26: Parameter hinzugefuegt
 ): Record<string, unknown> {
   // v21: Canonicalize kategorie (alias mapping)
   const kategorie = canonicalizeKategorie(extracted.kategorie) || extracted.kategorie;
@@ -1071,16 +1089,23 @@ function buildDatabaseRecord(
   // v20: Business-Logik fuer unterschrift_erforderlich
   const unterschriftErforderlich = UNTERSCHRIFT_ERFORDERLICH_KATEGORIEN.includes(kategorie);
 
+  const now = new Date().toISOString();
+
   return {
     kategorie: kategorie,
     dokument_url: dokumentUrl,
     ocr_text: ocrText,
-    extraktions_zeitstempel: new Date().toISOString(),
+    extraktions_zeitstempel: now,
     extraktions_qualitaet: extracted.extraktions_qualitaet,
     extraktions_hinweise: extracted.extraktions_hinweise,
     file_hash: fileHash,
     text_hash: textHash,
     source: "scanner",
+    // v26: Processing-Status Felder
+    processing_status: "done",
+    processed_at: now,
+    kategorisiert_am: now,
+    kategorisiert_von: kategorisiertVon === "rule" ? "rule" : "process-document-gpt",
     // v20: Unterschrift-Felder
     empfang_unterschrift: extracted.empfang_unterschrift,
     unterschrift: extracted.unterschrift,
