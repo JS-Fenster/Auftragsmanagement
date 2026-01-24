@@ -38,9 +38,93 @@ Seit dem **22.01.2026** kommen keine neuen Scanner-Dokumente mehr in der Datenba
 
 ---
 
+## Fehlgeschlagene Dateien (22.-23.01.2026)
+
+Aus dem Log `scanner_webhook.log` extrahiert - diese Dateien wurden NICHT verarbeitet:
+
+### 22.01.2026 (ab ~13:07 Uhr)
+```
+39303.jpg
+39300.jpg
+Gurtführung.pdf
+20260122144419.pdf
+IMG-20260122-WA0005.jpg
+IMG-20260122-WA0003.jpg
+DFK Schimmel_Schlosser.pdf
+R18531 - P17150 - Schlosser - DKF - 2018.11.rtf
+20260122154617.pdf
+20260122154634.pdf
+```
+
+### 23.01.2026 (ganzer Tag)
+```
+LS Kadeco LV.pdf
+LS Steinau.pdf
+20260123093047.pdf
+1.jpg, 2.jpg, 3.jpg, 4.jpg (Bildserie bis 16.jpg)
+DKF Mittelverschluss_Melczer.pdf
+20260123095707.pdf
+20260123104533.pdf
+Kindergarten.pdf
+20260123111941.pdf
+20260123112036.pdf
+20260123113429.pdf
+Skizze_HT_Spörl.pdf
+20260123120336.pdf
+20260123120550.pdf
+20260123122832.pdf
+Rechnung UTA.pdf
+20260123153418.pdf
+20260123154435.pdf
+RP Götz.pdf
+20260123155312.pdf
+20260123162551.pdf
+20260123162742.pdf
+PDF_1_0001.pdf
+PDF_1_0002.pdf
+```
+
+**WICHTIG:** Der Scanner-Ordner wird nach Verarbeitung geleert!
+Die Dateien wurden ins W4A verschoben: `\\appserver\Work4all`
+
+---
+
 ## Naechste Schritte
 
-### 1. Server-Logs pruefen (auf dc per RDP)
+### 1. W4A-Ordner durchsuchen (PRIORITAET!)
+
+Die Originaldateien liegen vermutlich im W4A-Archiv:
+
+```powershell
+# Auf appserver oder mit Netzwerkzugriff ausfuehren
+# Dateien vom 22./23. Januar im W4A suchen
+Get-ChildItem "\\appserver\Work4all" -Recurse -File |
+    Where-Object { $_.LastWriteTime -ge "2026-01-22" -and $_.LastWriteTime -lt "2026-01-24" } |
+    Select-Object FullName, LastWriteTime, Length |
+    Sort-Object LastWriteTime |
+    Export-Csv "C:\temp\w4a_dateien_22-23jan.csv" -NoTypeInformation -Encoding UTF8
+
+# Alternativ: Nach spezifischen Dateinamen suchen
+$suchbegriffe = @("Gurtführung", "Kadeco", "Steinau", "Kindergarten", "Rechnung UTA", "RP Götz", "Skizze_HT")
+Get-ChildItem "\\appserver\Work4all" -Recurse -File |
+    Where-Object { $name = $_.Name; $suchbegriffe | Where-Object { $name -like "*$_*" } } |
+    Select-Object FullName, LastWriteTime
+```
+
+### 2. Gefundene Dateien erneut senden
+
+```powershell
+# Dateien in Scanner-Ordner kopieren (triggert Watcher)
+$quelldateien = Get-Content "C:\temp\gefundene_dateien.txt"
+$zielordner = "D:\Daten\Dokumente\Scanner"
+
+foreach ($datei in $quelldateien) {
+    Copy-Item $datei $zielordner -Verbose
+    Start-Sleep -Seconds 3  # Watcher Zeit geben
+}
+```
+
+### 3. Server-Logs pruefen (auf dc per RDP)
 ```powershell
 # Scanner-Webhook Log (zeigt 500er Fehler)
 Get-Content C:\Scripts\Scanner_Webhook\scanner_webhook.log -Tail 100
