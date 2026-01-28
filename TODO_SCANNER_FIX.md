@@ -1,8 +1,22 @@
 # TODO: Scanner Webhook Problem beheben
 
 > **Erstellt:** 2026-01-24
-> **Status:** OFFEN
-> **Prioritaet:** HOCH
+> **Aktualisiert:** 2026-01-28
+> **Status:** TEILWEISE ERLEDIGT
+> **Prioritaet:** MITTEL
+
+## ✅ Erledigt am 28.01.2026
+
+- **Problem:** Edge Function hatte JWT-Verifikation aktiviert → blockierte API-Key Requests
+- **Fix:** `process-document` mit `--no-verify-jwt` neu deployed
+- **Fix:** `SCANNER_API_KEY` in Supabase Secrets korrekt gesetzt
+- **Ergebnis:** Scanner Watcher laeuft wieder, neue Dateien werden verarbeitet
+
+## ⏳ Noch offen
+
+- Fehlende Dateien vom 22.-23.01. aus W4A nachholen (ca. 40+ Dateien)
+
+---
 
 ---
 
