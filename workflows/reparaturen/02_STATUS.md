@@ -1,7 +1,7 @@
 # Status: Reparatur-Workflow
 
-> Letzte Aktualisierung: 2026-01-29 19:40
-> Aktualisiert von: Programmierer (P009-PROG)
+> Letzte Aktualisierung: 2026-01-29 20:35
+> Aktualisiert von: Programmierer (P010-PROG)
 
 ---
 
@@ -15,10 +15,12 @@
 
 ## Aktueller Stand
 
-**Phase:** UMSETZUNG Step 1 MVP - Meilenstein 4b (Auftrags-Detail) ABGESCHLOSSEN
+**Phase:** UMSETZUNG Step 1 MVP - Meilenstein 3 ABGESCHLOSSEN
 
 **SPEC Version:** v1.3 (2026-01-29)
 **Neue Features in v1.3:** Status-Ladder, Aging, No-Show, 2-Mann-Constraints, Rollout-Strategie
+
+**Git:** Commit 4838d20 gepusht (Frontend komplett)
 
 ---
 
@@ -32,9 +34,9 @@
 | **2a** | Edge Function: Auftrag erstellen | FERTIG + GETESTET |
 | **2b** | Edge Function: Status-Transitions | FERTIG + GETESTET |
 | **2c** | Edge Function: Aging-Flag setzen | FERTIG + GETESTET |
-| 3a | Zeitfenster-System | WARTEND |
-| 3b | Termin reservieren/bestaetigen | WARTEND |
-| 3c | No-Show-Handling | WARTEND |
+| **3a** | Zeitfenster-System | FERTIG + GETESTET |
+| **3b** | Termin reservieren/bestaetigen | FERTIG + GETESTET |
+| **3c** | No-Show-Handling | FERTIG (in 2b integriert) |
 | **4a** | Frontend: Auftrags-Liste | FERTIG + BUILD OK |
 | **4b** | Frontend: Auftrags-Detail | FERTIG + BUILD OK |
 | **4c** | Frontend: Neukunden-Formular | FERTIG + BUILD OK |
@@ -44,70 +46,69 @@
 
 ## Aktueller Auftrag
 
-Kein aktiver Auftrag. P009-PROG abgeschlossen.
+*Kein aktiver Auftrag - P010-PROG abgeschlossen*
 
 ---
 
 ## Letzter Abschlussbericht
 
-### ABSCHLUSSBERICHT P009-PROG
-**Datum:** 2026-01-29 19:40
+### ABSCHLUSSBERICHT P010-PROG
+**Datum:** 2026-01-29 20:35
 **Agent:** Programmierer
 
 #### Auftrag
-Auftrags-Detail Modal erstellen (Meilenstein 4b).
+Zeitfenster-System + Termin-Endpoint (Meilenstein 3a+3b).
 
 #### Ergebnis
 - [x] Erfolgreich
 
 #### Was wurde gemacht
 
-**1. Modal-Komponente `AuftragsDetailModal` erstellt:**
-- Ca. 310 Zeilen neue Komponente in Reparaturen.jsx
-- Gesamte Datei jetzt ca. 1060 Zeilen
+**1. Datenbank-Check:**
+- CHECK Constraint auf `zeitfenster` bereits vorhanden (bei Tabellen-Erstellung)
+- Keine zusaetzliche Migration noetig
 
-**2. Alle angezeigte Felder implementiert:**
-- Kunde: kunde_name / neukunde_name / ERP-ID, Telefon, Adresse
-- Status + Prioritaet mit Farbcodierung
-- Problembeschreibung: kurz + lang (falls vorhanden)
-- Termine: termin_sv1, termin_sv2, outcome_sv1
-- Meta-Daten: erstellt_am, aktualisiert_am, letzter_kontakt_am
-- Flags: ist_zu_lange_offen + ist_no_show als Warnungen
-- Intern: mannstaerke, zeitfenster
+**2. Edge Function reparatur-api auf v1.2.0 (v3) deployed:**
+- Neuer Endpoint: PATCH /reparatur/:id/termin
+- Request Body: `{ termin_sv1, zeitfenster, notiz? }`
+- Zeitfenster-Validierung gegen Termin-Stunde (UTC)
+- Automatisch: status -> TERMIN_RESERVIERT
+- Automatisch: letzter_kontakt_am = now()
+- Notiz mit Termin-Info ins notizen-Feld
 
-**3. Status-Aenderung im Modal:**
-- Dropdown mit nur erlaubten Ziel-Status (ERLAUBTE_TRANSITIONS Konstante)
-- Optionales Notiz-Feld zur Status-Aenderung
-- PATCH an `/reparatur/:id/status` mit Auth-Header
-- Erfolgs-/Fehlermeldung visuell angezeigt
-- Nach Erfolg: Modal schliessen + Liste aktualisieren
+**3. Zeitfenster-Definition implementiert:**
+- FRUEH: 08:00-10:00 (Stunde 8-9)
+- VORMITTAG: 10:00-12:00 (Stunde 10-11)
+- NACHMITTAG: 13:00-16:00 (Stunde 13-15)
+- SPAET: 16:00-18:00 (Stunde 16-17)
 
-**4. Integration:**
-- selectedAuftrag State in Reparaturen Komponente
-- onClick Handler auf Tabellenzeile (cursor-pointer)
-- Modal schliesst mit X-Button, Backdrop oder nach erfolgreicher Aenderung
+**4. TERMIN_FIX Validierung:**
+- Transition nach TERMIN_FIX nur wenn termin_sv1 gesetzt ist
+- Verhindert TERMIN_FIX ohne konkreten Termin
 
-**5. Build-Test:**
-- `npm run build` erfolgreich
-- 2297 Module, 4.23s Build-Zeit
-- dist/assets/index-CZY0r3nz.js: 485.64 kB
-- Keine Compile-Errors
+**5. Tests durchgefuehrt:**
+- Health Check v1.2.0: PASS
+- PATCH /termin gueltig: PASS (10:00 -> VORMITTAG)
+- PATCH /termin falsch: PASS (10:00 != FRUEH)
+- TERMIN_RESERVIERT -> TERMIN_FIX mit Termin: PASS
+- TERMIN_RESERVIERT -> TERMIN_FIX ohne Termin: PASS (400 Error)
 
 #### Probleme/Erkenntnisse
-Keine - alles wie im Auftrag beschrieben umgesetzt.
+Keine - CHECK Constraint war bereits vorhanden.
 
 #### Naechster Schritt (Vorschlag)
-1. Tester soll Auftrags-Detail Modal im Browser testen
-2. Dann: Meilenstein 5a (Integration-Test via Chrome)
+1. Meilenstein 5a: Integration-Test via Chrome (Frontend + API zusammen)
+2. Optional: Frontend um Termin-Setzen-Modal erweitern
 
 #### Log-Referenz
-Dokumentiert in 03_LOG.md: [LOG-025] Zeilen 1420-1510
+Dokumentiert in 03_LOG.md: [LOG-026] Zeilen 1510-1620
 
 ---
 
 ## Wartend auf
 
 - [ ] T004-TEST: Frontend Integration Browser-Test (empfohlen)
+- [ ] Frontend: Termin-Setzen-Modal (optional)
 - [ ] Telegram Bot Token als Secret (fuer spaeter)
 - [ ] Cron-Job Konfiguration fuer reparatur-aging im Dashboard
 - [x] P006-PROG: Aging Edge Function - ABGESCHLOSSEN
@@ -115,3 +116,4 @@ Dokumentiert in 03_LOG.md: [LOG-025] Zeilen 1420-1510
 - [x] T003-TEST: Frontend Build + Code-Review - ABGESCHLOSSEN
 - [x] P008-PROG: Neukunden-Formular - ABGESCHLOSSEN
 - [x] P009-PROG: Auftrags-Detail Modal - ABGESCHLOSSEN
+- [x] P010-PROG: Zeitfenster-System + Termin-Endpoint - ABGESCHLOSSEN

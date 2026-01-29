@@ -34,6 +34,7 @@
 | [LOG-023] | 2026-01-29 | Projektleiter | Frontend .env Datei erstellt | 1315-1345 |
 | [LOG-024] | 2026-01-29 | Programmierer | P008-PROG: Neukunden-Formular Modal erstellt | 1345-1420 |
 | [LOG-025] | 2026-01-29 | Programmierer | P009-PROG: Auftrags-Detail Modal erstellt | 1420-1510 |
+| [LOG-026] | 2026-01-29 | Programmierer | P010-PROG: Zeitfenster-System + Termin-Endpoint | 1510-1620 |
 
 ---
 
@@ -1493,6 +1494,69 @@ Nachtmodus AKTIV bis 23:59 - KEINE Rueckfragen erlaubt.
 ### Naechster Schritt
 Tester soll das Auftrags-Detail Modal im Browser testen (T004-TEST oder T005-TEST).
 Danach: Meilenstein 5a (Integration-Test via Chrome).
+
+---
+
+## [LOG-026] Programmierer: P010-PROG - Zeitfenster-System + Termin-Endpoint
+**Datum:** 2026-01-29 20:30
+
+### Kontext
+Auftrag P010-PROG aus 02_STATUS.md: Zeitfenster-System in DB + PATCH-Endpoint zum Termin setzen (Meilenstein 3a+3b).
+Nachtmodus AKTIV bis 23:59 - KEINE Rueckfragen erlaubt.
+
+### Durchgefuehrt
+
+**Teil 1: Datenbank-Check**
+- CHECK Constraint auf `zeitfenster` Spalte bereits vorhanden (FRUEH, VORMITTAG, NACHMITTAG, SPAET, NULL)
+- Keine Migration noetig - Constraint wurde bei Tabellen-Erstellung in LOG-015 angelegt
+
+**Teil 2: Edge Function reparatur-api auf v1.2.0 aktualisiert**
+
+1. **Neuer Endpoint: PATCH /reparatur/:id/termin**
+   - Request Body: `{ termin_sv1: "ISO-8601", zeitfenster: "VORMITTAG", notiz?: "..." }`
+   - Validierung: zeitfenster muss zum Timestamp passen (Stunde pruefung)
+   - Zeitfenster-Definition gemaess SPEC 4.3:
+     - FRUEH: 08:00-10:00 (Stunde 8-9)
+     - VORMITTAG: 10:00-12:00 (Stunde 10-11)
+     - NACHMITTAG: 13:00-16:00 (Stunde 13-15)
+     - SPAET: 16:00-18:00 (Stunde 16-17)
+   - Automatisch: letzter_kontakt_am = now()
+   - Automatisch: status = TERMIN_RESERVIERT
+   - Notiz wird mit Termin-Info ins notizen-Feld geschrieben
+
+2. **Erlaubte Status fuer Termin-Setzen:**
+   - IN_BEARBEITUNG, TERMIN_RESERVIERT, NICHT_BESTAETIGT, NO_SHOW
+   - OFFEN nicht erlaubt (erst IN_BEARBEITUNG)
+
+3. **TERMIN_FIX Validierung erweitert:**
+   - Status-Transition nach TERMIN_FIX nur moeglich wenn termin_sv1 gesetzt ist
+   - Verhindert: TERMIN_FIX ohne konkreten Termin
+
+**Teil 3: Verifizierung mit echten Tests**
+
+| Test | Szenario | Erwartet | Resultat |
+|------|----------|----------|----------|
+| 1 | Health Check v1.2.0 | 200 + 5 Endpoints + zeitfenster | PASS |
+| 2 | PATCH /termin gueltig (10:00 VORMITTAG) | 200 + TERMIN_RESERVIERT | PASS |
+| 3 | PATCH /termin falsch (10:00 FRUEH) | 400 "passt nicht" | PASS |
+| 4 | TERMIN_RESERVIERT -> TERMIN_FIX mit Termin | 200 | PASS |
+| 5 | TERMIN_RESERVIERT -> TERMIN_FIX ohne Termin | 400 "termin_sv1 muss gesetzt" | PASS |
+
+### Ergebnis
+- Edge Function `reparatur-api` v1.2.0 (v3) erfolgreich deployed
+- Neuer Endpoint PATCH /reparatur/:id/termin vollstaendig implementiert:
+  - Zeitfenster-Validierung gegen Termin-Stunde ✓
+  - Automatisches Status-Update auf TERMIN_RESERVIERT ✓
+  - Automatisches letzter_kontakt_am ✓
+  - Notiz mit Termin-Info ✓
+- Status-Transition TERMIN_RESERVIERT -> TERMIN_FIX:
+  - Bereits in ALLOWED_TRANSITIONS ✓
+  - Neue Validierung: termin_sv1 muss gesetzt sein ✓
+- Meilenstein 3a (Zeitfenster-System): FERTIG
+- Meilenstein 3b (Termin reservieren/bestaetigen): FERTIG
+
+### Naechster Schritt
+Meilenstein 3c: No-Show-Handling (bereits grundlegend implementiert via Status-Transition NO_SHOW, Flag ist_no_show wird automatisch gesetzt) oder Tester fuer T004-TEST.
 
 ---
 
