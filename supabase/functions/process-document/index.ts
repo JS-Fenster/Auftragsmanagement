@@ -1,7 +1,12 @@
 // =============================================================================
 // Process Document - OCR + GPT Kategorisierung
-// Version: 27 - 2026-01-24
+// Version: 28 - 2026-01-24
 // =============================================================================
+// Aenderungen v28:
+// - NEU: Separater SCANNER_API_KEY fuer Scanner-Webhook
+// - validateApiKey akzeptiert jetzt INTERNAL_API_KEY ODER SCANNER_API_KEY
+// - Verhindert Konflikte mit anderen Tools die INTERNAL_API_KEY nutzen
+//
 // Aenderungen v27:
 // - FIX: imagescript Import entfernt (Deno-Kompatibilitaetsproblem)
 // - Bildkomprimierung temporaer deaktiviert
@@ -80,8 +85,9 @@ const Image: null = null; // Stub for disabled feature
 const MISTRAL_API_KEY = Deno.env.get("MISTRAL_API_KEY")!;
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
 
-// v18: API Key Protection - NUR INTERNAL_API_KEY
+// v18: API Key Protection - INTERNAL_API_KEY oder SCANNER_API_KEY
 const INTERNAL_API_KEY = Deno.env.get("INTERNAL_API_KEY");
+const SCANNER_API_KEY = Deno.env.get("SCANNER_API_KEY");
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -204,26 +210,38 @@ async function compressImage(
 // =============================================================================
 
 function validateApiKey(req: Request): { valid: boolean; reason?: string } {
-  // v18: Nur INTERNAL_API_KEY, PFLICHT
-  if (!INTERNAL_API_KEY) {
-    console.error("[AUTH] CRITICAL: INTERNAL_API_KEY not configured - rejecting request");
+  // v28: INTERNAL_API_KEY oder SCANNER_API_KEY (mindestens einer PFLICHT)
+  if (!INTERNAL_API_KEY && !SCANNER_API_KEY) {
+    console.error("[AUTH] CRITICAL: Neither INTERNAL_API_KEY nor SCANNER_API_KEY configured");
     return { valid: false, reason: "No API key configured on server" };
   }
 
   // Check x-api-key header first
   const apiKeyHeader = req.headers.get("x-api-key");
-  if (apiKeyHeader && apiKeyHeader === INTERNAL_API_KEY) {
-    console.log("[AUTH] Valid x-api-key header");
-    return { valid: true };
+  if (apiKeyHeader) {
+    if (INTERNAL_API_KEY && apiKeyHeader === INTERNAL_API_KEY) {
+      console.log("[AUTH] Valid x-api-key header (INTERNAL)");
+      return { valid: true };
+    }
+    if (SCANNER_API_KEY && apiKeyHeader === SCANNER_API_KEY) {
+      console.log("[AUTH] Valid x-api-key header (SCANNER)");
+      return { valid: true };
+    }
   }
 
   // Check Authorization: Bearer header
   const authHeader = req.headers.get("authorization");
   if (authHeader) {
     const match = authHeader.match(/^Bearer\s+(.+)$/i);
-    if (match && match[1] === INTERNAL_API_KEY) {
-      console.log("[AUTH] Valid Bearer token");
-      return { valid: true };
+    if (match) {
+      if (INTERNAL_API_KEY && match[1] === INTERNAL_API_KEY) {
+        console.log("[AUTH] Valid Bearer token (INTERNAL)");
+        return { valid: true };
+      }
+      if (SCANNER_API_KEY && match[1] === SCANNER_API_KEY) {
+        console.log("[AUTH] Valid Bearer token (SCANNER)");
+        return { valid: true };
+      }
     }
   }
 
