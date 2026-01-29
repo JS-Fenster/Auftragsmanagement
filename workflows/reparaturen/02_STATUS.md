@@ -1,7 +1,7 @@
 # Status: Reparatur-Workflow
 
-> Letzte Aktualisierung: 2026-01-29 20:35
-> Aktualisiert von: Programmierer (P010-PROG)
+> Letzte Aktualisierung: 2026-01-29 21:15
+> Aktualisiert von: Programmierer (P011-PROG)
 
 ---
 
@@ -46,69 +46,63 @@
 
 ## Aktueller Auftrag
 
-*Kein aktiver Auftrag - P010-PROG abgeschlossen*
+**Keiner** - P011-PROG abgeschlossen, warte auf neuen Auftrag.
 
 ---
 
 ## Letzter Abschlussbericht
 
-### ABSCHLUSSBERICHT P010-PROG
-**Datum:** 2026-01-29 20:35
+### ABSCHLUSSBERICHT P011-PROG
+**Datum:** 2026-01-29 21:15
 **Agent:** Programmierer
 
 #### Auftrag
-Zeitfenster-System + Termin-Endpoint (Meilenstein 3a+3b).
+Termin-Setzen Feature im AuftragsDetailModal implementieren.
 
 #### Ergebnis
 - [x] Erfolgreich
 
 #### Was wurde gemacht
 
-**1. Datenbank-Check:**
-- CHECK Constraint auf `zeitfenster` bereits vorhanden (bei Tabellen-Erstellung)
-- Keine zusaetzliche Migration noetig
+**1. Neue Konstanten:**
+- `ZEITFENSTER` Array mit value/label/hour Mapping
+- `TERMIN_ERLAUBTE_STATUS`: IN_BEARBEITUNG, TERMIN_RESERVIERT, NICHT_BESTAETIGT, NO_SHOW
 
-**2. Edge Function reparatur-api auf v1.2.0 (v3) deployed:**
-- Neuer Endpoint: PATCH /reparatur/:id/termin
-- Request Body: `{ termin_sv1, zeitfenster, notiz? }`
-- Zeitfenster-Validierung gegen Termin-Stunde (UTC)
-- Automatisch: status -> TERMIN_RESERVIERT
-- Automatisch: letzter_kontakt_am = now()
-- Notiz mit Termin-Info ins notizen-Feld
+**2. State-Erweiterung AuftragsDetailModal:**
+- terminDatum, terminZeitfenster, terminNotiz
+- terminSubmitting, terminError, terminSuccess
 
-**3. Zeitfenster-Definition implementiert:**
-- FRUEH: 08:00-10:00 (Stunde 8-9)
-- VORMITTAG: 10:00-12:00 (Stunde 10-11)
-- NACHMITTAG: 13:00-16:00 (Stunde 13-15)
-- SPAET: 16:00-18:00 (Stunde 16-17)
+**3. Handler handleTerminSetzen:**
+- Kombiniert Datum + Zeitfenster-Uhrzeit zu ISO-String
+- PATCH /reparatur/:id/termin mit { termin_sv1, zeitfenster, notiz? }
+- Erfolg: Modal schliesst, Liste aktualisiert
+- Fehler: Wird angezeigt
 
-**4. TERMIN_FIX Validierung:**
-- Transition nach TERMIN_FIX nur wenn termin_sv1 gesetzt ist
-- Verhindert TERMIN_FIX ohne konkreten Termin
+**4. UI-Bereich "Termin setzen":**
+- Sichtbar nur bei erlaubten Status
+- Datum-Picker (min=heute)
+- Zeitfenster-Dropdown (4 Optionen)
+- Optionales Notiz-Feld
+- Button mit Loading-State
 
-**5. Tests durchgefuehrt:**
-- Health Check v1.2.0: PASS
-- PATCH /termin gueltig: PASS (10:00 -> VORMITTAG)
-- PATCH /termin falsch: PASS (10:00 != FRUEH)
-- TERMIN_RESERVIERT -> TERMIN_FIX mit Termin: PASS
-- TERMIN_RESERVIERT -> TERMIN_FIX ohne Termin: PASS (400 Error)
+**5. Build-Test:**
+- `npm run build`: PASS
 
 #### Probleme/Erkenntnisse
-Keine - CHECK Constraint war bereits vorhanden.
+Keine.
 
 #### Naechster Schritt (Vorschlag)
-1. Meilenstein 5a: Integration-Test via Chrome (Frontend + API zusammen)
-2. Optional: Frontend um Termin-Setzen-Modal erweitern
+Browser-Test via Chrome (T004-TEST) - Frontend + API Integration testen.
 
 #### Log-Referenz
-Dokumentiert in 03_LOG.md: [LOG-026] Zeilen 1510-1620
+Dokumentiert in 03_LOG.md: [LOG-027] Zeilen 1565-1640
 
 ---
 
 ## Wartend auf
 
 - [ ] T004-TEST: Frontend Integration Browser-Test (empfohlen)
-- [ ] Frontend: Termin-Setzen-Modal (optional)
+- [x] P011-PROG: Frontend Termin-Setzen im Detail-Modal - ABGESCHLOSSEN
 - [ ] Telegram Bot Token als Secret (fuer spaeter)
 - [ ] Cron-Job Konfiguration fuer reparatur-aging im Dashboard
 - [x] P006-PROG: Aging Edge Function - ABGESCHLOSSEN

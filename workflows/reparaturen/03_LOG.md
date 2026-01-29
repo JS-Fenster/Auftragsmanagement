@@ -34,7 +34,8 @@
 | [LOG-023] | 2026-01-29 | Projektleiter | Frontend .env Datei erstellt | 1315-1345 |
 | [LOG-024] | 2026-01-29 | Programmierer | P008-PROG: Neukunden-Formular Modal erstellt | 1345-1420 |
 | [LOG-025] | 2026-01-29 | Programmierer | P009-PROG: Auftrags-Detail Modal erstellt | 1420-1510 |
-| [LOG-026] | 2026-01-29 | Programmierer | P010-PROG: Zeitfenster-System + Termin-Endpoint | 1510-1620 |
+| [LOG-026] | 2026-01-29 | Programmierer | P010-PROG: Zeitfenster-System + Termin-Endpoint | 1510-1560 |
+| [LOG-027] | 2026-01-29 | Programmierer | P011-PROG: Termin-Setzen Feature im Detail-Modal | 1565-1640 |
 
 ---
 
@@ -1557,6 +1558,59 @@ Nachtmodus AKTIV bis 23:59 - KEINE Rueckfragen erlaubt.
 
 ### Naechster Schritt
 Meilenstein 3c: No-Show-Handling (bereits grundlegend implementiert via Status-Transition NO_SHOW, Flag ist_no_show wird automatisch gesetzt) oder Tester fuer T004-TEST.
+
+---
+
+## [LOG-027] Programmierer: P011-PROG - Termin-Setzen Feature im Detail-Modal
+**Datum:** 2026-01-29 21:10
+
+### Kontext
+Auftrag P011-PROG aus 02_STATUS.md: Im AuftragsDetailModal einen Bereich "Termin setzen" hinzufuegen.
+Nachtmodus AKTIV bis 23:59 - KEINE Rueckfragen erlaubt.
+
+### Durchgefuehrt
+
+**1. Neue Konstanten hinzugefuegt (Reparaturen.jsx):**
+- `ZEITFENSTER` Array mit value, label, hour:
+  - FRUEH -> 08:00
+  - VORMITTAG -> 10:00
+  - NACHMITTAG -> 13:00
+  - SPAET -> 16:00
+- `TERMIN_ERLAUBTE_STATUS`: IN_BEARBEITUNG, TERMIN_RESERVIERT, NICHT_BESTAETIGT, NO_SHOW
+
+**2. State-Erweiterung in AuftragsDetailModal:**
+- `terminDatum` - gewaehltes Datum
+- `terminZeitfenster` - gewaehltes Zeitfenster
+- `terminNotiz` - optionale Notiz
+- `terminSubmitting`, `terminError`, `terminSuccess` - Formular-Zustand
+
+**3. Handler `handleTerminSetzen` implementiert:**
+- Kombiniert Datum + Zeitfenster-Uhrzeit zu ISO-String
+- PATCH /reparatur/:id/termin mit { termin_sv1, zeitfenster, notiz? }
+- Erfolg: Modal schliesst, Liste wird aktualisiert
+- Fehler: Wird angezeigt
+
+**4. UI-Bereich "Termin setzen" im Modal:**
+- Sichtbar nur wenn `kannTerminSetzen` (erlaubte Status)
+- Datum-Picker (HTML date, min=heute)
+- Zeitfenster-Dropdown mit allen 4 Optionen
+- Optionales Notiz-Feld
+- Submit-Button "Termin reservieren" mit Loading-Zustand
+- Erfolgs- und Fehler-Meldungen
+
+**5. Build-Test:**
+- `npm run build` erfolgreich
+- Keine Fehler, nur bekannte CJS-Warnung
+
+### Ergebnis
+- Feature vollstaendig implementiert in `frontend/src/pages/Reparaturen.jsx`
+- Bereich erscheint nur bei Status: IN_BEARBEITUNG, TERMIN_RESERVIERT, NICHT_BESTAETIGT, NO_SHOW
+- API-Aufruf korrekt mit PATCH /reparatur/:id/termin
+- Zeitfenster wird korrekt zu Uhrzeit umgewandelt
+- Build: PASS
+
+### Naechster Schritt
+Browser-Test via Chrome (T004-TEST) oder weitere UI-Optimierungen.
 
 ---
 

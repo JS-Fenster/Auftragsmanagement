@@ -48,6 +48,17 @@ const ERLAUBTE_TRANSITIONS = {
   'WARTET': ['IN_BEARBEITUNG', 'STORNIERT'],
 };
 
+// Zeitfenster-Definition (gemaess SPEC)
+const ZEITFENSTER = [
+  { value: 'FRUEH', label: 'Frueh (08:00-10:00)', hour: 8 },
+  { value: 'VORMITTAG', label: 'Vormittag (10:00-12:00)', hour: 10 },
+  { value: 'NACHMITTAG', label: 'Nachmittag (13:00-16:00)', hour: 13 },
+  { value: 'SPAET', label: 'Spaet (16:00-18:00)', hour: 16 },
+];
+
+// Status, bei denen Termin-Setzen erlaubt ist
+const TERMIN_ERLAUBTE_STATUS = ['IN_BEARBEITUNG', 'TERMIN_RESERVIERT', 'NICHT_BESTAETIGT', 'NO_SHOW'];
+
 // Auftrags-Detail Modal Komponente
 function AuftragsDetailModal({ isOpen, onClose, auftrag, onStatusChange, anonKey }) {
   const [newStatus, setNewStatus] = useState('');
@@ -56,6 +67,14 @@ function AuftragsDetailModal({ isOpen, onClose, auftrag, onStatusChange, anonKey
   const [submitError, setSubmitError] = useState(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
+  // Termin-Setzen State
+  const [terminDatum, setTerminDatum] = useState('');
+  const [terminZeitfenster, setTerminZeitfenster] = useState('');
+  const [terminNotiz, setTerminNotiz] = useState('');
+  const [terminSubmitting, setTerminSubmitting] = useState(false);
+  const [terminError, setTerminError] = useState(null);
+  const [terminSuccess, setTerminSuccess] = useState(false);
+
   // Reset wenn Modal oeffnet
   useEffect(() => {
     if (isOpen && auftrag) {
@@ -63,6 +82,12 @@ function AuftragsDetailModal({ isOpen, onClose, auftrag, onStatusChange, anonKey
       setStatusNotiz('');
       setSubmitError(null);
       setSubmitSuccess(false);
+      // Termin-Felder zuruecksetzen
+      setTerminDatum('');
+      setTerminZeitfenster('');
+      setTerminNotiz('');
+      setTerminError(null);
+      setTerminSuccess(false);
     }
   }, [isOpen, auftrag?.id]);
 
@@ -72,6 +97,61 @@ function AuftragsDetailModal({ isOpen, onClose, auftrag, onStatusChange, anonKey
   const prioInfo = getPrioInfo(auftrag.prioritaet);
   const kundeName = auftrag.kunde_name || auftrag.neukunde_name || `ERP-ID: ${auftrag.erp_kunde_id}`;
   const erlaubteZiele = ERLAUBTE_TRANSITIONS[auftrag.status] || [];
+  const kannTerminSetzen = TERMIN_ERLAUBTE_STATUS.includes(auftrag.status);
+
+  // Termin setzen Handler
+  const handleTerminSetzen = async () => {
+    if (!terminDatum || !terminZeitfenster) return;
+
+    setTerminSubmitting(true);
+    setTerminError(null);
+
+    try {
+      // Zeitfenster zu Uhrzeit umwandeln
+      const zeitfensterInfo = ZEITFENSTER.find(z => z.value === terminZeitfenster);
+      if (!zeitfensterInfo) {
+        throw new Error('Ungueltiges Zeitfenster');
+      }
+
+      // ISO-String erstellen: Datum + Uhrzeit aus Zeitfenster
+      const terminDateTime = new Date(terminDatum);
+      terminDateTime.setHours(zeitfensterInfo.hour, 0, 0, 0);
+      const termin_sv1 = terminDateTime.toISOString();
+
+      const response = await fetch(`${API_BASE_URL}/reparatur/${auftrag.id}/termin`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${anonKey}`,
+          'apikey': anonKey,
+        },
+        body: JSON.stringify({
+          termin_sv1,
+          zeitfenster: terminZeitfenster,
+          notiz: terminNotiz.trim() || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      setTerminSuccess(true);
+
+      // Nach kurzer Verzoegerung Modal aktualisieren
+      setTimeout(() => {
+        onStatusChange();
+        onClose();
+      }, 1000);
+
+    } catch (err) {
+      console.error('Fehler beim Termin-Setzen:', err);
+      setTerminError(err.message || 'Unbekannter Fehler');
+    } finally {
+      setTerminSubmitting(false);
+    }
+  };
 
   const handleStatusChange = async () => {
     if (!newStatus) return;
@@ -315,6 +395,107 @@ function AuftragsDetailModal({ isOpen, onClose, auftrag, onStatusChange, anonKey
                 <p className="text-gray-600 text-sm whitespace-pre-wrap bg-gray-50 rounded p-3">
                   {auftrag.notizen}
                 </p>
+              </div>
+            )}
+
+            {/* Termin setzen */}
+            {kannTerminSetzen && (
+              <div className="border-t pt-4">
+                <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-1">
+                  <Calendar className="h-4 w-4" />
+                  Termin setzen
+                </h3>
+
+                {terminSuccess && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg mb-3">
+                    <div className="flex items-center gap-2 text-green-800">
+                      <CheckCircle className="h-5 w-5" />
+                      <span className="font-medium">Termin erfolgreich reserviert!</span>
+                    </div>
+                  </div>
+                )}
+
+                {terminError && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg mb-3">
+                    <div className="flex items-center gap-2 text-red-800">
+                      <AlertTriangle className="h-5 w-5" />
+                      <span>{terminError}</span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  {/* Datum */}
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Datum</label>
+                    <input
+                      type="date"
+                      value={terminDatum}
+                      onChange={(e) => setTerminDatum(e.target.value)}
+                      disabled={terminSubmitting || terminSuccess}
+                      min={new Date().toISOString().split('T')[0]}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  {/* Zeitfenster */}
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Zeitfenster</label>
+                    <div className="relative">
+                      <select
+                        value={terminZeitfenster}
+                        onChange={(e) => setTerminZeitfenster(e.target.value)}
+                        disabled={terminSubmitting || terminSuccess}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
+                      >
+                        <option value="">-- Zeitfenster waehlen --</option>
+                        {ZEITFENSTER.map((zf) => (
+                          <option key={zf.value} value={zf.value}>
+                            {zf.label}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                    </div>
+                  </div>
+
+                  {/* Notiz (optional) */}
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Notiz (optional)</label>
+                    <textarea
+                      value={terminNotiz}
+                      onChange={(e) => setTerminNotiz(e.target.value)}
+                      placeholder="z.B. Kunde bevorzugt Vormittag..."
+                      disabled={terminSubmitting || terminSuccess}
+                      rows={2}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    />
+                  </div>
+
+                  {/* Submit Button */}
+                  <button
+                    onClick={handleTerminSetzen}
+                    disabled={!terminDatum || !terminZeitfenster || terminSubmitting || terminSuccess}
+                    className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {terminSubmitting ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                        Wird reserviert...
+                      </>
+                    ) : terminSuccess ? (
+                      <>
+                        <CheckCircle className="h-4 w-4" />
+                        Reserviert!
+                      </>
+                    ) : (
+                      <>
+                        <Calendar className="h-4 w-4" />
+                        Termin reservieren
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             )}
 
