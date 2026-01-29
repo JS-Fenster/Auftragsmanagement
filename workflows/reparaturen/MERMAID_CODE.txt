@@ -1,0 +1,119 @@
+flowchart TD
+    subgraph EINGANG["1. ANFRAGE-EINGANG"]
+        TEL[Telefon]
+        EMAIL[E-Mail / WhatsApp]
+        LADEN[Ausstellung]
+    end
+
+    subgraph ERFASSUNG["2. KI-CHATBOT ERFASSUNG"]
+        BOT[KI-Chatbot erfasst]
+        PRIO[Prio ermitteln]
+    end
+
+    subgraph TERMIN1["3. TERMIN ERSTBESUCH"]
+        VOICE1[Voice-Bot macht Termin]
+        SMS1[SMS Bestaetigung]
+    end
+
+    subgraph VORORT["4. VOR-ORT-TERMIN Stefan"]
+        BRIEF[Tages-Briefing]
+        UNTER[Auftrag unterschreiben - 100 EUR Pauschale]
+        ENTSCH{Sofort reparierbar?}
+    end
+
+    subgraph SOFORT["5A. SOFORT-REPARATUR"]
+        REP1[Stefan: Reparatur]
+        FOTO1[App: Fertig + Foto]
+    end
+
+    subgraph ERSATZTEIL["5B. ERSATZTEIL NOETIG"]
+        FOTOT[Fotos vom defekten Teil]
+        KIVISION[KI-Vision analysiert]
+        CONF{Confidence ueber 90 Prozent?}
+        ANDREAS[Andreas: kurz pruefen]
+    end
+
+    subgraph RECHERCHE["6. ERSATZTEIL-RECHERCHE"]
+        LIEF[Parallele Anfrage an Lieferanten]
+        MATRIX[Ergebnis-Matrix]
+        PREIS{Preis ueber 50 EUR?}
+        AUTO[Auto-Bestellung]
+        FREIGABE[1-Klick Freigabe]
+    end
+
+    subgraph WARTEN["7. WARTEN AUF ERSATZTEIL"]
+        BEST[Bestellung an Lieferant]
+        TRACK[Liefertermin tracken]
+        INFO[Kunde informieren]
+    end
+
+    subgraph EINGANG2["8. ERSATZTEIL EINGETROFFEN"]
+        WAREN[Wareneingang erkannt]
+        VOICE2[Voice-Bot ruft Kunde an]
+        SMS2[SMS Bestaetigung]
+    end
+
+    subgraph FOLGE["9. FOLGETERMIN Stefan"]
+        REP2[Stefan: Reparatur]
+        FOTO2[App: Fertig + Zeit + Fotos]
+    end
+
+    subgraph RECHNUNG["10. RECHNUNG"]
+        CALC[Berechnung: Anfahrt + Zeit + Material]
+        PDF[PDF generieren]
+        SEND[E-Mail an Kunde]
+        DATEV[DATEV-Export]
+    end
+
+    subgraph ZAHLUNG["11. ZAHLUNG"]
+        HBCI[HBCI-Kontoabgleich]
+        BEZAHLT{Bezahlt?}
+        FERTIG[ABGESCHLOSSEN]
+        MAHNUNG[Auto-Mahnung nach 14 Tagen]
+        GOOGLE[Google-Bewertung vorschlagen]
+    end
+
+    TEL --> BOT
+    EMAIL --> BOT
+    LADEN --> BOT
+    BOT --> PRIO
+    PRIO --> VOICE1
+    VOICE1 --> SMS1
+    SMS1 --> BRIEF
+    BRIEF --> UNTER
+    UNTER --> ENTSCH
+
+    ENTSCH -->|JA| REP1
+    REP1 --> FOTO1
+    FOTO1 --> CALC
+
+    ENTSCH -->|NEIN| FOTOT
+    FOTOT --> KIVISION
+    KIVISION --> CONF
+    CONF -->|JA| LIEF
+    CONF -->|NEIN| ANDREAS
+    ANDREAS --> LIEF
+    LIEF --> MATRIX
+    MATRIX --> PREIS
+    PREIS -->|NEIN| AUTO
+    PREIS -->|JA| FREIGABE
+    AUTO --> BEST
+    FREIGABE --> BEST
+    BEST --> TRACK
+    TRACK --> INFO
+    INFO --> WAREN
+    WAREN --> VOICE2
+    VOICE2 --> SMS2
+    SMS2 --> REP2
+    REP2 --> FOTO2
+    FOTO2 --> CALC
+
+    CALC --> PDF
+    PDF --> SEND
+    SEND --> DATEV
+    DATEV --> HBCI
+    HBCI --> BEZAHLT
+    BEZAHLT -->|JA| GOOGLE
+    GOOGLE --> FERTIG
+    BEZAHLT -->|NEIN| MAHNUNG
+    MAHNUNG --> HBCI

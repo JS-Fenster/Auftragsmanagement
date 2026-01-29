@@ -1,0 +1,95 @@
+{
+  "_comment": "Claude Code Settings fuer Autonomen Nachtmodus - Kopiere diese Einstellungen in ~/.claude/settings.json",
+  "_version": "1.0",
+  "_projekt": "Reparatur-Workflow",
+
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Bash(git:*)",
+      "Bash(git status:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git pull:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(npm:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)",
+      "Bash(npm test:*)",
+      "Bash(node:*)",
+      "Bash(npx:*)",
+      "Bash(pnpm:*)",
+      "Bash(yarn:*)",
+      "Bash(tsc:*)",
+      "Bash(eslint:*)",
+      "Bash(prettier:*)",
+      "Bash(jest:*)",
+      "Bash(vitest:*)",
+      "Bash(cd:*)",
+      "Bash(mkdir:*)",
+      "Bash(ls:*)",
+      "Bash(dir:*)",
+      "Bash(cat:*)",
+      "Bash(type:*)",
+      "Bash(echo:*)",
+      "Bash(pwd:*)",
+      "Bash(cp:*)",
+      "Bash(copy:*)",
+      "Bash(mv:*)",
+      "Bash(move:*)",
+      "Read",
+      "Edit",
+      "Write",
+      "Grep",
+      "Glob",
+      "Task",
+      "WebFetch",
+      "WebSearch",
+      "mcp__supabase-arbeit__*",
+      "mcp__supabase-privat__*"
+    ],
+    "deny": [
+      "Bash(rm -rf:*)",
+      "Bash(rm -r:*)",
+      "Bash(rmdir /s:*)",
+      "Bash(del /f:*)",
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Bash(ssh:*)",
+      "Bash(scp:*)",
+      "Bash(sudo:*)",
+      "Bash(chmod 777:*)",
+      "Bash(format:*)",
+      "Bash(diskpart:*)",
+      "Read(.env)",
+      "Read(.env.*)",
+      "Read(*credentials*)",
+      "Read(*secret*)",
+      "Read(*password*)",
+      "Read(*token*)",
+      "Read(*apikey*)",
+      "Read(*api_key*)",
+      "Write(.env)",
+      "Write(.env.*)",
+      "Edit(.env)",
+      "Edit(.env.*)"
+    ]
+  },
+
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "═══ STOP-HOOK AKTIVIERT ═══\n\nDu wolltest gerade stoppen oder eine Rueckfrage stellen.\n\nPRUEFE JETZT:\n\n1. NACHTMODUS AKTIV?\n   → Lies 02_STATUS.md - steht dort 'Nachtmodus: AKTIV'?\n   → Wenn JA: Du darfst NICHT stoppen oder fragen!\n\n2. ALLE MEILENSTEINE FERTIG?\n   → Pruefe 01_SPEC.md - sind ALLE Meilensteine erledigt?\n   → Wenn NEIN: Arbeite weiter!\n\n3. ENDZEIT ERREICHT?\n   → Lies die Nachtmodus-Endzeit aus 02_STATUS.md\n   → Wenn NEIN: Arbeite weiter!\n\n═══ ENTSCHEIDUNG ═══\n\n→ Falls du eine Frage stellen wolltest:\n  - STELLE SIE NICHT\n  - Triff die Entscheidung SELBST\n  - Waehle die einfachere/sicherere Option\n  - Dokumentiere in 03_LOG.md als 'Autonome Entscheidung'\n\n→ Falls du unsicher bist:\n  - Das ist KEIN Grund zum Stoppen\n  - Mach weiter mit deiner besten Einschaetzung\n  - Dokumentiere deine Annahmen\n\n→ Falls ein Fehler aufgetreten ist:\n  - Versuche ihn zu beheben\n  - Wenn nicht behebbar: Dokumentiere und mach mit naechstem Meilenstein weiter\n\nNUR STOPPEN WENN:\n- ALLE Meilensteine fertig ODER\n- Endzeit erreicht ODER\n- Kritischer Systemausfall (MCP komplett tot)\n\n═══════════════════════════"
+          }
+        ]
+      }
+    ]
+  },
+
+  "alwaysThinkingEnabled": true
+}
