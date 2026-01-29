@@ -321,6 +321,59 @@ CREATE TABLE auftrag_historie (
 | Benachrichtigungen | Niedrig |
 | Mobile-Optimierung | Niedrig |
 
+### Phase 4: Dokument-Import vereinheitlichen (Zukunft)
+
+**Problem:** Aktuell gibt es mehrere Wege wie Dokumente ins System kommen:
+1. Scanner-Ordner → File-Watcher → Edge Function
+2. Email-Webhook → Edge Function
+3. Browser-Download → **landet NICHT im System!**
+
+**Loesung: Universelles Import-Tool**
+
+Ein Desktop/Web-Tool das alle Dokument-Quellen vereinheitlicht:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    IMPORT-TOOL (Web/Desktop)                │
+│                                                             │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
+│  │ Drag & Drop │  │ Ordner-     │  │ Massen-Upload       │ │
+│  │ Einzeldatei │  │ Auswahl     │  │ (mehrere Dateien)   │ │
+│  └──────┬──────┘  └──────┬──────┘  └──────────┬──────────┘ │
+│         │                │                     │            │
+│         └────────────────┼─────────────────────┘            │
+│                          │                                  │
+│                          ▼                                  │
+│              ┌───────────────────────┐                      │
+│              │ Vorschau + Metadaten  │                      │
+│              │ (optional: Kategorie  │                      │
+│              │  vorschlagen lassen)  │                      │
+│              └───────────┬───────────┘                      │
+│                          │                                  │
+│                          ▼                                  │
+│              ┌───────────────────────┐                      │
+│              │ Upload zu Supabase    │                      │
+│              │ → process-document    │                      │
+│              └───────────────────────┘                      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Vorteile:**
+- Eine Edge Function fuer alle Dokument-Quellen (process-document)
+- Browser-Downloads koennen erfasst werden
+- Massen-Uploads moeglich (z.B. alte Dokumente nachtraeglich)
+- Einheitlicher Workflow: Email, Scanner, Manuell → alles gleich
+- Weniger Edge Functions zu pflegen
+
+**Technische Umsetzung:**
+- Web-App (React) oder Electron Desktop-App
+- Drag & Drop mit react-dropzone oder aehnlich
+- Direkt-Upload zu Supabase Storage
+- Aufruf von process-document Edge Function
+- Progress-Anzeige bei Massen-Uploads
+
+**Status:** Idee (2026-01-29)
+
 ---
 
 ## Kosten-Schaetzung
