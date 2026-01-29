@@ -98,9 +98,3 @@ Siehe `docs/Auftragsmanagement_Projektplan.md` fuer Details.
 | **Projekt-URL** | `https://rsmjgdujlpnydbsfuiek.supabase.co` |
 | **Zweck** | ERP-Cache + eigene Workflow-Daten |
 
----
-
-## Sicherheitshinweis
-
-> **TODO:** API-Key spaeter in `.env` verschieben!
-> Aktuell noch in Entwicklung - bei Produktivgang bereinigen.
