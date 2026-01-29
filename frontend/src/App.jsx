@@ -7,6 +7,7 @@ import Projekte from './pages/Projekte';
 import ProjektDetail from './pages/ProjektDetail';
 import Auftraege from './pages/Auftraege';
 import Kunden from './pages/Kunden';
+import Reparaturen from './pages/Reparaturen';
 
 function Navigation() {
   const location = useLocation();
@@ -14,7 +15,8 @@ function Navigation() {
   const navItems = [
     { path: '/', icon: Home, label: 'Dashboard' },
     { path: '/projekte', icon: FolderKanban, label: 'Projekte' },
-    { path: '/auftraege', icon: ClipboardList, label: 'Aufträge' },
+    { path: '/auftraege', icon: ClipboardList, label: 'Auftraege' },
+    { path: '/reparaturen', icon: RefreshCw, label: 'Reparaturen' },
     { path: '/kunden', icon: Users, label: 'Kunden' },
   ];
 
@@ -96,6 +98,7 @@ function App() {
             <Route path="/projekte" element={<Projekte />} />
             <Route path="/projekte/:code" element={<ProjektDetail />} />
             <Route path="/auftraege" element={<Auftraege />} />
+            <Route path="/reparaturen" element={<Reparaturen />} />
             <Route path="/kunden" element={<Kunden />} />
           </Routes>
         </main>

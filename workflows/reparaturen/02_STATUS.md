@@ -1,122 +1,117 @@
 # Status: Reparatur-Workflow
 
-> Letzte Aktualisierung: 2026-01-26 21:30
-> Aktualisiert von: Projektleiter (P002-PL)
+> Letzte Aktualisierung: 2026-01-29 19:40
+> Aktualisiert von: Programmierer (P009-PROG)
 
 ---
 
 ## Nachtmodus
 
-**Status:** INAKTIV
-**Letzter Test:** 2026-01-26 12:50-13:10 (End-to-End)
-**Ergebnis:** ERFOLGREICH - 8 autonome Entscheidungen, 6 Luecken identifiziert
+**Status:** AKTIV bis 23:59
+**Gestartet:** 2026-01-29 14:00
+**Regeln:** Keine Rueckfragen, selbst entscheiden, alles dokumentieren
 
 ---
 
 ## Aktueller Stand
 
-**Phase:** SPEC v1.2 fertiggestellt - Workflow-Klarstellung mit 2 Outcomes
+**Phase:** UMSETZUNG Step 1 MVP - Meilenstein 4b (Auftrags-Detail) ABGESCHLOSSEN
 
-**Letzter abgeschlossener Schritt:**
-- P002-PL: SPEC Workflow-Klarstellung
-- Servicebesuch 1 mit 2 Outcomes (A: erledigt, B: Folgeeinsatz)
-- Terminplanung FRUEH nach Annahme/Prio dokumentiert
-- Begutachtungsauftrag vs. Auftragsbestaetigung klargestellt
-- Neue Kapitel 3.3.2 + 3.3.3 hinzugefuegt
-- Mermaid-Diagramm auf v1.2 aktualisiert
+**SPEC Version:** v1.3 (2026-01-29)
+**Neue Features in v1.3:** Status-Ladder, Aging, No-Show, 2-Mann-Constraints, Rollout-Strategie
 
 ---
 
-## SPEC-Uebersicht (Quick Reference)
+## Meilenstein-Plan (Step 1 MVP)
 
-| Kapitel | Inhalt |
-|---------|--------|
-| 2 | **NICHT ANFASSEN:** 1.605 Dokumente, 14 Edge Functions, ERP-Cache |
-| 3.1 | Flussdiagramm mit 2 Outcomes (A: erledigt, B: Folgeeinsatz) |
-| 3.3 | Servicebesuch 1 (Begutachtung + ggf. Sofort-Reparatur) |
-| 3.3.2 | **NEU:** Pflichtentscheidung Outcome A vs. B |
-| 3.3.3 | **NEU:** Lager/Standardteil-Logik |
-| 3.4-3.6 | Nur bei Outcome B: Recherche → AB → Servicebesuch 2 |
-| 4.3 | Terminplanung FRUEH + Zeitfenster-Empfehlung |
-| 4.4 | Terminerinnerung konkretisiert (24h + 2h + interaktiv) |
-
----
-
-## Erstellte Artefakte (aus Nachtmodus-Test)
-
-| Typ | Name | Status | Details |
-|-----|------|--------|---------|
-| Edge Function | telegram-bot | ACTIVE v1 | Webhook-basiert, /start /help /status, Foto-Empfang |
-| DB-Tabelle | telegram_sessions | ERSTELLT | 12 Spalten, RLS aktiv, Indizes, Trigger |
-| TypeScript | telegram_types.ts | ERSTELLT | 235 Zeilen, alle relevanten Types |
+| MS | Beschreibung | Status |
+|----|--------------|--------|
+| **1a** | Tabelle `reparatur_auftraege` erstellen | FERTIG |
+| **1b** | Status-Ladder (ENUM + Constraints) | SKIP (in 2b) |
+| **1c** | RLS + Indizes + Trigger | FERTIG (in 1a integriert) |
+| **2a** | Edge Function: Auftrag erstellen | FERTIG + GETESTET |
+| **2b** | Edge Function: Status-Transitions | FERTIG + GETESTET |
+| **2c** | Edge Function: Aging-Flag setzen | FERTIG + GETESTET |
+| 3a | Zeitfenster-System | WARTEND |
+| 3b | Termin reservieren/bestaetigen | WARTEND |
+| 3c | No-Show-Handling | WARTEND |
+| **4a** | Frontend: Auftrags-Liste | FERTIG + BUILD OK |
+| **4b** | Frontend: Auftrags-Detail | FERTIG + BUILD OK |
+| **4c** | Frontend: Neukunden-Formular | FERTIG + BUILD OK |
+| 5a | Integration-Test via Chrome | WARTEND |
 
 ---
 
-## Naechster Schritt
+## Aktueller Auftrag
 
-**Wer:** Andreas (Entscheidung) + Projektleiter
-**Was:** Meilenstein 1 definieren und Umsetzung planen
-
-**Empfohlener Meilenstein 1 Scope:**
-1. Intake-Prozess (Anfrage erfassen)
-2. Annahme + Prio-Einstufung
-3. Terminplanung Servicebesuch 1
-4. Outcome-Erfassung (A oder B) nach Servicebesuch 1
-
-**Offene Fragen:**
-1. Welche Komponente zuerst umsetzen?
-2. Telegram-Bot fuer Monteur-Feedback (Outcome A/B)?
-3. Terminerinnerung als Quick Win vorziehen?
-
----
-
-## Offene Auftraege
-
-| ID | Typ | Beschreibung | Status |
-|----|-----|--------------|--------|
-| - | - | Keine offenen Auftraege | - |
+Kein aktiver Auftrag. P009-PROG abgeschlossen.
 
 ---
 
 ## Letzter Abschlussbericht
 
-```
-## ABSCHLUSSBERICHT P002-PL
-Datum: 2026-01-26 21:30
-Agent: Projektleiter
+### ABSCHLUSSBERICHT P009-PROG
+**Datum:** 2026-01-29 19:40
+**Agent:** Programmierer
 
-### Auftrag
-SPEC aktualisieren: Servicebesuch 1 mit 2 Outcomes, Terminplanung frueh,
-Begutachtungsauftrag vs. Auftragsbestaetigung klarstellen.
+#### Auftrag
+Auftrags-Detail Modal erstellen (Meilenstein 4b).
 
-### Ergebnis
+#### Ergebnis
 - [x] Erfolgreich
 
-### Was wurde gemacht
-- 01_SPEC.md auf v1.2 aktualisiert
-- Flussdiagramm komplett ueberarbeitet (2 Outcomes)
-- Kap. 3.3 umbenannt zu "Servicebesuch 1"
-- Kap. 3.3.2 neu: Pflichtentscheidung Outcome A/B
-- Kap. 3.3.3 neu: Lager/Standardteil-Logik
-- Kap. 3.4-3.6: Hinweis "nur bei Outcome B" hinzugefuegt
-- Kap. 4.3: Terminplanung FRUEH + Zeitfenster
-- Kap. 4.4: Terminerinnerung konkretisiert
-- Mermaid-Diagramm auf v1.2 aktualisiert
+#### Was wurde gemacht
 
-### Probleme/Erkenntnisse
-Keine Probleme.
+**1. Modal-Komponente `AuftragsDetailModal` erstellt:**
+- Ca. 310 Zeilen neue Komponente in Reparaturen.jsx
+- Gesamte Datei jetzt ca. 1060 Zeilen
 
-### Naechster Schritt (Vorschlag)
-Meilenstein 1 definieren: Intake → Annahme/Prio → Termin SV1 → Outcome-Erfassung
+**2. Alle angezeigte Felder implementiert:**
+- Kunde: kunde_name / neukunde_name / ERP-ID, Telefon, Adresse
+- Status + Prioritaet mit Farbcodierung
+- Problembeschreibung: kurz + lang (falls vorhanden)
+- Termine: termin_sv1, termin_sv2, outcome_sv1
+- Meta-Daten: erstellt_am, aktualisiert_am, letzter_kontakt_am
+- Flags: ist_zu_lange_offen + ist_no_show als Warnungen
+- Intern: mannstaerke, zeitfenster
 
-### Log-Referenz
-Dokumentiert in 03_LOG.md: [LOG-014] Zeilen 650-720
-```
+**3. Status-Aenderung im Modal:**
+- Dropdown mit nur erlaubten Ziel-Status (ERLAUBTE_TRANSITIONS Konstante)
+- Optionales Notiz-Feld zur Status-Aenderung
+- PATCH an `/reparatur/:id/status` mit Auth-Header
+- Erfolgs-/Fehlermeldung visuell angezeigt
+- Nach Erfolg: Modal schliessen + Liste aktualisieren
+
+**4. Integration:**
+- selectedAuftrag State in Reparaturen Komponente
+- onClick Handler auf Tabellenzeile (cursor-pointer)
+- Modal schliesst mit X-Button, Backdrop oder nach erfolgreicher Aenderung
+
+**5. Build-Test:**
+- `npm run build` erfolgreich
+- 2297 Module, 4.23s Build-Zeit
+- dist/assets/index-CZY0r3nz.js: 485.64 kB
+- Keine Compile-Errors
+
+#### Probleme/Erkenntnisse
+Keine - alles wie im Auftrag beschrieben umgesetzt.
+
+#### Naechster Schritt (Vorschlag)
+1. Tester soll Auftrags-Detail Modal im Browser testen
+2. Dann: Meilenstein 5a (Integration-Test via Chrome)
+
+#### Log-Referenz
+Dokumentiert in 03_LOG.md: [LOG-025] Zeilen 1420-1510
 
 ---
 
 ## Wartend auf
 
-- [ ] Entscheidung Meilenstein 1 Scope durch Andreas
-- [ ] Quick Win priorisieren (z.B. Terminerinnerung)
-- [ ] Telegram Bot Token als Secret in Supabase konfigurieren
+- [ ] T004-TEST: Frontend Integration Browser-Test (empfohlen)
+- [ ] Telegram Bot Token als Secret (fuer spaeter)
+- [ ] Cron-Job Konfiguration fuer reparatur-aging im Dashboard
+- [x] P006-PROG: Aging Edge Function - ABGESCHLOSSEN
+- [x] P007-PROG: Frontend Auftrags-Liste - ABGESCHLOSSEN
+- [x] T003-TEST: Frontend Build + Code-Review - ABGESCHLOSSEN
+- [x] P008-PROG: Neukunden-Formular - ABGESCHLOSSEN
+- [x] P009-PROG: Auftrags-Detail Modal - ABGESCHLOSSEN

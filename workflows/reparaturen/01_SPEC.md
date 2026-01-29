@@ -1,7 +1,7 @@
 # Projektspezifikation: Reparatur-Workflow
 
 > **Nur Projektleiter darf diese Datei editieren.**
-> Stand: 2026-01-26 | Version: 1.2
+> Stand: 2026-01-29 | Version: 1.3
 
 ---
 
@@ -11,12 +11,15 @@
 |------|-------|--------|
 | 1 | Einfuehrung | 25-45 |
 | 2 | Status Quo - Bestehendes System (NICHT ANFASSEN) | 50-180 |
-| 3 | Reparatur-Prozess IST-Zustand (manuell) | 185-380 |
+| 3 | Reparatur-Prozess IST-Zustand (manuell) | 185-450 |
 | 3.3.2 | Ergebnis Servicebesuch 1 (Pflichtentscheidung) | 290-320 |
 | 3.3.3 | Lager/Standardteil-Logik | 325-350 |
-| 4 | Automatisierungspotenzial / SOLL-Zustand | 385-500 |
-| 5 | Technologien und Integrationen | 505-580 |
-| 6 | Spezialanweisungen und Einschraenkungen | 585-630 |
+| 3.3.4 | Ressourcen-Constraints (2-Mann-Jobs) | 355-385 |
+| 3.8 | Auftrags-Statusmodell | 430-480 |
+| 4 | Automatisierungspotenzial / SOLL-Zustand | 485-650 |
+| 4.7 | Rollout-Strategie (Step 1 / Step 2) | 630-680 |
+| 5 | Technologien und Integrationen | 685-760 |
+| 6 | Spezialanweisungen und Einschraenkungen | 765-810 |
 
 ---
 
@@ -259,6 +262,24 @@ Abnahmeprotokoll, Angebot, Aufmassblatt, Auftragsbestaetigung, Audio, Ausgangsre
 | WhatsApp | Textnachrichten | Keine Automatisierung |
 | Webseite | Kontaktformular → E-Mail | E-Mail automatisiert |
 
+**Neukunde vs. Bestandskunde - Unterschiedliche Anforderungen:**
+
+| Kundentyp | Terminbestaetigung | Grund |
+|-----------|-------------------|-------|
+| **Bestandskunde** | "JA/NEIN" per SMS reicht | Daten bekannt, Vertrauen vorhanden |
+| **Neukunde** | Neukundenformular PFLICHT | Rechnungsdaten + Beauftragung noetig |
+
+**Neukundenformular (Pflichtfelder):**
+- Vollstaendiger Name
+- Rechnungsadresse
+- Telefonnummer
+- E-Mail (optional)
+- Unterschrift (Beauftragung)
+
+> **WICHTIG:** Neukundenformular ist IMMER Pflicht - auch bei HOCH-Prio!
+> Kann aber VOR ORT auf der Baustelle ausgefuellt werden (nicht vorher).
+> Verhindert "Leichen" (Auftraege ohne Rechnungsdaten) und spaetere Korrekturen.
+
 ### 3.3 Servicebesuch 1 (Begutachtung + ggf. Sofort-Reparatur)
 
 > **Neuer Begriff:** "Servicebesuch 1" statt nur "Begutachtung", weil beim
@@ -364,6 +385,36 @@ Ein "Reparatur-Kit" pro Monteur koennte enthalten:
 
 → Konkrete Umsetzung spaeter, hier nur Konzept dokumentiert.
 
+### 3.3.4 Ressourcen-Constraints (2-Mann-Jobs)
+
+> **WICHTIG:** Nicht jeder Job kann von einer Person erledigt werden!
+
+**Verfuegbare Ressourcen:**
+
+| Ressource | Besetzung | Einsatzbereich |
+|-----------|-----------|----------------|
+| Servicetechniker | 1 Person (solo) | Standard-Reparaturen, Begutachtungen |
+| Team 1 | 2 Personen | Grosse Elemente, schwere Arbeiten |
+| Team 2 | 2 Personen | Grosse Elemente, schwere Arbeiten |
+
+**Typische 2-Mann-Jobs (vorab erkennbar):**
+
+| Job-Typ | Grund |
+|---------|-------|
+| Grosse Rollos (>2m Breite) | Gewicht, Handling |
+| Hebeschiebetuer | Gewicht, Groesse |
+| Markise | Gewicht, Montagehoehe |
+| Grosse Fensterelemente | Transport, Einbau |
+| Arbeiten mit Geruest | Sicherheit |
+
+**Planungsregel:**
+
+- Feld `mannstaerke` = 1 / 2 / unbekannt
+- **Vorab setzen** wenn aus Anfrage/Beschreibung ersichtlich
+- **Nach Servicebesuch 1** korrigieren falls noetig
+- 2-Mann-Einsaetze als **Block planen** (Nachmittag oder ganzer Tag)
+- NICHT: "Vormittag 2 Mann, danach solo" → Teams bleiben zusammen
+
 ### 3.4 Ersatzteil-Recherche (nur bei Outcome B)
 
 > **NUR relevant wenn Servicebesuch 1 mit Outcome B endet!**
@@ -426,6 +477,66 @@ Rechtlich sicherer als nur ein Angebot.
 - Zahlungserinnerung bei Faelligkeit
 - Mahnung bei Nichtzahlung
 - Dankeschoen-E-Mail (selten genutzt)
+
+### 3.8 Auftrags-Statusmodell
+
+> **KRITISCH:** Jeder Auftrag hat einen klar definierten Status.
+> Ohne Statusmodell keine Nachverfolgung, keine Eskalation, keine Transparenz.
+
+**Status-Ladder (Hauptstatus):**
+
+```
+OFFEN
+  │
+  ▼
+IN_BEARBEITUNG ──► (Kunde kontaktiert ODER Termin reserviert)
+  │
+  ▼
+TERMIN_RESERVIERT ──► (Zeitfenster vorgeschlagen, noch nicht bestaetigt)
+  │
+  ▼
+TERMIN_FIX ──► (Kunde hat bestaetigt)
+  │
+  ▼
+ERLEDIGT / GESCHLOSSEN
+```
+
+**Sonderstatus:**
+
+| Status | Bedeutung | Trigger |
+|--------|-----------|---------|
+| `NO_SHOW` | Kunde war nicht da | Techniker meldet zurueck |
+| `NICHT_BESTAETIGT` | Kunde reagiert nicht auf Terminvorschlag | Timeout nach X Tagen |
+| `ARCHIVIERT` | Auftrag storniert/abgebrochen | Manuell |
+| `ZU_LANGE_OFFEN` | Flag fuer Eskalation | Aging-Regel (siehe unten) |
+
+**Definition "bearbeitet":**
+
+> Ein Auftrag gilt als BEARBEITET wenn mindestens EINES zutrifft:
+> - Kunde wurde kontaktiert (Anruf, E-Mail, SMS)
+> - Termin wurde reserviert (auch wenn noch nicht bestaetigt)
+
+**Nur "reingeschaut" zaehlt NICHT als bearbeitet!**
+
+**Aging-Regel (Eskalation bei Stillstand):**
+
+| Schwelle | Aktion |
+|----------|--------|
+| 2 Arbeitswochen ohne "bearbeitet" | Flag `ZU_LANGE_OFFEN` setzen |
+| Flag gesetzt | Prioritaets-Bonus (wird nach oben sortiert) |
+
+> **Ziel:** Kein Auftrag bleibt ewig liegen - auch nicht die "schlechten" Termine
+> (weit weg, unguenstige Lage). Aging sorgt dafuer, dass alles irgendwann drankommt.
+
+**No-Show-Regel:**
+
+| Situation | Reaktion |
+|-----------|----------|
+| Kunde erscheint nicht zum Termin | Status → `NO_SHOW` |
+| Neuer Termin | NUR nach aktiver Bestaetigung durch Kunde |
+| Verrechnung | Initial NICHT verrechnen (kein Mini-Rechnungs-Chaos) |
+
+> **Spaeter optional:** No-Show-Gebuehr wenn Beauftragung nachweisbar unterschrieben.
 
 ---
 
@@ -631,6 +742,54 @@ Falls Telegram gewaehlt wird, zusaetzliche Einsatzgebiete:
 3. Schnelle Rueckfragen ans Buero
 4. Status-Updates fuer Kunden (optional)
 
+### 4.7 Rollout-Strategie (Step 1 / Step 2)
+
+> **KRITISCH:** Klare Abgrenzung was JETZT gebaut wird vs. was SPAETER kommt.
+> Verhindert Scope-Creep und sorgt fuer schnellen ersten Nutzen.
+
+**Step 1: Workflow-Basics (MVP)**
+
+| Feature | Beschreibung | Prioritaet |
+|---------|--------------|------------|
+| Statusmodell | OFFEN → IN_BEARBEITUNG → TERMIN_FIX → ERLEDIGT | MUSS |
+| Terminplanung | Zeitfenster, Reservierung, Bestaetigung | MUSS |
+| Aging/Eskalation | Flag bei >2 Wochen ohne Bearbeitung | MUSS |
+| Neukunde-Formular | Pflichtfelder vor Terminbestaetigung | MUSS |
+| No-Show-Handling | Status + Regel fuer Neuterminierung | MUSS |
+| 2-Mann-Constraints | Feld `mannstaerke` + Planungsregel | MUSS |
+
+**Step 2: Automatisierung & KI (spaeter)**
+
+| Feature | Beschreibung | Prioritaet |
+|---------|--------------|------------|
+| Ersatzteil-KI | Vision-basierte Identifikation | HOCH |
+| Lieferanten-Recherche | Automatische Preis/Lieferzeit-Matrix | HOCH |
+| Telegram-Bot | Foto-Upload, Status-Abfragen | MITTEL |
+| Voice-Bot | Automatische Terminkoordination | MITTEL |
+| SMS-Erinnerungen | 24h + 2h vorher automatisch | MITTEL |
+
+**Pilot-Strategie (kein Betriebsimpact):**
+
+```
+Phase 1: Bauen & Testen (isoliert)
+    │
+    ▼
+Phase 2: Pilot mit Servicetechniker (nur 1 Person)
+    │
+    ▼
+Phase 3: Rollout auf Teams (wenn Modell stabil)
+    │
+    ▼
+Phase 4: Optional Outlook-Sync (wenn gewuenscht)
+```
+
+**WICHTIG - Outlook im Pilot:**
+
+> Outlook/Calendar-Sync ist NICHT Teil von Step 1!
+> Pilot startet OHNE Outlook-Abhaengigkeit.
+> Perspektivisch soll Outlook als Planungs-Zentrale abgeloest werden.
+> Sync kann spaeter optional hinzugefuegt werden.
+
 ---
 
 ## 5. Technologien und Integrationen
@@ -649,12 +808,16 @@ Falls Telegram gewaehlt wird, zusaetzliche Einsatzgebiete:
 
 ### 5.2 Geplante Technologien
 
-| Technologie | Einsatzzweck | Status |
-|-------------|--------------|--------|
-| VAPI (oder Alternative) | Voice-Bots fuer Terminkoordination | GEPLANT |
-| Telegram Bot API | Foto-Upload, Status-Abfragen, Benachrichtigungen | GEPLANT |
-| SMS-Gateway | Terminerinnerungen | GEPLANT |
-| Outlook/Calendar API | Termin-Sync | GEPLANT |
+| Technologie | Einsatzzweck | Status | Step |
+|-------------|--------------|--------|------|
+| VAPI (oder Alternative) | Voice-Bots fuer Terminkoordination | GEPLANT | Step 2 |
+| Telegram Bot API | Foto-Upload, Status-Abfragen, Benachrichtigungen | GEPLANT | Step 2 |
+| SMS-Gateway | Terminerinnerungen | GEPLANT | Step 2 |
+| Outlook/Calendar API | Termin-Sync (optional) | SPAETER | Step 3+ |
+
+> **Hinweis:** Outlook-Sync ist bewusst NICHT in Step 1 oder 2.
+> Pilot startet ohne Outlook-Abhaengigkeit. Perspektivisch soll Outlook als
+> Planungs-Zentrale abgeloest werden, nicht tiefer integriert.
 
 ### 5.3 Integrationsarchitektur (High-Level)
 
@@ -727,6 +890,7 @@ Jede neue Edge Function oder Tabelle muss in diesem Dokument (Kapitel 2) nachget
 ---
 
 *Ende der Spezifikation*
-*Version 1.2 | Erstellt: 2026-01-26 | Autor: Projektleiter (Diktat von Andreas)*
+*Version 1.3 | Erstellt: 2026-01-26 | Autor: Projektleiter (Diktat von Andreas)*
 *Aenderungen v1.1: 100€ Pauschale, Prio-Einstufung, KI-Vision Ersatzteil-ID, Bestellprozess mit Freigabe, Telegram vs. App Szenarien*
 *Aenderungen v1.2: Servicebesuch 1 mit 2 Outcomes (A: erledigt, B: Folgeeinsatz), Terminplanung FRUEH nach Annahme, Begutachtungsauftrag vs. Auftragsbestaetigung klargestellt, Kap. 3.3.2 + 3.3.3 neu, Terminerinnerung konkretisiert*
+*Aenderungen v1.3: Auftrags-Statusmodell (Kap. 3.8), Neukunde vs. Bestandskunde (Kap. 3.2), 2-Mann-Constraints (Kap. 3.3.4), No-Show-Regel, Aging-Eskalation, Rollout-Strategie Step 1/2 (Kap. 4.7), Outlook als SPAETER markiert*
