@@ -40,7 +40,8 @@
 | L15 | Stop Hook ist Backup - Agent folgt freiwillig wenn Regeln klar sind | [LOG-013] |
 | L16 | 6 Luecken: MCP-Fehler, Compile-Error, Test-Fail, Context-Limit, Abhaengigkeit, Stop-Hook | [LOG-013] |
 | L17 | Strategien fuer jede Luecke in CLAUDE.md §11 aufnehmen! | [LOG-013] |
+| L18 | Bei MCP-Ausfaellen (Chrome): Tests dokumentieren + alternative Testmethoden nutzen | [LOG-028] |
 
 ---
 
-*Letzte Aktualisierung: 2026-01-26 12:40*
+*Letzte Aktualisierung: 2026-01-30*

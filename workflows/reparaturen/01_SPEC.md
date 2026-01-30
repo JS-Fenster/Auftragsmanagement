@@ -1,7 +1,7 @@
 # Projektspezifikation: Reparatur-Workflow
 
 > **Nur Projektleiter darf diese Datei editieren.**
-> Stand: 2026-01-29 | Version: 1.3
+> Stand: 2026-01-30 | Version: 1.4
 
 ---
 
@@ -90,11 +90,24 @@ Abnahmeprotokoll, Angebot, Aufmassblatt, Auftragsbestaetigung, Audio, Ausgangsre
 | `erp_lieferanten` | 663 | Lieferantenstammdaten |
 | `erp_ra` | 2.993 | Rechnungsausgang (offene Posten) |
 
-#### Auftrags-Tracking Tabellen (vorbereitet, noch leer)
+#### Reparatur-Workflow Tabellen (NEU - Step 1 MVP)
+
+| Tabelle | Zeilen | Zweck | Erstellt |
+|---------|--------|-------|----------|
+| `reparatur_auftraege` | ~2 (Test) | Haupt-Tabelle fuer Reparatur-Workflow | 2026-01-29 |
+| `telegram_sessions` | 0 | Telegram-Bot Sessions (Step 2 Vorbereitung) | 2026-01-26 |
+
+**Tabelle `reparatur_auftraege` Details:**
+- 27 Spalten inkl. Status-Ladder, Zeitfenster, Mannstaerke, Aging-Flag
+- RLS aktiviert (Service-Role + Authenticated)
+- Foreign Keys zu `erp_kunden` und `documents`
+- Indizes auf status, prioritaet, erp_kunde_id, termin_sv1, erstellt_am
+
+#### Auftrags-Tracking Tabellen (alt, noch leer)
 
 | Tabelle | Zeilen | Zweck |
 |---------|--------|-------|
-| `auftrag_status` | 0 | Auftragsstatus-Tracking |
+| `auftrag_status` | 0 | Auftragsstatus-Tracking (nicht verwendet) |
 | `auftrag_checkliste` | 0 | Checklisten pro Auftrag |
 | `auftrag_fotos` | 0 | Fotos zu Auftraegen |
 | `auftrag_historie` | 0 | Aenderungshistorie |

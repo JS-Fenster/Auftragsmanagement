@@ -1,15 +1,33 @@
 # Status: Reparatur-Workflow
 
-> Letzte Aktualisierung: 2026-01-29 21:15
-> Aktualisiert von: Programmierer (P011-PROG)
+> Letzte Aktualisierung: 2026-01-30 ~08:00
+> Aktualisiert von: Projektleiter (Chrome MCP Bug Dokumentation)
 
 ---
 
 ## Nachtmodus
 
-**Status:** AKTIV bis 23:59
-**Gestartet:** 2026-01-29 14:00
+**Status:** AKTIV bis 2026-01-31 08:00
+**Gestartet:** 2026-01-30 ~08:15
 **Regeln:** Keine Rueckfragen, selbst entscheiden, alles dokumentieren
+
+---
+
+## ⚠️ BEKANNTES PROBLEM: Chrome MCP
+
+**Status:** DEFEKT seit 2026-01-30
+**Auswirkung:** Browser-Tests via mcp__claude-in-chrome__* nicht moeglich
+**Workaround:** Frontend-Tests muessen HAENDISCH nachgeholt werden
+
+**Ausstehende Tests (warten auf Chrome MCP Fix):**
+- [ ] T004-TEST: Frontend Integration Browser-Test (Reparaturen-Liste live testen)
+- [ ] T005-TEST: Neukunden-Formular im Browser testen
+- [ ] T006-TEST: Auftrags-Detail Modal im Browser testen
+- [ ] T007-TEST: Termin-Setzen Feature im Browser testen
+
+**Hinweis fuer Tester-Subagenten:**
+Chrome MCP ist DEFEKT. Nicht versuchen, Browser-Tests durchzufuehren.
+Fokus auf: Code-Review, Build-Tests, curl-API-Tests (funktionieren weiterhin)
 
 ---
 
@@ -40,13 +58,18 @@
 | **4a** | Frontend: Auftrags-Liste | FERTIG + BUILD OK |
 | **4b** | Frontend: Auftrags-Detail | FERTIG + BUILD OK |
 | **4c** | Frontend: Neukunden-Formular | FERTIG + BUILD OK |
-| 5a | Integration-Test via Chrome | WARTEND |
+| 5a | Integration-Test via Chrome | BLOCKIERT (Chrome MCP defekt) |
 
 ---
 
 ## Aktueller Auftrag
 
-**Keiner** - P011-PROG abgeschlossen, warte auf neuen Auftrag.
+**P012-PL:** SPEC v1.4 aktualisieren + naechsten Meilenstein planen
+
+**Projektleiter arbeitet autonom:**
+1. SPEC Kapitel 2 aktualisieren (neue Edge Functions + Tabelle dokumentieren - Pflicht laut 6.4)
+2. Naechsten sinnvollen Meilenstein identifizieren (ohne Chrome MCP)
+3. Ggf. Subagenten starten fuer Backend-Arbeit
 
 ---
 
@@ -101,7 +124,7 @@ Dokumentiert in 03_LOG.md: [LOG-027] Zeilen 1565-1640
 
 ## Wartend auf
 
-- [ ] T004-TEST: Frontend Integration Browser-Test (empfohlen)
+- [ ] T004-TEST: Frontend Integration Browser-Test (BLOCKIERT - Chrome MCP defekt)
 - [x] P011-PROG: Frontend Termin-Setzen im Detail-Modal - ABGESCHLOSSEN
 - [ ] Telegram Bot Token als Secret (fuer spaeter)
 - [ ] Cron-Job Konfiguration fuer reparatur-aging im Dashboard

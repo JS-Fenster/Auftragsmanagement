@@ -36,6 +36,7 @@
 | [LOG-025] | 2026-01-29 | Programmierer | P009-PROG: Auftrags-Detail Modal erstellt | 1420-1510 |
 | [LOG-026] | 2026-01-29 | Programmierer | P010-PROG: Zeitfenster-System + Termin-Endpoint | 1510-1560 |
 | [LOG-027] | 2026-01-29 | Programmierer | P011-PROG: Termin-Setzen Feature im Detail-Modal | 1565-1640 |
+| [LOG-028] | 2026-01-30 | Projektleiter | Chrome MCP Bug dokumentiert - Browser-Tests blockiert | 1620-1665 |
 
 ---
 
@@ -1611,6 +1612,44 @@ Nachtmodus AKTIV bis 23:59 - KEINE Rueckfragen erlaubt.
 
 ### Naechster Schritt
 Browser-Test via Chrome (T004-TEST) oder weitere UI-Optimierungen.
+
+---
+
+## [LOG-028] Projektleiter: Chrome MCP Bug dokumentiert - Browser-Tests blockiert
+**Datum:** 2026-01-30 ~08:00
+
+### Kontext
+Andreas meldet: Chrome MCP (mcp__claude-in-chrome__*) funktioniert aktuell nicht.
+Browser-Automatisierung ist daher nicht moeglich.
+
+### Durchgefuehrt
+1. **02_STATUS.md aktualisiert:**
+   - Neuer Abschnitt "BEKANNTES PROBLEM: Chrome MCP"
+   - Liste ausstehender Browser-Tests angelegt
+   - Hinweis fuer Tester-Subagenten hinzugefuegt
+   - Meilenstein 5a als "BLOCKIERT" markiert
+
+2. **Ausstehende Tests notiert (warten auf Chrome MCP Fix):**
+   - T004-TEST: Frontend Integration Browser-Test
+   - T005-TEST: Neukunden-Formular im Browser
+   - T006-TEST: Auftrags-Detail Modal im Browser
+   - T007-TEST: Termin-Setzen Feature im Browser
+
+3. **Workaround fuer Tester:**
+   - Code-Review bleibt moeglich
+   - Build-Tests bleiben moeglich
+   - curl-API-Tests bleiben moeglich (Supabase MCP funktioniert)
+
+### Ergebnis
+- Bug ist dokumentiert
+- Tester werden nicht in Chrome MCP Bug laufen
+- Ausstehende Tests sind nachvollziehbar gelistet
+- Entwicklung kann an anderen Teilen weitergehen
+
+### Naechster Schritt
+Option A: Auf Chrome MCP Fix warten, dann T004-T007 durchfuehren
+Option B: Weitere Backend-Features entwickeln (z.B. Telegram, Cron-Jobs)
+Option C: Frontend-Tests haendisch durch Andreas
 
 ---
 
