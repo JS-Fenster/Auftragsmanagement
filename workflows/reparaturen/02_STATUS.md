@@ -1,7 +1,7 @@
 # Status: Reparatur-Workflow
 
-> Letzte Aktualisierung: 2026-01-30 09:50
-> Aktualisiert von: Programmierer (P015-PROG abgeschlossen)
+> Letzte Aktualisierung: 2026-01-30 10:05
+> Aktualisiert von: Tester (T011-TEST abgeschlossen)
 
 ---
 
@@ -41,7 +41,7 @@ Fokus auf: Code-Review, Build-Tests, curl-API-Tests (funktionieren weiterhin)
 **SPEC Version:** v1.3 (2026-01-29)
 **Neue Features in v1.3:** Status-Ladder, Aging, No-Show, 2-Mann-Constraints, Rollout-Strategie
 
-**Git:** Commit 4838d20 gepusht (Frontend komplett)
+**Git:** Commit 204d012 (Step 1 MVP feature-komplett)
 **API:** reparatur-api v1.5.0 (Version 6) deployed
 
 ---
@@ -93,51 +93,56 @@ Naechste Schritte:
 
 ## Letzter Abschlussbericht
 
-### ABSCHLUSSBERICHT P015-PROG
-**Datum:** 2026-01-30 09:50
-**Agent:** Programmierer
+### ABSCHLUSSBERICHT T011-TEST
+**Datum:** 2026-01-30 10:05
+**Agent:** Tester
 
 #### Auftrag
-Mannstaerke-Feature: Mannstaerke (1-Person-Job vs. 2-Mann-Job) im Detail-Modal setzen koennen.
+API-Tests fuer neu implementierte Endpoints: Kundensuche, Outcome SV1, Termin SV2, Mannstaerke
 
 #### Ergebnis
-- [x] Erfolgreich
+- [x] Erfolgreich - ALLE 10 TESTS BESTANDEN
 
-#### Was wurde gemacht
+#### Was wurde getestet
 
-**Teil 1: API erweitert (reparatur-api v1.5.0)**
-- Neuer Endpoint: `PATCH /reparatur/:id/mannstaerke`
-  - Body: `{ mannstaerke: 1 oder 2 oder null, notiz?: "..." }`
-  - null = Unbekannt (Wert zuruecksetzen)
-  - Validierung: mannstaerke muss 1, 2 oder null sein
-  - Notiz wird mit Mannstaerke-Info ins notizen-Feld geschrieben
-  - Return: { id, mannstaerke, aktualisiert_am }
-- Health-Check aktualisiert (Version 1.5.0, neuer Endpoint gelistet)
-- Deploy erfolgreich: Version 6
+| Endpoint | Tests | Bestanden |
+|----------|-------|-----------|
+| GET /kunden?q= | 3 | 3 |
+| PATCH /reparatur/:id/outcome | 2 | 2 |
+| PATCH /reparatur/:id/termin-sv2 | 2 | 2 |
+| PATCH /reparatur/:id/mannstaerke | 3 | 3 |
+| **GESAMT** | **10** | **10** |
 
-**Teil 2: Frontend erweitert (AuftragsDetailModal in Reparaturen.jsx)**
-- Neuer Bereich "Ressourcen-Planung" (nach Termin SV2, vor Status-Aenderung)
-  - Anzeige aktuelle Mannstaerke (farbcodiert: blau=1, lila=2, grau=unbekannt)
-  - Dropdown: "Unbekannt" / "1 - Solo (1 Person)" / "2 - Team (2 Personen)"
-  - Info-Text: "2-Mann-Jobs: Grosse Rollos (>2m), Hebeschiebetuer, Markise, Geruest"
-  - Optionales Notiz-Feld
-  - Submit-Button "Mannstaerke speichern" (lila Design)
-  - Success/Error Feedback
-- Neue State-Variablen: mannstaerkeValue, mannstaerkeNotiz, mannstaerkeSubmitting, mannstaerkeError, mannstaerkeSuccess
-- Handler: handleMannstaerkeSetzen
-- Reset bei Modal-Open: Aktuellen Wert in Dropdown vorbelegen
+**Kundensuche:**
+- Suche "Muster": PASS (1 Treffer)
+- Suche "M" (1 Zeichen): PASS (400 - min 2 Zeichen)
+- Suche "Schmidt": PASS (20 Treffer)
 
-**Teil 3: Build-Test**
-- `npm run build`: PASS (build in 3.79s)
+**Outcome SV1:**
+- outcome_sv1="A": PASS (200)
+- outcome_sv1="INVALID": PASS (400)
+
+**Termin SV2:**
+- Mit outcome_sv1="B": PASS (200)
+- Ohne outcome_sv1="B": PASS (400)
+
+**Mannstaerke:**
+- mannstaerke=2: PASS (200)
+- mannstaerke=null: PASS (200)
+- mannstaerke=3: PASS (400)
+
+**Erstellte Test-Auftraege (fuer Browser-Tests):**
+- c76c4cac-387c-4bb6-95a9-d28645270284
+- a97d02db-7300-4ac1-9312-f423d8bca14a
 
 #### Probleme/Erkenntnisse
-Keine. Nachtmodus: Keine Rueckfragen gestellt, alle Entscheidungen selbst getroffen.
+Keine Probleme. API validiert alle Eingaben korrekt.
 
 #### Naechster Schritt (Vorschlag)
-Step 1 MVP feature-komplett! Browser-Tests ausstehend (Chrome MCP defekt).
+Browser-Tests wenn Chrome MCP wieder funktioniert.
 
 #### Log-Referenz
-Dokumentiert in 03_LOG.md: [LOG-034] Zeilen 1905-1970
+Dokumentiert in 03_LOG.md: [LOG-036] Zeilen 1995-2090
 
 ---
 
@@ -147,6 +152,7 @@ Dokumentiert in 03_LOG.md: [LOG-034] Zeilen 1905-1970
 - [ ] T008-TEST: Bestandskunden-Feature Browser-Test (BLOCKIERT - Chrome MCP defekt)
 - [ ] T009-TEST: Outcome SV1 + Termin SV2 Feature Browser-Test (BLOCKIERT - Chrome MCP defekt)
 - [ ] T010-TEST: Mannstaerke-Feature Browser-Test (BLOCKIERT - Chrome MCP defekt)
+- [x] T011-TEST: API-Tests neue Endpoints (Kunden, Outcome, SV2, Mannstaerke) - ABGESCHLOSSEN
 - [x] P011-PROG: Frontend Termin-Setzen im Detail-Modal - ABGESCHLOSSEN
 - [x] P013-PROG: Bestandskunden-Feature (API + Frontend) - ABGESCHLOSSEN
 - [x] P014-PROG: Outcome SV1 + Termin SV2 Feature - ABGESCHLOSSEN

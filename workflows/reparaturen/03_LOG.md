@@ -43,7 +43,8 @@
 | [LOG-032] | 2026-01-30 | Programmierer | P014-PROG: Outcome SV1 + Termin SV2 Feature | 1805-1870 |
 | [LOG-033] | 2026-01-30 | Projektleiter | P014 Review + Planung P015 (Mannstaerke) | 1865-1910 |
 | [LOG-034] | 2026-01-30 | Programmierer | P015-PROG: Mannstaerke-Feature (API + Frontend) | 1905-1970 |
-| [LOG-035] | 2026-01-30 | Projektleiter | Step 1 MVP FEATURE-KOMPLETT + Git Commit | 1950-2020 |
+| [LOG-035] | 2026-01-30 | Projektleiter | Step 1 MVP FEATURE-KOMPLETT + Git Commit | 1950-1990 |
+| [LOG-036] | 2026-01-30 | Tester | T011-TEST: API-Tests neue Endpoints (Kunden, Outcome, SV2, Mannstaerke) | 1995-2090 |
 
 ---
 
@@ -1985,6 +1986,82 @@ Nachtmodus aktiv. P015-PROG (Mannstaerke-Feature) erfolgreich abgeschlossen.
 
 ### Git Commit
 Erstelle jetzt Git-Commit fuer alle heutigen Aenderungen.
+
+---
+
+## [LOG-036] Tester: T011-TEST API-Tests neue Endpoints
+**Datum:** 2026-01-30 10:00
+
+### Kontext
+Auftrag T011-TEST: API-Tests fuer die neu implementierten Endpoints mit curl.
+Nachtmodus aktiv - keine Rueckfragen.
+
+### Durchgefuehrt
+
+**Test-Setup:**
+- API URL: https://rsmjgdujlpnydbsfuiek.supabase.co/functions/v1/reparatur-api
+- ANON_KEY erfolgreich abgerufen via MCP
+
+**1. GET /kunden?q=suchbegriff (Kundensuche)**
+
+| Test | Eingabe | Erwartung | Ergebnis |
+|------|---------|-----------|----------|
+| 1a | q=Muster | 200 + kunden[] | PASS - 1 Treffer (Mustermann) |
+| 1b | q=M (1 Zeichen) | 400 | PASS - "Suchbegriff muss mindestens 2 Zeichen haben" |
+| 1c | q=Schmidt | 200 + kunden[] | PASS - 20 Treffer |
+
+**2. PATCH /reparatur/:id/outcome (Outcome SV1)**
+
+Vorbereitung: Test-Auftrag erstellt (c76c4cac-...) und durch Status-Ladder gebracht:
+OFFEN -> IN_BEARBEITUNG -> TERMIN_RESERVIERT -> TERMIN_FIX
+
+| Test | Eingabe | Erwartung | Ergebnis |
+|------|---------|-----------|----------|
+| 2a | outcome_sv1="A" | 200 | PASS - {"outcome_sv1":"A","status":"TERMIN_FIX"} |
+| 2b | outcome_sv1="INVALID" | 400 | PASS - "outcome_sv1 muss A oder B sein" |
+
+**3. PATCH /reparatur/:id/termin-sv2 (Termin SV2)**
+
+Vorbereitung: Neuer Test-Auftrag (a97d02db-...) mit outcome_sv1="B"
+
+| Test | Eingabe | Erwartung | Ergebnis |
+|------|---------|-----------|----------|
+| 3a | termin_sv2 + zeitfenster (bei B) | 200 | PASS - Termin gesetzt |
+| 3b | termin_sv2 bei outcome_sv1="A" | 400 | PASS - "Termin SV2 kann nur gesetzt werden wenn outcome_sv1='B'" |
+
+**4. PATCH /reparatur/:id/mannstaerke (Mannstaerke)**
+
+| Test | Eingabe | Erwartung | Ergebnis |
+|------|---------|-----------|----------|
+| 4a | mannstaerke=2 | 200 | PASS - {"mannstaerke":2} |
+| 4b | mannstaerke=null | 200 | PASS - {"mannstaerke":null} |
+| 4c | mannstaerke=3 | 400 | PASS - "mannstaerke muss 1, 2 oder null sein" |
+
+### Ergebnis
+
+**ALLE 10 TESTS BESTANDEN**
+
+| Endpoint | Tests | Bestanden |
+|----------|-------|-----------|
+| GET /kunden | 3 | 3 |
+| PATCH /outcome | 2 | 2 |
+| PATCH /termin-sv2 | 2 | 2 |
+| PATCH /mannstaerke | 3 | 3 |
+| **GESAMT** | **10** | **10** |
+
+**Erstellte Test-Auftraege (NICHT GELOESCHT fuer Browser-Tests):**
+- c76c4cac-387c-4bb6-95a9-d28645270284 (outcome_sv1="A")
+- a97d02db-7300-4ac1-9312-f423d8bca14a (outcome_sv1="B", termin_sv2 gesetzt)
+
+### Erkenntnisse
+- API validiert korrekt alle Eingaben
+- Status-Ladder Constraints werden eingehalten
+- Termin SV2 benoetigt korrekt outcome_sv1="B"
+- Mannstaerke akzeptiert nur 1, 2 oder null
+- Kundensuche benoetigt min. 2 Zeichen
+
+### Naechster Schritt
+Browser-Tests wenn Chrome MCP wieder funktioniert.
 
 ---
 
