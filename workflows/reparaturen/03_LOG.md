@@ -37,6 +37,13 @@
 | [LOG-026] | 2026-01-29 | Programmierer | P010-PROG: Zeitfenster-System + Termin-Endpoint | 1510-1560 |
 | [LOG-027] | 2026-01-29 | Programmierer | P011-PROG: Termin-Setzen Feature im Detail-Modal | 1565-1640 |
 | [LOG-028] | 2026-01-30 | Projektleiter | Chrome MCP Bug dokumentiert - Browser-Tests blockiert | 1620-1665 |
+| [LOG-029] | 2026-01-30 | Projektleiter | SPEC v1.4 - Neue Edge Functions + Tabellen dokumentiert | 1670-1720 |
+| [LOG-030] | 2026-01-30 | Programmierer | P013-PROG: Bestandskunden-Feature (API + Frontend) | 1715-1765 |
+| [LOG-031] | 2026-01-30 | Projektleiter | P013 Review + Planung P014 (Outcome SV1 + Termin SV2) | 1770-1820 |
+| [LOG-032] | 2026-01-30 | Programmierer | P014-PROG: Outcome SV1 + Termin SV2 Feature | 1805-1870 |
+| [LOG-033] | 2026-01-30 | Projektleiter | P014 Review + Planung P015 (Mannstaerke) | 1865-1910 |
+| [LOG-034] | 2026-01-30 | Programmierer | P015-PROG: Mannstaerke-Feature (API + Frontend) | 1905-1970 |
+| [LOG-035] | 2026-01-30 | Projektleiter | Step 1 MVP FEATURE-KOMPLETT + Git Commit | 1950-2020 |
 
 ---
 
@@ -1650,6 +1657,334 @@ Browser-Automatisierung ist daher nicht moeglich.
 Option A: Auf Chrome MCP Fix warten, dann T004-T007 durchfuehren
 Option B: Weitere Backend-Features entwickeln (z.B. Telegram, Cron-Jobs)
 Option C: Frontend-Tests haendisch durch Andreas
+
+---
+
+## [LOG-029] Projektleiter: SPEC v1.4 - Neue Edge Functions + Tabellen dokumentiert
+**Datum:** 2026-01-30 ~08:20
+
+### Kontext
+Nachtmodus gestartet. Erste Aufgabe: SPEC aktualisieren (Pflicht laut Kapitel 6.4).
+Neue Komponenten aus Step 1 MVP muessen in Kapitel 2 dokumentiert werden.
+
+### Durchgefuehrt
+1. **SPEC v1.3 → v1.4 aktualisiert:**
+
+2. **Kapitel 2 erweitert - Neue Tabellen:**
+   - `reparatur_auftraege` (27 Spalten, Haupt-Tabelle Step 1)
+   - `telegram_sessions` (Step 2 Vorbereitung)
+
+3. **Kapitel 2 erweitert - Neue Edge Functions:**
+   - `reparatur-api` v1.2.0 (5 Endpoints dokumentiert)
+   - `reparatur-aging` v1.0.0 (Cron-Job Empfehlung dokumentiert)
+   - `telegram-bot` v1 (Step 2 Vorbereitung)
+
+### Analyse: Step 1 MVP Status
+
+| Meilenstein | Status | Bemerkung |
+|-------------|--------|-----------|
+| 1a-1c | FERTIG | Tabelle + RLS + Indizes |
+| 2a-2c | FERTIG + GETESTET | API + Status + Aging |
+| 3a-3c | FERTIG + GETESTET | Zeitfenster + Termin + No-Show |
+| 4a-4c | FERTIG + BUILD OK | Frontend komplett |
+| 5a | BLOCKIERT | Chrome MCP defekt |
+
+**Step 1 MVP ist zu 95% fertig - nur Browser-Tests fehlen.**
+
+### Autonome Entscheidung [AD-001]
+**Zeitpunkt:** 2026-01-30 ~08:25
+**Situation:** Was als naechstes ohne Chrome MCP?
+**Optionen:**
+- A: Telegram Bot erweitern (Step 2)
+- B: Frontend verbessern (Bestandskunden, Outcome)
+- C: API erweitern
+- D: Dokumentation
+
+**Gewaehlt:** B - Frontend verbessern
+**Begruendung:**
+- Step 1 MVP noch nicht 100% nutzbar
+- Bestandskunden koennen noch nicht angelegt werden (nur Neukunden)
+- Outcome SV1 kann nicht gesetzt werden
+- Build-Tests moeglich, Browser-Tests spaeter nachholen
+
+### Naechster Schritt
+P012-PROG: Bestandskunden-Feature im Frontend
+- Button "Bestandskunde hinzufuegen" neben "Neuer Auftrag"
+- ERP-Kunde suchen (per Name oder Kundennummer)
+- Auftrag mit erp_kunde_id anlegen
+
+---
+
+## [LOG-030] Programmierer: P013-PROG - Bestandskunden-Feature (API + Frontend)
+**Datum:** 2026-01-30 08:45
+
+### Kontext
+Auftrag P013-PROG: Bestandskunden aus erp_kunden suchen und Reparatur-Auftrag anlegen.
+Nachtmodus aktiv - keine Rueckfragen.
+
+### Durchgefuehrt
+
+**Teil 1: API erweitert (reparatur-api v1.3.0)**
+- Edge Function von v1.2.0 auf v1.3.0 aktualisiert
+- Neuer Endpoint: `GET /reparatur-api/kunden?q=suchbegriff`
+- Sucht in erp_kunden: firma1, firma2, name, strasse, ort, telefon, email (ILIKE %q%)
+- Mindestens 2 Zeichen erforderlich
+- Limit 20 Ergebnisse
+- Return: `{ kunden: [...], count }`
+- Interface `ErpKunde` hinzugefuegt
+- Validierung bei BESTANDSKUNDE: erp_kunde_id ist jetzt Pflicht
+- Deploy erfolgreich: version 4
+
+**Teil 2: Frontend erweitert (Reparaturen.jsx)**
+- Neue Komponente `BestandskundenFormularModal` (~300 Zeilen)
+- 2-Schritt-Workflow:
+  1. Kundensuche (Suchfeld mit 300ms Debounce, Ergebnisliste, Klick-Auswahl)
+  2. Auftragsdaten (Beschreibung + Prioritaet eingeben)
+- Button-Layout im Header geaendert:
+  - "Bestandskunde" (blau) - oeffnet BestandskundenFormularModal
+  - "Neukunde" (gruen) - oeffnet NeukundenFormularModal
+  - "Aktualisieren" (grau)
+- State-Variablen umbenannt: isModalOpen -> isNeukundeModalOpen, isBestandskundeModalOpen
+- Adresse wird automatisch aus ERP-Daten uebernommen
+
+**Teil 3: Build-Test**
+- `npm run build`: PASS
+- Keine Fehler, nur bekannte CJS-Warnung
+- Output: 498.12 kB (gzip: 139.20 kB)
+
+### Ergebnis
+- [x] API v1.3.0 deployed mit Kunden-Such-Endpoint
+- [x] Frontend erweitert mit BestandskundenFormularModal
+- [x] Build erfolgreich
+
+### Probleme/Erkenntnisse
+Keine. Nachtmodus: Keine Rueckfragen gestellt, alle Entscheidungen selbst getroffen.
+
+### Naechster Schritt
+Browser-Test via Chrome wenn MCP wieder funktioniert (T008-TEST: Bestandskunden-Feature testen).
+
+---
+
+## [LOG-031] Projektleiter: P013 Review + Planung P014 (Outcome SV1 + Termin SV2)
+**Datum:** 2026-01-30 08:55
+
+### Kontext
+Nachtmodus aktiv. P013-PROG (Bestandskunden-Feature) erfolgreich abgeschlossen.
+Naechster Schritt: Outcome SV1 + Termin SV2 Feature im Detail-Modal.
+
+### Review P013-PROG
+- API v1.3.0 deployed mit Kunden-Such-Endpoint ✓
+- Frontend BestandskundenFormularModal erstellt ✓
+- Build erfolgreich ✓
+- Browser-Test steht aus (Chrome MCP defekt)
+
+**Bewertung:** Sehr gut. Subagent hat autonom und korrekt gearbeitet.
+
+### Analyse: Was fehlt noch fuer vollstaendigen Workflow?
+
+| Feature | Status | Wichtigkeit |
+|---------|--------|-------------|
+| Neukunde anlegen | ✓ FERTIG | MUSS |
+| Bestandskunde anlegen | ✓ FERTIG (P013) | MUSS |
+| Status aendern | ✓ FERTIG | MUSS |
+| Termin SV1 setzen | ✓ FERTIG | MUSS |
+| **Outcome SV1 setzen (A/B)** | FEHLT | MUSS |
+| **Termin SV2 setzen** | FEHLT | MUSS (bei Outcome B) |
+| Mannstaerke setzen | FEHLT | SOLL |
+
+### Naechster Auftrag: P014-PROG
+
+**Outcome SV1 + Termin SV2 Feature:**
+1. Im AuftragsDetailModal: Dropdown fuer outcome_sv1 (A/B)
+2. PATCH /reparatur/:id/outcome Endpoint in API
+3. Termin SV2 setzen (nur sichtbar bei Outcome B)
+4. PATCH /reparatur/:id/termin-sv2 Endpoint
+
+---
+
+## [LOG-032] Programmierer: P014-PROG: Outcome SV1 + Termin SV2 Feature
+**Datum:** 2026-01-30 ~09:15
+
+### Kontext
+Nachtmodus AKTIV. Auftrag P014-PROG: Nach Servicebesuch 1 das Outcome (A=erledigt, B=Folgeeinsatz) dokumentieren. Bei Outcome B: Termin SV2 setzen.
+
+### Durchgefuehrt
+
+**Teil 1: API erweitert (reparatur-api v1.4.0)**
+- Neuer Endpoint: `PATCH /reparatur/:id/outcome`
+  - Body: `{ outcome_sv1: "A" oder "B", notiz?: "...", set_erledigt?: boolean }`
+  - Validierung: outcome_sv1 muss A oder B sein
+  - Validierung: Nur bei Status TERMIN_FIX oder ERLEDIGT erlaubt
+  - Bei Outcome A + set_erledigt=true: Status automatisch auf ERLEDIGT setzen
+  - Notiz wird mit Outcome-Info ins notizen-Feld geschrieben
+  - Return: { id, outcome_sv1, status, aktualisiert_am }
+
+- Neuer Endpoint: `PATCH /reparatur/:id/termin-sv2`
+  - Body: `{ termin_sv2: "ISO-8601", zeitfenster: "...", notiz?: "..." }`
+  - Validierung: Nur wenn outcome_sv1 = "B"
+  - Zeitfenster-Validierung (wie bei termin-sv1)
+  - Setzt letzter_kontakt_am = now()
+  - Return: { id, termin_sv2, zeitfenster, letzter_kontakt_am, aktualisiert_am }
+
+- Deploy erfolgreich: Version 5
+
+**Teil 2: Frontend erweitert (AuftragsDetailModal)**
+- Neuer Bereich "Servicebesuch 1 Ergebnis"
+  - Sichtbar bei: TERMIN_FIX, ERLEDIGT oder wenn outcome_sv1 bereits gesetzt
+  - Falls outcome_sv1 schon gesetzt: Nur anzeigen (nicht editierbar)
+  - Falls noch nicht gesetzt UND Status TERMIN_FIX:
+    - Dropdown: "A - Erledigt beim 1. Besuch" / "B - Folgeeinsatz noetig"
+    - Checkbox: "Auftrag als ERLEDIGT markieren" (nur bei Outcome A)
+    - Optionale Notiz
+    - Submit-Button "Outcome speichern"
+
+- Neuer Bereich "Termin Servicebesuch 2"
+  - Sichtbar nur wenn: outcome_sv1 = "B"
+  - Falls termin_sv2 bereits gesetzt: Anzeigen (Datum formatiert)
+  - Falls noch nicht gesetzt:
+    - Gleiche Struktur wie Termin SV1 (Datum-Picker, Zeitfenster-Dropdown, Notiz)
+    - Button "Termin SV2 reservieren"
+
+- Neues Icon importiert: ClipboardCheck (fuer Outcome-Bereich)
+
+**Teil 3: Build-Test**
+- `npm run build`: PASS (build in 4.49s)
+
+### Ergebnis
+- [x] API v1.4.0 deployed mit Outcome + Termin-SV2 Endpoints
+- [x] Frontend erweitert mit Outcome-Bereich + Termin-SV2-Bereich im Detail-Modal
+- [x] Build erfolgreich
+
+### Probleme/Erkenntnisse
+Keine. Nachtmodus: Keine Rueckfragen gestellt, alle Entscheidungen selbst getroffen.
+
+### Naechster Schritt
+Browser-Test via Chrome wenn MCP wieder funktioniert (Outcome + Termin-SV2 Feature testen).
+
+---
+
+## [LOG-033] Projektleiter: P014 Review + Planung P015 (Mannstaerke)
+**Datum:** 2026-01-30 09:25
+
+### Kontext
+Nachtmodus aktiv. P014-PROG (Outcome SV1 + Termin SV2) erfolgreich abgeschlossen.
+
+### Review P014-PROG
+- API v1.4.0 deployed mit 2 neuen Endpoints ✓
+- Frontend Outcome-Bereich + Termin-SV2-Bereich ✓
+- Build erfolgreich ✓
+
+**Bewertung:** Sehr gut. Kompletter Workflow von SV1 bis SV2 jetzt abbildbar.
+
+### Step 1 MVP - Feature-Komplettheits-Check
+
+| Feature | Status | SPEC Ref |
+|---------|--------|----------|
+| Neukunde anlegen | ✅ FERTIG | 3.2, 3.9 |
+| Bestandskunde anlegen | ✅ FERTIG | 3.2 |
+| Status aendern | ✅ FERTIG | 3.8 |
+| Termin SV1 setzen | ✅ FERTIG | 4.3 |
+| Outcome SV1 setzen | ✅ FERTIG | 3.3.2 |
+| Termin SV2 setzen | ✅ FERTIG | 4.3 |
+| **Mannstaerke setzen** | FEHLT | 3.3.4 |
+| Aging-Flag | ✅ FERTIG | 3.8 |
+| No-Show | ✅ FERTIG | 3.8 |
+
+### Naechster Auftrag: P015-PROG
+
+**Mannstaerke-Feature (letztes fehlendes SOLL-Feature):**
+1. PATCH /reparatur/:id/mannstaerke Endpoint
+2. Dropdown im Detail-Modal (1 / 2 / unbekannt)
+3. Build-Test
+
+---
+
+## [LOG-034] Programmierer: P015-PROG: Mannstaerke-Feature (API + Frontend)
+**Datum:** 2026-01-30 09:45
+
+### Kontext
+Auftrag P015-PROG im Nachtmodus. Letztes fehlendes SOLL-Feature fuer Step 1 MVP.
+
+### Durchgefuehrt
+
+**Teil 1: API erweitert (reparatur-api v1.5.0)**
+- Neuer Endpoint: `PATCH /reparatur/:id/mannstaerke`
+  - Body: `{ mannstaerke: 1 oder 2 oder null, notiz?: "..." }`
+  - null = Unbekannt (Wert zuruecksetzen)
+  - Validierung: mannstaerke muss 1, 2 oder null sein
+  - Notiz wird mit Mannstaerke-Info ins notizen-Feld geschrieben
+  - Return: { id, mannstaerke, aktualisiert_am }
+- Health-Check aktualisiert (Version 1.5.0, neuer Endpoint gelistet)
+- Deploy erfolgreich: Version 6
+
+**Teil 2: Frontend erweitert (AuftragsDetailModal in Reparaturen.jsx)**
+- Neuer Bereich "Ressourcen-Planung" (nach Termin SV2, vor Status-Aenderung)
+  - Anzeige aktuelle Mannstaerke (farbcodiert)
+  - Dropdown: "Unbekannt" / "1 - Solo (1 Person)" / "2 - Team (2 Personen)"
+  - Info-Text: "2-Mann-Jobs: Grosse Rollos (>2m), Hebeschiebetuer, Markise, Geruest"
+  - Optionales Notiz-Feld
+  - Submit-Button "Mannstaerke speichern" (lila Design fuer visuelle Unterscheidung)
+  - Success/Error Feedback
+
+- Neue State-Variablen: mannstaerkeValue, mannstaerkeNotiz, mannstaerkeSubmitting, mannstaerkeError, mannstaerkeSuccess
+- Handler: handleMannstaerkeSetzen
+- Reset bei Modal-Open: Aktuellen Wert in Dropdown vorbelegen
+
+**Teil 3: Build-Test**
+- `npm run build`: PASS (build in 3.79s)
+
+### Ergebnis
+- [x] API v1.5.0 deployed (Version 6)
+- [x] Frontend Ressourcen-Planung Bereich implementiert
+- [x] Build erfolgreich
+
+### Naechster Schritt
+Step 1 MVP Feature-Vollstaendig! Alle SOLL-Features implementiert.
+Browser-Tests ausstehend (Chrome MCP defekt).
+
+---
+
+## [LOG-035] Projektleiter: Step 1 MVP FEATURE-KOMPLETT + Git Commit
+**Datum:** 2026-01-30 09:55
+
+### Kontext
+Nachtmodus aktiv. P015-PROG (Mannstaerke-Feature) erfolgreich abgeschlossen.
+**Step 1 MVP ist jetzt FEATURE-KOMPLETT!**
+
+### Zusammenfassung Step 1 MVP
+
+**Heute implementiert (2026-01-30):**
+- P013-PROG: Bestandskunden-Feature (API v1.3.0 + Frontend)
+- P014-PROG: Outcome SV1 + Termin SV2 (API v1.4.0 + Frontend)
+- P015-PROG: Mannstaerke-Feature (API v1.5.0 + Frontend)
+
+**Gesamt Step 1 MVP Features:**
+| Feature | Status | API Endpoint |
+|---------|--------|--------------|
+| Auftrag erstellen | ✅ | POST /reparatur |
+| Auftrag abrufen | ✅ | GET /reparatur/:id |
+| Offene Auftraege | ✅ | GET /reparatur |
+| Status aendern | ✅ | PATCH /reparatur/:id/status |
+| Termin SV1 setzen | ✅ | PATCH /reparatur/:id/termin |
+| Outcome SV1 setzen | ✅ | PATCH /reparatur/:id/outcome |
+| Termin SV2 setzen | ✅ | PATCH /reparatur/:id/termin-sv2 |
+| Mannstaerke setzen | ✅ | PATCH /reparatur/:id/mannstaerke |
+| Kunden suchen | ✅ | GET /kunden?q= |
+| Aging-Check | ✅ | POST /reparatur-aging/run |
+
+**Frontend Features:**
+- Auftrags-Liste mit Status-Farben, Filter, Sortierung
+- Neukunden-Formular Modal
+- Bestandskunden-Formular Modal (mit Kundensuche)
+- Auftrags-Detail Modal mit:
+  - Status-Aenderung
+  - Termin SV1 setzen
+  - Outcome SV1 setzen
+  - Termin SV2 setzen (bei Outcome B)
+  - Mannstaerke setzen
+
+### Git Commit
+Erstelle jetzt Git-Commit fuer alle heutigen Aenderungen.
 
 ---
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Search, Filter, AlertTriangle, Clock, User, Phone, Calendar, Wrench, Plus, X, MapPin, FileText, CheckCircle, ChevronDown, Users, Tag, Edit3 } from 'lucide-react';
+import { Search, Filter, AlertTriangle, Clock, User, Phone, Calendar, Wrench, Plus, X, MapPin, FileText, CheckCircle, ChevronDown, Users, Tag, Edit3, ClipboardCheck } from 'lucide-react';
 import { format } from 'date-fns';
 
 // Reparatur-Status Konstanten (gemaess SPEC 3.2)
@@ -75,6 +75,29 @@ function AuftragsDetailModal({ isOpen, onClose, auftrag, onStatusChange, anonKey
   const [terminError, setTerminError] = useState(null);
   const [terminSuccess, setTerminSuccess] = useState(false);
 
+  // Outcome SV1 State
+  const [outcomeSv1, setOutcomeSv1] = useState('');
+  const [outcomeNotiz, setOutcomeNotiz] = useState('');
+  const [outcomeSetErledigt, setOutcomeSetErledigt] = useState(false);
+  const [outcomeSubmitting, setOutcomeSubmitting] = useState(false);
+  const [outcomeError, setOutcomeError] = useState(null);
+  const [outcomeSuccess, setOutcomeSuccess] = useState(false);
+
+  // Termin SV2 State
+  const [terminSv2Datum, setTerminSv2Datum] = useState('');
+  const [terminSv2Zeitfenster, setTerminSv2Zeitfenster] = useState('');
+  const [terminSv2Notiz, setTerminSv2Notiz] = useState('');
+  const [terminSv2Submitting, setTerminSv2Submitting] = useState(false);
+  const [terminSv2Error, setTerminSv2Error] = useState(null);
+  const [terminSv2Success, setTerminSv2Success] = useState(false);
+
+  // Mannstaerke State
+  const [mannstaerkeValue, setMannstaerkeValue] = useState('');
+  const [mannstaerkeNotiz, setMannstaerkeNotiz] = useState('');
+  const [mannstaerkeSubmitting, setMannstaerkeSubmitting] = useState(false);
+  const [mannstaerkeError, setMannstaerkeError] = useState(null);
+  const [mannstaerkeSuccess, setMannstaerkeSuccess] = useState(false);
+
   // Reset wenn Modal oeffnet
   useEffect(() => {
     if (isOpen && auftrag) {
@@ -88,6 +111,23 @@ function AuftragsDetailModal({ isOpen, onClose, auftrag, onStatusChange, anonKey
       setTerminNotiz('');
       setTerminError(null);
       setTerminSuccess(false);
+      // Outcome-Felder zuruecksetzen
+      setOutcomeSv1('');
+      setOutcomeNotiz('');
+      setOutcomeSetErledigt(false);
+      setOutcomeError(null);
+      setOutcomeSuccess(false);
+      // Termin SV2-Felder zuruecksetzen
+      setTerminSv2Datum('');
+      setTerminSv2Zeitfenster('');
+      setTerminSv2Notiz('');
+      setTerminSv2Error(null);
+      setTerminSv2Success(false);
+      // Mannstaerke-Felder zuruecksetzen
+      setMannstaerkeValue(auftrag?.mannstaerke?.toString() || '');
+      setMannstaerkeNotiz('');
+      setMannstaerkeError(null);
+      setMannstaerkeSuccess(false);
     }
   }, [isOpen, auftrag?.id]);
 
@@ -98,6 +138,18 @@ function AuftragsDetailModal({ isOpen, onClose, auftrag, onStatusChange, anonKey
   const kundeName = auftrag.kunde_name || auftrag.neukunde_name || `ERP-ID: ${auftrag.erp_kunde_id}`;
   const erlaubteZiele = ERLAUBTE_TRANSITIONS[auftrag.status] || [];
   const kannTerminSetzen = TERMIN_ERLAUBTE_STATUS.includes(auftrag.status);
+
+  // Outcome SV1 Sichtbarkeitslogik
+  // Sichtbar bei: TERMIN_FIX, ERLEDIGT oder wenn outcome_sv1 bereits gesetzt
+  const outcomeBereichSichtbar = ['TERMIN_FIX', 'ERLEDIGT'].includes(auftrag.status) || auftrag.outcome_sv1;
+  // Editierbar nur wenn outcome_sv1 noch nicht gesetzt UND Status TERMIN_FIX
+  const outcomeEditierbar = !auftrag.outcome_sv1 && auftrag.status === 'TERMIN_FIX';
+
+  // Termin SV2 Sichtbarkeitslogik
+  // Sichtbar nur wenn outcome_sv1 = 'B'
+  const terminSv2BereichSichtbar = auftrag.outcome_sv1 === 'B';
+  // Editierbar wenn termin_sv2 noch nicht gesetzt
+  const terminSv2Editierbar = auftrag.outcome_sv1 === 'B' && !auftrag.termin_sv2;
 
   // Termin setzen Handler
   const handleTerminSetzen = async () => {
@@ -150,6 +202,148 @@ function AuftragsDetailModal({ isOpen, onClose, auftrag, onStatusChange, anonKey
       setTerminError(err.message || 'Unbekannter Fehler');
     } finally {
       setTerminSubmitting(false);
+    }
+  };
+
+  // Outcome SV1 setzen Handler
+  const handleOutcomeSetzen = async () => {
+    if (!outcomeSv1) return;
+
+    setOutcomeSubmitting(true);
+    setOutcomeError(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/reparatur/${auftrag.id}/outcome`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${anonKey}`,
+          'apikey': anonKey,
+        },
+        body: JSON.stringify({
+          outcome_sv1: outcomeSv1,
+          notiz: outcomeNotiz.trim() || undefined,
+          set_erledigt: outcomeSv1 === 'A' ? outcomeSetErledigt : undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      setOutcomeSuccess(true);
+
+      // Nach kurzer Verzoegerung Modal aktualisieren
+      setTimeout(() => {
+        onStatusChange();
+        onClose();
+      }, 1000);
+
+    } catch (err) {
+      console.error('Fehler beim Outcome-Setzen:', err);
+      setOutcomeError(err.message || 'Unbekannter Fehler');
+    } finally {
+      setOutcomeSubmitting(false);
+    }
+  };
+
+  // Termin SV2 setzen Handler
+  const handleTerminSv2Setzen = async () => {
+    if (!terminSv2Datum || !terminSv2Zeitfenster) return;
+
+    setTerminSv2Submitting(true);
+    setTerminSv2Error(null);
+
+    try {
+      // Zeitfenster zu Uhrzeit umwandeln
+      const zeitfensterInfo = ZEITFENSTER.find(z => z.value === terminSv2Zeitfenster);
+      if (!zeitfensterInfo) {
+        throw new Error('Ungueltiges Zeitfenster');
+      }
+
+      // ISO-String erstellen: Datum + Uhrzeit aus Zeitfenster
+      const terminDateTime = new Date(terminSv2Datum);
+      terminDateTime.setHours(zeitfensterInfo.hour, 0, 0, 0);
+      const termin_sv2 = terminDateTime.toISOString();
+
+      const response = await fetch(`${API_BASE_URL}/reparatur/${auftrag.id}/termin-sv2`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${anonKey}`,
+          'apikey': anonKey,
+        },
+        body: JSON.stringify({
+          termin_sv2,
+          zeitfenster: terminSv2Zeitfenster,
+          notiz: terminSv2Notiz.trim() || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      setTerminSv2Success(true);
+
+      // Nach kurzer Verzoegerung Modal aktualisieren
+      setTimeout(() => {
+        onStatusChange();
+        onClose();
+      }, 1000);
+
+    } catch (err) {
+      console.error('Fehler beim Termin-SV2-Setzen:', err);
+      setTerminSv2Error(err.message || 'Unbekannter Fehler');
+    } finally {
+      setTerminSv2Submitting(false);
+    }
+  };
+
+  // Mannstaerke setzen Handler
+  const handleMannstaerkeSetzen = async () => {
+    setMannstaerkeSubmitting(true);
+    setMannstaerkeError(null);
+
+    try {
+      // Wert parsen: leer = null, sonst number
+      let mannstaerkeWert = null;
+      if (mannstaerkeValue === '1') mannstaerkeWert = 1;
+      else if (mannstaerkeValue === '2') mannstaerkeWert = 2;
+
+      const response = await fetch(`${API_BASE_URL}/reparatur/${auftrag.id}/mannstaerke`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${anonKey}`,
+          'apikey': anonKey,
+        },
+        body: JSON.stringify({
+          mannstaerke: mannstaerkeWert,
+          notiz: mannstaerkeNotiz.trim() || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      setMannstaerkeSuccess(true);
+
+      // Nach kurzer Verzoegerung Modal aktualisieren
+      setTimeout(() => {
+        onStatusChange();
+        onClose();
+      }, 1000);
+
+    } catch (err) {
+      console.error('Fehler beim Mannstaerke-Setzen:', err);
+      setMannstaerkeError(err.message || 'Unbekannter Fehler');
+    } finally {
+      setMannstaerkeSubmitting(false);
     }
   };
 
@@ -398,6 +592,133 @@ function AuftragsDetailModal({ isOpen, onClose, auftrag, onStatusChange, anonKey
               </div>
             )}
 
+            {/* Outcome SV1 Bereich */}
+            {outcomeBereichSichtbar && (
+              <div className="border-t pt-4">
+                <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-1">
+                  <ClipboardCheck className="h-4 w-4" />
+                  Servicebesuch 1 Ergebnis
+                </h3>
+
+                {/* Outcome bereits gesetzt - nur Anzeige */}
+                {auftrag.outcome_sv1 && (
+                  <div className={`p-4 rounded-lg ${auftrag.outcome_sv1 === 'A' ? 'bg-green-50' : 'bg-blue-50'}`}>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className={`h-5 w-5 ${auftrag.outcome_sv1 === 'A' ? 'text-green-600' : 'text-blue-600'}`} />
+                      <span className={`font-medium ${auftrag.outcome_sv1 === 'A' ? 'text-green-800' : 'text-blue-800'}`}>
+                        {auftrag.outcome_sv1 === 'A'
+                          ? 'A - Beim 1. Besuch erledigt'
+                          : 'B - Folgeeinsatz noetig'}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Outcome editierbar */}
+                {outcomeEditierbar && (
+                  <>
+                    {outcomeSuccess && (
+                      <div className="p-3 bg-green-50 border border-green-200 rounded-lg mb-3">
+                        <div className="flex items-center gap-2 text-green-800">
+                          <CheckCircle className="h-5 w-5" />
+                          <span className="font-medium">Outcome erfolgreich gespeichert!</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {outcomeError && (
+                      <div className="p-3 bg-red-50 border border-red-200 rounded-lg mb-3">
+                        <div className="flex items-center gap-2 text-red-800">
+                          <AlertTriangle className="h-5 w-5" />
+                          <span>{outcomeError}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-3">
+                      {/* Outcome Auswahl */}
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Ergebnis</label>
+                        <div className="relative">
+                          <select
+                            value={outcomeSv1}
+                            onChange={(e) => {
+                              setOutcomeSv1(e.target.value);
+                              // Checkbox zuruecksetzen wenn nicht A
+                              if (e.target.value !== 'A') {
+                                setOutcomeSetErledigt(false);
+                              }
+                            }}
+                            disabled={outcomeSubmitting || outcomeSuccess}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
+                          >
+                            <option value="">-- Ergebnis waehlen --</option>
+                            <option value="A">A - Erledigt beim 1. Besuch</option>
+                            <option value="B">B - Folgeeinsatz noetig</option>
+                          </select>
+                          <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                        </div>
+                      </div>
+
+                      {/* Checkbox: Als ERLEDIGT markieren (nur bei Outcome A) */}
+                      {outcomeSv1 === 'A' && (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id="outcomeSetErledigt"
+                            checked={outcomeSetErledigt}
+                            onChange={(e) => setOutcomeSetErledigt(e.target.checked)}
+                            disabled={outcomeSubmitting || outcomeSuccess}
+                            className="h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                          />
+                          <label htmlFor="outcomeSetErledigt" className="text-sm text-gray-700">
+                            Auftrag als ERLEDIGT markieren
+                          </label>
+                        </div>
+                      )}
+
+                      {/* Notiz (optional) */}
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Notiz (optional)</label>
+                        <textarea
+                          value={outcomeNotiz}
+                          onChange={(e) => setOutcomeNotiz(e.target.value)}
+                          placeholder="z.B. Weitere Details zum Ergebnis..."
+                          disabled={outcomeSubmitting || outcomeSuccess}
+                          rows={2}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        />
+                      </div>
+
+                      {/* Submit Button */}
+                      <button
+                        onClick={handleOutcomeSetzen}
+                        disabled={!outcomeSv1 || outcomeSubmitting || outcomeSuccess}
+                        className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      >
+                        {outcomeSubmitting ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                            Wird gespeichert...
+                          </>
+                        ) : outcomeSuccess ? (
+                          <>
+                            <CheckCircle className="h-4 w-4" />
+                            Gespeichert!
+                          </>
+                        ) : (
+                          <>
+                            <ClipboardCheck className="h-4 w-4" />
+                            Outcome speichern
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
             {/* Termin setzen */}
             {kannTerminSetzen && (
               <div className="border-t pt-4">
@@ -498,6 +819,226 @@ function AuftragsDetailModal({ isOpen, onClose, auftrag, onStatusChange, anonKey
                 </div>
               </div>
             )}
+
+            {/* Termin SV2 setzen */}
+            {terminSv2BereichSichtbar && (
+              <div className="border-t pt-4">
+                <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-1">
+                  <Calendar className="h-4 w-4" />
+                  Termin Servicebesuch 2
+                </h3>
+
+                {/* Termin SV2 bereits gesetzt - nur Anzeige */}
+                {auftrag.termin_sv2 && (
+                  <div className="p-4 bg-blue-50 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-5 w-5 text-blue-600" />
+                      <span className="font-medium text-blue-800">
+                        {formatDateTime(auftrag.termin_sv2)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Termin SV2 editierbar */}
+                {terminSv2Editierbar && (
+                  <>
+                    {terminSv2Success && (
+                      <div className="p-3 bg-green-50 border border-green-200 rounded-lg mb-3">
+                        <div className="flex items-center gap-2 text-green-800">
+                          <CheckCircle className="h-5 w-5" />
+                          <span className="font-medium">Termin SV2 erfolgreich reserviert!</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {terminSv2Error && (
+                      <div className="p-3 bg-red-50 border border-red-200 rounded-lg mb-3">
+                        <div className="flex items-center gap-2 text-red-800">
+                          <AlertTriangle className="h-5 w-5" />
+                          <span>{terminSv2Error}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-3">
+                      {/* Datum */}
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Datum</label>
+                        <input
+                          type="date"
+                          value={terminSv2Datum}
+                          onChange={(e) => setTerminSv2Datum(e.target.value)}
+                          disabled={terminSv2Submitting || terminSv2Success}
+                          min={new Date().toISOString().split('T')[0]}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+
+                      {/* Zeitfenster */}
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Zeitfenster</label>
+                        <div className="relative">
+                          <select
+                            value={terminSv2Zeitfenster}
+                            onChange={(e) => setTerminSv2Zeitfenster(e.target.value)}
+                            disabled={terminSv2Submitting || terminSv2Success}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
+                          >
+                            <option value="">-- Zeitfenster waehlen --</option>
+                            {ZEITFENSTER.map((zf) => (
+                              <option key={zf.value} value={zf.value}>
+                                {zf.label}
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                        </div>
+                      </div>
+
+                      {/* Notiz (optional) */}
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Notiz (optional)</label>
+                        <textarea
+                          value={terminSv2Notiz}
+                          onChange={(e) => setTerminSv2Notiz(e.target.value)}
+                          placeholder="z.B. Kunde bevorzugt Vormittag..."
+                          disabled={terminSv2Submitting || terminSv2Success}
+                          rows={2}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        />
+                      </div>
+
+                      {/* Submit Button */}
+                      <button
+                        onClick={handleTerminSv2Setzen}
+                        disabled={!terminSv2Datum || !terminSv2Zeitfenster || terminSv2Submitting || terminSv2Success}
+                        className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      >
+                        {terminSv2Submitting ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                            Wird reserviert...
+                          </>
+                        ) : terminSv2Success ? (
+                          <>
+                            <CheckCircle className="h-4 w-4" />
+                            Reserviert!
+                          </>
+                        ) : (
+                          <>
+                            <Calendar className="h-4 w-4" />
+                            Termin SV2 reservieren
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Ressourcen-Planung */}
+            <div className="border-t pt-4">
+              <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-1">
+                <Users className="h-4 w-4" />
+                Ressourcen-Planung
+              </h3>
+
+              {/* Aktuelle Mannstaerke anzeigen */}
+              <div className="mb-3 p-3 bg-gray-50 rounded-lg">
+                <span className="text-sm text-gray-600">Aktuelle Mannstaerke: </span>
+                <span className={`font-medium ${
+                  auftrag.mannstaerke === 1 ? 'text-blue-700' :
+                  auftrag.mannstaerke === 2 ? 'text-purple-700' :
+                  'text-gray-500'
+                }`}>
+                  {auftrag.mannstaerke === 1 ? '1 Person (solo)' :
+                   auftrag.mannstaerke === 2 ? '2 Personen (Team)' :
+                   'Unbekannt'}
+                </span>
+              </div>
+
+              {mannstaerkeSuccess && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-lg mb-3">
+                  <div className="flex items-center gap-2 text-green-800">
+                    <CheckCircle className="h-5 w-5" />
+                    <span className="font-medium">Mannstaerke erfolgreich gespeichert!</span>
+                  </div>
+                </div>
+              )}
+
+              {mannstaerkeError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg mb-3">
+                  <div className="flex items-center gap-2 text-red-800">
+                    <AlertTriangle className="h-5 w-5" />
+                    <span>{mannstaerkeError}</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-3">
+                {/* Mannstaerke Auswahl */}
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Mannstaerke aendern</label>
+                  <div className="relative">
+                    <select
+                      value={mannstaerkeValue}
+                      onChange={(e) => setMannstaerkeValue(e.target.value)}
+                      disabled={mannstaerkeSubmitting || mannstaerkeSuccess}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
+                    >
+                      <option value="">Unbekannt</option>
+                      <option value="1">1 - Solo (1 Person)</option>
+                      <option value="2">2 - Team (2 Personen)</option>
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* Info-Text */}
+                <div className="text-xs text-gray-500 bg-blue-50 p-2 rounded border border-blue-100">
+                  <strong>2-Mann-Jobs:</strong> Grosse Rollos (&gt;2m), Hebeschiebetuer, Markise, Geruest
+                </div>
+
+                {/* Notiz (optional) */}
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Notiz (optional)</label>
+                  <textarea
+                    value={mannstaerkeNotiz}
+                    onChange={(e) => setMannstaerkeNotiz(e.target.value)}
+                    placeholder="z.B. Grosse Markise, benoetigt 2 Monteure..."
+                    disabled={mannstaerkeSubmitting || mannstaerkeSuccess}
+                    rows={2}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  />
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  onClick={handleMannstaerkeSetzen}
+                  disabled={mannstaerkeSubmitting || mannstaerkeSuccess}
+                  className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {mannstaerkeSubmitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      Wird gespeichert...
+                    </>
+                  ) : mannstaerkeSuccess ? (
+                    <>
+                      <CheckCircle className="h-4 w-4" />
+                      Gespeichert!
+                    </>
+                  ) : (
+                    <>
+                      <Users className="h-4 w-4" />
+                      Mannstaerke speichern
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
 
             {/* Status-Aenderung */}
             {erlaubteZiele.length > 0 && (
@@ -950,6 +1491,406 @@ function NeukundenFormularModal({ isOpen, onClose, onSuccess, anonKey }) {
   );
 }
 
+// Bestandskunden-Formular Modal Komponente
+function BestandskundenFormularModal({ isOpen, onClose, onSuccess, anonKey }) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState(null);
+  const [selectedKunde, setSelectedKunde] = useState(null);
+
+  // Formular-Daten nach Kundenauswahl
+  const [formData, setFormData] = useState({
+    beschreibung: '',
+    prioritaet: 'NORMAL',
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+
+  // Alles zuruecksetzen wenn Modal geoeffnet wird
+  useEffect(() => {
+    if (isOpen) {
+      setSearchQuery('');
+      setSearchResults([]);
+      setSearchError(null);
+      setSelectedKunde(null);
+      setFormData({ beschreibung: '', prioritaet: 'NORMAL' });
+      setSubmitError(null);
+      setSubmitSuccess(false);
+    }
+  }, [isOpen]);
+
+  // Kundensuche (mit Debounce-Effekt)
+  useEffect(() => {
+    if (searchQuery.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    const timeoutId = setTimeout(async () => {
+      setSearching(true);
+      setSearchError(null);
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/kunden?q=${encodeURIComponent(searchQuery)}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${anonKey}`,
+            'apikey': anonKey,
+          },
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        setSearchResults(data.kunden || []);
+      } catch (err) {
+        console.error('Fehler bei Kundensuche:', err);
+        setSearchError(err.message || 'Fehler bei der Suche');
+      } finally {
+        setSearching(false);
+      }
+    }, 300); // 300ms Debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, anonKey]);
+
+  const handleKundeSelect = (kunde) => {
+    setSelectedKunde(kunde);
+    setSearchResults([]);
+    setSearchQuery('');
+  };
+
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (submitError) setSubmitError(null);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedKunde) return;
+
+    setSubmitting(true);
+    setSubmitError(null);
+
+    // Validierung
+    if (!formData.beschreibung.trim()) {
+      setSubmitError('Problembeschreibung ist ein Pflichtfeld');
+      setSubmitting(false);
+      return;
+    }
+
+    try {
+      const requestBody = {
+        kundentyp: 'BESTANDSKUNDE',
+        erp_kunde_id: selectedKunde.code,
+        beschreibung: formData.beschreibung.trim(),
+        prioritaet: formData.prioritaet,
+        // Adresse aus Kundendaten uebernehmen
+        adresse_strasse: selectedKunde.strasse || undefined,
+        adresse_plz: selectedKunde.plz || undefined,
+        adresse_ort: selectedKunde.ort || undefined,
+      };
+
+      const response = await fetch(`${API_BASE_URL}/reparatur`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${anonKey}`,
+          'apikey': anonKey,
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      // Erfolg
+      setSubmitSuccess(true);
+
+      // Nach kurzer Verzoegerung Modal schliessen und Liste aktualisieren
+      setTimeout(() => {
+        onSuccess();
+        onClose();
+      }, 1500);
+
+    } catch (err) {
+      console.error('Fehler beim Erstellen des Auftrags:', err);
+      setSubmitError(err.message || 'Unbekannter Fehler beim Erstellen');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleBack = () => {
+    setSelectedKunde(null);
+    setFormData({ beschreibung: '', prioritaet: 'NORMAL' });
+    setSubmitError(null);
+  };
+
+  if (!isOpen) return null;
+
+  // Kundenname fuer Anzeige
+  const getKundeDisplayName = (kunde) => {
+    if (kunde.firma1) return kunde.firma1;
+    if (kunde.name) return kunde.name;
+    return `Kunde ${kunde.code}`;
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+        onClick={onClose}
+      />
+
+      {/* Modal */}
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div className="relative bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b">
+            <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+              <User className="h-5 w-5 text-blue-600" />
+              {selectedKunde ? 'Auftrag erstellen' : 'Bestandskunde suchen'}
+            </h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+
+          {/* Erfolgs-Meldung */}
+          {submitSuccess && (
+            <div className="p-4 bg-green-50 border-b border-green-200">
+              <div className="flex items-center gap-2 text-green-800">
+                <CheckCircle className="h-5 w-5" />
+                <span className="font-medium">Auftrag erfolgreich erstellt!</span>
+              </div>
+            </div>
+          )}
+
+          {/* Content */}
+          <div className="p-4">
+            {!selectedKunde ? (
+              // Schritt 1: Kundensuche
+              <div className="space-y-4">
+                {/* Suchfeld */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <Search className="h-4 w-4 inline mr-1" />
+                    Kunde suchen
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Name, Firma, Adresse, Telefon oder E-Mail..."
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      autoFocus
+                    />
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    {searching && (
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Mindestens 2 Zeichen eingeben</p>
+                </div>
+
+                {/* Fehler */}
+                {searchError && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="flex items-center gap-2 text-red-800">
+                      <AlertTriangle className="h-5 w-5" />
+                      <span>{searchError}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Suchergebnisse */}
+                {searchResults.length > 0 && (
+                  <div className="border border-gray-200 rounded-lg max-h-64 overflow-y-auto">
+                    {searchResults.map((kunde) => (
+                      <button
+                        key={kunde.code}
+                        onClick={() => handleKundeSelect(kunde)}
+                        className="w-full text-left p-3 hover:bg-blue-50 border-b border-gray-100 last:border-b-0 transition-colors"
+                      >
+                        <div className="font-medium text-gray-900">
+                          {getKundeDisplayName(kunde)}
+                        </div>
+                        {kunde.firma2 && (
+                          <div className="text-sm text-gray-600">{kunde.firma2}</div>
+                        )}
+                        <div className="text-sm text-gray-500 flex flex-wrap gap-x-4 gap-y-1 mt-1">
+                          {kunde.strasse && (
+                            <span className="flex items-center gap-1">
+                              <MapPin className="h-3 w-3" />
+                              {kunde.strasse}, {kunde.plz} {kunde.ort}
+                            </span>
+                          )}
+                          {kunde.telefon && (
+                            <span className="flex items-center gap-1">
+                              <Phone className="h-3 w-3" />
+                              {kunde.telefon}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-400 mt-1">ERP-ID: {kunde.code}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Keine Ergebnisse */}
+                {searchQuery.length >= 2 && !searching && searchResults.length === 0 && !searchError && (
+                  <div className="text-center py-8 text-gray-500">
+                    <User className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                    <p>Keine Kunden gefunden</p>
+                    <p className="text-sm">Versuchen Sie einen anderen Suchbegriff</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              // Schritt 2: Auftragsdaten eingeben
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Ausgewaehlter Kunde */}
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-medium text-gray-900 flex items-center gap-1">
+                        <User className="h-4 w-4 text-blue-600" />
+                        {getKundeDisplayName(selectedKunde)}
+                      </h3>
+                      {selectedKunde.firma2 && (
+                        <p className="text-sm text-gray-600">{selectedKunde.firma2}</p>
+                      )}
+                      {selectedKunde.strasse && (
+                        <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
+                          <MapPin className="h-3 w-3" />
+                          {selectedKunde.strasse}, {selectedKunde.plz} {selectedKunde.ort}
+                        </p>
+                      )}
+                      {selectedKunde.telefon && (
+                        <p className="text-sm text-gray-500 flex items-center gap-1">
+                          <Phone className="h-3 w-3" />
+                          {selectedKunde.telefon}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleBack}
+                      className="text-blue-600 hover:text-blue-800 text-sm"
+                    >
+                      Aendern
+                    </button>
+                  </div>
+                </div>
+
+                {/* Fehler-Meldung */}
+                {submitError && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="flex items-center gap-2 text-red-800">
+                      <AlertTriangle className="h-5 w-5" />
+                      <span>{submitError}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Problembeschreibung */}
+                <div>
+                  <label htmlFor="beschreibung" className="block text-sm font-medium text-gray-700 mb-1">
+                    <FileText className="h-4 w-4 inline mr-1" />
+                    Problembeschreibung <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    id="beschreibung"
+                    name="beschreibung"
+                    value={formData.beschreibung}
+                    onChange={handleFormChange}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="z.B. Fenster klemmt, Tuerschloss defekt..."
+                    disabled={submitting || submitSuccess}
+                  />
+                </div>
+
+                {/* Prioritaet */}
+                <div>
+                  <label htmlFor="prioritaet" className="block text-sm font-medium text-gray-700 mb-1">
+                    <AlertTriangle className="h-4 w-4 inline mr-1" />
+                    Prioritaet
+                  </label>
+                  <select
+                    id="prioritaet"
+                    name="prioritaet"
+                    value={formData.prioritaet}
+                    onChange={handleFormChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                    disabled={submitting || submitSuccess}
+                  >
+                    <option value="NORMAL">Normal</option>
+                    <option value="MITTEL">Mittel</option>
+                    <option value="HOCH">Hoch</option>
+                  </select>
+                </div>
+
+                {/* Buttons */}
+                <div className="flex gap-3 pt-4 border-t">
+                  <button
+                    type="button"
+                    onClick={handleBack}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    disabled={submitting}
+                  >
+                    Zurueck
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting || submitSuccess}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {submitting ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                        Wird erstellt...
+                      </>
+                    ) : submitSuccess ? (
+                      <>
+                        <CheckCircle className="h-4 w-4" />
+                        Erstellt!
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4" />
+                        Auftrag erstellen
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Reparaturen() {
   const [auftraege, setAuftraege] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -957,7 +1898,8 @@ function Reparaturen() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterPrio, setFilterPrio] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isNeukundeModalOpen, setIsNeukundeModalOpen] = useState(false);
+  const [isBestandskundeModalOpen, setIsBestandskundeModalOpen] = useState(false);
   const [selectedAuftrag, setSelectedAuftrag] = useState(null);
 
   // Anon-Key aus Environment Variable
@@ -1098,15 +2040,22 @@ function Reparaturen() {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => setIsBestandskundeModalOpen(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+          >
+            <User className="h-4 w-4" />
+            Bestandskunde
+          </button>
+          <button
+            onClick={() => setIsNeukundeModalOpen(true)}
             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
           >
             <Plus className="h-4 w-4" />
-            Neuer Auftrag
+            Neukunde
           </button>
           <button
             onClick={loadAuftraege}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
           >
             <Clock className="h-4 w-4" />
             Aktualisieren
@@ -1306,8 +2255,16 @@ function Reparaturen() {
 
       {/* Neukunden-Formular Modal */}
       <NeukundenFormularModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        isOpen={isNeukundeModalOpen}
+        onClose={() => setIsNeukundeModalOpen(false)}
+        onSuccess={loadAuftraege}
+        anonKey={anonKey}
+      />
+
+      {/* Bestandskunden-Formular Modal */}
+      <BestandskundenFormularModal
+        isOpen={isBestandskundeModalOpen}
+        onClose={() => setIsBestandskundeModalOpen(false)}
         onSuccess={loadAuftraege}
         anonKey={anonKey}
       />

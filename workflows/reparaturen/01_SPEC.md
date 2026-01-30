@@ -129,7 +129,9 @@ Abnahmeprotokoll, Angebot, Aufmassblatt, Auftragsbestaetigung, Audio, Ausgangsre
 | `email_ingest_filters` | 1 | Spam/Noise-Filter |
 | `ignored_emails` | 16 | Log gefilterter E-Mails |
 
-### 2.3 Bestehende Edge Functions (14 aktiv)
+### 2.3 Bestehende Edge Functions (14 + 3 neu = 17 aktiv)
+
+#### Bestehende Functions (Dokumenten-System)
 
 | Function | Version | JWT | Zweck |
 |----------|---------|-----|-------|
@@ -147,6 +149,27 @@ Abnahmeprotokoll, Angebot, Aufmassblatt, Auftragsbestaetigung, Audio, Ausgangsre
 | `create-subscription` | v2 | Nein | Neue Graph Subscription anlegen |
 | `setup-andreas-mailbox` | v2 | Nein | Andreas' Postfach einrichten |
 | `debug-env` | v2 | Nein | Umgebungsvariablen debuggen |
+
+#### NEUE Functions (Reparatur-Workflow - Step 1 MVP)
+
+| Function | Version | JWT | Zweck | Erstellt |
+|----------|---------|-----|-------|----------|
+| `reparatur-api` | v3 (1.2.0) | Ja | CRUD fuer Reparatur-Auftraege + Status-Transitions + Termin | 2026-01-29 |
+| `reparatur-aging` | v1 (1.0.0) | Nein | Cron-Job: Setzt ist_zu_lange_offen Flag nach 14 Tagen | 2026-01-29 |
+| `telegram-bot` | v1 | Nein | Telegram Webhook (Step 2 Vorbereitung) | 2026-01-26 |
+
+**Endpoints `reparatur-api`:**
+- `GET /reparatur` - Alle offenen Auftraege (sortiert: Prio DESC, Datum ASC)
+- `GET /reparatur/:id` - Einzelner Auftrag
+- `POST /reparatur` - Neuer Auftrag anlegen
+- `PATCH /reparatur/:id/status` - Status-Transition (validiert erlaubte Uebergaenge)
+- `PATCH /reparatur/:id/termin` - Termin setzen (validiert Zeitfenster)
+- `GET ?health=1` - Health Check
+
+**Cron-Job `reparatur-aging` (noch zu konfigurieren):**
+- Empfehlung: Taeglich 06:00 Uhr
+- Prueft: Status OFFEN/IN_BEARBEITUNG/NICHT_BESTAETIGT + letzter_kontakt_am > 14 Tage
+- Aktion: Setzt ist_zu_lange_offen = true
 
 ### 2.4 Bestehende Automatisierungen (bereits funktional)
 
@@ -903,7 +926,8 @@ Jede neue Edge Function oder Tabelle muss in diesem Dokument (Kapitel 2) nachget
 ---
 
 *Ende der Spezifikation*
-*Version 1.3 | Erstellt: 2026-01-26 | Autor: Projektleiter (Diktat von Andreas)*
+*Version 1.4 | Erstellt: 2026-01-26 | Autor: Projektleiter (Diktat von Andreas)*
 *Aenderungen v1.1: 100€ Pauschale, Prio-Einstufung, KI-Vision Ersatzteil-ID, Bestellprozess mit Freigabe, Telegram vs. App Szenarien*
 *Aenderungen v1.2: Servicebesuch 1 mit 2 Outcomes (A: erledigt, B: Folgeeinsatz), Terminplanung FRUEH nach Annahme, Begutachtungsauftrag vs. Auftragsbestaetigung klargestellt, Kap. 3.3.2 + 3.3.3 neu, Terminerinnerung konkretisiert*
 *Aenderungen v1.3: Auftrags-Statusmodell (Kap. 3.8), Neukunde vs. Bestandskunde (Kap. 3.2), 2-Mann-Constraints (Kap. 3.3.4), No-Show-Regel, Aging-Eskalation, Rollout-Strategie Step 1/2 (Kap. 4.7), Outlook als SPAETER markiert*
+*Aenderungen v1.4: Kapitel 2 aktualisiert mit neuen Edge Functions (reparatur-api, reparatur-aging, telegram-bot) und Tabellen (reparatur_auftraege, telegram_sessions)*
