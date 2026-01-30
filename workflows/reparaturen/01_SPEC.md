@@ -1,7 +1,7 @@
 # Projektspezifikation: Reparatur-Workflow
 
 > **Nur Projektleiter darf diese Datei editieren.**
-> Stand: 2026-01-30 | Version: 1.4
+> Stand: 2026-01-30 | Version: 1.5
 
 ---
 
@@ -152,19 +152,26 @@ Abnahmeprotokoll, Angebot, Aufmassblatt, Auftragsbestaetigung, Audio, Ausgangsre
 
 #### NEUE Functions (Reparatur-Workflow - Step 1 MVP)
 
-| Function | Version | JWT | Zweck | Erstellt |
-|----------|---------|-----|-------|----------|
-| `reparatur-api` | v3 (1.2.0) | Ja | CRUD fuer Reparatur-Auftraege + Status-Transitions + Termin | 2026-01-29 |
+| Function | Version | JWT | Zweck | Aktualisiert |
+|----------|---------|-----|-------|--------------|
+| `reparatur-api` | v6 (1.5.0) | Ja | CRUD fuer Reparatur-Auftraege - Step 1 MVP KOMPLETT | 2026-01-30 |
 | `reparatur-aging` | v1 (1.0.0) | Nein | Cron-Job: Setzt ist_zu_lange_offen Flag nach 14 Tagen | 2026-01-29 |
 | `telegram-bot` | v1 | Nein | Telegram Webhook (Step 2 Vorbereitung) | 2026-01-26 |
 
-**Endpoints `reparatur-api`:**
-- `GET /reparatur` - Alle offenen Auftraege (sortiert: Prio DESC, Datum ASC)
-- `GET /reparatur/:id` - Einzelner Auftrag
-- `POST /reparatur` - Neuer Auftrag anlegen
-- `PATCH /reparatur/:id/status` - Status-Transition (validiert erlaubte Uebergaenge)
-- `PATCH /reparatur/:id/termin` - Termin setzen (validiert Zeitfenster)
-- `GET ?health=1` - Health Check
+**Endpoints `reparatur-api` v1.5.0 (GETESTET - T011-TEST):**
+
+| Endpoint | Methode | Beschreibung |
+|----------|---------|--------------|
+| `/reparatur` | GET | Alle offenen Auftraege (sortiert: Prio DESC, Datum ASC) |
+| `/reparatur/:id` | GET | Einzelner Auftrag |
+| `/reparatur` | POST | Neuer Auftrag anlegen (Neukunde oder Bestandskunde) |
+| `/reparatur/:id/status` | PATCH | Status-Transition (validiert erlaubte Uebergaenge) |
+| `/reparatur/:id/termin` | PATCH | Termin SV1 setzen (validiert Zeitfenster) |
+| `/reparatur/:id/outcome` | PATCH | Outcome SV1 setzen (A=erledigt, B=Folgeeinsatz) |
+| `/reparatur/:id/termin-sv2` | PATCH | Termin SV2 setzen (nur bei Outcome B) |
+| `/reparatur/:id/mannstaerke` | PATCH | Mannstaerke setzen (1/2/null) |
+| `/kunden` | GET | Kundensuche in erp_kunden (?q=suchbegriff) |
+| `?health=1` | GET | Health Check |
 
 **Cron-Job `reparatur-aging` (noch zu konfigurieren):**
 - Empfehlung: Taeglich 06:00 Uhr
@@ -926,8 +933,9 @@ Jede neue Edge Function oder Tabelle muss in diesem Dokument (Kapitel 2) nachget
 ---
 
 *Ende der Spezifikation*
-*Version 1.4 | Erstellt: 2026-01-26 | Autor: Projektleiter (Diktat von Andreas)*
+*Version 1.5 | Erstellt: 2026-01-26 | Autor: Projektleiter (Diktat von Andreas)*
 *Aenderungen v1.1: 100€ Pauschale, Prio-Einstufung, KI-Vision Ersatzteil-ID, Bestellprozess mit Freigabe, Telegram vs. App Szenarien*
 *Aenderungen v1.2: Servicebesuch 1 mit 2 Outcomes (A: erledigt, B: Folgeeinsatz), Terminplanung FRUEH nach Annahme, Begutachtungsauftrag vs. Auftragsbestaetigung klargestellt, Kap. 3.3.2 + 3.3.3 neu, Terminerinnerung konkretisiert*
 *Aenderungen v1.3: Auftrags-Statusmodell (Kap. 3.8), Neukunde vs. Bestandskunde (Kap. 3.2), 2-Mann-Constraints (Kap. 3.3.4), No-Show-Regel, Aging-Eskalation, Rollout-Strategie Step 1/2 (Kap. 4.7), Outlook als SPAETER markiert*
 *Aenderungen v1.4: Kapitel 2 aktualisiert mit neuen Edge Functions (reparatur-api, reparatur-aging, telegram-bot) und Tabellen (reparatur_auftraege, telegram_sessions)*
+*Aenderungen v1.5: Step 1 MVP KOMPLETT - reparatur-api v1.5.0 mit 10 Endpoints (Kundensuche, Outcome, Termin-SV2, Mannstaerke) - GETESTET (T011-TEST: 10/10)*
