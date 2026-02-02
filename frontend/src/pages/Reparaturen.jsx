@@ -487,9 +487,9 @@ function AuftragsDetailModal({ isOpen, onClose, auftrag, onStatusChange, anonKey
                   {[auftrag.adresse_strasse, auftrag.adresse_plz, auftrag.adresse_ort].filter(Boolean).join(', ')}
                 </p>
               )}
-              {auftrag.kundentyp && (
+              {auftrag.kunde_kategorie && (
                 <span className="inline-block mt-2 px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded">
-                  {auftrag.kundentyp}
+                  {auftrag.kunde_kategorie}
                 </span>
               )}
             </div>
@@ -1211,7 +1211,7 @@ function NeukundenFormularModal({ isOpen, onClose, onSuccess, anonKey }) {
 
     try {
       const requestBody = {
-        kundentyp: 'NEUKUNDE',
+        kunde_kategorie: 'NEUKUNDE',
         name: formData.neukunde_name.trim(),
         telefon: formData.neukunde_telefon.trim(),
         problembeschreibung_kurz: formData.problembeschreibung_kurz.trim(),
@@ -1588,7 +1588,7 @@ function BestandskundenFormularModal({ isOpen, onClose, onSuccess, anonKey }) {
 
     try {
       const requestBody = {
-        kundentyp: 'BESTANDSKUNDE',
+        kunde_kategorie: 'BESTANDSKUNDE',
         erp_kunde_id: selectedKunde.code,
         beschreibung: formData.beschreibung.trim(),
         prioritaet: formData.prioritaet,
