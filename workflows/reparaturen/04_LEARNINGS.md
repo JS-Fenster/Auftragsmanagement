@@ -41,7 +41,11 @@
 | L16 | 6 Luecken: MCP-Fehler, Compile-Error, Test-Fail, Context-Limit, Abhaengigkeit, Stop-Hook | [LOG-013] |
 | L17 | Strategien fuer jede Luecke in CLAUDE.md §11 aufnehmen! | [LOG-013] |
 | L18 | Bei MCP-Ausfaellen (Chrome): Tests dokumentieren + alternative Testmethoden nutzen | [LOG-028] |
+| L19 | RLS ohne Policies = unsichtbare Daten. Immer Policies pruefen nach Tabellen-Erstellung | [LOG-038] |
+| L20 | ERP-Daten NICHT kopieren sondern per View-Schicht verknuepfen (read-only + FK) | [LOG-038] |
+| L21 | Edge Functions mit verify_jwt:true blockieren anon-Key. Dashboard braucht verify_jwt:false | [LOG-038] |
+| L22 | Supabase Storage Signed URLs statt Edge Function fuer Dokument-Vorschau nutzen | [LOG-038] |
 
 ---
 
-*Letzte Aktualisierung: 2026-01-30*
+*Letzte Aktualisierung: 2026-02-02*

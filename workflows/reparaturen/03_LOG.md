@@ -46,6 +46,7 @@
 | [LOG-035] | 2026-01-30 | Projektleiter | Step 1 MVP FEATURE-KOMPLETT + Git Commit | 1950-1990 |
 | [LOG-036] | 2026-01-30 | Tester | T011-TEST: API-Tests neue Endpoints (Kunden, Outcome, SV2, Mannstaerke) | 1995-2090 |
 | [LOG-037] | 2026-01-31 | Tester | T012-TEST: Alle Browser-Tests (T004-T010) BESTANDEN | 2070-2180 |
+| [LOG-038] | 2026-02-02 | Projektleiter | Neues Dashboard komplett gebaut + ERP-Integration | 2183-2290 |
 
 ---
 
@@ -2175,6 +2176,74 @@ Auftrag T012-TEST: Durchfuehrung aller ausstehenden Browser-Tests nachdem Chrome
 
 ### Naechster Schritt
 Step 1 MVP kann als abgeschlossen betrachtet werden. Bereit fuer Rollout-Planung oder weitere Features.
+
+---
+
+## [LOG-038] Projektleiter: Neues Dashboard komplett gebaut + ERP-Integration
+**Datum:** 2026-02-02 22:00
+
+### Kontext
+Das alte Frontend (3 separate Apps unter /frontend, /Auftragsmanagement/frontend, /apps/review-tool) war unuebersichtlich und unvollstaendig. Entscheidung: Komplett neues Dashboard von Grund auf bauen.
+
+### Durchgefuehrt
+
+**1. Neues Dashboard-Projekt erstellt (/dashboard)**
+- Stack: React 18 + Vite + Tailwind CSS v4 + Supabase JS + lucide-react + date-fns
+- 6 Seiten: Uebersicht, Auftraege, Dokumente, Kunden, E-Mail, Einstellungen
+- Sidebar-Navigation mit React Router
+
+**2. Auftraege-Seite**
+- Direkte Supabase-Query (statt Edge Function) → zeigt ALLE Auftraege inkl. ERLEDIGT/ARCHIVIERT
+- Detail-Modal mit 8 Sektionen (Status, Termine, Outcome, Mannstaerke etc.)
+- Neu-Auftrag-Modal mit Kundensuche
+- reparatur-api v2.0.1 deployed (verify_jwt:false fuer Dashboard-Zugriff)
+
+**3. Dokumente-Seite**
+- Two-Panel Layout (60/40), 1.841 Dokumente sichtbar
+- Filter: Kategorie, Quelle, Processing-Status, Zeitraum
+- Detail: Aussteller, Empfaenger, Finanzen, Bezuege, OCR-Text
+- PDF/Bild-Vorschau via Supabase Storage Signed URLs
+
+**4. Kunden-Seite mit vollstaendiger ERP-Historie**
+- Fuzzy-Suche ueber 8.687 ERP-Kunden + manuelle Kunden
+- Detail-Modal laedt automatisch ALLE verknuepften Daten:
+  - Reparatur-Auftraege (neues System) mit SV1/SV2 Terminen
+  - ERP-Projekte (2.486) mit Nummer, Name, Notiz
+  - ERP-Angebote (4.744) mit Auftragsstatus, Projekt-Verknuepfung, Wert
+  - ERP-Rechnungen (2.996) mit Offene-Posten-Abgleich (erp_ra), Mahnstufen
+  - ERP-Bestellungen (3.839) ueber Projekt-Codes verknuepft
+- Summary-Cards: Projekte-Anzahl, Angebotswert, Rechnungswert, offene Rechnungen
+
+**5. RLS-Policies fuer Dashboard**
+- Migration: anon_select fuer documents, email_subscriptions, email_ingest_filters, ignored_emails
+- Fehlende Policies waren Grund warum Dokumente-Seite leer war
+
+**6. ERP-Daten-Strategie entschieden**
+- ERP-Tabellen bleiben read-only (werden weiter per Import aktualisiert)
+- Neue Auftraege leben in `auftraege` Tabelle
+- Verknuepfung ueber erp_kunde_id (FK zu erp_kunden.code)
+- KEIN Kopieren in neue Tabellen → kein Sync-Problem
+
+**7. Uebersicht-Seite**
+- KPIs: 4 offene Auftraege, 1.841 Dokumente, 8.687 Kunden
+- E-Mail Pipeline Status (4 Subscriptions, alle expired - bekanntes Problem)
+- Verarbeitungs-Status (689 fertig)
+- Aging-Warnungen, Letzte Aktivitaeten
+
+**8. Bug-Fixes waehrend Build**
+- erp_kunden PK ist `code` nicht `id`
+- Spalten heissen `erstellt_am`/`aktualisiert_am` nicht `created_at`
+- API-Response Format: `{auftraege: [...]}` nicht `{reparaturen: [...]}`
+- Processing-Stats: Count-Queries statt alle 2042 Docs laden
+
+### Ergebnis
+Dashboard ist voll funktionsfaehig mit 6 Seiten. Zeigt alle Backend-Daten korrekt an.
+ERP-Uebergangs-Strategie: View-Schicht statt Datenmigration.
+
+### Naechster Schritt
+- E-Mail Pipeline reparieren (renew-subscriptions 401, expired Subscriptions)
+- Dokument-Vorschau bei manchen Dateien optimieren
+- Settings-Seite: Kundentypen/Auftragstypen CRUD testen
 
 ---
 

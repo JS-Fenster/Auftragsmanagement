@@ -1,6 +1,6 @@
 # Auftragsmanagement - Projektplan
 
-> Stand: 2026-01-29 | Naechste Session hier weitermachen
+> Stand: 2026-02-02 | Naechste Session hier weitermachen
 
 ---
 
@@ -134,6 +134,15 @@ Einheitliches Drag & Drop Tool fuer alle Dokument-Quellen:
 
 ## Erledigte Aufgaben
 
+### 2026-02-02: Neues Dashboard gebaut + ERP-Integration
+- Komplett neues Dashboard unter `/dashboard` (React 18 + Vite + Tailwind v4)
+- 6 Seiten: Uebersicht, Auftraege, Dokumente, Kunden, E-Mail, Einstellungen
+- Kunden-Detail mit vollstaendiger ERP-Historie (Projekte, Angebote, Rechnungen, Bestellungen, Offene Posten)
+- ERP-Strategie: View-Schicht (read-only ERP-Tabellen, keine Datenmigration)
+- RLS-Policies fuer Dashboard-Zugriff angelegt (documents, email_subscriptions, etc.)
+- reparatur-api v2.0.1 deployed (verify_jwt:false)
+- Dokument-Vorschau via Supabase Storage Signed URLs
+
 ### 2026-01-29: Email-Anhaenge Verarbeitung
 - CHECK Constraint blockierte `pending_ocr` Status
 - 71 fehlende Anhang-Dokumente nachgetragen
@@ -163,4 +172,4 @@ Einheitliches Drag & Drop Tool fuer alle Dokument-Quellen:
 
 ---
 
-*Zuletzt aktualisiert: 2026-01-29*
+*Zuletzt aktualisiert: 2026-02-02*

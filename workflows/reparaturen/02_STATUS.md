@@ -1,109 +1,81 @@
 # Status: Reparatur-Workflow
 
-> Letzte Aktualisierung: 2026-02-02 16:00
-> Aktualisiert von: Projektleiter (Step 2 Abschluss)
+> Letzte Aktualisierung: 2026-02-02 22:00
+> Aktualisiert von: Projektleiter (Dashboard-Build + ERP-Integration)
 
 ---
 
 ## Aktueller Stand
 
-**Phase:** Step 2 ABGESCHLOSSEN - Backend & Bot komplett
+**Phase:** Step 3 IN ARBEIT - Dashboard + ERP-Integration
 
 **SPEC Version:** v1.5 (2026-02-02)
-**Neue Features in v1.5:**
-- Tabelle umbenannt: `reparatur_auftraege` → `auftraege`
-- Dynamische Dropdown-Optionen (Kundentypen, Auftragstypen)
-- Manuelle Kunden-Tabelle (nicht im ERP)
-- Telegram Bot v3.1 mit Voice + GPT + /neuerKunde
-- Similarity Search (pg_trgm)
+
+**Neues Dashboard (Step 3):**
+- Komplett neues Frontend unter `/dashboard` (React 18 + Vite + Tailwind v4)
+- 6 Seiten: Uebersicht, Auftraege, Dokumente, Kunden, E-Mail, Einstellungen
+- ERP-Daten-Strategie: View-Schicht (read-only ERP-Tabellen + neue auftraege-Tabelle)
+- Kunden-Detail mit vollstaendiger ERP-Historie (Projekte, Angebote, Rechnungen, Bestellungen, Offene Posten)
 
 **API Versionen:**
-- reparatur-api v2.0.0 (Version 8) - DEPLOYED
+- reparatur-api v2.0.1 (Version 9) - DEPLOYED (verify_jwt:false)
 - reparatur-aging v2.0.0 (Version 3) - DEPLOYED
 - telegram-bot v3.1.0 (Version 8) - DEPLOYED
 
 ---
 
-## Meilenstein-Plan (Step 2)
+## Meilenstein-Plan (Step 3 - Dashboard)
 
 | MS | Beschreibung | Status |
 |----|--------------|--------|
-| **DB-1** | Alte leere Tabellen loeschen | FERTIG |
-| **DB-2** | `einstellungen_optionen` Tabelle | FERTIG |
-| **DB-3** | `reparatur_auftraege` → `auftraege` | FERTIG |
-| **DB-4** | `manuelle_kunden` Tabelle | FERTIG |
-| **DB-5** | pg_trgm Extension + Similarity-Funktion | FERTIG |
-| **DB-6** | `auftraege` erweitern (auftragstyp, etc.) | FERTIG |
-| **API-1** | reparatur-api v2.0.0 (neue Tabellenstruktur) | FERTIG |
-| **API-2** | reparatur-aging v2.0.0 (neuer Tabellenname) | FERTIG |
-| **BOT-1** | telegram-bot v3.1.0 (/neuerAuftrag, /neuerKunde, Voice, GPT) | FERTIG |
-| **FE-1** | Frontend an neue Struktur anpassen (kunde_kategorie) | FERTIG |
-| **FE-2** | Settings Modal (Kundentypen/Auftragstypen) | OFFEN |
-| **FE-3** | Kunden-Verwaltung (manuelle Kunden) | OFFEN |
-| **SEC-1** | OPENAI_API_KEY als Secret setzen | FERTIG |
+| **DASH-1** | Neues Vite+React+Tailwind Projekt scaffolden | FERTIG |
+| **DASH-2** | Uebersicht (KPIs, Pipeline, Verarbeitung, Aging) | FERTIG |
+| **DASH-3** | Auftraege-Seite (Liste, Detail, Neu-Modal) | FERTIG |
+| **DASH-4** | Dokumente-Seite (Two-Panel, Preview, Filter) | FERTIG |
+| **DASH-5** | Kunden-Seite (Suche, ERP-Historie Detail-Modal) | FERTIG |
+| **DASH-6** | E-Mail-Seite (Pipeline-Status, Filter, Body) | FERTIG |
+| **DASH-7** | Einstellungen-Seite (Optionen CRUD, System) | FERTIG |
+| **DASH-8** | RLS-Policies fuer Dashboard-Zugriff | FERTIG |
+| **DASH-9** | ERP-Daten Integrations-Strategie | FERTIG |
+| **FIX-1** | E-Mail Pipeline reparieren (renew-subscriptions 401) | OFFEN |
+| **FIX-2** | Expired Graph Subscriptions erneuern | OFFEN |
 
 ---
 
-## Telegram Bot (@JS_Fotobot)
+## ERP-Uebergangs-Strategie
 
-**Status:** v3.1.0 DEPLOYED
-**Token:** Gesetzt als TELEGRAM_BOT_TOKEN Secret
-**Webhook:** Aktiv
+**Entscheidung:** ERP-Tabellen bleiben read-only, keine Datenmigration.
 
-**Features:**
-- [x] /start - Willkommensnachricht
-- [x] /neuerAuftrag - Auftrag per Dialog (mehrstufig)
-- [x] /neuerKunde - Kunde per Dialog anlegen (NEU in v3.1)
-- [x] Foto-Upload mit Adresszuordnung
-- [x] Voice Messages mit Whisper Transkription
-- [x] GPT Vollstaendigkeitspruefung
-- [x] Similarity Search fuer Duplikate
+| Tabelle | Datensaetze | Zweck im Dashboard |
+|---------|-------------|-------------------|
+| erp_kunden | 8.687 | Kundenstamm (PK: code) |
+| erp_projekte | 2.486 | Projekt-Historie |
+| erp_angebote | 4.744 | Angebote/Auftraege (1.434 mit auftrags_datum) |
+| erp_rechnungen | 2.996 | Rechnungen |
+| erp_ra | 2.993 | Offene Posten / Mahnstufen |
+| erp_bestellungen | 3.839 | Bestellungen an Lieferanten |
+| erp_lieferanten | 663 | Lieferantenstamm |
 
----
-
-## Datenbank-Aenderungen
-
-**Geloeschte Tabellen:**
-- auftrag_historie (war leer)
-- auftrag_fotos (war leer)
-- auftrag_checkliste (war leer)
-- auftrag_status (war leer)
-
-**Neue Tabellen:**
-- `einstellungen_optionen` - Dynamische Dropdown-Werte
-- `manuelle_kunden` - Kunden ohne ERP-Eintrag
-- `alle_kunden` (VIEW) - Vereinigt ERP + manuelle Kunden
-
-**Umbenannte Tabellen:**
-- `reparatur_auftraege` → `auftraege`
-- Spalte `kundentyp` → `kunde_kategorie`
-
-**Neue Spalten in `auftraege`:**
-- `auftragstyp` (Auftrag, Reparaturauftrag, Lieferung, Abholung)
-- `kundentyp_option` (Privat, Gewerbe, Oeffentlich, Architekt)
-- `manuelle_kunde_id` (FK zu manuelle_kunden)
-- `erstellt_via` (dashboard, telegram)
-- `telegram_chat_id`, `telegram_message_id`
+Verknuepfung: `auftraege.erp_kunde_id` → `erp_kunden.code`
 
 ---
 
-## Aktueller Auftrag
+## Bekannte Probleme
 
-**Auftrag:** Step 2 Implementierung (autonom)
-**Rolle:** Projektleiter
-**Status:** ABGESCHLOSSEN - Backend, APIs, Bot komplett
-
----
-
-## Wartend auf (Backlog fuer Step 3)
-
-- [ ] Settings Modal im Frontend (Kundentypen/Auftragstypen verwalten)
-- [ ] Kunden-Verwaltung im Frontend (manuelle Kunden CRUD)
+- [ ] E-Mail Pipeline down seit 29.01. (renew-subscriptions 401, alle Subscriptions expired)
+- [ ] renew-subscriptions v1.2 hat API-Key Pflicht - Cron-Caller sendet falschen/keinen Key
+- [ ] Dokument-Vorschau schlaegt bei manchen Dateien fehl (Storage Signed URL)
 
 ---
 
-## Naechste Schritte (Step 3)
+## Naechste Schritte
 
-1. **Settings Modal** - Kundentypen/Auftragstypen im Dashboard verwalten
-2. **Kunden-Verwaltung** - Manuelle Kunden anlegen/bearbeiten im Dashboard
-3. **Tests** - End-to-End Tests fuer Bot-Flows
+1. **E-Mail Pipeline reparieren** - renew-subscriptions API-Key fixen, Subscriptions erneuern
+2. **Dashboard-Tests** - Alle 6 Seiten mit Echtdaten testen
+3. **Settings CRUD testen** - Kundentypen/Auftragstypen verwalten
+
+---
+
+## Log-Referenz
+
+Letzte Eintraege: [LOG-038] Dashboard-Build + ERP-Integration (2026-02-02)
