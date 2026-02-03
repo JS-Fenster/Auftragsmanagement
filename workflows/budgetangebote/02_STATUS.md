@@ -1,13 +1,13 @@
 # Status: Budgetangebot V1
 
-> Letzte Aktualisierung: 2026-02-03 17:10
+> Letzte Aktualisierung: 2026-02-04 09:35
 > Aktualisiert von: Programmierer
 
 ---
 
 ## Aktueller Stand
-**Phase:** Phase 1 - Supabase Migration abgeschlossen
-**Letzter abgeschlossener Schritt:** 11 Tabellen in Supabase deployed
+**Phase:** Phase 1.2 - Bridge-Proxy abgeschlossen
+**Letzter abgeschlossener Schritt:** Bridge-Proxy Endpunkte implementiert
 
 ---
 
@@ -17,16 +17,18 @@
 |---------|--------|-------|
 | 3-Agenten-Analyse (A/B/C) | Fertig | 2026-02-03 |
 | Supabase Migration (11 Tabellen) | Fertig | 2026-02-03 |
+| Bridge-Proxy Endpunkte | Fertig | 2026-02-04 |
 
 ---
 
 ## Naechster Schritt
 **Wer:** Projektleiter (entscheidet)
-**Was:** Phase 1.2 - Bridge-Proxy Endpunkte implementieren
+**Was:** Naechste Phase bestimmen
 
 **Optionen:**
-1. Bridge-Proxy im Node.js Backend (empfohlen von Agent C)
-2. Backtest mit 200 Angeboten starten
+1. Backend testen (W4A-Credentials konfigurieren, Health Check)
+2. Phase 2 - Backtest mit 200 Angeboten starten
+3. Phase 2.1 - Textposition-Parser verfeinern
 
 ---
 
@@ -42,39 +44,55 @@
 
 ## Letzter Abschlussbericht
 
-### ABSCHLUSSBERICHT [P001-PROG]
-**Datum:** 2026-02-03 17:10
+### ABSCHLUSSBERICHT [P002-PROG]
+**Datum:** 2026-02-04 09:35
 **Agent:** Programmierer
 
 **Auftrag:**
-Phase 1 - Supabase Migration: 10 budget_* Tabellen + Cache-Tabelle anlegen
+Phase 1.2 - Bridge-Proxy Endpunkte im Node.js Backend implementieren
 
 **Ergebnis:**
 - [x] Erfolgreich
 
 **Was wurde gemacht:**
-1. Migration `create_budget_tables` via MCP deployed
-2. 11 Tabellen erstellt (10 budget_* + 1 cache)
-3. RLS auf allen Tabellen aktiviert
-4. 25+ RLS Policies erstellt (User-basiert + Service-Role)
-5. 23 Indizes auf FKs und Query-Spalten
-6. Trigger fuer updated_at
-7. Kommentare fuer Dokumentation
 
-**Tabellen-Uebersicht:**
-- budget_cases, budget_inputs, budget_profile
-- budget_items, budget_accessories
-- budget_results, budget_outcomes
-- price_model_versions, price_params
-- learned_stats
-- erp_angebot_summaries_cache
+1. **W4A Datenbank-Konfiguration** (`backend/config/w4a-database.js`):
+   - MSSQL Connection Pool fuer Cloudflare Tunnel
+   - Health Check mit Latenz-Messung
+   - Konfigurierbar via .env Variablen
+
+2. **4 API-Endpunkte** (`backend/routes/w4a-proxy.js`):
+   - `GET /api/w4a/health` - Verbindungstest
+   - `GET /api/w4a/angebote/:code/positionen` - Paginiert, mit Klassifikation
+   - `GET /api/w4a/angebote/:code/summary` - Aggregat + Cache
+   - `GET /api/w4a/kunden/:code/angebots-history` - Alle Angebote
+
+3. **Textposition-Erkennung**:
+   - Kriterien: Anzahl=0 AND EinzPreis=0 + Keywords
+   - Klassifikation: header, item, montage, accessory
+   - Kontext-Extraktion aus Header-Bezeichnungen
+
+4. **Cache-Integration**:
+   - Supabase `erp_angebot_summaries_cache`
+   - 24h TTL, Heuristic-Versionierung
+   - Migration: `headers_json` Spalte hinzugefuegt
+
+5. **Security**:
+   - Parameterized Queries (SQL Injection verhindert)
+   - Input-Validierung
+
+6. **Fallback-Logik**:
+   - Bei W4A-Ausfall: `erp_angebote.wert` als Fallback
+   - Warning-Flag in Response
 
 **Probleme/Erkenntnisse:**
 - Keine Probleme aufgetreten
-- Migration via MCP funktioniert reibungslos
+- Cache-Tabelle musste um `headers_json` erweitert werden (Migration deployed)
 
 **Naechster Schritt (Vorschlag):**
-Bridge-Proxy Endpunkte im Node.js Backend implementieren (Phase 1.2)
+1. .env mit W4A-Credentials konfigurieren
+2. `/api/w4a/health` testen
+3. Backtest-Phase starten
 
 **Log-Referenz:**
-Dokumentiert in 03_LOG.md: [LOG-003] Zeilen 90-150
+Dokumentiert in 03_LOG.md: [LOG-004] Zeilen 140-210

@@ -10,6 +10,7 @@
 | [LOG-001] | 2026-02-03 | PL | System-Initialisierung | 25-45 |
 | [LOG-002] | 2026-02-03 | PL | 3-Agenten-Analyse abgeschlossen | 50-130 |
 | [LOG-003] | 2026-02-03 | PROG | Supabase Migration: 11 Tabellen angelegt | 90-150 |
+| [LOG-004] | 2026-02-04 | PROG | Bridge-Proxy Endpunkte implementiert | 140-210 |
 
 ---
 
@@ -132,6 +133,83 @@ Migration erfolgreich. Alle 11 Tabellen mit RLS, Policies und Indizes in Supabas
 
 ### Naechster Schritt
 Phase 1.2: Bridge-Proxy Endpunkte implementieren (Node.js Backend)
+
+---
+
+## [LOG-004] Programmierer: Bridge-Proxy Endpunkte implementiert
+**Datum:** 2026-02-04 09:30
+
+### Kontext
+Auftrag Phase 1.2: Bridge-Proxy Endpunkte im Node.js Backend implementieren.
+Gemaess 01_SPEC.md Kapitel 4 (Bridge/Proxy Architektur).
+
+### Durchgefuehrt
+
+**1. W4A Datenbank-Konfiguration erstellt:**
+- Neue Datei: `backend/config/w4a-database.js`
+- MSSQL Connection Pool fuer Work4All via Cloudflare Tunnel
+- Server: `sql.js-fenster-intern.org` (konfigurierbar via .env)
+- Health Check Funktion `checkW4AHealth()`
+- Graceful Connection Handling
+
+**2. Route-Datei erstellt:**
+- Neue Datei: `backend/routes/w4a-proxy.js`
+- 4 Endpunkte implementiert:
+
+| Endpunkt | Beschreibung |
+|----------|--------------|
+| `GET /api/w4a/health` | Health Check mit Latenz-Messung |
+| `GET /api/w4a/angebote/:code/positionen` | Paginierte Positionen (limit/offset) |
+| `GET /api/w4a/angebote/:code/summary` | Aggregat mit Textposition-Erkennung |
+| `GET /api/w4a/kunden/:code/angebots-history` | Angebots-Historie eines Kunden |
+
+**3. Textposition-Erkennung implementiert:**
+- Kriterien: `Anzahl=0 AND EinzPreis=0` (aus L5)
+- Header-Keywords: WERU, CASTELLO, CALIDO, IMPREO, weiss, anthrazit, 2/3-fach (aus L8)
+- Klassifikation: header, item, montage, accessory, unknown
+- Kontext-Extraktion aus Header-Bezeichnungen (Hersteller, System, Verglasung, Farben)
+
+**4. Cache-Integration:**
+- Supabase `erp_angebot_summaries_cache` mit 24h TTL
+- Upsert bei Summary-Berechnung
+- Cache-Validierung mit `heuristic_version`
+- Migration: `headers_json` Spalte hinzugefuegt (JSONB)
+
+**5. Security:**
+- Alle SQL-Queries mit Parameterized Queries (@parameter)
+- Input-Validierung fuer Code-Parameter
+- Keine SQL Injection moeglich
+
+**6. Fallback-Logik:**
+- Bei W4A-Ausfall: Fallback auf `erp_angebote.wert` (Gesamtwert)
+- Bei Angebots-History: Fallback auf Supabase `erp_angebote`
+- Warning-Flag in Response wenn Fallback aktiv
+
+**7. Server-Integration:**
+- `server.js` aktualisiert: Route eingebunden
+- Graceful Shutdown: W4A Pool wird geschlossen
+- Startup-Meldung erweitert
+
+**8. Konfiguration:**
+- `.env.example` erweitert mit W4A-Variablen:
+  - `W4A_DB_SERVER`, `W4A_DB_PORT`, `W4A_DB_DATABASE`
+  - `W4A_DB_USER`, `W4A_DB_PASSWORD`
+
+### Ergebnis
+Bridge-Proxy vollstaendig implementiert und in Backend integriert.
+Bereit fuer Test mit echten W4A-Daten nach .env Konfiguration.
+
+### Dateien erstellt/geaendert
+- `backend/config/w4a-database.js` (NEU)
+- `backend/routes/w4a-proxy.js` (NEU)
+- `backend/server.js` (GEAENDERT)
+- `backend/.env.example` (GEAENDERT)
+- Supabase Migration: `add_headers_json_to_cache`
+
+### Naechster Schritt
+1. .env mit echten W4A-Credentials konfigurieren
+2. Backend starten und /api/w4a/health testen
+3. Backtest mit 200 Angeboten starten (Phase 2)
 
 ---
 
