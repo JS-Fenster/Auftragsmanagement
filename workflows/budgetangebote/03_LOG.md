@@ -9,6 +9,7 @@
 |----|-------|-------|--------------|--------|
 | [LOG-001] | 2026-02-03 | PL | System-Initialisierung | 25-45 |
 | [LOG-002] | 2026-02-03 | PL | 3-Agenten-Analyse abgeschlossen | 50-130 |
+| [LOG-003] | 2026-02-03 | PROG | Supabase Migration: 11 Tabellen angelegt | 90-150 |
 
 ---
 
@@ -79,6 +80,58 @@ Phase 1 starten:
 1. Supabase Migration deployen (10 Tabellen)
 2. Bridge-Proxy Endpunkte implementieren
 3. Backtest mit 200 Angeboten
+
+---
+
+## [LOG-003] Programmierer: Supabase Migration - 11 Tabellen angelegt
+**Datum:** 2026-02-03 17:05
+
+### Kontext
+Auftrag aus 02_STATUS.md: Phase 1 - Supabase Migration deployen.
+10 Budget-Tabellen + 1 Cache-Tabelle gemaess 01_SPEC.md Kapitel 3+4.
+
+### Durchgefuehrt
+**Migration `create_budget_tables` via MCP erfolgreich deployed:**
+
+**11 Tabellen erstellt:**
+1. `budget_cases` - Haupttabelle (Case = Anfrage)
+2. `budget_inputs` - Eingabe-Dokumente (Aufmassblatt, Notiz)
+3. `budget_profile` - Globale Einstellungen (Hersteller, System, Glas)
+4. `budget_items` - Einzelne Elemente (Fenster, Tueren)
+5. `budget_accessories` - Zubehoer pro Element
+6. `budget_results` - Berechnungsergebnisse
+7. `budget_outcomes` - Outcomes mit Gold-Metrik deviation_percent
+8. `price_model_versions` - Versionierte Preismodelle
+9. `price_params` - Parameter pro Version
+10. `learned_stats` - ML-Statistiken
+11. `erp_angebot_summaries_cache` - W4A Cache (TTL 24h)
+
+**RLS aktiviert auf allen 11 Tabellen**
+
+**RLS Policies erstellt:**
+- budget_cases: SELECT/INSERT/UPDATE/DELETE fuer eigene + unassigned Cases
+- budget_inputs/profile/items/results/outcomes: Via budget_case_id
+- budget_accessories: Via budget_item_id -> budget_cases
+- price_model_versions/price_params/learned_stats/cache: SELECT fuer authenticated, ALL fuer service_role
+
+**23 Indizes erstellt auf:**
+- Alle Foreign Keys
+- Status-Spalten (budget_cases.status)
+- Zeitstempel (created_at, calculated_at, computed_at, outcome_date)
+- Haeufig gefilterte Spalten (element_type, category, source_type)
+
+**Trigger erstellt:**
+- budget_cases_updated_at: Automatische Aktualisierung von updated_at
+
+**Kommentare hinzugefuegt:**
+- Alle Tabellen dokumentiert
+- deviation_percent als Gold-Metrik markiert
+
+### Ergebnis
+Migration erfolgreich. Alle 11 Tabellen mit RLS, Policies und Indizes in Supabase verfuegbar.
+
+### Naechster Schritt
+Phase 1.2: Bridge-Proxy Endpunkte implementieren (Node.js Backend)
 
 ---
 
