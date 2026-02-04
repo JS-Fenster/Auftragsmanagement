@@ -25,6 +25,15 @@
 | [LOG-016] | 2026-02-04 | PROG | Edge Function Audit (19 geprueft, 4 geloescht) | 1128-1180 |
 | [LOG-017] | 2026-02-04 | PROG | renew-subscriptions 401-Fix (app_config) | 1185-1230 |
 | [LOG-018] | 2026-02-04 | PROG | Commit & Push (145c4f2, a029fef) | 1235-1270 |
+| [LOG-019] | 2026-02-04 | PL | Backtest-Vorbereitung, W4A-Analyse | 1252-1320 |
+| [LOG-020] | 2026-02-04 | PL | Cloudflare Tunnel Dokumentation | 1325-1390 |
+| [LOG-021] | 2026-02-04 | PROG | Backtest mit W4A Rechnungen (50 Rechnungen) | 1395-1490 |
+| [LOG-022] | 2026-02-04 | PROG | Positions-Klassifikations-Analyse (100 Rechnungen) | 1483-1578 |
+| [LOG-023] | 2026-02-04 | PROG | Preisspannen-Analyse EK->VK (500 Positionen) | 1582-1700 |
+| [LOG-024] | 2026-02-04 | PROG | Header-Fenster-Muster Analyse (10 Rechnungen) | 1700-1765 |
+| [LOG-025] | 2026-02-04 | PROG | Backtest-Fixes und neue Erkenntnisse | 1770-1860 |
+| [LOG-026] | 2026-02-04 | PROG | Artikel-Tabelle Analyse (Masse-Spalten) | 1852-1950 |
+| [LOG-027] | 2026-02-04 | PROG | Parser-Fix: W4A Maß-Format + Backtest | 1952-2080 |
 
 ---
 
@@ -1243,6 +1252,793 @@ chore: update KI_Wissen metadata and timestamps
 
 ### Ergebnis
 Beide Repositories committed und gepusht. Alle Aenderungen synchronisiert.
+
+---
+
+## [LOG-019] Projektleiter: Backtest-Vorbereitung und W4A-Analyse
+**Datum:** 2026-02-04 21:15
+
+### Kontext
+Vorbereitung fuer Backtest (Prio C): 200 historische Angebote gegen Preismodell validieren.
+Session nach Absturz wiederhergestellt.
+
+### Durchgefuehrt
+
+**1. Prioritaeten-Klaerung:**
+- Prio B (Auto-Open) gestrichen: Bei Multi-User/Shared-Scanner nicht sinnvoll
+- Prio D (Scanner-Webhook) gestrichen: Obsolet, GPT-Vision ist besser als Scanner-OCR
+- Prio C (Backtest): Aktiv
+
+**2. Erkenntnisse aus erp_angebote Analyse:**
+
+| Kuerzel | Bedeutung | Beispiel-Wert |
+|---------|-----------|---------------|
+| DKF | Dreh-Kipp-Fenster | 2.554 - 362.735 EUR |
+| PSK | Parallelschiebekipptuer | variabel |
+| BT | Balkontuer | variabel |
+| HST | Hebeschiebetuer | variabel |
+| HT | Haustuer | variabel |
+| ALU | Aluminium | Grossauftraege |
+| RAFF | Raffstore | Zubehoer |
+| AFB | Aussenfensterbank | Zubehoer |
+| VR | Vorbau-Rollladen | Zubehoer |
+| ISS | Insektenschutz | 1.338 EUR |
+| GGT | Ganzglastuer | 5.751 EUR |
+| MA | Montagearbeiten | 6.715 EUR |
+| REP | Reparatur | kleinere Betraege |
+
+**3. Notiz-Format in erp_angebote.notiz:**
+```
+"2025382 | DKF | Weru"
+"2025063 | DKF | WERU"
+"DKF | ALU | RAFF"
+"DKF | HT | Drutex"
+```
+Format: [Projektnummer] | [Typ-Kuerzel] | [Hersteller/Zubehoer]
+
+**4. WERU Rabattstaffel (WICHTIG fuer Preismodell!):**
+| Anzahl Fenster | Rabatt auf Listenpreis |
+|----------------|------------------------|
+| 1-4 Stueck | ca. 58% |
+| 5+ Stueck | ca. 70% |
+
+HINWEIS: In Work4All sind NUR Einkaufspreise gespeichert (nach Rabatt).
+Listenpreise sind nicht verfuegbar. Staffelung muss im Budget-Preismodell
+separat beruecksichtigt werden.
+
+**5. W4A-Zugang konfiguriert:**
+- Credentials in backend/.env eingetragen
+- Server: sql.js-fenster-intern.org:1433
+- User: SA
+- **PROBLEM:** Cloudflare Tunnel nicht erreichbar (Timeout 15s)
+
+### Blocker
+W4A SQL Server nicht erreichbar ueber Cloudflare Tunnel.
+
+### Alternativen fuer Backtest
+1. Cloudflare Tunnel pruefen/neu starten
+2. Mit Supabase-Cache arbeiten (erp_angebote hat Wert + Notiz, aber keine Positionen)
+3. Manuelle Stichprobe mit Work4All-Client
+
+### Naechster Schritt
+1. Cloudflare Tunnel Status pruefen
+2. Falls Tunnel nicht laeuft: Alternative besprechen
+
+---
+
+## [LOG-020] Projektleiter: Cloudflare Tunnel Dokumentation
+**Datum:** 2026-02-04 21:45
+
+### Kontext
+Session abgestuerzt waehrend Tunnel-Debugging. Wissen sichern fuer Wiederaufnahme.
+
+### Erkenntnisse zum W4A Cloudflare Tunnel
+
+**Architektur:**
+```
+Backend (localhost:3001)
+    ↓ verbindet zu
+localhost:1433 ← cloudflared Prozess (TCP Proxy)
+    ↓ tunnelt zu
+Cloudflare Edge → sql.js-fenster-intern.org
+    ↓ verbindet zu
+Work4All SQL Server (intern)
+```
+
+**Voraussetzungen:**
+1. `cloudflared` muss lokal laufen als TCP-Proxy
+2. Backend verbindet zu `localhost:1433` (NICHT direkt zu sql.js-fenster-intern.org)
+3. cloudflared tunnelt die Verbindung durch Cloudflare
+
+**Befehle:**
+
+| Aktion | Befehl |
+|--------|--------|
+| Tunnel starten | `cloudflared access tcp --hostname sql.js-fenster-intern.org --url localhost:1433` |
+| Pruefen ob laeuft | `tasklist \| findstr cloudflared` |
+| Port pruefen | `netstat -an \| findstr 1433` |
+
+**cloudflared Pfad:**
+```
+C:\Users\andre\AppData\Local\Microsoft\WinGet\Packages\Cloudflare.cloudflared_Microsoft.Winget.Source_8wekyb3d8bbwe\cloudflared.exe
+```
+
+**Backend .env Konfiguration:**
+```
+W4A_DB_SERVER=localhost   # NICHT sql.js-fenster-intern.org!
+W4A_DB_PORT=1433
+W4A_DB_DATABASE=WorkM001
+W4A_DB_USER=SA
+W4A_DB_PASSWORD=[redacted]
+```
+
+**Diagnostik-Ergebnisse:**
+- DNS: OK (Cloudflare Proxy erreichbar)
+- Ping: OK (2606:4700:3031::6815:9cd antwortet)
+- Port 1433 direkt: NICHT erreichbar (erwartet)
+- Port 1433 via cloudflared: OK (localhost:1433 lauscht)
+
+**Haeufige Fehler:**
+1. Backend versucht direkt zu sql.js-fenster-intern.org zu verbinden → Timeout
+2. cloudflared Prozess nicht gestartet → Port 1433 nicht offen
+3. Backend neu starten nach .env Aenderung vergessen → alte Config im Speicher
+
+### Aktueller Status (vor Absturz)
+- cloudflared lief (PID 2268)
+- Port 1433 auf localhost lauschte
+- .env auf localhost geaendert
+- Backend wurde gerade neu gestartet (node.exe Prozesse gekillt)
+- Test von /api/w4a/health noch ausstehend
+
+### Naechster Schritt
+1. Pruefen ob cloudflared noch laeuft
+2. Backend neu starten
+3. /api/w4a/health testen
+4. Bei Erfolg: Backtest starten
+
+---
+
+## [LOG-021] Programmierer: Backtest mit W4A Rechnungen
+**Datum:** 2026-02-04 22:00
+
+### Kontext
+Auftrag: Backtest durchfuehren - 50 Rechnungen aus W4A gegen unser Budget-Preismodell validieren.
+W4A Tunnel laeuft via cloudflared auf localhost:1433.
+
+### Durchgefuehrt
+
+**1. Script erstellt: `backend/scripts/backtest-invoices.js`**
+- Holt 50 Rechnungen aus dbo.Rechnung (2024-2025)
+- Filtert nach Keywords: DKF, HT, HST, PSK, BT in Notiz
+- Holt Positionen aus dbo.Positionen (BZObjType=7)
+- Analysiert: Header-Erkennung, Fenster-Elemente, Zubehoer, Montage
+- Wendet Budget-Preismodell an (priceCalculator.js)
+- Vergleicht Budget-Brutto mit tatsaechlichem Rechnungsbrutto
+
+**2. W4A-Spaltennamen korrigiert:**
+- Rechnung: SDObjMemberCode statt KundenCode
+- Positionen: PozNr statt PosNr, GesPreis statt GesamtPreis, BZObjMemberCode statt BZObjCode, Bemerkung statt Langtext
+
+**3. Timeout erhoeht:** 60 Sekunden (Cloudflare Tunnel braucht laenger)
+
+### Ergebnis
+
+**ZUSAMMENFASSUNG (48 analysierte Rechnungen):**
+
+| Metrik | Wert | Bewertung |
+|--------|------|-----------|
+| Median-Abweichung | -5.07% | OK (Ziel: <10%) |
+| Durchschnitt-Abweichung | +36.82% | SCHLECHT (Ausreisser) |
+| Trefferquote (+-20%) | 19% | SCHLECHT (Ziel: >80%) |
+| Ausreisser (>50%) | 56% | SCHLECHT (Ziel: <5%) |
+
+**NACH SYSTEM:**
+| System | Rechnungen | Median | Durchschnitt |
+|--------|------------|--------|--------------|
+| CALIDO | 19 | -11.8% | +31.0% |
+| CASTELLO | 9 | +32.4% | +27.6% |
+| DEFAULT | 19 | -19.4% | +48.4% |
+| IMPREO | 1 | +9.8% | +9.8% |
+
+**TOP 3 ERKENNTNISSE:**
+
+1. **Masse-Erkennung versagt:** Die Positionen in W4A enthalten oft keine parsebaren Masse.
+   - Beispiel "1035 x 2080 mm" wird erkannt
+   - Aber Text wie "Anschlag: DKL" ohne Masse fuehrt zu Default-Annahmen
+
+2. **Regiearbeiten werden falsch klassifiziert:**
+   - "Allgemeine Regiearbeiten" mit Anzahl 29 (Stunden) wird als 29 Fenster interpretiert
+   - Konstruktionsholz, Winkelverbinder etc. verfaelschen das Ergebnis
+
+3. **Gute Treffer bei klarer Struktur:**
+   - Rechnung 250743 (HT): Budget 3.066 EUR vs. Actual 3.015 EUR (+1.67%)
+   - Rechnung 250759: Budget 14.848 EUR vs. Actual 13.835 EUR (+7.32%)
+   - Eindeutige Fenster/Haustuer-Positionen mit Massen werden gut erkannt
+
+**EMPFEHLUNGEN FUERS PREISMODELL:**
+
+1. **Bessere Positions-Klassifikation:**
+   - "Regiearbeiten", "Konstruktionsholz", "Anfahrt" sind KEINE Fenster
+   - Nur Positionen mit erkannten Massen als Fenster werten
+
+2. **CASTELLO Preis erhoehen:**
+   - Median +32% = Preismodell zu niedrig
+   - Empfehlung: 350 EUR/qm auf 400-420 EUR/qm
+
+3. **DEFAULT System vermeiden:**
+   - 48% Durchschnitts-Abweichung
+   - Besser: System zwingend aus Header extrahieren oder Rueckfrage
+
+### Dateien erstellt
+- `backend/scripts/backtest-invoices.js` (470 Zeilen)
+- `backend/scripts/analyze-samples.js` (75 Zeilen, Debug-Helfer)
+
+### Geaenderte Dateien
+- `backend/config/w4a-database.js` (Timeout 30s -> 60s)
+
+### Naechster Schritt
+1. Positions-Klassifikation verbessern (Regiearbeiten ausfiltern)
+2. CASTELLO Basispreis anpassen
+3. Backtest mit 200 Rechnungen nach Verbesserungen
+
+---
+
+## [LOG-022] Programmierer: Positions-Klassifikations-Analyse
+**Datum:** 2026-02-04 22:45
+
+### Kontext
+Auftrag: Analyse aller Positionen aus 100 W4A-Rechnungen (2024-2025, Fenster-Keywords).
+Ziel: Verstehen welche Positions-Typen existieren und welche fuer Budget-Kalkulation relevant sind.
+
+### Durchgefuehrt
+
+**1. Script erstellt: `backend/scripts/analyze-position-types.js`**
+- Holt 100 Rechnungen mit DKF/HT/HST/PSK/BT Keywords
+- Klassifiziert alle 1586 Positionen nach Mustern
+- Gibt strukturierte Tabelle mit Beispielen aus
+
+**2. Klassifikations-Ergebnisse:**
+
+| Kategorie | Anzahl | % | Empfehlung |
+|-----------|--------|---|------------|
+| HEADER | 490 | 30.9% | IGNORIEREN - Textzeilen ohne Menge/Preis |
+| UNBEKANNT | 397 | 25.0% | PRUEFEN - Weitere Analyse noetig |
+| FENSTER_OHNE_MASS | 250 | 15.8% | UNKLAR - Masse aus Kontext/Default |
+| ZUBEHOER | 243 | 15.3% | RELEVANT - Separat kalkulieren |
+| MATERIAL | 58 | 3.7% | IGNORIEREN - In Montage enthalten |
+| ENTSORGUNG | 52 | 3.3% | RELEVANT - Montage-Block |
+| STUNDEN_REGIE | 32 | 2.0% | IGNORIEREN - Nicht kalkulierbar |
+| MONTAGE_PUR | 24 | 1.5% | UNKLAR - Evtl. Montage-Block |
+| ANFAHRT | 18 | 1.1% | IGNORIEREN - Pauschal/ignorieren |
+| RABATT | 17 | 1.1% | IGNORIEREN - Budget ist Brutto |
+| FENSTER_MIT_MASS | 5 | 0.3% | RELEVANT - Hauptprodukt |
+
+**3. Analyse der UNBEKANNTEN Positionen:**
+
+Die 397 unbekannten Positionen (86.462 EUR Gesamtwert) enthalten:
+- GLAS: Verglasung, Scheibentausch, Isolierglas
+- BESCHLAG: KFV-Teile, Schloesser, Baender
+- GRIFF: Stangengriffe, Druecker, Oliven
+- DICHTUNG: Dichtungssysteme
+- ERSATZTEILE: Roto Eckumlenkung, diverse Kleinteile
+- SONSTIGES: Einzelpositionen ohne klares Muster
+
+**4. Kritische Erkenntnisse:**
+
+| Erkenntnis | Impact |
+|------------|--------|
+| NUR 0.3% der Positionen haben erkennbare Masse! | Masse-Erkennung muss drastisch verbessert werden |
+| 15.8% sind Fenster OHNE Masse im Text | Standard-Masse oder Kontext-Vererbung noetig |
+| "Regiearbeiten" werden als Fenster gezaehlt | Filter fuer "Stunde", "Std", "Regie" noetig |
+| Material (3.7%) verfaelscht Ergebnis | Ausfiltern: Holz, Schrauben, Silikon etc. |
+
+**5. Beispiele pro Kategorie:**
+
+**HEADER (ignorieren):**
+- `[0] x [0,00] | Weru CASTELLO: das vielseitige Allround-Fenster...`
+
+**FENSTER_MIT_MASS (relevant):**
+- `[1] x [1.330,51] | Obergeschoß - Kind Anschlag: DKL Dreh-Kipp links Uw,N: 0,78...`
+
+**STUNDEN_REGIE (ignorieren):**
+- `[13.5] x [58,82] | Allgemeine Regiearbeiten Demontage der Altbestaende...`
+- `[5] x [58,82] | Allgemeine Regiearbeiten Montage der Lofttuer...`
+
+**ZUBEHOER (relevant):**
+- `[1.13] x [36,31] | Aussenfensterbank: Aluminium VBH 250...`
+- `[6] x [5,35] | Flanschantriebslager`
+
+### Ergebnis
+
+**Empfehlungen fuer Budget-Kalkulation:**
+
+**1. POSITIONS-FILTER implementieren:**
+```
+NUR beruecksichtigen:
+- Anzahl > 0 UND GesamtPreis > 0
+- NICHT: "Stunde", "Std", "Regie" im Text
+- NICHT: "Anfahrt", "Fahrt", "km" im Text
+- NICHT: "Konstruktionsholz", "Winkel", "Schraub", "Silikon" im Text
+```
+
+**2. FENSTER-ERKENNUNG verbessern:**
+- Positionen mit Fenster-Keywords OHNE erkennbare Masse: Default-Masse nutzen
+- Default: 1000x1200mm bei Fenster, 900x2100mm bei Tuer
+- Confidence auf "low" setzen
+
+**3. KATEGORIE-BASIERTE FILTERUNG:**
+- RELEVANT: FENSTER_MIT_MASS, FENSTER_OHNE_MASS, ZUBEHOER, ENTSORGUNG
+- IGNORIEREN: HEADER, STUNDEN_REGIE, ANFAHRT, MATERIAL, RABATT, VERPACKUNG
+- UNKLAR: MONTAGE_PUR (evtl. Montage-Block), UNBEKANNT (manuell)
+
+### Dateien erstellt
+- `backend/scripts/analyze-position-types.js` (380 Zeilen)
+- `backend/scripts/analyze-unknown.js` (95 Zeilen, Debug-Helfer)
+
+### Naechster Schritt
+1. Filter-Logik in elementClassifier.js integrieren
+2. Default-Masse fuer Fenster ohne erkannte Masse
+3. Backtest erneut mit verbesserter Klassifikation
+
+---
+
+## [LOG-023] Programmierer: Preisspannen-Analyse EK->VK
+**Datum:** 2026-02-04 09:30
+
+### Kontext
+Auftrag: Analyse der Preisspanne (Aufschlag EK -> VK) bei Rechnungspositionen.
+Referenz-Beispiel: 85% Standard-Aufschlag, aber eine Position hatte 140%.
+Ziel: Validieren ob 85% ein guter Standard-Aufschlag ist.
+
+### Durchgefuehrt
+
+**1. Script erstellt: `backend/scripts/analyze-price-margins.js`**
+- Holt 500 zufaellige Rechnungspositionen (BZObjType=7)
+- Filter: EKPreis > 0 AND EinzPreis > 0 AND EKPreis < EinzPreis
+- Berechnet Aufschlag: ((VK - EK) / EK) * 100
+- Gruppiert nach Aufschlag-Bereichen mit Beispielen
+
+**2. Ergebnisse nach Aufschlag-Bereichen:**
+
+| Aufschlag-Bereich     | Anzahl | %      | Durchschnitt |
+|-----------------------|--------|--------|--------------|
+| 0-50%                 |    151 |  30.2% |        10.3% |
+| 50-85%                |    159 |  31.8% |        71.5% |
+| 85-100% (Standard)    |     51 |  10.2% |        91.1% |
+| 100-150%              |     87 |  17.4% |       116.3% |
+| 150-200%              |     17 |   3.4% |       169.5% |
+| >200%                 |     35 |   7.0% |       384.5% |
+
+**3. Statistiken:**
+
+| Metrik | Wert |
+|--------|------|
+| Analysierte Positionen | 500 |
+| **Median-Aufschlag** | **75.0%** |
+| Durchschnitts-Aufschlag | 88.1% |
+| Minimum | 0.0% |
+| Maximum | 2624.4% |
+| Positionen im 85%-Bereich (75-95%) | 21.6% |
+
+**Perzentile:**
+- 25%: 20.7%
+- 50% (Median): 75.0%
+- 75%: 100.0%
+- 90%: 150.0%
+
+**4. Beispiele pro Bereich:**
+
+**0-50% (niedrige Marge):**
+- Innenfensterbank Ausladung bis 400 mm: EK 80,43 | VK 112,60 | 40.0%
+- Instandsetzungsarbeiten Vorbaurollaeden: EK 48,74 | VK 58,82 | 20.7%
+- Anfahrtspauschale: EK 13,44 | VK 13,44 | 0.0% (1:1 Weiterberechnung)
+
+**50-85% (unter Standard):**
+- 1460x2160 mm Element: EK 365,74 | VK 630,59 | 72.4%
+- Ganzglastuer ESG: EK 218,00 | VK 348,80 | 60.0%
+- 820x1030 mm: EK 195,24 | VK 341,67 | 75.0%
+
+**85-100% (Standard-Bereich):**
+- DKR Fenster Wohnen: EK 205,78 | VK 390,97 | 90.0%
+- DKR Fenster: EK 259,15 | VK 479,43 | 85.0%
+- PVC Deckleiste: EK 22,84 | VK 45,68 | 100.0%
+
+**100-150% (ueber Standard):**
+- Maxi-Gurtwickler: EK 3,10 | VK 6,98 | 125.2%
+- Mini-Schwenkwickler: EK 4,70 | VK 10,58 | 125.1%
+- Einsteckschloss: EK 3,53 | VK 7,06 | 100.0%
+
+**150-200%:**
+- Zarge 860x2110: EK 106,30 | VK 315,00 | 196.3%
+- Stahlwelle 60er: EK 3,66 | VK 10,98 | 200.0%
+
+**>200% (Ausreisser):**
+- Zarge 735x2110: EK 93,22 | VK 295,00 | 216.5%
+- Endlos-Kugelkette: EK 7,72 | VK 25,00 | 223.8%
+- Austauschgetriebe: EK 9,66 | VK 43,47 | 350.0%
+
+### Ergebnis
+
+**FAZIT: Ist 85% ein guter Standard-Aufschlag?**
+
+| Aspekt | Bewertung |
+|--------|-----------|
+| Median | 75.0% - UNTER 85% |
+| Durchschnitt | 88.1% - leicht ueber 85% |
+| Streuung | HOCH - nur 21.6% liegen im 85%-Bereich |
+
+**EMPFEHLUNG:**
+
+1. **85% ist zu hoch fuer den "typischen" Aufschlag**
+   - Der Median liegt bei 75%, nicht bei 85%
+   - Nur 10.2% der Positionen liegen tatsaechlich im 85-100% Bereich
+
+2. **Differenzierung nach Produkttyp notwendig:**
+   - Fenster/Elemente: ~70-85% Aufschlag (Standard)
+   - Kleinteile/Zubehoer: ~100-125% Aufschlag (hoehere Marge)
+   - Zargen/Tueren: ~150-200% Aufschlag (sehr hohe Marge)
+   - Anfahrt/Regie: ~0-20% Aufschlag (fast 1:1)
+
+3. **Fuer Budget-Kalkulation:**
+   - Konservativer Ansatz: 75% als Standard (Median)
+   - Aktueller Ansatz: 85% ist akzeptabel (leicht ueber Median)
+   - Sicherer Ansatz fuer Kunden: 85% beibehalten (Puffer nach unten)
+
+**HINWEIS:** Die hohe Streuung (0% bis 2624%) zeigt, dass pauschaler Aufschlag nur grobe Schaetzung liefert. Fuer praezisere Budgets waere produktspezifischer Aufschlag noetig.
+
+### Dateien erstellt
+- `backend/scripts/analyze-price-margins.js` (ca. 300 Zeilen)
+
+### Naechster Schritt
+- Fuer V1 bleibt 85% als Standard (ist "sicher" da leicht ueber Median)
+- Spaeter: Produktkategorie-basierte Aufschlaege implementieren
+- Evtl. Machine Learning fuer praezisere Schaetzung
+
+---
+
+## [LOG-024] Programmierer: Header-Fenster-Muster Analyse
+**Datum:** 2026-02-04 10:30
+
+### Kontext
+Andreas' Hypothese: Vor Fenster-Positionen gibt es oft eine beschreibende Header-Position (Anzahl=0, EinzPreis=0) die mehr Details enthaelt (z.B. "WERU CASTELLO 3-fach weiss").
+
+### Durchgefuehrt
+1. Script `backend/scripts/analyze-header-pattern-v2.js` erstellt
+2. 10 aktuelle Rechnungen mit Fenster-Keywords analysiert
+3. Alle Positionen nach PozNr sortiert ausgegeben
+4. Kategorisierung: HEADER, FENSTER_MIT_MASS, FENSTER_OHNE_MASS, ZUBEHOER, MONTAGE, SONSTIG
+5. Extraktion von System/Hersteller, Glas, Masse aus Header-Texten
+
+### Ergebnis
+
+**Header-Fenster Korrelation:**
+- Header -> Fenster Paare: 6 (ueber 5 Rechnungen)
+- Fenster ohne Header: 33
+- Header-Rate: nur 15.4%
+
+**WICHTIGE ERKENNTNIS: Das Header-Muster ist ANDERS als angenommen!**
+
+Die Positions-Struktur ist HIERARCHISCH (1, 1.1, 1.2, 2, 2.1, etc.):
+- PozNr "1", "2", "3" sind Kategorie-Header (z.B. "Fenster", "Montageleistungen")
+- PozNr "1.1", "1.2", etc. sind Detail-Positionen unter dem Header
+
+**Header enthalten wichtige Kontext-Informationen:**
+
+| Info-Typ | Anzahl gefunden | Beispiel |
+|----------|-----------------|----------|
+| System/Hersteller | 9 von 12 | "ALUPROF MB-86", "WERU CALIDO", "DRUTEX IGLO" |
+| Referenzmasse | 3 von 12 | "Das Referenzfenster 1,23m x 1,48m erreicht..." |
+| Glas | 0 von 12 | (Glas-Info in Fenster-Positionen selbst) |
+
+**Typische Header-Inhalte:**
+```
+"ALUPROF MB-86: Aluminiumfenster hoch waermedaemmend thermisch getrennt"
+"Weru CALIDO: Das Energieeffiziente-Fenster Grundbautiefe: 80 mm"
+"Das Referenzfenster 1,23m x 1,48m erreicht einen Uw-Wert von 0,78 W/m2K"
+"Drutex Iglo 5 Classic: Kunststoff Fenster Grundbautiefe: 70 mm"
+```
+
+**Die eigentlichen Fenster-Positionen:**
+- Enthalten SELTEN Masse im Text (nur 0.3% laut LOG-022)
+- Masse sind oft NUR in der PozNr-Hierarchie oder Langtext erkennbar
+- System-Info FEHLT oft - muss vom vorherigen Header uebernommen werden
+
+### Empfehlung fuer Budget-Kalkulation
+
+1. **Header als Kontext-Setter nutzen:**
+   - Beim Durchlaufen der Positionen: Header-Info zwischenspeichern
+   - Nachfolgende Positionen erben System/Hersteller wenn nicht selbst angegeben
+
+2. **Positions-Hierarchie beachten:**
+   - PozNr ohne Punkt (1, 2, 3) = Kategorie-Header, IGNORIEREN
+   - PozNr mit Punkt (1.1, 1.2) = eigentliche Produkte
+
+3. **Referenzmasse aus Header extrahieren:**
+   - Pattern "Referenzfenster X,XXm x Y,YYm" liefert Default-Masse
+   - Kann als Fallback dienen wenn Position keine Masse hat
+
+### Dateien erstellt
+- `backend/scripts/analyze-header-pattern.js` (V1, einfach)
+- `backend/scripts/analyze-header-pattern-v2.js` (V2, detailliert mit Extraktion)
+
+### Naechster Schritt
+- Parser erweitern: Header-Kontext an nachfolgende Positionen vererben
+- System-Erkennung aus Header nutzen wenn Position keine hat
+- Evtl. Bemerkung-Feld (Langtext) pruefen fuer Masse
+
+---
+
+## [LOG-025] Programmierer: Backtest-Fixes und neue Erkenntnisse
+**Datum:** 2026-02-04 11:45
+
+### Kontext
+Auftrag vom Projektleiter: 5 Erkenntnisse zur Positions-Hierarchie dokumentieren und Backtest-Script verbessern.
+
+### Durchgefuehrt
+
+**1. Code-Aenderungen in priceCalculator.js:**
+- CASTELLO-Preis von 350 auf 400 EUR/qm erhoeht (Median-Analyse zeigte Unterdeckung)
+
+**2. Code-Aenderungen in backtest-invoices.js:**
+
+a) **Header-Erkennung verbessert:**
+   - Neue `isHeader()` Funktion: PozNr OHNE Punkt = Header (vorher nur Anzahl=0 UND EinzPreis=0)
+   - Neue `isProductPosition()` Funktion: PozNr MIT Punkt (X.Y) = echte Produkt-Position
+
+b) **Kontext-Vererbung implementiert:**
+   - Header-System/Hersteller wird an nachfolgende Positionen vererbt
+   - `inherited_context` wird bei Elements und Accessories gespeichert
+   - Referenzmasse aus Header werden als Fallback verwendet
+
+c) **Regiestunden als Montage:**
+   - Neue `isRegiePosition()` Funktion erkennt Stunden/Regie/Lohn
+   - Werden jetzt als Montage-Block gewertet (nicht ignoriert)
+
+d) **Ignore-Filter hinzugefuegt:**
+   - Anfahrt, Kleinmaterial, Rabatt werden ignoriert
+   - CONFIG.IGNORE_KEYWORDS Liste
+
+e) **OFFSET-Parameter hinzugefuegt:**
+   - CONFIG.SAMPLE_OFFSET fuer verschiedene Sample-Sets
+
+f) **Strengere Fenster-Erkennung:**
+   - Nur Positionen mit explizitem Fenster-Keyword UND Produkt-Position Format
+   - Vermeidet faelschliche Klassifikation von Kleinteilen als Fenster
+
+### Ergebnis: Backtest-Vergleich
+
+| Metrik | Alt (LOG-021) | Neu (OFFSET 0) | Neu (OFFSET 50) |
+|--------|---------------|----------------|-----------------|
+| Analysiert | 44 | 34 | 33 |
+| Trefferquote | 19% | 12% | 18% |
+| Median-Abweichung | -5% | -49.59% | -18.22% |
+| Ausreisser (>50%) | 58% | 50% | 58% |
+| System DEFAULT Median | ? | -54.16% | -22.03% |
+
+**Interpretation:**
+- Die urspruengliche "Treffer" von 19% war ILLUSORISCH - das Modell hat zu viele Nicht-Fenster-Positionen faelschlich als Fenster gewertet
+- Mit strengerer Filterung werden weniger Positionen als Fenster erkannt
+- Das erklaert warum jetzt ZU NIEDRIG geschaetzt wird: Es werden zu wenige Fenster gefunden
+
+**Problem identifiziert:**
+- Masse stehen NICHT im Bezeichnung-Feld (nur 0.3% haben erkennbare Masse)
+- Masse sind wahrscheinlich in anderen DB-Feldern die wir nicht abfragen
+- Oder: Masse werden bei Angebotserstellung manuell kalkuliert und nicht als Text gespeichert
+
+### Erkenntnisse fuer 04_LEARNINGS.md (durch Projektleiter einzutragen)
+
+| # | Learning | Log-Referenz |
+|---|----------|--------------|
+| L14 | PozNr OHNE Punkt = Header/Kategorie; PozNr MIT Punkt = echte Position | [LOG-025] |
+| L15 | EKPreis->VKPreis Aufschlag: Median 75%, Standard 85% | [LOG-025] |
+| L16 | Regiestunden = Montageleistung, NICHT ignorieren | [LOG-025] |
+| L17 | Masse stehen NUR im Text (0.3% Rate), DB-Spalten ungenutzt | [LOG-025] |
+| L18 | Header enthalten System/Hersteller fuer nachfolgende Positionen | [LOG-025] |
+
+### Dateien geaendert
+- `backend/services/budget/priceCalculator.js`: CASTELLO 350 -> 400 EUR/qm
+- `backend/scripts/backtest-invoices.js`: Header-Parsing, Kontext-Vererbung, Ignore-Filter
+
+### Naechster Schritt
+Das Kernproblem bleibt: Ohne zuverlaessige Masse-Erkennung kann das Budget-Modell nicht genau sein.
+Optionen:
+1. Andere Datenquellen fuer Masse (ArtikelCode -> Artikel-Tabelle?)
+2. Machine Learning auf historischen Preis-Daten
+3. Akzeptieren dass Budget immer ungenau ist (±30%)
+
+---
+
+## [LOG-026] Programmierer: Artikel-Tabelle Analyse (Masse-Spalten)
+**Datum:** 2026-02-04 10:45
+
+### Kontext
+Auftrag: Pruefen ob die Artikel-Tabelle in Work4All Masse-Spalten (Breite, Hoehe, Laenge) hat,
+und ob diese fuer die Budget-Kalkulation nutzbar sind. Referenz: Positionen.ArtikelCode -> Artikel.Code.
+
+### Durchgefuehrt
+
+**1. Artikel-Tabelle Spalten:**
+- 151 Spalten total in dbo.Artikel
+- Mass-Spalten EXISTIEREN: `Breite`, `Hoehe`, `Laenge` (alle float)
+- Weitere relevante Spalten: GrCode (Gruppen-Referenz), Nummer, Name, Nettopreis, EKPreisSpezial
+
+**2. Mass-Spalten NUTZUNG:**
+```
+Total Artikel: 6565
+Mit Breite > 0:       1 (0.02%)
+Mit Hoehe > 0:        0 (0.00%)
+Mit Laenge > 0:       1 (0.02%)
+Mit Breite UND Hoehe: 0 (0.00%)
+```
+→ Die Spalten existieren, sind aber NICHT gepflegt!
+
+**3. Positionen-Tabelle:**
+- Text-Spalten: `Kurztext` (nvarchar), `Bezeichnung` (ntext), `RTFBezeichnung` (ntext)
+- ArtikelCode: int - Referenz auf Artikel.Code
+
+**4. Fenster-Positionen Statistik:**
+```
+Fenster-Positionen gesamt:     5197
+Mit ArtikelCode (>0):          232 (4.5%)
+Mit Artikel + Breite:          0 (0.00%)
+Mit Artikel + Breite + Hoehe:  0 (0.00%)
+```
+
+**5. ArtikelGr-Tabelle (Gruppen):**
+- 134 Gruppen total
+- 19 fensterrelevante Gruppen identifiziert:
+  - Fenster (GrCode: 1324075809)
+  - Fensterzubehoer (GrCode: 1554225724)
+  - Haustüren Weru (GrCode: 12111531)
+  - Haustüren ROKA (verschiedene)
+  - Mueller Rollladen (GrCode: 751353044)
+  - Raffstore Zubehoer (GrCode: 618575932)
+  - etc.
+
+**6. Beispiel-Artikel (Fenster-Gruppe):**
+```
+Artikel 1:
+  Code: 9132118
+  Nummer: 01-000005
+  Name: Vorlage Unilux Fenster
+  GrCode: 1324075809 (Fenster)
+  Breite: 0
+  Hoehe: 0
+  → KEINE MASSE GEPFLEGT
+```
+
+### Ergebnis
+
+| Frage | Antwort |
+|-------|---------|
+| Gibt es Mass-Spalten in Artikel? | JA (Breite, Hoehe, Laenge) |
+| Sind sie nutzbar? | NEIN (0% gepflegt) |
+| Koennen wir Fenster vs. Zubehoer unterscheiden? | JA (via ArtikelGr) |
+| Gibt es eine alternative Datenquelle? | NEIN |
+
+### Learning-Kandidat (fuer Projektleiter)
+
+| # | Learning | Log-Referenz |
+|---|----------|--------------|
+| L19 | Artikel.Breite/Hoehe/Laenge existieren aber 0% gepflegt | [LOG-026] |
+| L20 | ArtikelGr (134 Gruppen) nutzbar fuer Kategorisierung | [LOG-026] |
+| L21 | Nur 4.5% der Fenster-Positionen haben ArtikelCode | [LOG-026] |
+
+### Fazit
+
+**KONKLUSION:**
+- Masse aus Artikel-Tabelle NICHT nutzbar fuer Budget-Kalkulation
+- Die Spalten sind in Work4All zwar vorhanden, aber NICHT gepflegt (0%)
+- Text-Extraktion aus Positionen.Kurztext/Bezeichnung bleibt EINZIGE Option
+- ArtikelGr kann fuer Produkt-Kategorisierung verwendet werden
+
+### Naechster Schritt (Empfehlung)
+Das Masse-Problem ist ein fundamentales Datenqualitaets-Problem in Work4All.
+Moegliche Wege:
+1. **Akzeptieren:** Budget-Kalkulation basiert ausschliesslich auf Text-Parsing (unzuverlaessig)
+2. **Workaround:** Standard-Masse pro Fenster-Typ annehmen (z.B. 1000x1200 als Default)
+3. **Langfristig:** Eigene Datenbank mit gepflegten Massen aufbauen
+
+---
+
+## [LOG-027] Programmierer: Parser-Fix W4A Maß-Format + Backtest
+**Datum:** 2026-02-04 11:30
+
+### Kontext
+Auftrag: Parser in `backtest-invoices.js` fixen - Maße stehen im KOMPLETTEN Bezeichnung-Text,
+nicht nur in den ersten Zeichen. Beispiel aus W4A:
+```
+Obergeschoß - Schlafen
+Anschlag: DKL Dreh-Kipp links
+Uw,N: 0,78 W/(m²K) n. EN ISO 10077-1
+Breite: 1190 mm, Höhe: 1225 mm      ← MASSE STEHEN HIER!
+Rahmenbreite: 72 mm normal
+```
+
+### Durchgefuehrt
+
+**1. Parser `extractDimensions()` erweitert:**
+
+Neue Patterns hinzugefuegt:
+- **Pattern 1 (NEU - HOECHSTE PRIORITAET):** `Breite: 1190 mm, Höhe: 1225 mm` (W4A Standard-Format)
+- **Pattern 6 (NEU):** Separate `Breite` und `Höhe` Angaben im Text
+
+Verbesserungen:
+- Text wird normalisiert (Zeilenumbrüche zu Spaces)
+- Suche erfolgt im KOMPLETTEN Text, nicht nur erste Zeile
+- `pattern`-Feld in Rückgabe für Diagnostik
+
+**2. Maß-Erkennungs-Diagnose (500 Positionen):**
+
+```
+MASS-ERKENNUNGSRATE:
+  - Total Positionen:     500
+  - OLD Parser gefunden:  34 (6.8%)
+  - NEW Parser gefunden:  280 (56.0%)
+  - NUR mit NEW gefunden: 246 (49.2%)
+
+VERBESSERUNG: +246 Positionen mit Maßen (+723.5% Verbesserung)
+
+PATTERN-VERTEILUNG (NEW):
+  - w4a_labeled: 255 (91.1%)
+  - dimension_x: 22 (7.9%)
+  - b_h_explicit: 2 (0.7%)
+  - separate_b_h: 1 (0.4%)
+```
+
+Das neue `w4a_labeled` Pattern ist der Haupttreiber mit 91% der Funde.
+
+**3. Backtest mit verschiedenen Sample-Sets:**
+
+| Sample | OFFSET | Rechnungen | Treffer (±20%) | Median | Avg |
+|--------|--------|------------|----------------|--------|-----|
+| Original (LOG-021 alt) | 0 | 21 | 19% | -5% | - |
+| Original (LOG-027 neu) | 0 | 34 | 18% | -38% | -24% |
+| Zweites Set | 50 | 35 | 20% | -17% | +41% |
+| Drittes Set | 100 | 26 | 8% | -46% | +20% |
+
+**ACHTUNG:** Die Ergebnisse sind SCHLECHTER als erwartet!
+
+**4. Analyse der Verschlechterung:**
+
+Das Problem ist NICHT der Parser, sondern:
+1. **Mehr Fenster erkannt:** Vorher wurden viele Positionen als "unknown" ignoriert,
+   jetzt werden sie als Fenster gezählt → Budget steigt
+2. **Preismodell zu hoch:** Bei 93 Elementen (Rechnung 250607) → Budget 67.386€ vs. Actual 22.562€ (+199%)
+3. **Teilrechnungen/Schlussrechnungen:** Viele extreme Abweichungen bei "SCHLUSSRECHNUNG" Notizen
+4. **DEFAULT-System:** 30-34 von 35 Rechnungen als "DEFAULT" erkannt → System-Erkennung funktioniert nicht
+
+### Ergebnis
+
+| Metrik | Vorher (LOG-021) | Nachher (LOG-027) |
+|--------|------------------|-------------------|
+| Maß-Erkennungsrate | 6.8% | 56.0% |
+| Parser-Verbesserung | - | +723% |
+| Trefferquote (OFFSET 0) | 19% | 18% |
+| Median (OFFSET 0) | -5% | -38% |
+
+**ERKENNTNIS:** Die Parser-Verbesserung hat NICHT zu besseren Backtest-Ergebnissen geführt,
+weil das eigentliche Problem das **Preismodell** ist, nicht die Maß-Erkennung.
+
+### Learning-Kandidat (fuer Projektleiter)
+
+| # | Learning | Log-Referenz |
+|---|----------|--------------|
+| L22 | W4A-Format "Breite: XXX mm, Höhe: YYY mm" ist Standard (91% der Masse) | [LOG-027] |
+| L23 | Mehr erkannte Masse = NICHT automatisch besser (Preismodell-Problem) | [LOG-027] |
+| L24 | DEFAULT-System bei 85-90% → System-Erkennung muss verbessert werden | [LOG-027] |
+
+### Code-Aenderungen
+
+Datei: `backend/scripts/backtest-invoices.js`
+- Zeilen 84-170: `extractDimensions()` komplett ueberarbeitet
+- 6 Patterns statt 4, mit Text-Normalisierung
+
+### Naechster Schritt (Empfehlung)
+
+1. **System-Erkennung verbessern:** Header besser parsen (WERU CASTELLO / CALIDO / IMPREO)
+2. **Preismodell kalibrieren:** Basispreise sind zu hoch, Skalierung pruefen
+3. **Filter verbessern:** Schlussrechnungen/Teilrechnungen separat behandeln
 
 ---
 

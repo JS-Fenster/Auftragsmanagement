@@ -21,8 +21,8 @@ const w4aConfig = {
         encrypt: true,
         trustServerCertificate: true,
         enableArithAbort: true,
-        connectionTimeout: 30000,
-        requestTimeout: 30000
+        connectionTimeout: 60000,
+        requestTimeout: 60000
     },
     pool: {
         max: 5,

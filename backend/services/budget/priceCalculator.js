@@ -22,7 +22,7 @@
  * Quelle: Erfahrungswerte WERU-Fenster 2024/2025
  */
 const SYSTEM_PRICES = {
-    'CASTELLO': { base_per_sqm: 350, description: '2-fach Standard' },
+    'CASTELLO': { base_per_sqm: 400, description: '2-fach Standard' },  // Angepasst von 350 auf 400 (LOG-025)
     'CALIDO': { base_per_sqm: 420, description: '3-fach Standard' },
     'IMPREO': { base_per_sqm: 520, description: 'Premium' },
     'AFINO': { base_per_sqm: 480, description: 'Design' },

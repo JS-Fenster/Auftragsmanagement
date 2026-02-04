@@ -22,6 +22,17 @@
 | L8 | Header-Keywords: WERU, CASTELLO, CALIDO, IMPREO, weiss, anthrazit, 2/3-fach | [LOG-002] |
 | L9 | Bridge-Proxy statt Replikation - Node.js Backend erweitern | [LOG-002] |
 | L10 | Cache TTL 24h, Invalidierung bei erp_update_time aelter | [LOG-002] |
+| L14 | PozNr OHNE Punkt = Header/Kategorie; PozNr MIT Punkt = echte Position | [LOG-024] |
+| L15 | EKPreis->VKPreis Aufschlag: Median 75%, Standard 85% | [LOG-023] |
+| L16 | Regiestunden = Montageleistung, NICHT ignorieren | [LOG-024] |
+| L17 | Masse stehen NUR im Text (0.3% Rate), DB-Spalten Laenge/Breite ungenutzt | [LOG-022] |
+| L18 | Header enthalten System/Hersteller fuer nachfolgende Positionen | [LOG-024] |
+| L19 | Artikel.Breite/Hoehe/Laenge existieren aber 0% gepflegt | [LOG-026] |
+| L20 | ArtikelGr (134 Gruppen) nutzbar fuer Kategorisierung | [LOG-026] |
+| L21 | Nur 4.5% der Fenster-Positionen haben ArtikelCode | [LOG-026] |
+| L22 | W4A-Format "Breite: XXX mm, Hoehe: YYY mm" ist Standard (91%) | [LOG-027] |
+| L23 | Mehr erkannte Masse = NICHT automatisch besser (Preismodell!) | [LOG-027] |
+| L24 | DEFAULT-System bei 85-90% → System-Erkennung verbessern | [LOG-027] |
 
 ---
 
@@ -36,4 +47,4 @@
 
 ---
 
-*Letzte Aktualisierung: 2026-02-03*
+*Letzte Aktualisierung: 2026-02-04*
