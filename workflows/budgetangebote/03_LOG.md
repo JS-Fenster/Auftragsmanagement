@@ -21,6 +21,7 @@
 | [LOG-012] | 2026-02-04 | PL | Edge Function Refactoring beschlossen | 852-920 |
 | [LOG-013] | 2026-02-04 | PROG | Edge Function Refactoring abgeschlossen | 889-960 |
 | [LOG-014] | 2026-02-04 | PROG | Budget-Item-Extraktion implementiert | 965-1050 |
+| [LOG-015] | 2026-02-04 | PROG | GPT-5.2 Budget-Extraktion integriert (P015-PROG) | 1052-1120 |
 
 ---
 
@@ -1042,6 +1043,82 @@ Modulare Budget-Extraktion produktionsbereit:
 1. Deployment und Test der neuen Version
 2. TODO-1 pruefen: Scanner-Webhook Integration (nicht doppelt OCR)
 3. TODO-2 klaeren: Trigger fuer Budgetangebot (manuell vs. automatisch)
+
+---
+
+## [LOG-015] Programmierer: GPT-5.2 Budget-Extraktion integriert (P015-PROG)
+**Datum:** 2026-02-04 19:30
+
+### Kontext
+Auftrag P015-PROG: Budget-Extraktion (GPT) in process-document Edge Function integrieren.
+Ersetzt den alten Regex-Parser durch GPT-5.2 strukturierte Extraktion.
+
+### Durchgefuehrt
+
+**1. budget-prompts.ts erstellt (~300 Zeilen):**
+- Spezialisierter GPT-Prompt fuer Fenster/Tueren-Extraktion
+- TypeScript Interfaces: BudgetElement, BudgetKontext, BudgetMontage, BudgetKunde, BudgetExtractionResult
+- `shouldExtractBudget()` - Heuristischer Check ob Extraktion sinnvoll
+- `validateExtractionResult()` - Normalisierung und Validierung
+- Prompt mit expliziten Regeln fuer:
+  - Masse (mm-Konvertierung)
+  - Hersteller/System Defaults (WERU, CALIDO/CASTELLO)
+  - Zubehoer-Keywords
+  - Confidence-Scoring
+
+**2. index.ts erweitert (Version 31, Zeile 767-926):**
+- Import von budget-prompts.ts (Zeile 120-124)
+- Feature-Flag im Health-Endpoint aktiviert (Zeile 283-284)
+- Trigger-Bedingung: `kategorie === "Aufmassblatt" && shouldExtractBudget(extractedText)`
+- Zweiter GPT-5.2 API-Call mit BUDGET_EXTRACTION_PROMPT
+- Validierung mit `validateExtractionResult()`
+
+**3. DB-Speicherung implementiert (5 Tabellen):**
+
+| Tabelle | Gespeicherte Daten | Zeilen |
+|---------|-------------------|--------|
+| budget_cases | lead_name, lead_telefon, lead_email, kanal="scan" | 815-826 |
+| budget_profile | manufacturer, system, glazing, colors, material | 835-847 |
+| budget_items | room, element_type, dimensions, qty, confidence | 854-897 |
+| budget_accessories | Rollladen, Raffstore, Motor, AFB, IFB, Insekt, Plissee | 879-895 |
+| budget_inputs | Dokument-Referenz, Raw OCR, Parsing-Confidence | 900-909 |
+
+**4. Alter Parser entfernt:**
+- `budget-extraction.ts` (Regex-basiert) wurde geloescht
+- GPT-5.2 uebernimmt jetzt die komplette Extraktion
+
+### Ergebnis
+P015-PROG vollstaendig abgeschlossen:
+
+| Anforderung | Status |
+|-------------|--------|
+| budget-prompts.ts erstellen | ERLEDIGT |
+| Bei "Aufmassblatt" Budget-Extraktion | ERLEDIGT |
+| Ergebnis in budget_* Tabellen speichern | ERLEDIGT |
+| Extraktion nur EINMALIG (Kosten sparen) | ERLEDIGT |
+| Alten Parser entfernen | ERLEDIGT |
+
+**Modulstruktur process-document:**
+```
+supabase/functions/process-document/
+├── index.ts         (43923 bytes, v31)
+├── budget-prompts.ts (9937 bytes, NEU)
+├── categories.ts    (15486 bytes)
+├── extraction.ts    (6399 bytes)
+├── prompts.ts       (7625 bytes)
+├── schema.ts        (8840 bytes)
+└── utils.ts         (7018 bytes)
+```
+
+### Dateien erstellt/geaendert
+- `supabase/functions/process-document/budget-prompts.ts` (NEU)
+- `supabase/functions/process-document/index.ts` (v31)
+- `supabase/functions/process-document/budget-extraction.ts` (GELOESCHT)
+
+### Naechster Schritt
+1. E2E-Test: Aufmassblatt scannen und Budget-Extraktion pruefen
+2. Frontend: Budget-Case automatisch oeffnen nach Scan
+3. Backtest mit echten Aufmassblaettern
 
 ---
 

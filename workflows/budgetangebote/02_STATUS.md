@@ -1,50 +1,38 @@
 # Status: Budgetangebot V1
 
-> Letzte Aktualisierung: 2026-02-04 19:15
+> Letzte Aktualisierung: 2026-02-04 20:30
 > Aktualisiert von: Projektleiter
 
 ---
 
 ## Aktueller Stand
-**Phase:** Phase 12 - Budget-Extraktion Integration
-**Letzter abgeschlossener Schritt:** Performance-Test (13.57s pro Extraktion)
+**Phase:** Phase 13 - E2E-Tests und Feinschliff
+**Letzter abgeschlossener Schritt:** P015-PROG (GPT-5.2 Budget-Extraktion integriert)
 
 ---
 
 ## Aktiver Auftrag
 
-**Rolle:** Programmierer
-**Auftrag-ID:** P015-PROG
+**Status:** OFFEN - Wartet auf Priorisierung durch Projektleiter
 
-### Aufgabe
-Budget-Extraktion (GPT) in process-document Edge Function integrieren.
+### Moegliche naechste Schritte
 
-### Anforderungen
-1. Bei Kategorie "Aufmassblatt" → automatisch Budget-Extraktion durchführen
-2. Eigene Prompt-Datei: `budget-prompts.ts` erstellen
-3. Ergebnis in `budget_*` Tabellen speichern (budget_cases, budget_items, etc.)
-4. Extraktion nur EINMALIG pro Dokument (Kosten sparen!)
-5. Alten Parser `budget-extraction.ts` entfernen (wird nicht mehr gebraucht)
+| Prioritaet | Aufgabe | Beschreibung |
+|------------|---------|--------------|
+| A | E2E-Test Aufmassblatt | Echtes Aufmassblatt scannen, Budget-Extraktion pruefen |
+| B | Frontend Auto-Open | Nach Scan automatisch Budget-Case im Frontend oeffnen |
+| C | Backtest 200 Angebote | W4A-Daten gegen neues Preismodell validieren |
+| D | Scanner-Webhook | TODO-1: Nicht doppelt OCR bei Scanner-Integration |
 
-### Technische Details
-- GPT-Call dauert ~13s (getestet)
-- Prompt aus test-budget-extraction übernehmen
-- Nach GPT-Kategorisierung: Wenn "Aufmassblatt" → zweiter GPT-Call
-- Ergebnis in DB speichern, nicht nur im Response
-
-### Zu erstellende/ändernde Dateien
-1. `supabase/functions/process-document/budget-prompts.ts` - NEU
-2. `supabase/functions/process-document/index.ts` - Erweitern (v31)
-3. `supabase/functions/process-document/budget-extraction.ts` - LÖSCHEN
-
-### Wichtig
-- KEIN separater Endpoint nötig
-- Budget-Daten werden bei Scan gespeichert
-- Später beim Klick: Nur aus DB laden (schnell)
+### Technischer Stand
+- Edge Function: v31 deployed, Budget-Extraktion aktiv
+- Backend: Alle API-Endpunkte funktional (10 Endpunkte)
+- Frontend: Budgetangebot-Modul komplett (Liste + Detail)
+- DB: Alle Tabellen bereit (11 Tabellen mit RLS)
 
 ---
 
-## Erledigte Aufgaben
+## Erledigte Auftraege
 
 | Schritt | Status | Datum |
 |---------|--------|-------|
@@ -61,6 +49,7 @@ Budget-Extraktion (GPT) in process-document Edge Function integrieren.
 | GPT-5.2 Performance Test | Fertig | 2026-02-04 |
 | Edge Function Refactoring | Fertig | 2026-02-04 |
 | Budget-Extraktion Performance Test | Fertig | 2026-02-04 |
+| **P015-PROG: GPT Budget-Extraktion** | **Fertig** | **2026-02-04** |
 
 ---
 
@@ -75,4 +64,12 @@ Budget-Extraktion (GPT) in process-document Edge Function integrieren.
 ---
 
 ## Letzter Abschlussbericht
-Siehe 03_LOG.md [LOG-014]
+Siehe 03_LOG.md [LOG-015]
+
+### Zusammenfassung P015-PROG
+- budget-prompts.ts erstellt (GPT-Prompt + Interfaces)
+- index.ts erweitert (v31, Zeile 767-926)
+- Bei "Aufmassblatt" → automatische GPT-5.2 Budget-Extraktion
+- Ergebnisse in 5 DB-Tabellen gespeichert
+- Alter Regex-Parser (budget-extraction.ts) entfernt
+- **Status: VOLLSTAENDIG ERLEDIGT**
