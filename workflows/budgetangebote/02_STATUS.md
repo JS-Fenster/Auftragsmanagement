@@ -1,7 +1,7 @@
 # Status: Budgetangebot V1
 
-> Letzte Aktualisierung: 2026-02-04 20:30
-> Aktualisiert von: Projektleiter
+> Letzte Aktualisierung: 2026-02-04 21:15
+> Aktualisiert von: Claude (Session-Sync)
 
 ---
 
@@ -25,10 +25,12 @@
 | D | Scanner-Webhook | TODO-1: Nicht doppelt OCR bei Scanner-Integration |
 
 ### Technischer Stand
-- Edge Function: v31 deployed, Budget-Extraktion aktiv
+- Edge Function: v48 deployed, GPT-5.2 Budget-Extraktion aktiv
 - Backend: Alle API-Endpunkte funktional (10 Endpunkte)
 - Frontend: Budgetangebot-Modul komplett (Liste + Detail)
 - DB: Alle Tabellen bereit (11 Tabellen mit RLS)
+- Edge Function Audit: 4 obsolete Functions geloescht
+- renew-subscriptions: 401-Fix (INTERNAL_API_KEY in app_config korrigiert)
 
 ---
 
@@ -50,6 +52,9 @@
 | Edge Function Refactoring | Fertig | 2026-02-04 |
 | Budget-Extraktion Performance Test | Fertig | 2026-02-04 |
 | **P015-PROG: GPT Budget-Extraktion** | **Fertig** | **2026-02-04** |
+| Edge Function Audit (19 geprueft, 4 geloescht) | Fertig | 2026-02-04 |
+| renew-subscriptions 401-Fix | Fertig | 2026-02-04 |
+| Commit & Push (145c4f2) | Fertig | 2026-02-04 |
 
 ---
 
@@ -64,7 +69,7 @@
 ---
 
 ## Letzter Abschlussbericht
-Siehe 03_LOG.md [LOG-015]
+Siehe 03_LOG.md [LOG-018]
 
 ### Zusammenfassung P015-PROG
 - budget-prompts.ts erstellt (GPT-Prompt + Interfaces)

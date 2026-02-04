@@ -22,6 +22,9 @@
 | [LOG-013] | 2026-02-04 | PROG | Edge Function Refactoring abgeschlossen | 889-960 |
 | [LOG-014] | 2026-02-04 | PROG | Budget-Item-Extraktion implementiert | 965-1050 |
 | [LOG-015] | 2026-02-04 | PROG | GPT-5.2 Budget-Extraktion integriert (P015-PROG) | 1052-1120 |
+| [LOG-016] | 2026-02-04 | PROG | Edge Function Audit (19 geprueft, 4 geloescht) | 1128-1180 |
+| [LOG-017] | 2026-02-04 | PROG | renew-subscriptions 401-Fix (app_config) | 1185-1230 |
+| [LOG-018] | 2026-02-04 | PROG | Commit & Push (145c4f2, a029fef) | 1235-1270 |
 
 ---
 
@@ -1119,6 +1122,127 @@ supabase/functions/process-document/
 1. E2E-Test: Aufmassblatt scannen und Budget-Extraktion pruefen
 2. Frontend: Budget-Case automatisch oeffnen nach Scan
 3. Backtest mit echten Aufmassblaettern
+
+---
+
+## [LOG-016] Programmierer: Edge Function Audit
+**Datum:** 2026-02-04 20:00
+
+### Kontext
+Audit aller Edge Functions auf Funktionsfaehigkeit und Notwendigkeit.
+
+### Durchgefuehrt
+
+**19 Edge Functions geprueft:**
+
+| Funktion | Status | Aktion |
+|----------|--------|--------|
+| process-document | v48 OK | Behalten |
+| process-email | v32 OK | Behalten |
+| email-webhook | v28 OK | Behalten |
+| scan-mailbox | v18 OK (401 erwartet ohne Key) | Behalten |
+| create-subscription | v6 OK | Behalten |
+| renew-subscriptions | v13 401-ERROR | Fix noetig |
+| lifecycle-webhook | v11 OK | Behalten |
+| retry-queued | v6 OK | Behalten |
+| batch-process-pending | v2 OK | Behalten |
+| telegram-bot | v8 405 (GET nicht erlaubt) | Behalten |
+| reparatur-api | v9 OK | Behalten |
+| reparatur-aging | v3 OK | Behalten |
+| admin-review | v24 401 (erwartet) | Behalten |
+| rule-generator | v6 401 (erwartet) | Behalten |
+| cleanup-orphaned-files | v12 401 (erwartet) | Behalten |
+| **test-budget-extraction** | - | **GELOESCHT** |
+| **debug-env** | - | **GELOESCHT** |
+| **setup-andreas-mailbox** | - | **GELOESCHT** |
+| **cleanup-ics-storage** | - | **GELOESCHT** |
+
+**4 obsolete Functions vom Benutzer geloescht:**
+- test-budget-extraction (Testfunktion, nicht mehr benoetigt)
+- debug-env (Debug-Funktion)
+- setup-andreas-mailbox (Einmaliger Setup)
+- cleanup-ics-storage (Nicht mehr benoetigt)
+
+### Ergebnis
+15 produktive Edge Functions verbleiben. 4 obsolete geloescht.
+renew-subscriptions 401-Fehler identifiziert fuer Fix.
+
+### Naechster Schritt
+renew-subscriptions 401-Fehler untersuchen und fixen.
+
+---
+
+## [LOG-017] Programmierer: renew-subscriptions 401-Fix
+**Datum:** 2026-02-04 20:45
+
+### Kontext
+Edge Function Audit identifizierte 401-Fehler bei renew-subscriptions.
+Cron-Jobs (6:00, 12:00, 18:00, 24:00) scheiterten seit Tagen.
+
+### Durchgefuehrt
+
+**1. Fehleranalyse:**
+- Cron-Job nutzt `get_app_config('INTERNAL_API_KEY')` aus `app_config` Tabelle
+- Edge Function validiert gegen `INTERNAL_API_KEY` Environment Variable
+- **Ursache:** app_config enthielt den ALTEN Key mit Sonderzeichen
+- Edge Function Secrets hatten den NEUEN Key ohne Sonderzeichen
+
+**2. Fix:**
+```sql
+UPDATE app_config
+SET value = 'wNzMEZJRoUBnyb8JxiMUwEi7rDlxcUMTzAlYkkW2SE040w98gna3x1MmrPpC3qeX'
+WHERE key = 'INTERNAL_API_KEY';
+```
+
+**3. Verifizierung:**
+- Test-Request via `net.http_post()` mit neuem Key gesendet
+- Edge Function Logs zeigen: **POST 200** (vorher 401)
+- Fix erfolgreich bestaetigt
+
+### Ergebnis
+renew-subscriptions funktioniert wieder. Cron-Jobs werden ab naechstem Lauf erfolgreich sein.
+
+### Learning
+API-Keys in `app_config` Tabelle muessen synchron mit Edge Function Secrets gehalten werden.
+Bei Key-Rotation beide Stellen aktualisieren!
+
+---
+
+## [LOG-018] Programmierer: Commit & Push
+**Datum:** 2026-02-04 21:00
+
+### Kontext
+Alle Aenderungen dieser Session committen und pushen.
+
+### Durchgefuehrt
+
+**Auftragsmanagement (145c4f2):**
+```
+feat(edge-fn): refactor process-document with GPT-5.2 and modular structure
+
+- Refactor process-document into modular files (schema, utils, extraction, budget-prompts)
+- Upgrade to GPT-5.2 for categorization and budget extraction
+- Add budget extraction prompt system for Aufmassblatt documents
+- Fix renew-subscriptions 401 error (updated INTERNAL_API_KEY in app_config)
+- Clean up Edge Function audit (removed 4 obsolete functions)
+```
+
+**Dateien:**
+- supabase/functions/process-document/index.ts (refactored)
+- supabase/functions/process-document/budget-prompts.ts (NEU)
+- supabase/functions/process-document/extraction.ts (NEU)
+- supabase/functions/process-document/schema.ts (NEU)
+- supabase/functions/process-document/utils.ts (NEU)
+- workflows/budgetangebote/02_STATUS.md
+- workflows/budgetangebote/03_LOG.md
+
+**KI_Automation (a029fef):**
+```
+chore: update KI_Wissen metadata and timestamps
+```
+
+### Ergebnis
+Beide Repositories committed und gepusht. Alle Aenderungen synchronisiert.
 
 ---
 
