@@ -11,6 +11,7 @@ const customersRouter = require('./routes/customers');
 const repairsRouter = require('./routes/repairs');
 const syncRouter = require('./routes/sync');
 const w4aProxyRouter = require('./routes/w4a-proxy');
+const budgetRouter = require('./routes/budget');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -41,6 +42,7 @@ app.use('/api/customers', customersRouter);
 app.use('/api/repairs', repairsRouter);
 app.use('/api/sync', syncRouter);
 app.use('/api/w4a', w4aProxyRouter);
+app.use('/api/budget', budgetRouter);
 
 // 404 Handler
 app.use((req, res) => {
@@ -77,6 +79,7 @@ const startServer = async () => {
             console.log(`  Health Check: http://localhost:${PORT}/api/health`);
             console.log(`  Sync API: http://localhost:${PORT}/api/sync`);
             console.log(`  W4A Proxy: http://localhost:${PORT}/api/w4a/health`);
+            console.log(`  Budget API: http://localhost:${PORT}/api/budget/config`);
             console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
             console.log('');
         });

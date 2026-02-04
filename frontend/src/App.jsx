@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { Home, FolderKanban, ClipboardList, Users, Settings, RefreshCw } from 'lucide-react';
+import { Home, FolderKanban, ClipboardList, Users, Settings, RefreshCw, Calculator } from 'lucide-react';
 
 // Pages
 import Dashboard from './pages/Dashboard';
@@ -8,6 +8,8 @@ import ProjektDetail from './pages/ProjektDetail';
 import Auftraege from './pages/Auftraege';
 import Kunden from './pages/Kunden';
 import Reparaturen from './pages/Reparaturen';
+import Budgetangebot from './pages/Budgetangebot';
+import BudgetDetail from './pages/BudgetDetail';
 
 function Navigation() {
   const location = useLocation();
@@ -16,6 +18,7 @@ function Navigation() {
     { path: '/', icon: Home, label: 'Dashboard' },
     { path: '/projekte', icon: FolderKanban, label: 'Projekte' },
     { path: '/auftraege', icon: ClipboardList, label: 'Auftraege' },
+    { path: '/budget', icon: Calculator, label: 'Budget' },
     { path: '/reparaturen', icon: RefreshCw, label: 'Reparaturen' },
     { path: '/kunden', icon: Users, label: 'Kunden' },
   ];
@@ -98,6 +101,8 @@ function App() {
             <Route path="/projekte" element={<Projekte />} />
             <Route path="/projekte/:code" element={<ProjektDetail />} />
             <Route path="/auftraege" element={<Auftraege />} />
+            <Route path="/budget" element={<Budgetangebot />} />
+            <Route path="/budget/:id" element={<BudgetDetail />} />
             <Route path="/reparaturen" element={<Reparaturen />} />
             <Route path="/kunden" element={<Kunden />} />
           </Routes>
