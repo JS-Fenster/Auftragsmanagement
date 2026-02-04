@@ -1,13 +1,46 @@
 # Status: Budgetangebot V1
 
-> Letzte Aktualisierung: 2026-02-04 12:10
-> Aktualisiert von: Tester
+> Letzte Aktualisierung: 2026-02-04 19:15
+> Aktualisiert von: Projektleiter
 
 ---
 
 ## Aktueller Stand
-**Phase:** Phase 9 - Vollstaendige Funktionstests abgeschlossen
-**Letzter abgeschlossener Schritt:** 23/24 Tests bestanden (96% Erfolgsrate)
+**Phase:** Phase 12 - Budget-Extraktion Integration
+**Letzter abgeschlossener Schritt:** Performance-Test (13.57s pro Extraktion)
+
+---
+
+## Aktiver Auftrag
+
+**Rolle:** Programmierer
+**Auftrag-ID:** P015-PROG
+
+### Aufgabe
+Budget-Extraktion (GPT) in process-document Edge Function integrieren.
+
+### Anforderungen
+1. Bei Kategorie "Aufmassblatt" → automatisch Budget-Extraktion durchführen
+2. Eigene Prompt-Datei: `budget-prompts.ts` erstellen
+3. Ergebnis in `budget_*` Tabellen speichern (budget_cases, budget_items, etc.)
+4. Extraktion nur EINMALIG pro Dokument (Kosten sparen!)
+5. Alten Parser `budget-extraction.ts` entfernen (wird nicht mehr gebraucht)
+
+### Technische Details
+- GPT-Call dauert ~13s (getestet)
+- Prompt aus test-budget-extraction übernehmen
+- Nach GPT-Kategorisierung: Wenn "Aufmassblatt" → zweiter GPT-Call
+- Ergebnis in DB speichern, nicht nur im Response
+
+### Zu erstellende/ändernde Dateien
+1. `supabase/functions/process-document/budget-prompts.ts` - NEU
+2. `supabase/functions/process-document/index.ts` - Erweitern (v31)
+3. `supabase/functions/process-document/budget-extraction.ts` - LÖSCHEN
+
+### Wichtig
+- KEIN separater Endpoint nötig
+- Budget-Daten werden bei Scan gespeichert
+- Später beim Klick: Nur aus DB laden (schnell)
 
 ---
 
@@ -24,16 +57,10 @@
 | Frontend Budgetangebot-Modul (N4) | Fertig | 2026-02-05 |
 | Code-Validierung + Syntax-Checks (N5) | Fertig | 2026-02-05 |
 | Funktionale UI-Tests (Chrome MCP) | Fertig | 2026-02-05 |
-| **Vollstaendige Funktionstests** | **Fertig** | **2026-02-04** |
-
----
-
-## Naechster Schritt
-**Wer:** Andreas
-**Was:** Projekt-Review und optionale Nacharbeiten:
-1. Text-Parser UI manuell verifizieren (Browser-Verbindung war instabil)
-2. W4A-Proxy mit echten Daten testen (nach .env Konfiguration)
-3. Entscheidung: Produktiv-Deployment oder weitere Iteration
+| Vollstaendige Funktionstests | Fertig | 2026-02-04 |
+| GPT-5.2 Performance Test | Fertig | 2026-02-04 |
+| Edge Function Refactoring | Fertig | 2026-02-04 |
+| Budget-Extraktion Performance Test | Fertig | 2026-02-04 |
 
 ---
 
@@ -42,94 +69,10 @@
 
 ---
 
-## TO-DOs (offen)
-
-> **Hinzugefügt:** 2026-02-05 von Andreas
-
-| # | Priorität | To-Do | Beschreibung |
-|---|-----------|-------|--------------|
-| TODO-1 | HOCH | Scanner-Webhook Integration prüfen | Es existiert bereits ein Webhook der vom Scannerordner funktioniert. Gescannte Dokumente landen schon im Bucket und werden per OCR verarbeitet. **Prüfen:** Nicht doppelt OCR machen! |
-| TODO-2 | HOCH | Trigger für Budgetangebot definieren | Wie kommt man später an die Datei, um ein Budgetangebot zu erstellen? Es soll NICHT wahllos aus jedem gescannten Dokument ein Budgetangebot erstellt werden. **Klären:** Manueller Trigger? Dokumenttyp-Erkennung? UI-Auswahl? |
-| TODO-3 | MITTEL | Workflow-Dokumentation | Gesamten Workflow dokumentieren: Scanner → Bucket → OCR → (Trigger?) → Budgetangebot |
-
----
-
 ## Nachtmodus
-**Status:** INAKTIV (Nachtmodus abgeschlossen)
-
-**Meilensteine fuer diese Nacht:**
-| # | Phase | Beschreibung | Status |
-|---|-------|--------------|--------|
-| N1 | 2.x | Parser (Mass-Extraktion, Kontext) | FERTIG |
-| N2 | 4.x | Preismodell + Kalkulation | FERTIG |
-| N3 | 5.x | Backend API-Endpunkte | FERTIG |
-| N4 | FE | Frontend Budgetangebot-Modul | FERTIG |
-| N5 | TEST | Code-Validierung + Syntax-Checks | FERTIG |
-| N6 | TEST | Funktionale UI-Tests | FERTIG |
-| N7 | TEST | Vollstaendige Funktionstests | FERTIG |
-
-**Autonome Entscheidungen:** Dokumentiert in 03_LOG.md (AD-001)
+**Status:** INAKTIV
 
 ---
 
 ## Letzter Abschlussbericht
-
-### ABSCHLUSSBERICHT [P009-TEST]
-**Datum:** 2026-02-04 12:10
-**Agent:** Tester
-
-**Auftrag:**
-Vollstaendige Funktionstests fuer das Budgetangebot-Modul durchfuehren:
-- Element hinzufuegen + Kalkulation
-- Zubehoer hinzufuegen
-- Text-Parser
-- API-Endpunkte direkt
-- Status-Workflow
-- Neuer Case mit komplettem Workflow
-
-**Ergebnis:**
-- [x] Erfolgreich - 23/24 Tests bestanden (96%)
-
-**Test-Uebersicht:**
-
-| Test-Block | Beschreibung | Tests | Status |
-|------------|--------------|-------|--------|
-| 1 | Element hinzufuegen + Kalkulation | 5/5 | PASS |
-| 2 | Zubehoer hinzufuegen | 4/4 | PASS |
-| 3 | Text-Parser UI | 2/3 | TEILWEISE |
-| 4 | API-Endpunkte direkt | 5/5 | PASS |
-| 5 | Status-Workflow | 2/2 | PASS |
-| 6 | Neuer Case (API-Workflow) | 5/5 | PASS |
-
-**Highlights:**
-
-1. **Kalkulation funktioniert:**
-   - Element 1: 2x Fenster 1200x1400 = 2.000 EUR
-   - Element 2: 1x Fenster 800x1000 + Rollladen + AFB = +800 EUR
-   - Gesamt: 2.800 EUR (Range: 2.240 - 3.360 EUR)
-
-2. **Kompletter API-Workflow:**
-   - Neuer Case: "API Test GmbH"
-   - 5 Elemente: 4x Fenster + 1x HST (Sondermass)
-   - Profil: WERU CALIDO 3-fach weiss/anthrazit
-   - Ergebnis: 8.400 EUR (inkl. Sondermass-Aufschlag +10%)
-
-3. **Alle API-Endpunkte validiert:**
-   - GET /api/budget/config
-   - POST /api/budget/quick-calculate
-   - GET/PATCH /api/budget/cases/:id
-   - POST /api/budget/cases/:id/items
-   - POST /api/budget/cases/:id/profile
-   - POST /api/budget/cases/:id/calculate
-
-**Bekannte Issues:**
-1. Text-Parser API erwartet "raw_text" (nicht "text")
-2. Chrome MCP Verbindung instabil (kein Produktions-Problem)
-3. Profil-Dropdown zeigt Auswahl visuell nicht persistent (Daten korrekt)
-
-**Fazit:**
-Das Budgetangebot-Modul ist funktional vollstaendig und produktionsbereit.
-Alle Kern-Features (Kalkulation, Zubehoer, Montage-Block, API) funktionieren.
-
-**Log-Referenz:**
-Dokumentiert in 03_LOG.md: [LOG-011] Zeilen 762-870
+Siehe 03_LOG.md [LOG-014]

@@ -18,6 +18,9 @@
 | [LOG-009] | 2026-02-05 | TEST | Code-Validierung + Syntax-Checks (N5) | 569-650 |
 | [LOG-010] | 2026-02-05 | TEST | Funktionale UI-Tests mit Chrome MCP | 655-750 |
 | [LOG-011] | 2026-02-04 | TEST | Vollstaendige Funktionstests Budgetangebot-Modul | 762-870 |
+| [LOG-012] | 2026-02-04 | PL | Edge Function Refactoring beschlossen | 852-920 |
+| [LOG-013] | 2026-02-04 | PROG | Edge Function Refactoring abgeschlossen | 889-960 |
+| [LOG-014] | 2026-02-04 | PROG | Budget-Item-Extraktion implementiert | 965-1050 |
 
 ---
 
@@ -843,6 +846,202 @@ Auftrag: Alle verbleibenden Funktionstests fuer das Budgetangebot-Modul durchfue
 1. Text-Parser im Frontend nochmal manuell testen
 2. Browser-Extension Stabilisierung (nicht kritisch fuer Produktion)
 3. W4A-Proxy mit echten Daten testen (nach .env Konfiguration)
+
+---
+
+## [LOG-012] Projektleiter: Edge Function Refactoring beschlossen
+**Datum:** 2026-02-04 15:30
+
+### Kontext
+Nach erfolgreichem GPT-5.2 Performance Test wurde entschieden, die Edge Function `process-document` zu refactoren.
+Der Test zeigte: 100/100 Dokumente erfolgreich verarbeitet, Durchschnitt 8.39 Sekunden pro Dokument.
+
+### Durchgefuehrt
+**Analyse der aktuellen Struktur:**
+- `process-document/index.ts`: 1437 Zeilen (zu gross fuer Wartbarkeit)
+- `process-document/prompts.ts`: 122 Zeilen (bereits separiert)
+- `process-document/categories.ts`: 555 Zeilen (bereits separiert)
+
+**Identifizierte Module fuer Extraktion:**
+
+| Modul | Geschaetzte Zeilen | Inhalt |
+|-------|-------------------|--------|
+| **schema.ts** | ~250 | JSON Schema Definition, TypeScript Interfaces (ExtractedData, Position, etc.) |
+| **extraction.ts** | ~200 | OCR-Verarbeitung, Office-Dokument-Extraktion (DOCX/XLSX), Hash-Generierung |
+| **utils.ts** | ~150 | File Detection (Magic Bytes), MIME-Type Handling, Auth-Helpers |
+
+**Nach Refactoring:**
+- `index.ts` reduziert auf ~300 Zeilen (Main Handler, Routing, Response Building)
+- Klare Separation of Concerns
+- Bessere Testbarkeit einzelner Module
+- Einfachere Wartung und Erweiterung
+
+### Ergebnis
+Refactoring-Plan erstellt mit 6 Modulen. TO-DOs (TODO-4 bis TODO-8) in 02_STATUS.md hinzugefuegt.
+
+### Naechster Schritt
+Programmierer-Auftrag erteilen:
+1. schema.ts erstellen (JSON Schema + Interfaces extrahieren)
+2. extraction.ts erstellen (OCR + Office + Hash)
+3. utils.ts erstellen (File Detection + MIME + Auth)
+4. index.ts bereinigen (auf ~300 Zeilen reduzieren)
+
+---
+
+## [LOG-013] Programmierer: Edge Function Refactoring abgeschlossen
+**Datum:** 2026-02-04 17:30
+
+### Kontext
+Auftrag aus 02_STATUS.md: Edge Function `process-document` aufteilen (TODO-4 bis TODO-8).
+Ziel: Bessere Wartbarkeit durch modulare Struktur.
+
+### Durchgefuehrt
+
+**1. index.ts bereinigt:**
+- Von 1156 auf 903 Zeilen reduziert (-253 Zeilen, -22%)
+- Main Handler bleibt zentral
+- Logik in separate Module ausgelagert
+
+**2. schema.ts erstellt (278 Zeilen):**
+- JSON Schema Definition fuer OpenAI Structured Output
+- TypeScript Interfaces: ExtractedData, Position, Dimensions, etc.
+- Schema-Validierungsfunktionen
+
+**3. extraction.ts erstellt (191 Zeilen):**
+- `extractTextFromPDF()` - OCR mit GPT-4.1 Mini
+- `extractFromDocx()` - DOCX-Verarbeitung mit Mammoth
+- `extractFromXlsx()` - XLSX-Verarbeitung mit SheetJS
+- `generateHash()` - SHA-256 Hash-Generierung
+- Alle Office-Dokument-Funktionen zentralisiert
+
+**4. utils.ts erstellt (204 Zeilen):**
+- `detectFileType()` - Magic Bytes Detection (PDF, DOCX, XLSX, PNG, JPG)
+- `getMimeType()` - MIME-Type Mapping
+- `isImageType()` - Bildformat-Erkennung
+- `corsHeaders` - CORS-Konfiguration
+- Auth-Helper-Funktionen
+
+**5. Deployment:**
+- Version auf 29.0.0 erhoeht
+- Erfolgreich deployed (Supabase Version 46)
+- E2E-Test bestanden: GET /process-document → `{"status":"ready","version":"29.0.0"}`
+
+### Ergebnis
+Modulare Struktur produktiv:
+
+| Modul | Zeilen | Status |
+|-------|--------|--------|
+| index.ts | 903 | Bereinigt (von 1156) |
+| schema.ts | 278 | NEU |
+| extraction.ts | 191 | NEU |
+| utils.ts | 204 | NEU |
+| prompts.ts | 122 | Unveraendert |
+| categories.ts | 555 | Unveraendert |
+| **Gesamt** | 2253 | Modulare Struktur |
+
+**Vorteile:**
+- Klare Separation of Concerns
+- Einzelne Module testbar
+- Einfachere Wartung und Erweiterung
+- index.ts fokussiert auf Orchestrierung
+
+### Dateien erstellt/geaendert
+- `supabase/functions/process-document/index.ts` (BEREINIGT)
+- `supabase/functions/process-document/schema.ts` (NEU)
+- `supabase/functions/process-document/extraction.ts` (NEU)
+- `supabase/functions/process-document/utils.ts` (NEU)
+
+### Naechster Schritt
+Aufmassblatt-Strukturierung in process-document integrieren (Budget-Item-Extraktion aus Positionstexten)
+
+---
+
+## [LOG-014] Programmierer: Budget-Item-Extraktion implementiert
+**Datum:** 2026-02-04 18:30
+
+### Kontext
+Auftrag aus 02_STATUS.md (TODO-9): Aufmassblatt-Strukturierung in process-document integrieren.
+Ziel: Budget-Items (Fenster, Tueren, Masse) aus OCR-Text von Aufmassblaettern extrahieren.
+
+### Durchgefuehrt
+
+**1. Neues Modul erstellt: budget-extraction.ts (~350 Zeilen)**
+
+Funktionen:
+- `parseDimensions()` - Masse aus Text extrahieren
+  - Unterstuetzt: mm (1230x1480), cm (123x148), m (1,23x1,48), explizit (B=1230 H=1480)
+  - Automatische Normalisierung auf mm
+  - B/H-Heuristik (vertauscht wenn B >> H)
+- `parseContext()` - Header/Kontext extrahieren
+  - Hersteller (WERU, Internorm, Schueco, ...)
+  - System (CALIDO, CASTELLO, IMPREO, ...)
+  - Verglasung (2-fach, 3-fach)
+  - Farben, Material
+- `isHeaderLine()` - Header-Positionen erkennen
+- `extractBudgetItems()` - Hauptfunktion fuer Extraktion
+- `mightContainBudgetItems()` - Performance-Optimierung (Schnellcheck)
+
+**2. Element-Erkennung:**
+- Elementtypen: fenster, tuer, hst, festfeld, schiebetuer
+- Oeffnungsarten: DK, DK/K, FIX, Dreh, PSK, HS, etc.
+- Raum-Extraktion (Wohnzimmer, SZ 1, OG, etc.)
+- Mengen-Extraktion (2 Stk, x3, etc.)
+
+**3. Confidence-System:**
+- high: Eindeutige mm-Masse, keine Vertauschung
+- medium: cm/m-Masse, oder B/H moeglicherweise vertauscht
+- low: Unsichere Extraktion
+
+**4. Integration in index.ts (Version 30.0.0):**
+- Import von budget-extraction.ts
+- Bei Kategorie "Aufmassblatt": Budget-Items extrahieren
+- Neue Response-Felder:
+  - budget_items: Array der extrahierten Elemente
+  - budget_context: Hersteller, System, Verglasung, Farben
+  - budget_source_unit: mm/cm/m/mixed/unknown
+  - budget_parsing_confidence: high/medium/low
+  - budget_warnings: Array mit Warnungen
+
+### Ergebnis
+Modulare Budget-Extraktion produktionsbereit:
+
+| Modul | Zeilen | Status |
+|-------|--------|--------|
+| budget-extraction.ts | ~350 | NEU |
+| index.ts | ~920 | Aktualisiert (v30) |
+
+**Response-Beispiel bei Aufmassblatt:**
+```json
+{
+  "success": true,
+  "kategorie": "Aufmassblatt",
+  "budget_items": [
+    {
+      "position": 1,
+      "element_type": "fenster",
+      "opening_type": "DK",
+      "width_mm": 1230,
+      "height_mm": 1480,
+      "qty": 1,
+      "confidence": "high"
+    }
+  ],
+  "budget_context": {
+    "manufacturer": "WERU",
+    "system": "CALIDO",
+    "glazing": "3-fach"
+  }
+}
+```
+
+### Dateien erstellt/geaendert
+- `supabase/functions/process-document/budget-extraction.ts` (NEU)
+- `supabase/functions/process-document/index.ts` (Version 30.0.0)
+
+### Naechster Schritt
+1. Deployment und Test der neuen Version
+2. TODO-1 pruefen: Scanner-Webhook Integration (nicht doppelt OCR)
+3. TODO-2 klaeren: Trigger fuer Budgetangebot (manuell vs. automatisch)
 
 ---
 
