@@ -3,7 +3,7 @@
 
 > **Zweck dieses Dokuments:** Blaupause fuer zukuenftige Projekte. Wenn eine LLM die Rolle des Projektleiters uebernehmen soll, dient dieses Dokument als vollstaendige Anleitung zum Aufbau des identischen Systems.
 
-> **Version:** 1.1 | **Erstellt:** 2026-01-26 | **Aktualisiert:** 2026-01-26
+> **Version:** 1.3 | **Erstellt:** 2026-01-26 | **Aktualisiert:** 2026-02-03
 
 ---
 
@@ -1110,7 +1110,7 @@ Jeder Agent MUSS sich am Anfang seiner Arbeit identifizieren:
 - Die ERSTEN Zeilen enthalten den Index (Kapitelverzeichnis)
 - Die LETZTEN Zeilen enthalten den neuesten Stand
 - Bei jedem Schreiben: Index oben aktualisieren!
-- Alle ~300 Zeilen: Checkpoint mit Zusammenfassung
+- Alle ~300 Zeilen: Checkpoint mit Zusammenfassung (Sicherheitspuffer)
 
 ### 04_LEARNINGS.md (Erkenntnisse)
 - **Lesen:** Alle (ALWAYS-ON - bei jedem Start lesen!)
@@ -1377,10 +1377,119 @@ Der Projektleiter MUSS nach jedem Subagenten-Lauf:
 1. Abschlussbericht des Subagenten pruefen
 2. 03_LOG.md und 02_STATUS.md auf Aktualitaet pruefen
 3. Entscheiden: Weiterer Auftrag? Tester einschalten? Fertig?
+4. Falls Tester noetig: Neuen Subagenten starten
+
+### Sequentieller Ablauf ist OK
+
+**Erinnerung:** Zeit ist NICHT das knappe Gut. Context-Tokens und menschlicher Aufwand sind es.
+
+Ein sequentieller Ablauf (Programmierer → warten → Tester → warten) ist voellig akzeptabel, solange:
+- Kein manuelles Copy/Paste noetig ist
+- Die Markdown-Dateien korrekt gepflegt werden
+- Der Projektleiter seinen Context schont
 
 ---
 
-*Version: 1.0 | Erstellt: YYYY-MM-DD*
+## 11. Autonomer Nachtmodus (KRITISCH)
+
+> **WENN NACHTMODUS AKTIV:** Du darfst KEINE Rueckfragen an den Menschen stellen. NIEMALS. Der Mensch schlaeft.
+
+### Aktivierung pruefen
+
+Lies 02_STATUS.md. Wenn dort steht:
+```
+**Nachtmodus:** AKTIV bis [UHRZEIT]
+```
+Dann gilt dieser Abschnitt STRIKT.
+
+### Regeln im Nachtmodus
+
+| Regel | Beschreibung |
+|-------|--------------|
+| **KEINE Rueckfragen** | Egal was passiert, frage NICHT. Der Mensch schlaeft. |
+| **Entscheidungen selbst treffen** | Bei Unsicherheit: Waehle die einfachere/sicherere Option |
+| **Alles dokumentieren** | Jede autonome Entscheidung in 03_LOG.md festhalten |
+| **Fehler sind OK** | Lieber einen Fehler machen und dokumentieren als stoppen |
+| **Uhrzeit pruefen** | Vor jedem potenziellen Stop: Ist es nach der Endzeit? |
+
+### Entscheidungs-Framework bei Unsicherheit
+
+```
+Ich bin unsicher ueber X.
+│
+├─► Gibt es eine "sichere" Option?
+│   └─► JA: Nimm die sichere Option
+│   └─► Dokumentiere: "Autonome Entscheidung: Sichere Option gewaehlt."
+│
+├─► Gibt es eine "einfachere" Option?
+│   └─► JA: Nimm die einfachere Option
+│   └─► Dokumentiere: "Autonome Entscheidung: Einfachere Option gewaehlt."
+│
+└─► Beide Optionen gleichwertig?
+    └─► Nimm Option A (die erste)
+    └─► Dokumentiere: "Autonome Entscheidung: Option A gewaehlt (gleichwertig)."
+```
+
+### Was NICHT als Grund zum Stoppen gilt
+
+| Situation | Korrekte Reaktion |
+|-----------|-------------------|
+| "Ich bin nicht sicher ob das richtig ist" | Mach es trotzdem, dokumentiere |
+| "Soll ich Ansatz A oder B nehmen?" | Nimm A, dokumentiere |
+| "Der Test ist fehlgeschlagen" | Fixe es oder ueberspringe, dokumentiere |
+| "Ich habe eine Frage zur Spec" | Interpretiere selbst, dokumentiere |
+| "Das koennte ein Problem sein" | Versuche zu loesen, dokumentiere |
+| "Ich brauche Klarstellung" | Triff Annahme, dokumentiere |
+| "Soll ich weitermachen?" | JA, mach weiter! |
+
+### Was ALS Grund zum Stoppen gilt
+
+| Situation | Reaktion |
+|-----------|----------|
+| **Alle Meilensteine fertig** | Finaler Checkpoint, stoppen OK |
+| **Endzeit erreicht** (siehe 02_STATUS) | Checkpoint, stoppen OK |
+| **Kritischer Systemfehler** (MCP tot) | Dokumentieren, naechsten Meilenstein versuchen |
+
+### Nacht-Checkpoint (alle 2 Stunden)
+
+Im Nachtmodus soll der Projektleiter alle 2 Stunden einen Mini-Checkpoint in 03_LOG.md schreiben:
+
+```markdown
+## [NACHT-CHECK] YYYY-MM-DD HH:MM
+- Aktuelle Uhrzeit: [HH:MM]
+- Nachtmodus endet: [HH:MM]
+- Aktueller Meilenstein: [X.Y]
+- Status: [In Arbeit / Abgeschlossen / Blockiert]
+- Autonome Entscheidungen seit letztem Check: [Anzahl]
+- Naechster Schritt: [Beschreibung]
+```
+
+### Autonome Entscheidung dokumentieren
+
+```markdown
+### Autonome Entscheidung [AD-XXX]
+**Zeitpunkt:** YYYY-MM-DD HH:MM
+**Situation:** [Was war unklar]
+**Optionen:** A: [Beschreibung] / B: [Beschreibung]
+**Gewaehlt:** [A oder B]
+**Begruendung:** [Warum diese Option - einfacher/sicherer/etc.]
+```
+
+### Bei MCP-/Systemausfall im Nachtmodus
+
+```
+1. Fehler in 03_LOG.md dokumentieren
+2. Aktuellen Meilenstein als "BLOCKED: [Grund]" markieren
+3. Naechsten Meilenstein versuchen
+4. Falls mehrere Meilensteine blockiert: Checkpoint schreiben, weitermachen wo moeglich
+```
+
+---
+
+*Version: 1.3 | Erstellt: YYYY-MM-DD | Aktualisiert: YYYY-MM-DD*
+*Aenderungen v1.1: Preflight/Postflight-Checks, Checkpoint 300 Zeilen, Learning-Format praezisiert*
+*Aenderungen v1.2: Subagenten-Orchestrierung (Abschnitt 10) erweitert*
+*Aenderungen v1.3: Autonomer Nachtmodus (Abschnitt 11) vollstaendig*
 ```
 
 ---
@@ -2013,6 +2122,7 @@ Unsicherheit?
 | 1.0 | 2026-01-26 | Initiale Version |
 | 1.1 | 2026-01-26 | TEIL 4 hinzugefuegt: Subagenten-Orchestrierung. Kommunikationsfluss aktualisiert. Glossar erweitert. CLAUDE.md Template um Abschnitt 10 ergaenzt. |
 | 1.2 | 2026-01-26 | TEIL 9 hinzugefuegt: Autonomer Nachtmodus. Stop Hooks, Permission Allowlists, Entscheidungs-Framework, settings.json Template. CLAUDE.md Template um Abschnitt 11 ergaenzt. |
+| 1.3 | 2026-02-03 | TEIL 6 CLAUDE.md Template auf v1.3 aktualisiert: Checkpoint "(Sicherheitspuffer)" ergaenzt, Abschnitt 10 "Sequentieller Ablauf" + "Nach Subagenten-Rueckkehr" erweitert, Abschnitt 11 Nachtmodus vollstaendig mit Tabellen und Templates. |
 
 ---
 

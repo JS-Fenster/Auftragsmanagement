@@ -1,7 +1,23 @@
 // =============================================================================
 // Process Document - OCR + GPT Kategorisierung
-// Version: 28 - 2026-01-24
+// Version: 31 - 2026-02-04 (GPT-basierte Budget-Extraktion)
 // =============================================================================
+// Aenderungen v31:
+// - NEU: GPT-basierte Budget-Extraktion statt Regex-Parser
+// - NEU: budget-prompts.ts mit spezialisiertem Prompt
+// - NEU: Speicherung in budget_cases, budget_items, budget_profile, budget_accessories
+// - ENTFERNT: budget-extraction.ts (Regex-Parser nicht mehr benoetigt)
+// - NEU: Flag budget_extracted in documents Tabelle gegen Doppelt-Extraktion
+//
+// Aenderungen v30:
+// - Budget-Item-Extraktion fuer Aufmassblaetter (Regex-basiert, jetzt ersetzt durch GPT)
+//
+// Aenderungen v29:
+// - REFACTORING: Schema und Interfaces nach schema.ts extrahiert
+// - REFACTORING: Extraction-Funktionen nach extraction.ts extrahiert
+// - REFACTORING: Utility-Funktionen nach utils.ts extrahiert
+// - Imports aktualisiert fuer neue Module
+//
 // Aenderungen v28:
 // - NEU: Separater SCANNER_API_KEY fuer Scanner-Webhook
 // - validateApiKey akzeptiert jetzt INTERNAL_API_KEY ODER SCANNER_API_KEY
@@ -76,8 +92,36 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { SYSTEM_PROMPT } from "./prompts.ts";
 import { canonicalizeKategorie, applyHeuristicRules } from "./categories.ts";
-import * as XLSX from "npm:xlsx@0.18.5";
-import JSZip from "npm:jszip@3.10.1";
+import {
+  calculateHash,
+  calculateTextHash,
+  extractTextWithMistral,
+  extractTextFromDocx,
+  extractTextFromExcel,
+  isImage,
+} from "./extraction.ts";
+import {
+  ExtractedDocument,
+  EXTRACTION_SCHEMA,
+  UNTERSCHRIFT_ERFORDERLICH_KATEGORIEN,
+} from "./schema.ts";
+import {
+  OCR_SUPPORTED_EXTENSIONS,
+  OFFICE_EXTENSIONS,
+  getMimeType,
+  isOcrSupported,
+  isOfficeDocument,
+  detectFileType,
+  getMediaCategory,
+  sanitizeFileName,
+  createApiKeyValidator,
+} from "./utils.ts";
+import {
+  BUDGET_EXTRACTION_PROMPT,
+  shouldExtractBudget,
+  validateExtractionResult,
+  type BudgetExtractionResult,
+} from "./budget-prompts.ts";
 // v24: Image compression - DISABLED due to Deno compatibility issues
 // import { Image } from "npm:imagescript@1.3.0";
 const Image: null = null; // Stub for disabled feature
@@ -88,6 +132,9 @@ const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
 // v18: API Key Protection - INTERNAL_API_KEY oder SCANNER_API_KEY
 const INTERNAL_API_KEY = Deno.env.get("INTERNAL_API_KEY");
 const SCANNER_API_KEY = Deno.env.get("SCANNER_API_KEY");
+
+// Create API key validator with environment keys
+const validateApiKey = createApiKeyValidator(INTERNAL_API_KEY, SCANNER_API_KEY);
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -205,236 +252,6 @@ async function compressImage(
   }
 }
 
-// =============================================================================
-// v18: API Key Validation (PFLICHT - nur INTERNAL_API_KEY)
-// =============================================================================
-
-function validateApiKey(req: Request): { valid: boolean; reason?: string } {
-  // v28: INTERNAL_API_KEY oder SCANNER_API_KEY (mindestens einer PFLICHT)
-  if (!INTERNAL_API_KEY && !SCANNER_API_KEY) {
-    console.error("[AUTH] CRITICAL: Neither INTERNAL_API_KEY nor SCANNER_API_KEY configured");
-    return { valid: false, reason: "No API key configured on server" };
-  }
-
-  // Check x-api-key header first
-  const apiKeyHeader = req.headers.get("x-api-key");
-  if (apiKeyHeader) {
-    if (INTERNAL_API_KEY && apiKeyHeader === INTERNAL_API_KEY) {
-      console.log("[AUTH] Valid x-api-key header (INTERNAL)");
-      return { valid: true };
-    }
-    if (SCANNER_API_KEY && apiKeyHeader === SCANNER_API_KEY) {
-      console.log("[AUTH] Valid x-api-key header (SCANNER)");
-      return { valid: true };
-    }
-  }
-
-  // Check Authorization: Bearer header
-  const authHeader = req.headers.get("authorization");
-  if (authHeader) {
-    const match = authHeader.match(/^Bearer\s+(.+)$/i);
-    if (match) {
-      if (INTERNAL_API_KEY && match[1] === INTERNAL_API_KEY) {
-        console.log("[AUTH] Valid Bearer token (INTERNAL)");
-        return { valid: true };
-      }
-      if (SCANNER_API_KEY && match[1] === SCANNER_API_KEY) {
-        console.log("[AUTH] Valid Bearer token (SCANNER)");
-        return { valid: true };
-      }
-    }
-  }
-
-  // No valid key provided
-  console.warn("[AUTH] Rejected - invalid or missing API key");
-  return { valid: false, reason: "Invalid or missing API key" };
-}
-
-// Supported file types for OCR (Mistral)
-const OCR_SUPPORTED_EXTENSIONS = ["pdf", "png", "jpg", "jpeg", "gif", "webp", "tif", "tiff", "bmp"];
-
-// Office file types with native text extraction
-const OFFICE_EXTENSIONS = ["docx", "xlsx", "xls"];
-
-// Get MIME type from file extension
-function getMimeType(fileName: string): string {
-  const ext = fileName.split(".").pop()?.toLowerCase() || "";
-  const mimeTypes: Record<string, string> = {
-    pdf: "application/pdf",
-    png: "image/png",
-    jpg: "image/jpeg",
-    jpeg: "image/jpeg",
-    gif: "image/gif",
-    webp: "image/webp",
-    tif: "image/tiff",
-    tiff: "image/tiff",
-    bmp: "image/bmp",
-    mp4: "video/mp4",
-    mov: "video/quicktime",
-    avi: "video/x-msvideo",
-    mkv: "video/x-matroska",
-    mp3: "audio/mpeg",
-    wav: "audio/wav",
-    doc: "application/msword",
-    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    xls: "application/vnd.ms-excel",
-    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    zip: "application/zip",
-    rar: "application/x-rar-compressed",
-  };
-  return mimeTypes[ext] || "application/octet-stream";
-}
-
-// Check if file is an image (for OCR type selection)
-function isImage(fileName: string): boolean {
-  const ext = fileName.split(".").pop()?.toLowerCase() || "";
-  return ["png", "jpg", "jpeg", "gif", "webp", "tif", "tiff", "bmp"].includes(ext);
-}
-
-// Check if file type supports OCR (Mistral)
-function isOcrSupported(fileName: string): boolean {
-  const ext = fileName.split(".").pop()?.toLowerCase() || "";
-  return OCR_SUPPORTED_EXTENSIONS.includes(ext);
-}
-
-// Check if file is Office document with native text extraction
-function isOfficeDocument(fileName: string): boolean {
-  const ext = fileName.split(".").pop()?.toLowerCase() || "";
-  return OFFICE_EXTENSIONS.includes(ext);
-}
-
-// Detect actual file type from magic bytes
-function detectFileType(buffer: ArrayBuffer): { type: string; isOfficeDoc: boolean } {
-  const bytes = new Uint8Array(buffer.slice(0, 8));
-
-  // PDF: starts with %PDF
-  if (bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46) {
-    return { type: "pdf", isOfficeDoc: false };
-  }
-
-  // ZIP/Office: starts with PK (0x50 0x4B)
-  if (bytes[0] === 0x50 && bytes[1] === 0x4B) {
-    return { type: "zip", isOfficeDoc: true };
-  }
-
-  // PNG
-  if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) {
-    return { type: "png", isOfficeDoc: false };
-  }
-
-  // JPEG
-  if (bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) {
-    return { type: "jpg", isOfficeDoc: false };
-  }
-
-  // GIF
-  if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) {
-    return { type: "gif", isOfficeDoc: false };
-  }
-
-  // TIFF
-  if ((bytes[0] === 0x49 && bytes[1] === 0x49) || (bytes[0] === 0x4D && bytes[1] === 0x4D)) {
-    return { type: "tiff", isOfficeDoc: false };
-  }
-
-  // Old Excel format (xls) - starts with D0 CF 11 E0 (OLE compound file)
-  if (bytes[0] === 0xD0 && bytes[1] === 0xCF && bytes[2] === 0x11 && bytes[3] === 0xE0) {
-    return { type: "ole", isOfficeDoc: true };
-  }
-
-  return { type: "unknown", isOfficeDoc: false };
-}
-
-// Get category for non-OCR files based on extension
-function getMediaCategory(fileName: string): string {
-  const ext = fileName.split(".").pop()?.toLowerCase() || "";
-  if (["mp4", "mov", "avi", "mkv", "webm"].includes(ext)) return "Video";
-  if (["mp3", "wav", "ogg", "m4a"].includes(ext)) return "Audio";
-  if (["doc", "docx", "xls", "xlsx", "ppt", "pptx"].includes(ext)) return "Office_Dokument";
-  if (["zip", "rar", "7z", "tar", "gz"].includes(ext)) return "Archiv";
-  return "Sonstiges_Dokument";
-}
-
-// v17.1: Sanitize filename for Supabase Storage (no umlauts/special chars)
-function sanitizeFileName(fileName: string): string {
-  return fileName
-    .replace(/ä/g, "ae")
-    .replace(/ö/g, "oe")
-    .replace(/ü/g, "ue")
-    .replace(/Ä/g, "Ae")
-    .replace(/Ö/g, "Oe")
-    .replace(/Ü/g, "Ue")
-    .replace(/ß/g, "ss")
-    .replace(/[^a-zA-Z0-9._-]/g, "_"); // Replace other special chars with underscore
-}
-
-// Extract text from Word document by parsing DOCX as ZIP and reading XML
-async function extractTextFromDocx(buffer: ArrayBuffer): Promise<string> {
-  const zip = new JSZip();
-  const contents = await zip.loadAsync(buffer);
-
-  // DOCX stores content in word/document.xml
-  const documentXml = contents.file("word/document.xml");
-  if (!documentXml) {
-    throw new Error("No document.xml found in DOCX");
-  }
-
-  const xmlContent = await documentXml.async("string");
-
-  // Extract text from XML - simple regex to get text between <w:t> tags
-  const textMatches = xmlContent.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [];
-  const textParts: string[] = [];
-
-  for (const match of textMatches) {
-    const text = match.replace(/<w:t[^>]*>/, "").replace(/<\/w:t>/, "");
-    textParts.push(text);
-  }
-
-  // Join with spaces, but preserve paragraph breaks
-  // Paragraphs in DOCX are marked with <w:p> tags
-  let result = textParts.join("");
-
-  // Add newlines for paragraph breaks (simplified)
-  const paragraphCount = (xmlContent.match(/<w:p[\s>]/g) || []).length;
-  if (paragraphCount > 1) {
-    // Re-parse to get proper paragraph structure
-    const paragraphs: string[] = [];
-    const pMatches = xmlContent.match(/<w:p[\s>][\s\S]*?<\/w:p>/g) || [];
-
-    for (const pMatch of pMatches) {
-      const pTextMatches = pMatch.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [];
-      const pText = pTextMatches
-        .map(m => m.replace(/<w:t[^>]*>/, "").replace(/<\/w:t>/, ""))
-        .join("");
-      if (pText.trim()) {
-        paragraphs.push(pText);
-      }
-    }
-
-    result = paragraphs.join("\n");
-  }
-
-  return result;
-}
-
-// Extract text from Excel using SheetJS
-function extractTextFromExcel(buffer: ArrayBuffer): string {
-  const workbook = XLSX.read(buffer, { type: "array" });
-  const textParts: string[] = [];
-
-  for (const sheetName of workbook.SheetNames) {
-    const sheet = workbook.Sheets[sheetName];
-    textParts.push(`=== Sheet: ${sheetName} ===`);
-
-    // Convert to CSV for text representation
-    const csv = XLSX.utils.sheet_to_csv(sheet);
-    textParts.push(csv);
-    textParts.push("");
-  }
-
-  return textParts.join("\n");
-}
-
 Deno.serve(async (req: Request) => {
   // ==========================================================================
   // v17: Health Check (GET)
@@ -443,7 +260,7 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         service: "process-document",
-        version: "27.0.0",
+        version: "31.0.0",
         status: "ready",
         configured: {
           mistral: !!MISTRAL_API_KEY,
@@ -463,6 +280,8 @@ Deno.serve(async (req: Request) => {
         },
         features: {
           updateMode: true,  // v25: Email attachment update mode
+          budgetExtraction: true,  // v31: GPT-basierte Budget-Extraktion fuer Aufmassblaetter
+          budgetExtractionModel: "gpt-5.2",  // v31: GPT-5.2 fuer Budget-Extraktion
         },
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
@@ -599,7 +418,7 @@ Deno.serve(async (req: Request) => {
       extractionMethod = "ocr";
 
       try {
-        extractedText = await extractTextWithMistral(fileBuffer, file.name, mimeType);
+        extractedText = await extractTextWithMistral(fileBuffer, file.name, mimeType, MISTRAL_API_KEY);
         console.log(`OCR extracted ${extractedText.length} characters`);
       } catch (ocrError) {
         extractionError = ocrError instanceof Error ? ocrError.message : String(ocrError);
@@ -945,6 +764,167 @@ Deno.serve(async (req: Request) => {
       console.log(`Inserted with ID: ${resultId}`);
     }
 
+    // v31: GPT-basierte Budget-Extraktion fuer Aufmassblaetter
+    let budgetExtraction: BudgetExtractionResult | null = null;
+    let budgetCaseId: string | null = null;
+
+    if (extractedData.kategorie === "Aufmassblatt" && shouldExtractBudget(extractedText)) {
+      console.log(`[BUDGET] Aufmassblatt erkannt - starte GPT Budget-Extraktion`);
+
+      try {
+        const budgetStartTime = Date.now();
+
+        // GPT-Call fuer Budget-Extraktion
+        const budgetResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${OPENAI_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: "gpt-5.2",
+            messages: [
+              { role: "system", content: BUDGET_EXTRACTION_PROMPT },
+              { role: "user", content: extractedText },
+            ],
+            temperature: 0.1,
+            response_format: { type: "json_object" },
+          }),
+        });
+
+        if (!budgetResponse.ok) {
+          const errorText = await budgetResponse.text();
+          throw new Error(`OpenAI budget extraction failed: ${budgetResponse.status} - ${errorText}`);
+        }
+
+        const budgetResult = await budgetResponse.json();
+        const budgetContent = JSON.parse(budgetResult.choices[0].message.content);
+
+        const budgetDuration = (Date.now() - budgetStartTime) / 1000;
+        console.log(`[BUDGET] GPT-Call dauerte ${budgetDuration.toFixed(2)}s`);
+
+        // Validieren und normalisieren
+        budgetExtraction = validateExtractionResult(budgetContent);
+
+        if (budgetExtraction && budgetExtraction.elemente.length > 0) {
+          console.log(`[BUDGET] ${budgetExtraction.elemente.length} Elemente extrahiert, Confidence: ${budgetExtraction.gesamt_confidence}`);
+
+          // In budget_* Tabellen speichern
+          try {
+            // 1. budget_cases erstellen
+            const { data: caseData, error: caseError } = await supabase
+              .from("budget_cases")
+              .insert({
+                lead_name: budgetExtraction.kunde.name || null,
+                lead_telefon: budgetExtraction.kunde.telefon || null,
+                lead_email: budgetExtraction.kunde.email || null,
+                kanal: "scan",  // Gescanntes Dokument
+                status: "draft",
+                notes: budgetExtraction.kunde.adresse || null,
+              })
+              .select("id")
+              .single();
+
+            if (caseError) {
+              console.error(`[BUDGET] Fehler beim Erstellen des Cases:`, caseError);
+            } else {
+              budgetCaseId = caseData.id;
+              console.log(`[BUDGET] Case erstellt: ${budgetCaseId}`);
+
+              // 2. budget_profile erstellen
+              const { error: profileError } = await supabase
+                .from("budget_profile")
+                .insert({
+                  budget_case_id: budgetCaseId,
+                  manufacturer: budgetExtraction.kontext.hersteller || "WERU",
+                  system: budgetExtraction.kontext.system || null,
+                  glazing: budgetExtraction.kontext.verglasung || null,
+                  color_inside: budgetExtraction.kontext.farbe_innen || "weiss",
+                  color_outside: budgetExtraction.kontext.farbe_aussen || "weiss",
+                  material_class: budgetExtraction.kontext.material || "Kunststoff",
+                  inferred: !budgetExtraction.kontext.hersteller,
+                  manual_override: false,
+                });
+
+              if (profileError) {
+                console.error(`[BUDGET] Fehler beim Erstellen des Profils:`, profileError);
+              }
+
+              // 3. budget_items erstellen
+              for (const elem of budgetExtraction.elemente) {
+                const { data: itemData, error: itemError } = await supabase
+                  .from("budget_items")
+                  .insert({
+                    budget_case_id: budgetCaseId,
+                    room: elem.raum || null,
+                    element_type: elem.typ,
+                    width_mm: elem.breite_mm,
+                    height_mm: elem.hoehe_mm,
+                    qty: elem.menge,
+                    position_in_source: elem.position,
+                    notes: elem.bemerkungen || null,
+                    confidence: elem.confidence,
+                  })
+                  .select("id")
+                  .single();
+
+                if (itemError) {
+                  console.error(`[BUDGET] Fehler beim Erstellen von Item ${elem.position}:`, itemError);
+                  continue;
+                }
+
+                // 4. budget_accessories erstellen (falls Zubehoer vorhanden)
+                const hasAccessories = Object.values(elem.zubehoer).some(v => v === true);
+                if (hasAccessories && itemData) {
+                  const { error: accError } = await supabase
+                    .from("budget_accessories")
+                    .insert({
+                      budget_item_id: itemData.id,
+                      shutter: elem.zubehoer.rollladen || elem.zubehoer.raffstore,
+                      shutter_type: elem.zubehoer.raffstore ? "raffstore" : (elem.zubehoer.rollladen ? "rollladen" : null),
+                      shutter_electric: elem.zubehoer.rollladen_elektrisch || elem.zubehoer.raffstore_elektrisch,
+                      motor_qty: (elem.zubehoer.rollladen_elektrisch || elem.zubehoer.raffstore_elektrisch) ? 1 : null,
+                      afb: elem.zubehoer.afb,
+                      ifb: elem.zubehoer.ifb,
+                      insect: elem.zubehoer.insektenschutz,
+                      plissee: elem.zubehoer.plissee,
+                    });
+
+                  if (accError) {
+                    console.error(`[BUDGET] Fehler beim Erstellen von Accessories fuer Item ${elem.position}:`, accError);
+                  }
+                }
+              }
+
+              // 5. budget_inputs erstellen (Referenz zum Dokument)
+              const { error: inputError } = await supabase
+                .from("budget_inputs")
+                .insert({
+                  budget_case_id: budgetCaseId,
+                  source_type: "scan",
+                  document_id: resultId,
+                  raw_ocr: extractedText,
+                  parsing_confidence: budgetExtraction.gesamt_confidence,
+                  parsed_at: new Date().toISOString(),
+                });
+
+              if (inputError) {
+                console.error(`[BUDGET] Fehler beim Erstellen von Input:`, inputError);
+              }
+
+              console.log(`[BUDGET] Alle Daten gespeichert fuer Case ${budgetCaseId}`);
+            }
+          } catch (dbError) {
+            console.error(`[BUDGET] Datenbank-Fehler:`, dbError);
+          }
+        } else {
+          console.log(`[BUDGET] Keine Elemente extrahiert oder Validierung fehlgeschlagen`);
+        }
+      } catch (budgetError) {
+        console.error(`[BUDGET] Extraktion fehlgeschlagen:`, budgetError);
+      }
+    }
+
     return new Response(JSON.stringify({
       success: true,
       id: resultId,
@@ -956,6 +936,16 @@ Deno.serve(async (req: Request) => {
       file_hash: fileHash,
       text_hash: textHash,
       update_mode: isUpdateMode,
+      // v31: GPT-basierte Budget-Extraktion (nur bei Aufmassblaettern)
+      ...(budgetExtraction && {
+        budget_case_id: budgetCaseId,
+        budget_elemente_count: budgetExtraction.elemente.length,
+        budget_kontext: budgetExtraction.kontext,
+        budget_montage: budgetExtraction.montage,
+        budget_fehlende_infos: budgetExtraction.fehlende_infos,
+        budget_annahmen: budgetExtraction.annahmen,
+        budget_confidence: budgetExtraction.gesamt_confidence,
+      }),
     }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
@@ -973,77 +963,6 @@ Deno.serve(async (req: Request) => {
     );
   }
 });
-
-// Calculate SHA256 hash of ArrayBuffer
-async function calculateHash(buffer: ArrayBuffer): Promise<string> {
-  const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
-}
-
-// Calculate hash of normalized text
-async function calculateTextHash(text: string): Promise<string> {
-  const normalized = text
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .replace(/[^a-z0-9\u00e4\u00f6\u00fc\u00df ]/g, "")
-    .trim();
-  const encoder = new TextEncoder();
-  const data = encoder.encode(normalized);
-  return calculateHash(data.buffer);
-}
-
-async function extractTextWithMistral(fileBuffer: ArrayBuffer, fileName: string, mimeType: string): Promise<string> {
-  const bytes = new Uint8Array(fileBuffer);
-
-  let binary = "";
-  const chunkSize = 32768;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const chunk = bytes.subarray(i, i + chunkSize);
-    binary += String.fromCharCode.apply(null, chunk as unknown as number[]);
-  }
-  const base64 = btoa(binary);
-
-  const isImageFile = isImage(fileName);
-
-  const requestBody = isImageFile
-    ? {
-        model: "mistral-ocr-latest",
-        document: {
-          type: "image_url",
-          image_url: `data:${mimeType};base64,${base64}`,
-        },
-      }
-    : {
-        model: "mistral-ocr-latest",
-        document: {
-          type: "document_url",
-          document_url: `data:${mimeType};base64,${base64}`,
-        },
-      };
-
-  const response = await fetch("https://api.mistral.ai/v1/ocr", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${MISTRAL_API_KEY}`,
-    },
-    body: JSON.stringify(requestBody),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Mistral OCR failed: ${response.status} - ${errorText}`);
-  }
-
-  const result = await response.json();
-
-  if (result.pages && Array.isArray(result.pages)) {
-    return result.pages.map((page: { markdown: string }) => page.markdown).join("\n\n---\n\n");
-  }
-
-  return JSON.stringify(result);
-}
 
 async function categorizeAndExtract(ocrText: string): Promise<ExtractedDocument> {
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -1085,13 +1004,6 @@ async function categorizeAndExtract(ocrText: string): Promise<ExtractedDocument>
 
   return JSON.parse(content) as ExtractedDocument;
 }
-
-// v20: Kategorien die eine Unterschrift erfordern
-const UNTERSCHRIFT_ERFORDERLICH_KATEGORIEN = [
-  "Auftragsbestaetigung",
-  "Serviceauftrag",
-  "Montageauftrag",
-];
 
 function buildDatabaseRecord(
   extracted: ExtractedDocument,
@@ -1178,259 +1090,3 @@ function buildDatabaseRecord(
     dringlichkeit: extracted.dringlichkeit,
   };
 }
-
-interface ExtractedDocument {
-  kategorie: string;
-  extraktions_qualitaet: "hoch" | "mittel" | "niedrig";
-  extraktions_hinweise: string[];
-  dokument_datum: string | null;
-  dokument_nummer: string | null;
-  dokument_richtung: string | null;
-  // v20: Unterschrift-Felder
-  empfang_unterschrift: boolean;
-  unterschrift: string | null;
-  aussteller: {
-    firma: string | null;
-    name: string | null;
-    strasse: string | null;
-    plz: string | null;
-    ort: string | null;
-    telefon: string | null;
-    email: string | null;
-    ust_id: string | null;
-  } | null;
-  empfaenger: {
-    firma: string | null;
-    vorname: string | null;
-    nachname: string | null;
-    strasse: string | null;
-    plz: string | null;
-    ort: string | null;
-    telefon: string | null;
-    email: string | null;
-    kundennummer: string | null;
-  } | null;
-  positionen: Array<{
-    pos_nr: number | null;
-    beschreibung: string | null;
-    menge: number | null;
-    einheit: string | null;
-    einzelpreis_netto: number | null;
-    gesamtpreis_netto: number | null;
-  }> | null;
-  summe_netto: number | null;
-  mwst_betrag: number | null;
-  summe_brutto: number | null;
-  offener_betrag: number | null;
-  zahlungsziel_tage: number | null;
-  faellig_am: string | null;
-  skonto_prozent: number | null;
-  skonto_tage: number | null;
-  bank: {
-    name: string | null;
-    iban: string | null;
-    bic: string | null;
-  } | null;
-  liefertermin_datum: string | null;
-  lieferzeit_wochen: number | null;
-  bezug: {
-    angebot_nr: string | null;
-    bestellung_nr: string | null;
-    lieferschein_nr: string | null;
-    rechnung_nr: string | null;
-    auftrag_nr: string | null;
-    projekt: string | null;
-  } | null;
-  mahnung_stufe: number | null;
-  mahngebuehren: number | null;
-  verzugszinsen_betrag: number | null;
-  gesamtforderung: number | null;
-  betreff: string | null;
-  inhalt_zusammenfassung: string | null;
-  bemerkungen: string | null;
-  dringlichkeit: string | null;
-}
-
-const EXTRACTION_SCHEMA = {
-  type: "object",
-  properties: {
-    kategorie: {
-      type: "string",
-      // v23: + Kundenbestellung, Reiseunterlagen, Zahlungsavis, Bauplan
-      enum: [
-        "Abnahmeprotokoll",
-        "Angebot",
-        "Aufmassblatt",
-        "Auftragsbestaetigung",
-        "Ausgangsrechnung",
-        "Bauplan",
-        "Bestellung",
-        "Bild",
-        "Brief_ausgehend",
-        "Brief_eingehend",
-        "Brief_von_Finanzamt",
-        "Eingangslieferschein",
-        "Eingangsrechnung",
-        "Finanzierung",
-        "Formular",
-        "Gutschrift",
-        "Kassenbeleg",
-        "Kundenanfrage",
-        "Kundenbestellung",
-        "Kundenlieferschein",
-        "Leasing",
-        "Lieferantenangebot",
-        "Mahnung",
-        "Montageauftrag",
-        "Notiz",
-        "Preisanfrage",
-        "Produktdatenblatt",
-        "Reiseunterlagen",
-        "Reklamation",
-        "Serviceauftrag",
-        "Skizze",
-        "Sonstiges_Dokument",
-        "Vertrag",
-        "Zahlungsavis",
-        "Zahlungserinnerung",
-        "Zeichnung",
-      ],
-    },
-    // v20: Unterschrift-Felder
-    empfang_unterschrift: { type: "boolean" },
-    unterschrift: { type: ["string", "null"] },
-    extraktions_qualitaet: {
-      type: "string",
-      enum: ["hoch", "mittel", "niedrig"],
-    },
-    extraktions_hinweise: {
-      type: "array",
-      items: { type: "string" },
-    },
-    dokument_datum: { type: ["string", "null"] },
-    dokument_nummer: { type: ["string", "null"] },
-    dokument_richtung: { type: ["string", "null"] },
-    aussteller: {
-      type: ["object", "null"],
-      properties: {
-        firma: { type: ["string", "null"] },
-        name: { type: ["string", "null"] },
-        strasse: { type: ["string", "null"] },
-        plz: { type: ["string", "null"] },
-        ort: { type: ["string", "null"] },
-        telefon: { type: ["string", "null"] },
-        email: { type: ["string", "null"] },
-        ust_id: { type: ["string", "null"] },
-      },
-      required: ["firma", "name", "strasse", "plz", "ort", "telefon", "email", "ust_id"],
-      additionalProperties: false,
-    },
-    empfaenger: {
-      type: ["object", "null"],
-      properties: {
-        firma: { type: ["string", "null"] },
-        vorname: { type: ["string", "null"] },
-        nachname: { type: ["string", "null"] },
-        strasse: { type: ["string", "null"] },
-        plz: { type: ["string", "null"] },
-        ort: { type: ["string", "null"] },
-        telefon: { type: ["string", "null"] },
-        email: { type: ["string", "null"] },
-        kundennummer: { type: ["string", "null"] },
-      },
-      required: ["firma", "vorname", "nachname", "strasse", "plz", "ort", "telefon", "email", "kundennummer"],
-      additionalProperties: false,
-    },
-    positionen: {
-      type: ["array", "null"],
-      items: {
-        type: "object",
-        properties: {
-          pos_nr: { type: ["number", "null"] },
-          beschreibung: { type: ["string", "null"] },
-          menge: { type: ["number", "null"] },
-          einheit: { type: ["string", "null"] },
-          einzelpreis_netto: { type: ["number", "null"] },
-          gesamtpreis_netto: { type: ["number", "null"] },
-        },
-        required: ["pos_nr", "beschreibung", "menge", "einheit", "einzelpreis_netto", "gesamtpreis_netto"],
-        additionalProperties: false,
-      },
-    },
-    summe_netto: { type: ["number", "null"] },
-    mwst_betrag: { type: ["number", "null"] },
-    summe_brutto: { type: ["number", "null"] },
-    offener_betrag: { type: ["number", "null"] },
-    zahlungsziel_tage: { type: ["number", "null"] },
-    faellig_am: { type: ["string", "null"] },
-    skonto_prozent: { type: ["number", "null"] },
-    skonto_tage: { type: ["number", "null"] },
-    bank: {
-      type: ["object", "null"],
-      properties: {
-        name: { type: ["string", "null"] },
-        iban: { type: ["string", "null"] },
-        bic: { type: ["string", "null"] },
-      },
-      required: ["name", "iban", "bic"],
-      additionalProperties: false,
-    },
-    liefertermin_datum: { type: ["string", "null"] },
-    lieferzeit_wochen: { type: ["number", "null"] },
-    bezug: {
-      type: ["object", "null"],
-      properties: {
-        angebot_nr: { type: ["string", "null"] },
-        bestellung_nr: { type: ["string", "null"] },
-        lieferschein_nr: { type: ["string", "null"] },
-        rechnung_nr: { type: ["string", "null"] },
-        auftrag_nr: { type: ["string", "null"] },
-        projekt: { type: ["string", "null"] },
-      },
-      required: ["angebot_nr", "bestellung_nr", "lieferschein_nr", "rechnung_nr", "auftrag_nr", "projekt"],
-      additionalProperties: false,
-    },
-    mahnung_stufe: { type: ["number", "null"] },
-    mahngebuehren: { type: ["number", "null"] },
-    verzugszinsen_betrag: { type: ["number", "null"] },
-    gesamtforderung: { type: ["number", "null"] },
-    betreff: { type: ["string", "null"] },
-    inhalt_zusammenfassung: { type: ["string", "null"] },
-    bemerkungen: { type: ["string", "null"] },
-    dringlichkeit: { type: ["string", "null"] },
-  },
-  required: [
-    "kategorie",
-    "extraktions_qualitaet",
-    "extraktions_hinweise",
-    "dokument_datum",
-    "dokument_nummer",
-    "dokument_richtung",
-    "empfang_unterschrift",
-    "unterschrift",
-    "aussteller",
-    "empfaenger",
-    "positionen",
-    "summe_netto",
-    "mwst_betrag",
-    "summe_brutto",
-    "offener_betrag",
-    "zahlungsziel_tage",
-    "faellig_am",
-    "skonto_prozent",
-    "skonto_tage",
-    "bank",
-    "liefertermin_datum",
-    "lieferzeit_wochen",
-    "bezug",
-    "mahnung_stufe",
-    "mahngebuehren",
-    "verzugszinsen_betrag",
-    "gesamtforderung",
-    "betreff",
-    "inhalt_zusammenfassung",
-    "bemerkungen",
-    "dringlichkeit",
-  ],
-  additionalProperties: false,
-};

@@ -4,11 +4,14 @@ const bodyParser = require('body-parser');
 require('dotenv').config();
 
 const { getPool, closePool } = require('./config/database');
+const { closeW4APool } = require('./config/w4a-database');
 
 // Import Routes
 const customersRouter = require('./routes/customers');
 const repairsRouter = require('./routes/repairs');
 const syncRouter = require('./routes/sync');
+const w4aProxyRouter = require('./routes/w4a-proxy');
+const budgetRouter = require('./routes/budget');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -38,6 +41,8 @@ app.get('/api/health', (req, res) => {
 app.use('/api/customers', customersRouter);
 app.use('/api/repairs', repairsRouter);
 app.use('/api/sync', syncRouter);
+app.use('/api/w4a', w4aProxyRouter);
+app.use('/api/budget', budgetRouter);
 
 // 404 Handler
 app.use((req, res) => {
@@ -73,6 +78,8 @@ const startServer = async () => {
             console.log(`  Server laeuft auf: http://localhost:${PORT}`);
             console.log(`  Health Check: http://localhost:${PORT}/api/health`);
             console.log(`  Sync API: http://localhost:${PORT}/api/sync`);
+            console.log(`  W4A Proxy: http://localhost:${PORT}/api/w4a/health`);
+            console.log(`  Budget API: http://localhost:${PORT}/api/budget/config`);
             console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
             console.log('');
         });
@@ -84,14 +91,16 @@ const startServer = async () => {
 
 // Graceful Shutdown
 process.on('SIGINT', async () => {
-    console.log('\n\n🛑 Server wird heruntergefahren...');
+    console.log('\n\nServer wird heruntergefahren...');
     await closePool();
+    await closeW4APool();
     process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
-    console.log('\n\n🛑 Server wird heruntergefahren...');
+    console.log('\n\nServer wird heruntergefahren...');
     await closePool();
+    await closeW4APool();
     process.exit(0);
 });
 
