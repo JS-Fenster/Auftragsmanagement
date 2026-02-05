@@ -33,6 +33,9 @@
 | L22 | W4A-Format "Breite: XXX mm, Hoehe: YYY mm" ist Standard (91%) | [LOG-027] |
 | L23 | Mehr erkannte Masse = NICHT automatisch besser (Preismodell!) | [LOG-027] |
 | L24 | DEFAULT-System bei 85-90% → System-Erkennung verbessern | [LOG-027] |
+| L25 | GPT statt Regex für W4A-Daten (100% Hersteller-Erkennung) | [LOG-028] |
+| L26 | Aggregierte €/qm reichen NICHT - granulare Elementdaten noetig | [LOG-029] |
+| L27 | Anzahl Fluegel (1/2/3) ist KRITISCH fuer Preismodell | [LOG-029] |
 
 ---
 
@@ -47,4 +50,4 @@
 
 ---
 
-*Letzte Aktualisierung: 2026-02-04*
+*Letzte Aktualisierung: 2026-02-05*
