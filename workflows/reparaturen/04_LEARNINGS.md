@@ -45,7 +45,8 @@
 | L20 | ERP-Daten NICHT kopieren sondern per View-Schicht verknuepfen (read-only + FK) | [LOG-038] |
 | L21 | Edge Functions mit verify_jwt:true blockieren anon-Key. Dashboard braucht verify_jwt:false | [LOG-038] |
 | L22 | Supabase Storage Signed URLs statt Edge Function fuer Dokument-Vorschau nutzen | [LOG-038] |
+| L23 | API-Keys in app_config Tabelle MUESSEN synchron mit Edge Function Secrets sein. Bei Key-Rotation BEIDE Stellen aktualisieren! | [LOG-039] |
 
 ---
 
-*Letzte Aktualisierung: 2026-02-02*
+*Letzte Aktualisierung: 2026-02-05*

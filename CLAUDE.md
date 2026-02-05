@@ -91,6 +91,15 @@ Siehe `docs/Auftragsmanagement_Projektplan.md` fuer Details.
 
 ---
 
+## GitHub
+
+| Info | Wert |
+|------|------|
+| **Repo** | `https://github.com/JS-Fenster/Auftragsmanagement.git` |
+| **PAT** | Gespeichert in Claude Auto-Memory (nicht im Repo) |
+
+---
+
 ## Supabase
 
 | Info | Wert |

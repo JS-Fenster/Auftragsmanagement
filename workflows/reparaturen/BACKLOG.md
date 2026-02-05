@@ -102,21 +102,6 @@ Keine Outlook-Integration. Termine werden NUR im neuen System gefuehrt.
 
 ---
 
-### B-005: E-Mail Pipeline reparieren (renew-subscriptions 401)
-
-**Prioritaet:** HOCH
-**Quelle:** Dashboard-Session 2026-02-02
-
-**Beschreibung:**
-E-Mail Pipeline ist seit 29.01.2026 down. renew-subscriptions Edge Function (v1.2) gibt 401 zurueck weil validateApiKey() den API-Key vom Cron-Caller nicht akzeptiert. Alle 4 Microsoft Graph Subscriptions sind expired.
-
-**Was fehlt:**
-- RENEW_SUBSCRIPTIONS_API_KEY oder INTERNAL_API_KEY korrekt als Supabase Secret setzen
-- Pruefen welchen Key der Cron-Job sendet
-- Nach Fix: Subscriptions manuell erneuern (expired)
-
----
-
 ### B-006: Altes Frontend aufraeumen
 
 **Prioritaet:** NIEDRIG
@@ -129,9 +114,14 @@ E-Mail Pipeline ist seit 29.01.2026 down. renew-subscriptions Edge Function (v1.
 
 ## Archiv (abgeschlossen oder verworfen)
 
+### B-005: E-Mail Pipeline reparieren → ERLEDIGT (2026-02-04)
+Root Cause: app_config INTERNAL_API_KEY hatte alten Key mit Sonderzeichen, Edge Function Secret hatte neuen Key.
+Fix: `UPDATE app_config SET value = '<neuer_key>' WHERE key = 'INTERNAL_API_KEY'`
+Verifiziert: HTTP 200 nach Fix. Dokumentiert in [LOG-039] + Budgetangebote [LOG-017].
+
 ### B-001: Automatisches Aging mit Eskalation → ERLEDIGT (Step 2)
 reparatur-aging v2.0.0 deployed, laeuft als Cron.
 
 ---
 
-*Letzte Aktualisierung: 2026-02-02*
+*Letzte Aktualisierung: 2026-02-05*

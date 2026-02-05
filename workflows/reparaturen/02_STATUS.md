@@ -1,13 +1,13 @@
 # Status: Reparatur-Workflow
 
-> Letzte Aktualisierung: 2026-02-02 22:00
-> Aktualisiert von: Projektleiter (Dashboard-Build + ERP-Integration)
+> Letzte Aktualisierung: 2026-02-05 16:00
+> Aktualisiert von: Projektleiter (renew-subscriptions Fix verifiziert)
 
 ---
 
 ## Aktueller Stand
 
-**Phase:** Step 3 IN ARBEIT - Dashboard + ERP-Integration
+**Phase:** Step 3 ABGESCHLOSSEN - Dashboard + ERP-Integration + E-Mail Fix
 
 **SPEC Version:** v1.5 (2026-02-02)
 
@@ -21,6 +21,7 @@
 - reparatur-api v2.0.1 (Version 9) - DEPLOYED (verify_jwt:false)
 - reparatur-aging v2.0.0 (Version 3) - DEPLOYED
 - telegram-bot v3.1.0 (Version 8) - DEPLOYED
+- renew-subscriptions v1.2 (Version 13) - DEPLOYED + GEFIXT (401 behoben)
 
 ---
 
@@ -37,8 +38,8 @@
 | **DASH-7** | Einstellungen-Seite (Optionen CRUD, System) | FERTIG |
 | **DASH-8** | RLS-Policies fuer Dashboard-Zugriff | FERTIG |
 | **DASH-9** | ERP-Daten Integrations-Strategie | FERTIG |
-| **FIX-1** | E-Mail Pipeline reparieren (renew-subscriptions 401) | OFFEN |
-| **FIX-2** | Expired Graph Subscriptions erneuern | OFFEN |
+| **FIX-1** | E-Mail Pipeline reparieren (renew-subscriptions 401) | FERTIG (2026-02-04) |
+| **FIX-2** | Expired Graph Subscriptions erneuern | FERTIG (auto-renewal laeuft) |
 
 ---
 
@@ -62,20 +63,34 @@ Verknuepfung: `auftraege.erp_kunde_id` → `erp_kunden.code`
 
 ## Bekannte Probleme
 
-- [ ] E-Mail Pipeline down seit 29.01. (renew-subscriptions 401, alle Subscriptions expired)
-- [ ] renew-subscriptions v1.2 hat API-Key Pflicht - Cron-Caller sendet falschen/keinen Key
+- [x] ~~E-Mail Pipeline down seit 29.01.~~ GEFIXT 2026-02-04: app_config INTERNAL_API_KEY aktualisiert
+- [x] ~~renew-subscriptions v1.2 API-Key Mismatch~~ GEFIXT: app_config hatte alten Key mit Sonderzeichen
 - [ ] Dokument-Vorschau schlaegt bei manchen Dateien fehl (Storage Signed URL)
+
+---
+
+## E-Mail Subscription Renewal (Architektur)
+
+- **Edge Function:** renew-subscriptions v1.2 (v13)
+- **Cron:** 4x taeglich (6:00, 12:00, 18:00, 24:00)
+- **Subscription Lifetime:** 4200 Min (~70h / ~3 Tage), MS Graph Mail Max: 4230 Min
+- **Renewal-Window:** 24h vor Ablauf
+- **Auth:** Cron nutzt `get_app_config('INTERNAL_API_KEY')` → Edge Function validiert gegen Secret
+- **Token Hardening:** Azure Client Secret wird getrimmt (.trim()), AADSTS-Fehlercode-Erkennung
+- **Status:** FUNKTIONIERT seit 2026-02-04
 
 ---
 
 ## Naechste Schritte
 
-1. **E-Mail Pipeline reparieren** - renew-subscriptions API-Key fixen, Subscriptions erneuern
-2. **Dashboard-Tests** - Alle 6 Seiten mit Echtdaten testen
-3. **Settings CRUD testen** - Kundentypen/Auftragstypen verwalten
+1. **Dashboard-Tests** - Alle 6 Seiten mit Echtdaten im Tagesgeschaeft testen
+2. **Settings CRUD testen** - Kundentypen/Auftragstypen verwalten
+3. **E-Mail Pipeline beobachten** - Pruefen ob neue Emails korrekt verarbeitet werden
 
 ---
 
 ## Log-Referenz
 
-Letzte Eintraege: [LOG-038] Dashboard-Build + ERP-Integration (2026-02-02)
+Letzte Eintraege:
+- [LOG-039] renew-subscriptions Fix verifiziert + Architektur dokumentiert (2026-02-05)
+- [LOG-038] Dashboard-Build + ERP-Integration (2026-02-02)

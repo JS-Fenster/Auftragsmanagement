@@ -38,6 +38,7 @@
 | [LOG-027] | 2026-01-29 | Programmierer | P011-PROG: Termin-Setzen Feature im Detail-Modal | 1565-1640 |
 | [LOG-028] | 2026-01-30 | Projektleiter | Chrome MCP Bug dokumentiert - Browser-Tests blockiert | 1620-1665 |
 | [LOG-029] | 2026-01-30 | Projektleiter | SPEC v1.4 - Neue Edge Functions + Tabellen dokumentiert | 1670-1720 |
+| [LOG-039] | 2026-02-05 | Projektleiter | renew-subscriptions 401-Fix verifiziert + Architektur | 2251-2320 |
 | [LOG-030] | 2026-01-30 | Programmierer | P013-PROG: Bestandskunden-Feature (API + Frontend) | 1715-1765 |
 | [LOG-031] | 2026-01-30 | Projektleiter | P013 Review + Planung P014 (Outcome SV1 + Termin SV2) | 1770-1820 |
 | [LOG-032] | 2026-01-30 | Programmierer | P014-PROG: Outcome SV1 + Termin SV2 Feature | 1805-1870 |
@@ -2244,6 +2245,56 @@ ERP-Uebergangs-Strategie: View-Schicht statt Datenmigration.
 - E-Mail Pipeline reparieren (renew-subscriptions 401, expired Subscriptions)
 - Dokument-Vorschau bei manchen Dateien optimieren
 - Settings-Seite: Kundentypen/Auftragstypen CRUD testen
+
+---
+
+## [LOG-039] Projektleiter: renew-subscriptions 401-Fix verifiziert + Architektur dokumentiert
+**Datum:** 2026-02-05 16:00
+
+### Kontext
+Andreas meldete, dass der renew-subscriptions 401-Fehler behoben wurde.
+Aufgabe: Fix in Codebasis finden, Architektur dokumentieren, Wissensdatenbank aktualisieren.
+
+### Durchgefuehrt
+
+**1. Fix identifiziert (Commit 145c4f2, 2026-02-04):**
+- **Root Cause:** Cron-Job nutzt `get_app_config('INTERNAL_API_KEY')` aus app_config Tabelle.
+  Edge Function validiert gegen INTERNAL_API_KEY Supabase Secret.
+  app_config hatte den ALTEN Key (mit Sonderzeichen), Secret hatte den NEUEN Key (ohne Sonderzeichen).
+- **Fix:** `UPDATE app_config SET value = '<neuer_key>' WHERE key = 'INTERNAL_API_KEY'`
+- **Verifiziert:** Test via `net.http_post()` → HTTP 200 (vorher 401)
+- **Bereits dokumentiert** in Budgetangebote-Workflow [LOG-017]
+
+**2. Graph API Subscription Renewal Architektur analysiert:**
+- Edge Function: renew-subscriptions v1.2 (392 Zeilen, index.ts)
+- Cron: 4x taeglich via Supabase (6:00, 12:00, 18:00, 24:00)
+- Subscription Lifetime: 4200 Minuten (~70h / ~3 Tage)
+- MS Graph Mail Max: 4230 Minuten (korrekt konfiguriert, 30 Min Puffer)
+- Renewal-Window: Subscriptions die innerhalb 24h ablaufen werden erneuert
+- Auth-Chain: Cron → app_config(INTERNAL_API_KEY) → Edge Function → x-api-key Header Validierung
+- Token Hardening: Azure Client Secret .trim(), AADSTS-Fehlercode-Erkennung (7000215, 700016, 50126)
+- Token Caching: Wiederverwendung bis 60s vor Ablauf
+
+**3. Hinweis zu "30 Tage":**
+MS Graph Mail-Subscriptions haben NICHT 30 Tage Laufzeit sondern max 4230 Min (~3 Tage).
+30-Tage-Laufzeiten gelten nur fuer andere Ressourcentypen (z.B. Drive).
+Die aktuelle Konfiguration (4200 Min + 4x taeglicher Cron) ist korrekt.
+
+**4. Wissensdatenbank aktualisiert:**
+- 02_STATUS.md: FIX-1 + FIX-2 als FERTIG markiert, Bekannte Probleme aktualisiert, Architektur-Sektion
+- 03_LOG.md: Dieser Eintrag [LOG-039] + Index aktualisiert
+- 04_LEARNINGS.md: L23 (API-Key Sync) hinzugefuegt
+- BACKLOG.md: B-005 archiviert
+
+### Ergebnis
+- renew-subscriptions Fix verifiziert und cross-referenziert mit Budgetangebote LOG-017
+- Subscription Renewal Architektur vollstaendig dokumentiert
+- E-Mail Pipeline sollte wieder funktionieren (Subscriptions werden automatisch erneuert)
+- Cron-Mechanismus ist korrekt konfiguriert (4x taeglich, 70h Lifetime, 24h Renewal-Window)
+
+### Naechster Schritt
+- E-Mail Pipeline im Tagesgeschaeft beobachten
+- Dashboard-Tests mit Echtdaten durchfuehren
 
 ---
 
