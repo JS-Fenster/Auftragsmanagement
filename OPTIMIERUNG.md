@@ -322,3 +322,221 @@ erp-system-vite/
 ---
 
 *Dokument erstellt von Claude Code am 2026-02-06*
+
+---
+
+## 6. Struktur-Analyse (2026-02-06)
+
+> **Analysiert:** Komplette Codebase inkl. alle Unterordner, .env Dateien, Workflows
+
+### 6.1 Kritische Duplikate
+
+#### 6.1.1 categories.ts - Version Mismatch 🔴
+
+| Ort | Version | Kategorien | Problem |
+|-----|---------|------------|---------|
+| `supabase/functions/_shared/categories.ts` | v2.4.0 | 43 | ✅ AKTUELL (Autoritativ) |
+| `supabase/functions/process-document/categories.ts` | v2.3.0 | 42 | ❌ VERALTET - fehlt Kassenbeleg! |
+| `dashboard/src/lib/constants.js` | unbekannt | 41 | ❌ FALSCH - ganz andere Liste! |
+
+**Auswirkung:** process-document kann Kassenbelege nicht korrekt kategorisieren.
+
+**TODO:**
+- [ ] `process-document/categories.ts` loeschen
+- [ ] Import in `process-document/index.ts` auf `../_shared/categories.ts` aendern
+- [ ] `dashboard/src/lib/constants.js` DOKUMENT_KATEGORIEN entfernen, stattdessen von API laden
+
+#### 6.1.2 Zwei Frontend-Apps 🟡
+
+| App | Pfad | React | Vite | Port | Seiten |
+|-----|------|-------|------|------|--------|
+| Dashboard (NEU) | `dashboard/` | 19 | 7 | 3000 | 6 |
+| Frontend (ALT) | `frontend/` | 18 | 5 | 3000 | 12 |
+
+**Problem:**
+- Beide auf Port 3000 → koennen nicht gleichzeitig laufen
+- Duplizierte Seiten: Auftraege.jsx, Kunden.jsx
+- Frontend hat Reparaturen.jsx (94 KB Monster-Datei!)
+
+**TODO:**
+- [ ] Entscheiden: Dashboard ODER Frontend als Primary
+- [ ] Port-Konflikt loesen (z.B. Frontend auf 3002)
+- [ ] Reparaturen.jsx aufteilen (>90KB ist zu gross)
+
+#### 6.1.3 Status-Systeme inkompatibel 🟡
+
+| System | Ort | Zustaende |
+|--------|-----|-----------|
+| WORKFLOW_STATUS | `frontend/src/lib/supabase.js` | 12 (angebot, auftrag, etc.) |
+| AUFTRAG_STATUS | `dashboard/src/lib/constants.js` | 8 (OFFEN, IN_BEARBEITUNG, etc.) |
+
+**TODO:**
+- [ ] Status-Systeme vereinheitlichen
+- [ ] In `_shared/constants.ts` zentralisieren
+
+#### 6.1.4 Workflow CLAUDE.md Duplikat 🟡
+
+Die Dateien `workflows/budgetangebote/CLAUDE.md` und `workflows/reparaturen/CLAUDE.md` sind zu **95% identisch** (442 vs 454 Zeilen).
+
+Identische Abschnitte:
+- Drei-Agenten-System
+- Datei-Regeln (01_SPEC bis 05_PROMPTS)
+- Preflight/Postflight-Checks
+- Templates (Log-Eintrag, Checkpoint, Abschlussbericht)
+- Notfall-Protokolle
+- Subagenten-Orchestrierung
+- Autonomer Nachtmodus
+
+Nur Abschnitt 9 (Projekt-Kontext) unterscheidet sich.
+
+**TODO:**
+- [ ] Gemeinsame Basis in `workflows/_TEMPLATE/WORKFLOW_CLAUDE_BASE.md` erstellen
+- [ ] Workflow-spezifische CLAUDE.md auf ~50 Zeilen reduzieren (nur Kontext)
+
+---
+
+### 6.2 Konfigurationsprobleme
+
+#### 6.2.1 .env Duplikate
+
+| Variable | Orte | Problem |
+|----------|------|---------|
+| SUPABASE_URL | backend/.env, frontend/.env, dashboard/.env, sync/.env | 4x gleicher Wert |
+| SUPABASE_KEY | backend/.env, sync/.env | 2x Service Key |
+| VITE_SUPABASE_ANON_KEY | frontend/.env, dashboard/.env | Enthaelt SERVICE_KEY statt ANON_KEY! |
+
+**TODO:**
+- [ ] Zentrale .env im Root erstellen
+- [ ] Sub-Projekte nutzen `dotenv` mit path zu Root
+- [ ] VITE_SUPABASE_ANON_KEY korrigieren (echter Anon Key, nicht Service Key)
+
+#### 6.2.2 Package-Versionen divergieren
+
+| Package | backend | frontend | dashboard | review-tool |
+|---------|---------|----------|-----------|-------------|
+| @supabase/supabase-js | ^2.87.1 | ^2.39.0 | ^2.93.3 | - |
+| react | - | ^18.2.0 | ^19.2.0 | ^19.0.0 |
+| vite | - | ^5.0.0 | ^7.2.4 | ^6.0.7 |
+| date-fns | - | ^2.30.0 | ^4.1.0 | ^4.1.0 |
+| tailwindcss | - | ^3.3.6 | ^4.1.18 | ^3.4.17 |
+
+**TODO:**
+- [ ] npm/pnpm Workspace einrichten
+- [ ] Gemeinsame Versionen in Root package.json
+- [ ] Supabase auf einheitliche Version (^2.93.3)
+
+---
+
+### 6.3 Fehlende zentrale Ressourcen
+
+#### 6.3.1 code_standards.md fehlt
+
+Referenziert in:
+- `BOOTSTRAP/CLAUDE.md` (Zeile 39)
+- `KI_Automation/CLAUDE.md`
+- `Auftragsmanagement/CLAUDE.md`
+
+**Erwarteter Pfad:** `BOOTSTRAP/KB/STANDARDS/code_standards.md`
+
+**Status:** EXISTIERT NICHT!
+
+**TODO:**
+- [ ] `code_standards.md` erstellen mit: Umlaute-Regeln, Naming Conventions, Dateistruktur
+
+#### 6.3.2 Hardcoded Pfade zu deprecated Projekt
+
+In `backend/scripts/test-gpt52-none.js` (Zeile 11):
+```javascript
+require('dotenv').config({ path: 'c:/Claude_Workspace/WORK/repos/erp-system-vite/.env' });
+```
+
+**TODO:**
+- [ ] Alle Scripts nach erp-system-vite Referenzen durchsuchen
+- [ ] Pfade auf Auftragsmanagement umstellen
+
+---
+
+### 6.4 Architektur-Empfehlungen
+
+#### Zentralisierungs-Strategie
+
+```
+EMPFOHLEN:
+
+1. _shared/ als Single Source of Truth fuer:
+   ├── categories.ts (Dokument- und Email-Kategorien)
+   ├── constants.ts (Status, Prioritaeten, Zeitfenster)
+   └── types.ts (Gemeinsame Interfaces)
+
+2. Dashboard als Primary Frontend:
+   └── Frontend nur fuer Legacy-Features (Reparaturen.jsx)
+
+3. Workflow-Templates zentralisieren:
+   └── workflows/_TEMPLATE/WORKFLOW_CLAUDE_BASE.md
+```
+
+---
+
+## 7. TODO-Liste fuer naechste Session
+
+### Prioritaet 1 (Sofort - Bug-Fixes)
+
+| # | Aufgabe | Aufwand |
+|---|---------|---------|
+| T1.1 | categories.ts in process-document auf _shared Import umstellen | 15 Min |
+| T1.2 | Dashboard DOKUMENT_KATEGORIEN aus API laden statt hardcoded | 30 Min |
+| T1.3 | code_standards.md in BOOTSTRAP erstellen | 45 Min |
+
+### Prioritaet 2 (Diese Woche)
+
+| # | Aufgabe | Aufwand |
+|---|---------|---------|
+| T2.1 | Port-Konflikt loesen (Frontend auf 3002) | 10 Min |
+| T2.2 | Workflow CLAUDE.md Template erstellen | 1 Std |
+| T2.3 | Status-Systeme vereinheitlichen | 2 Std |
+| T2.4 | .env Zentralisierung planen | 1 Std |
+
+### Prioritaet 3 (Naechste Wochen)
+
+| # | Aufgabe | Aufwand |
+|---|---------|---------|
+| T3.1 | Package-Versionen angleichen (Workspace) | 2 Std |
+| T3.2 | Reparaturen.jsx refactoren (<50KB pro Datei) | 4 Std |
+| T3.3 | Frontend vs Dashboard Entscheidung + Migration | 8 Std |
+| T3.4 | TypeScript Migration evaluieren | 2 Std |
+
+---
+
+## 8. Datei-Inventar (fuer Referenz)
+
+### Dokumentation
+| Datei | Zeilen | Zweck |
+|-------|--------|-------|
+| `CLAUDE.md` | 110 | Projekt-Anweisungen |
+| `PLAN.md` | 176 | Sprint-Plan |
+| `SETUP_ANLEITUNG.md` | 90 | Quick-Start |
+| `OPTIMIERUNG.md` | 400+ | Diese Datei |
+| `docs/Auftragsmanagement_Projektplan.md` | 416 | Urspruenglicher Plan |
+| `docs/NETLIFY_MIGRATION.md` | 197 | Deployment Guide |
+
+### Workflows
+| Workflow | Dateien | Status |
+|----------|---------|--------|
+| `workflows/budgetangebote/` | 7 | V2 deployed |
+| `workflows/reparaturen/` | 11 | Step 3 fertig |
+
+### Edge Functions (10 aktiv)
+| Function | Version | Zweck |
+|----------|---------|-------|
+| process-document | v38 | OCR + Kategorisierung |
+| email-webhook | v24 | Microsoft Graph Webhook |
+| process-email | v28 | E-Mail verarbeiten |
+| admin-review | v20 | Review-UI |
+| reparatur-api | v9 (2.0.1) | Reparatur CRUD |
+| budget-ki | aktiv | Budget-Berechnung |
+| budget-dokument | aktiv | Budget-Dokumente |
+| + 3 weitere | - | Utility Functions |
+
+---
+
+*Aktualisiert: 2026-02-06 - Struktur-Analyse hinzugefuegt*
