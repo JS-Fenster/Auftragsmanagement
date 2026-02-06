@@ -36,6 +36,24 @@
 | L25 | GPT statt Regex für W4A-Daten (100% Hersteller-Erkennung) | [LOG-028] |
 | L26 | Aggregierte €/qm reichen NICHT - granulare Elementdaten noetig | [LOG-029] |
 | L27 | Anzahl Fluegel (1/2/3) ist KRITISCH fuer Preismodell | [LOG-029] |
+| L28 | Prefer Header: `===` schlaegt fehl bei kombinierten Werten, `.includes()` nutzen | [LOG-034] |
+| L29 | Custom Prefer ueberschreibt Default komplett - IMMER beide kombinieren | [LOG-034] |
+| L30 | PostgREST `resolution=merge-duplicates` gilt NUR fuer PK, `?on_conflict=` fuer andere | [LOG-037] |
+| L31 | Edge Function Response ist verschachtelt: `data.data.positionen` nicht `data.positionen` | [LOG-035] |
+| L32 | Feldnamen zwischen Edge Function und Dashboard normalisieren (beide Seiten!) | [LOG-035] |
+| L33 | GPT-5.2 Reasoning: kein `temperature` Parameter, `reasoning_effort` stattdessen | [LOG-033] |
+| L34 | Edge Function Timeout mind. 55s fuer GPT-Reasoning | [LOG-033] |
+| L35 | Validation in Edge Functions FLEXIBEL machen - Frontend sendet nicht immer alle Felder | [LOG-036] |
+
+---
+
+## Architektur-Entscheidungen (V2)
+| # | Entscheidung | Begruendung | Log-Referenz |
+|---|-------------|-------------|--------------|
+| D1 | GPT-5.2 Function Calling statt Regex-Parsing | 100% Trefferquote vs ~60% bei Regex | [LOG-028], [LOG-033] |
+| D2 | Leistungsverzeichnis als Preisbasis statt feste Tabelle | Echte historische Preise > manuelle Pflege | [LOG-037] |
+| D3 | Edge Functions statt Backend-API fuer KI | Serverless, kein eigener Server noetig | [LOG-033] |
+| D4 | 4-Schritt-Wizard statt 1-Seite | Bessere UX, editierbare Positionen | [LOG-038] |
 
 ---
 

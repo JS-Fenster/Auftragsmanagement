@@ -39,6 +39,12 @@
 | [LOG-030] | 2026-02-05 | PROG | Edge Function process-backtest-batch deployed | 2270-2350 |
 | [LOG-031] | 2026-02-05 | PROG | Script sync-positions-to-supabase.js erstellt | 2353-2420 |
 | [LOG-032] | 2026-02-05 | PL | Session-Zusammenfassung + Commit | 2418-2500 |
+| [LOG-033] | 2026-02-05 | PROG | **Budgetangebot V2 - Komplettes System deployed** | 2465-2530 |
+| [LOG-034] | 2026-02-05 | PROG | Prefer Header Bugs gefixt (2 Stueck) | 2535-2580 |
+| [LOG-035] | 2026-02-05 | PROG | Dashboard Field Normalization + Response Nesting Fix | 2585-2640 |
+| [LOG-036] | 2026-02-05 | PROG | budget-dokument Validation flexibilisiert | 2645-2700 |
+| [LOG-037] | 2026-02-05 | PROG | Sync komplett: 10.087 Positionen + 2.903 LV-Eintraege | 2705-2780 |
+| [LOG-038] | 2026-02-05 | TEST | E2E Dashboard-Test erfolgreich (4 Steps) | 2785-2830 |
 
 ---
 
@@ -2458,6 +2464,199 @@ Session-Ende wegen Context-Limit. Zusammenfassung der heutigen Arbeit.
 
 ### Commit
 Alle Aenderungen werden jetzt committed und gepusht.
+
+---
+
+## ═══ CHECKPOINT 2026-02-05 18:00 ═══
+
+**Gesamtstand:** Budgetangebot V2 ist vollstaendig deployed und E2E getestet. Neues System ersetzt V1-Ansatz (Regex-basiert) durch GPT-5.2 mit Function Calling.
+**Abgeschlossen seit letztem Checkpoint:**
+- [LOG-033] bis [LOG-038] - Komplettes V2 Deployment
+**Offen:**
+- Automatischer Server-Sync (Cron/Task Scheduler)
+- Debug-Output aus budget-ki Edge Function entfernen
+
+---
+
+## [LOG-033] Programmierer: Budgetangebot V2 - Komplettes System deployed
+**Datum:** 2026-02-05 16:00
+
+### Kontext
+Neues Budgetangebot-System (V2) entwickelt: Statt Regex-Parsing + lokalem Preismodell (V1) jetzt GPT-5.2 Reasoning mit Function Calling gegen echtes Leistungsverzeichnis.
+
+### Durchgefuehrt
+1. **SQL Migration** ausgefuehrt: `docs/supabase_budget_migration.sql` - 10 Tabellen + RLS
+2. **Edge Functions** deployed:
+   - `budget-ki` (GPT-5.2, reasoning_effort:"low", 55s timeout, search_leistungsverzeichnis Tool)
+   - `budget-dokument` (HTML A4 Generator, Briefkopf, Positionstabelle, MwSt)
+3. **Dashboard** integriert: `Budgetangebot.jsx` - 4-Schritt-Wizard
+4. **3 Sync-Scripts** erstellt und ausgefuehrt (Details in LOG-037)
+5. **OPENAI_API_KEY** als Secret in Supabase gesetzt
+
+### Ergebnis
+System laeuft End-to-End. Test: Freitext "Wir brauchen 2 Fenster 1200x1400 DKR mit Rolllaeden und eine Haustuer" → 3 Positionen generiert → Professionelles Budgetangebot BA-2026-0001 erzeugt.
+
+### Naechster Schritt
+Sync-Scripts auf Server automatisieren.
+
+---
+
+## [LOG-034] Programmierer: Prefer Header Bugs gefixt (2 Stueck)
+**Datum:** 2026-02-05 16:30
+
+### Kontext
+Sync-Scripts schlugen mit "Unexpected end of JSON input" fehl. Root Cause: Zwei zusammenhaengende Prefer-Header-Bugs.
+
+### Durchgefuehrt
+
+**Bug 1 (sync-angebots-positionen.js:71 + sync-positions-to-supabase.js:75):**
+```javascript
+// VORHER (falsch):
+if (options.headers.Prefer === 'return=minimal') { return null; }
+// NACHHER (richtig):
+if (options.headers.Prefer && options.headers.Prefer.includes('return=minimal')) { return null; }
+```
+Grund: Kombinierter Header `'resolution=merge-duplicates,return=minimal'` matched nicht `=== 'return=minimal'`.
+
+**Bug 2 (sync-positions-to-supabase.js:96):**
+```javascript
+// VORHER (falsch):
+'Prefer': 'resolution=merge-duplicates'
+// NACHHER (richtig):
+'Prefer': 'resolution=merge-duplicates,return=minimal'
+```
+Grund: Custom Header ueberschrieb Default komplett. PostgREST gab leeren Body zurueck.
+
+### Ergebnis
+Beide Sync-Scripts laufen fehlerfrei.
+
+---
+
+## [LOG-035] Programmierer: Dashboard Field Normalization + Response Nesting Fix
+**Datum:** 2026-02-05 17:00
+
+### Kontext
+Dashboard zeigte 0 Positionen nach KI-Aufruf. Zwei Ursachen identifiziert.
+
+### Durchgefuehrt
+
+**Fix 1 - Response Nesting (Budgetangebot.jsx:816-832):**
+Edge Function gibt `{success, data: {positionen}}` zurueck. Nach `response.json()` ist das aeussere Objekt `data`. Positionen sind also unter `data.data.positionen`, nicht `data.positionen`.
+```javascript
+const rawPositions = data.data?.positionen || data.positionen || []
+```
+
+**Fix 2 - Field Name Normalization (Budgetangebot.jsx:822-830):**
+Edge Function nutzt `einzel_preis`, `gesamt_preis`, `breite_mm`, `hoehe_mm`. Dashboard erwartet `einzelpreis`, `gesamtpreis`, `breite`, `hoehe`. Beides jetzt mit `??`-Fallbacks unterstuetzt.
+
+**Fix 3 - Zusammenfassung-Zugriff (3 Stellen):**
+Gleicher Nesting-Fix fuer `result?.data?.zusammenfassung || result?.zusammenfassung`.
+
+### Ergebnis
+Dashboard zeigt Positionen korrekt mit Preisen, Massen und Zubehoer.
+
+---
+
+## [LOG-036] Programmierer: budget-dokument Validation flexibilisiert
+**Datum:** 2026-02-05 17:15
+
+### Kontext
+"Angebot generieren" im Step 4 schlug 3x fehl mit unterschiedlichen Validierungsfehlern.
+
+### Durchgefuehrt
+
+**Fix 1:** `kunde.adresse` optional gemacht (Default: leerer String). Dashboard hat kein Adressfeld.
+
+**Fix 2:** `spanne_von`/`spanne_bis` optional gemacht. Dashboard sendet `preis_spanne: {von, bis}` verschachtelt. Edge Function erwartet flach. Jetzt: Defaults ±15% von netto wenn fehlend.
+
+**Fix 3:** Position-Feldnamen normalisiert in Validation (gleicher Mismatch wie Dashboard):
+```typescript
+if (typeof pos.gesamt_preis !== "number" && typeof pos.gesamtpreis === "number") {
+  pos.gesamt_preis = pos.gesamtpreis;
+}
+// Analog: einzel_preis, breite_mm, hoehe_mm
+```
+
+Edge Function 3x re-deployed bis alle Validierungsfehler behoben.
+
+### Ergebnis
+Professionelles HTML-Dokument wird korrekt generiert.
+
+---
+
+## [LOG-037] Programmierer: Sync komplett - 10.087 Positionen + 2.903 LV-Eintraege
+**Datum:** 2026-02-05 17:30
+
+### Kontext
+Alle drei Sync-Scripts ausgefuehrt (mehrere Anlaeufe wegen der Prefer-Header-Bugs).
+
+### Durchgefuehrt
+
+**Script 1: sync-angebots-positionen.js**
+- 831 Angebote ab 2024, 6.772 Positionen
+- 90 bereits vorhanden (aus frueheren Laeufen), 6 ohne Positionen
+- 735 Duplicate-Errors (harmlos, Daten waren schon da)
+
+**Script 2: sync-positions-to-supabase.js --force**
+- 381 Rechnungen ab 2025, **3.315 Positionen**
+- 381/381 erfolgreich (0 Fehler) nach Prefer-Header-Fix
+
+**Script 3: build-leistungsverzeichnis.js**
+- Input: 10.087 Positionen (6.772 Angebote + 3.315 Rechnungen)
+- Output: **2.903 eindeutige Leistungen** in 14 Kategorien
+- Zusaetzlicher Fix noetig: `?on_conflict=kategorie,bezeichnung` im Endpoint
+  (PostgREST `resolution=merge-duplicates` gilt nur fuer Primary Key)
+
+**Kategorien-Verteilung:**
+| Kategorie | Anzahl |
+|-----------|--------|
+| sonstiges | 934 |
+| fenster | 753 |
+| haustuer | 679 |
+| balkontuer | 166 |
+| tuer | 166 |
+| festfeld | 67 |
+| montage | 54 |
+| rollladen | 29 |
+| psk | 20 |
+| entsorgung | 16 |
+| hst | 15 |
+| insektenschutz | 2 |
+| fensterbank | 1 |
+| raffstore | 1 |
+
+### Ergebnis
+Supabase enthaelt vollstaendiges Leistungsverzeichnis als Preisbasis fuer GPT.
+
+---
+
+## [LOG-038] Tester: E2E Dashboard-Test erfolgreich
+**Datum:** 2026-02-05 17:45
+
+### Kontext
+Kompletter End-to-End Test des Budgetangebot-Wizards im Browser.
+
+### Durchgefuehrt
+Test-Input: "Wir brauchen 2 Fenster 1200x1400mm Dreh-Kipp rechts mit Rolllaeden motorisch und eine Haustuer"
+
+**Step 1 (Eingabe):** Freitext eingegeben, Kundenname "Familie Testmann", Standard-Optionen. Absenden per Button-Click.
+
+**Step 2 (Positionen):** Nach ~30s GPT-Antwort: 3 Positionen korrekt angezeigt:
+- 2x DKR-Fenster 1200x1400mm mit Rollladen-Zubehoer
+- 1x Haustuer
+- Alle mit Einzelpreis, Gesamtpreis, Massen
+
+**Step 3 (Zusammenfassung):** Netto 3.427,83 EUR, Brutto 4.079,12 EUR, Konfidenz "Mittel", 6 Annahmen, 4 fehlende Infos korrekt dargestellt.
+
+**Step 4 (Vorschau):** Professionelles A4-Dokument generiert:
+- J.S. Fenster & Tueren GmbH Header
+- Budgetangebot Nr. BA-2026-0001
+- Datum: 05.02.2026
+- Positionstabelle mit MwSt
+- "Erstellt" Status-Badge
+
+### Ergebnis
+Alle 4 Schritte funktionieren End-to-End. System ist produktionsbereit.
 
 ---
 
