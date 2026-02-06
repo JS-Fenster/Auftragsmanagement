@@ -1,14 +1,16 @@
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom'
-import { LayoutDashboard, ClipboardList, FileText, Users, Mail, Settings } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, FileText, Users, Mail, Settings, Calculator } from 'lucide-react'
 import Uebersicht from './pages/Uebersicht'
 import Auftraege from './pages/Auftraege'
 import Dokumente from './pages/Dokumente'
 import Kunden from './pages/Kunden'
 import Emails from './pages/Emails'
 import Einstellungen from './pages/Einstellungen'
+import Budgetangebot from './pages/Budgetangebot'
 
 const NAV_ITEMS = [
   { to: '/uebersicht', label: 'Übersicht', icon: LayoutDashboard },
+  { to: '/budgetangebot', label: 'Budgetangebot', icon: Calculator },
   { to: '/auftraege', label: 'Aufträge', icon: ClipboardList },
   { to: '/dokumente', label: 'Dokumente', icon: FileText },
   { to: '/kunden', label: 'Kunden', icon: Users },
@@ -52,6 +54,7 @@ export default function App() {
       <main className="flex-1 overflow-auto">
         <Routes>
           <Route path="/uebersicht" element={<Uebersicht />} />
+          <Route path="/budgetangebot" element={<Budgetangebot />} />
           <Route path="/auftraege" element={<Auftraege />} />
           <Route path="/dokumente" element={<Dokumente />} />
           <Route path="/kunden" element={<Kunden />} />
