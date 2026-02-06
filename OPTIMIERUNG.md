@@ -696,3 +696,77 @@ workflows/
 ---
 
 *Aktualisiert: 2026-02-06 - Workflow-Logs Konsolidierung hinzugefuegt*
+
+---
+
+## 11. Geplante Feature-Ergaenzungen
+
+> **Hinweis:** Ideen fuer kuenftige Erweiterungen, die noch nicht priorisiert wurden.
+
+### 11.1 Budgetangebot Frontend-Abgleich ⚠️
+
+| Attribut | Wert |
+|----------|------|
+| **Status** | Abklaerung erforderlich |
+| **Prioritaet** | Mittel |
+| **Beobachtet** | 2026-02-06 |
+
+**Problem:**
+Das Frontend unter `/budget/:id` zeigt noch die erste Variante des Budgetangebots (Andreas' Version), obwohl Marco V2 mit Edge Functions (`budget-ki`, `budget-dokument`) deployed hat.
+
+**Moegliche Ursachen:**
+1. Marcos Frontend-Code noch nicht committed/gepusht
+2. Neues Dashboard-Build noch nicht deployed
+3. Frontend vs. Dashboard - falsches Frontend aktiv?
+
+**Screenshot:** Budget-Case zeigt Bestandteile wie erwartet (Kunde/Lead, Profil-Einstellungen, Elemente, Ergebnis), aber unklar ob V2-Logik genutzt wird.
+
+**TODO:**
+- [ ] Mit Marco klaeren: Welches Frontend ist V2? (`frontend/` oder `dashboard/`?)
+- [ ] Git-Log pruefen ob Frontend-Aenderungen committed wurden
+- [ ] Testen: Ruft das Frontend `budget-ki` Edge Function auf oder lokale Berechnung?
+
+---
+
+### 11.2 Teilrechnung: Eingabe-Optionen 📋
+
+| Attribut | Wert |
+|----------|------|
+| **Prioritaet** | Niedrig (spaeter) |
+| **Bereich** | Rechnungserstellung |
+| **Notiert** | 2026-02-06 |
+
+**Feature-Idee:**
+Bei Erstellung einer Teilrechnung soll der Benutzer gefragt werden:
+
+1. **Berechnungsart:**
+   - Prozent vom Gesamtbetrag (z.B. 30%)
+   - Fixer Betrag (z.B. 5.000 EUR)
+
+2. **Bezugsgroesse:**
+   - Netto-Wert
+   - Brutto-Wert
+
+**Beispiel-Flow:**
+```
+Teilrechnung erstellen
+├─► Wie soll der Betrag berechnet werden?
+│   [ ] Prozent vom Gesamtbetrag (empfohlen)
+│   [ ] Fixer Betrag
+│
+└─► Bezogen auf:
+    [ ] Netto
+    [ ] Brutto
+```
+
+**Kontext:**
+Aktuell (Work4All) gibt es keine standardisierte Eingabe - Sachbearbeiter rechnen manuell.
+
+**TODO:**
+- [ ] In Phase 2 (Erweiterte Dokumente) einplanen
+- [ ] UI-Mockup erstellen
+- [ ] In `erp_rechnungen` ggf. Felder `ist_teilrechnung`, `teilrechnung_prozent`, `teilrechnung_bezug` hinzufuegen
+
+---
+
+*Aktualisiert: 2026-02-06 - Feature-Ergaenzungen hinzugefuegt*
