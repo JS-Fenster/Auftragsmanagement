@@ -1,0 +1,96 @@
+[
+  {
+    "variant": "GPT-5.2 (none)",
+    "success": true,
+    "duration": 8.391,
+    "tokens": {
+      "prompt": 1264,
+      "completion": 499,
+      "reasoning": 0,
+      "total": 1763
+    },
+    "result": {
+      "kunde": {
+        "name": "Metschel Markus",
+        "baustelle": "E-Mail ed 27. NOV. 1975"
+      },
+      "profil": {
+        "hersteller": "DRUTEX",
+        "system": "IDEAL NEO/AD",
+        "farbe_innen": null,
+        "farbe_aussen": null
+      },
+      "elemente": [
+        {
+          "pos": 1,
+          "zimmer": "KG (Keller)",
+          "breite_mm": 935,
+          "hoehe_mm": 2035,
+          "typ": "tuer",
+          "din": "L",
+          "bemerkung": "Innenmaß 946x2045; inkl. V40 water NET; Drucker/Kanal"
+        },
+        {
+          "pos": 2,
+          "zimmer": "OG (Obergeschoss)",
+          "breite_mm": 1001,
+          "hoehe_mm": 2116,
+          "typ": "fenster",
+          "din": "LR",
+          "bemerkung": "im 652R 26 mm; Rollo: Rollopanzer neu (Pos. 2); Zusatz: Geschlossene Füllung; eine Montage mit DKK"
+        },
+        {
+          "pos": 5,
+          "zimmer": "OG (Obergeschoss)",
+          "breite_mm": 1035,
+          "hoehe_mm": 1895,
+          "typ": "fenster",
+          "din": "LR",
+          "bemerkung": "Innenmaß 1060x1935; Nutmaß: +35 FA30; inkl. V 180 water; Zusatz: FZ; Zusatz: 230"
+        }
+      ],
+      "zubehoer": {
+        "rollladen": true,
+        "rollladen_details": "Pos. 2 Rollopanzer neu",
+        "afb": false,
+        "ifb": false
+      },
+      "montage": {
+        "demontage": true,
+        "montage": true,
+        "entsorgung": true,
+        "verputzen": true
+      },
+      "meta": {
+        "datum": "18.11.2025",
+        "monteure": 2,
+        "tage": 1
+      },
+      "confidence": 0.74,
+      "korrekturen": [
+        "Dratex -> DRUTEX",
+        "Gosdlossen Füllung -> Geschlossene Füllung",
+        "Zimmer 'K6' -> KG (Keller)",
+        "Zimmer '106' -> OG (Obergeschoss)",
+        "Fax-Zeichenfehler '5'' ignoriert",
+        "Positionen 2 und 3 ohne Maße als Zusatzinfo zu Pos. 2 interpretiert",
+        "Positionen 6 und 7 ohne Maße als Zusatzinfo zu Pos. 5 interpretiert",
+        "Baustelle-Feld enthält offensichtlich keinen Baustellenort ('e-m@iled 27. NOV. 1975') und wurde als unklar übernommen"
+      ]
+    },
+    "evaluation": {
+      "score": 100,
+      "details": [
+        "✅ Kunde korrekt",
+        "✅ Hersteller korrigiert (Dratex → DRUTEX)",
+        "✅ System erkannt",
+        "✅ 3 Elemente erkannt",
+        "✅ Alle Maße korrekt",
+        "✅ Zimmer interpretiert (K6→KG oder 106→OG)",
+        "✅ Montage-Checkboxen korrekt",
+        "✅ 8 Korrekturen dokumentiert"
+      ],
+      "maxScore": 100
+    }
+  }
+]

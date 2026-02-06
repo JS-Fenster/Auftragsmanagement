@@ -1,0 +1,12 @@
+[
+  {
+    "variant": "GPT-5.2 (none)",
+    "success": false,
+    "error": "HTTP 400: {\n  \"error\": {\n    \"message\": \"Unknown parameter: 'reasoning'.\",\n    \"type\": \"invalid_request_error\",\n    \"param\": \"reasoning\",\n    \"code\": \"unknown_parameter\"\n  }\n}",
+    "duration": 1.018,
+    "evaluation": {
+      "score": 0,
+      "details": "Fehler: HTTP 400: {\n  \"error\": {\n    \"message\": \"Unknown parameter: 'reasoning'.\",\n    \"type\": \"invalid_request_error\",\n    \"param\": \"reasoning\",\n    \"code\": \"unknown_parameter\"\n  }\n}"
+    }
+  }
+]
