@@ -540,3 +540,131 @@ EMPFOHLEN:
 ---
 
 *Aktualisiert: 2026-02-06 - Struktur-Analyse hinzugefuegt*
+
+---
+
+## 9. Workflow-Logs Konsolidierung
+
+### 9.1 Aktuelle Situation
+
+| Datei | Budgetangebote | Reparaturen | Problem |
+|-------|----------------|-------------|---------|
+| `03_LOG.md` | 2663 Zeilen, 38 Eintraege | 2301 Zeilen, 39 Eintraege | Kein Problem - workflow-spezifisch |
+| `04_LEARNINGS.md` | 72 Zeilen, 35 Learnings | 53 Zeilen, 23 Learnings | Ueberschneidungen bei System-Themen |
+| `CLAUDE.md` | 442 Zeilen | 454 Zeilen | 95% identisch! |
+
+### 9.2 Ueberschneidende Learnings (sollten zentralisiert werden)
+
+Diese Erkenntnisse gelten fuer ALLE Workflows:
+
+| Thema | Budget | Reparatur | Zentral? |
+|-------|--------|-----------|----------|
+| Index-Pflege kritisch | L1 | L1 | ✅ Ja |
+| Preflight/Postflight-Checks | implizit | L2, L3 | ✅ Ja |
+| Background-Subagenten kein MCP | implizit | L6 | ✅ Ja |
+| Zeit nicht das knappe Gut, sequentiell OK | implizit | L7 | ✅ Ja |
+| 5 Nachtmodus-Mechanismen kumulativ | implizit | L10-L13, L15 | ✅ Ja |
+| MCP-Ausfaelle dokumentieren | - | L18 | ✅ Ja |
+| RLS ohne Policies = unsichtbare Daten | - | L19, L21 | ✅ Ja |
+| API-Keys in app_config synchron halten | L17 | L23 | ✅ Ja |
+
+### 9.3 Workflow-spezifische Learnings (bleiben lokal)
+
+**Budgetangebote (NICHT zentralisieren):**
+- L2-L3: W4A Daten nicht replizieren, Angebot→Auftrag
+- L5-L13: Textpositionen, Mass-Formate, Backtest-Ziele
+- L14-L27: Header-Keywords, EK→VK Aufschlag, Artikel-Tabellen
+- L28-L35: GPT-Extraktion, Prefer Headers, PostgREST Upsert
+- D1-D4: Architektur-Entscheidungen (GPT statt Regex, etc.)
+
+**Reparaturen (NICHT zentralisieren):**
+- L4-L5: Kommunikation ueber Markdown, 300-Zeilen-Checkpoints
+- L14-L17: Nachtmodus-Test, Stop-Hook, Luecken-Strategien
+- L20, L22: ERP-Daten View-Schicht, Storage Signed URLs
+
+### 9.4 Vorgeschlagene Struktur
+
+```
+workflows/
+├── _SHARED/                              ← NEU
+│   ├── WORKFLOW_CLAUDE_BASE.md           ← Gemeinsame 400 Zeilen
+│   ├── SYSTEM_LEARNINGS.md               ← Uebergreifende Erkenntnisse (~15 Eintraege)
+│   └── TEMPLATES/
+│       ├── LOG_ENTRY.md
+│       ├── CHECKPOINT.md
+│       └── ABSCHLUSSBERICHT.md
+├── budgetangebote/
+│   ├── CLAUDE.md                         ← Nur noch ~50 Zeilen (Projekt-Kontext)
+│   ├── 04_LEARNINGS.md                   ← Nur Budget-spezifische (~25 Eintraege)
+│   └── ...
+└── reparaturen/
+    ├── CLAUDE.md                         ← Nur noch ~50 Zeilen (Projekt-Kontext)
+    ├── 04_LEARNINGS.md                   ← Nur Reparatur-spezifische (~15 Eintraege)
+    └── ...
+```
+
+### 9.5 Vorteile der Konsolidierung
+
+| Vorteil | Beschreibung |
+|---------|--------------|
+| **Konsistenz** | Alle Workflows nutzen gleiche System-Regeln |
+| **Wartbarkeit** | Aenderungen an CLAUDE.md nur an 1 Stelle |
+| **Keine Doppelarbeit** | Learning einmal dokumentieren, ueberall nutzen |
+| **Bessere Uebersicht** | Weniger Zeilen pro Workflow-Ordner |
+| **Rollback-Sicherheit** | Logs bleiben workflow-spezifisch |
+
+### 9.6 Umsetzungs-TODOs
+
+| # | Aufgabe | Aufwand |
+|---|---------|---------|
+| T4.1 | `workflows/_SHARED/` Ordner erstellen | 5 Min |
+| T4.2 | `WORKFLOW_CLAUDE_BASE.md` extrahieren (Abschnitte 1-8, 10-11) | 30 Min |
+| T4.3 | `SYSTEM_LEARNINGS.md` mit uebergreifenden Erkenntnissen erstellen | 45 Min |
+| T4.4 | Budgetangebote CLAUDE.md auf Kontext reduzieren | 15 Min |
+| T4.5 | Reparaturen CLAUDE.md auf Kontext reduzieren | 15 Min |
+| T4.6 | Beide 04_LEARNINGS.md bereinigen (System-Learnings entfernen) | 30 Min |
+
+---
+
+## 10. Zusammenfassung aller TODOs
+
+### Prioritaet 1 - Bug-Fixes (Sofort)
+
+| # | Aufgabe | Quelle |
+|---|---------|--------|
+| T1.1 | categories.ts Import fixen | 6.1.1 |
+| T1.2 | Dashboard Kategorien aus API laden | 6.1.1 |
+| T1.3 | code_standards.md erstellen | 6.3.1 |
+
+### Prioritaet 2 - Diese Woche
+
+| # | Aufgabe | Quelle |
+|---|---------|--------|
+| T2.1 | Port-Konflikt loesen | 6.1.2 |
+| T2.2 | Workflow CLAUDE.md Template | 6.1.4 |
+| T2.3 | Status-Systeme vereinheitlichen | 6.1.3 |
+| T2.4 | .env Zentralisierung planen | 6.2.1 |
+
+### Prioritaet 3 - Naechste Wochen
+
+| # | Aufgabe | Quelle |
+|---|---------|--------|
+| T3.1 | Package-Versionen angleichen | 6.2.2 |
+| T3.2 | Reparaturen.jsx refactoren | 6.1.2 |
+| T3.3 | Frontend/Dashboard Entscheidung | 6.1.2 |
+| T3.4 | TypeScript Migration evaluieren | 3 |
+
+### Prioritaet 4 - Workflow-Konsolidierung
+
+| # | Aufgabe | Quelle |
+|---|---------|--------|
+| T4.1 | _SHARED Ordner erstellen | 9.6 |
+| T4.2 | WORKFLOW_CLAUDE_BASE.md extrahieren | 9.6 |
+| T4.3 | SYSTEM_LEARNINGS.md erstellen | 9.6 |
+| T4.4 | Budgetangebote CLAUDE.md reduzieren | 9.6 |
+| T4.5 | Reparaturen CLAUDE.md reduzieren | 9.6 |
+| T4.6 | 04_LEARNINGS.md bereinigen | 9.6 |
+
+---
+
+*Aktualisiert: 2026-02-06 - Workflow-Logs Konsolidierung hinzugefuegt*
