@@ -703,28 +703,153 @@ workflows/
 
 > **Hinweis:** Ideen fuer kuenftige Erweiterungen, die noch nicht priorisiert wurden.
 
-### 11.1 Budgetangebot Frontend-Abgleich ⚠️
+### 11.1 Budgetangebot: V1 vs V2 Analyse 🔴
 
 | Attribut | Wert |
 |----------|------|
-| **Status** | Abklaerung erforderlich |
-| **Prioritaet** | Mittel |
-| **Beobachtet** | 2026-02-06 |
+| **Status** | V2 Code lokal FEHLT |
+| **Prioritaet** | HOCH |
+| **Analysiert** | 2026-02-06 |
 
-**Problem:**
-Das Frontend unter `/budget/:id` zeigt noch die erste Variante des Budgetangebots (Andreas' Version), obwohl Marco V2 mit Edge Functions (`budget-ki`, `budget-dokument`) deployed hat.
+---
 
-**Moegliche Ursachen:**
-1. Marcos Frontend-Code noch nicht committed/gepusht
-2. Neues Dashboard-Build noch nicht deployed
-3. Frontend vs. Dashboard - falsches Frontend aktiv?
+#### V1 (VOLLSTAENDIG VORHANDEN - frontend/)
 
-**Screenshot:** Budget-Case zeigt Bestandteile wie erwartet (Kunde/Lead, Profil-Einstellungen, Elemente, Ergebnis), aber unklar ob V2-Logik genutzt wird.
+**Frontend-Seiten:**
+- `frontend/src/pages/Budgetangebot.jsx` (504 Zeilen) - Listenseite
+- `frontend/src/pages/BudgetDetail.jsx` (1012 Zeilen) - Detailseite
 
-**TODO:**
-- [ ] Mit Marco klaeren: Welches Frontend ist V2? (`frontend/` oder `dashboard/`?)
-- [ ] Git-Log pruefen ob Frontend-Aenderungen committed wurden
-- [ ] Testen: Ruft das Frontend `budget-ki` Edge Function auf oder lokale Berechnung?
+**V1 Features (alle funktional):**
+
+| Feature | Datei | Status |
+|---------|-------|--------|
+| Case-Liste mit Status/Kanal-Filter | Budgetangebot.jsx | ✅ |
+| Neuer Case Modal | Budgetangebot.jsx | ✅ |
+| Kunde/Lead Info Section | BudgetDetail.jsx | ✅ |
+| Profil-Einstellungen (System, Farbe, Verglasung) | BudgetDetail.jsx | ✅ |
+| Elemente hinzufuegen/entfernen | BudgetDetail.jsx | ✅ |
+| Zubehoer pro Element (Rollladen, AFB, IFB, etc.) | BudgetDetail.jsx | ✅ |
+| Text-Parser (OCR/Notizen) | BudgetDetail.jsx | ✅ |
+| Quick-Preview (debounced Live-Berechnung) | BudgetDetail.jsx | ✅ |
+| Ergebnis-Anzeige (Netto, Brutto, Range, Confidence) | BudgetDetail.jsx | ✅ |
+| Berechnen-Button | BudgetDetail.jsx | ✅ |
+
+**Backend-API (backend/routes/budget.js - 868 Zeilen):**
+
+| Endpoint | Methode | Funktion |
+|----------|---------|----------|
+| `/api/budget/cases` | POST | Neuen Case anlegen |
+| `/api/budget/cases` | GET | Liste aller Cases (Filter) |
+| `/api/budget/cases/:id` | GET | Case mit Details |
+| `/api/budget/cases/:id` | PATCH | Case aktualisieren |
+| `/api/budget/cases/:id/items` | POST | Items hinzufuegen |
+| `/api/budget/cases/:id/profile` | POST | Profil setzen |
+| `/api/budget/cases/:id/calculate` | POST | Kalkulation |
+| `/api/budget/parse` | POST | Text parsen |
+| `/api/budget/quick-calculate` | POST | Schnell-Kalkulation |
+| `/api/budget/config` | GET | Preiskonfiguration |
+
+**Services (backend/services/budget/):**
+
+| Modul | Zeilen | Funktion |
+|-------|--------|----------|
+| `index.js` | 55 | Export-Aggregator |
+| `measurementParser.js` | 11266 | Mass-Extraktion (mm/cm/m) |
+| `contextParser.js` | 11309 | Kontext aus Header-Positionen |
+| `elementClassifier.js` | 2084 | Element-Typ Erkennung |
+| `priceCalculator.js` | 641 | Preisberechnung |
+
+**Datenbank-Tabellen:**
+- `budget_cases` - Haupt-Tabelle (Status, Kanal, Kunde/Lead)
+- `budget_profile` - Profil-Einstellungen (Hersteller, System, Farbe)
+- `budget_items` - Elemente (Typ, Breite, Hoehe, Anzahl)
+- `budget_accessories` - Zubehoer (Rollladen, AFB, IFB, Insekt, Plissee)
+- `budget_results` - Berechnungsergebnisse
+
+**Preismodell V1 (priceCalculator.js):**
+
+```javascript
+SYSTEM_PRICES = {
+  CASTELLO: 400 EUR/qm (2-fach)
+  CALIDO: 420 EUR/qm (3-fach)
+  IMPREO: 520 EUR/qm (Premium)
+  AFINO: 480 EUR/qm (Design)
+}
+
+WORK_PRICES = {
+  montage: 80 EUR/Element
+  demontage: 40 EUR/Element
+  entsorgung: 25 EUR/Element oder 150 EUR pauschal
+}
+
+ACCESSORY_PRICES = {
+  rollladen: 180 EUR/m (min 120)
+  raffstore: 280 EUR/m (min 200)
+  motor: 150 EUR/Stueck
+  afb: 35 EUR/lfm (min 25)
+  ifb: 45 EUR/lfm (min 30)
+  insektenschutz: 80 EUR/Stueck
+  plissee: 120 EUR/Stueck
+}
+```
+
+---
+
+#### V2 (LOKAL NICHT VORHANDEN!)
+
+**Laut 02_STATUS.md sind deployed:**
+- `budget-ki` Edge Function (ACTIVE in Supabase)
+- `budget-dokument` Edge Function (ACTIVE in Supabase)
+- Dashboard mit 4-Schritt-Wizard (E2E getestet)
+
+**PROBLEM: Lokaler Code FEHLT!**
+
+```
+supabase/functions/
+├── budget-ki/        ← NICHT VORHANDEN
+├── budget-dokument/  ← NICHT VORHANDEN
+└── test-budget-extraction/  ← Nur Test-Funktion (6045 Zeilen)
+
+dashboard/src/pages/
+├── Uebersicht.jsx    ← Keine Budget-Seite!
+├── Auftraege.jsx
+├── Dokumente.jsx
+├── Kunden.jsx
+├── Emails.jsx
+└── Einstellungen.jsx
+```
+
+**Schlussfolgerung:**
+Marco hat V2 wahrscheinlich direkt in Supabase Cloud erstellt, ohne den Code lokal zu committen. Der Dashboard-Code fuer den 4-Schritt-Wizard existiert ebenfalls nicht lokal.
+
+---
+
+#### Handlungsoptionen
+
+**Option A: V2 Code von Marco holen**
+- [ ] Marco fragen: Wo liegt der V2-Code?
+- [ ] Edge Functions aus Supabase Dashboard exportieren
+- [ ] Dashboard-Wizard Code anfordern
+- [ ] Lokal committen
+
+**Option B: V1 nutzen und erweitern**
+- V1 ist vollstaendig und funktional
+- Backend-Kalkulation funktioniert
+- Frontend hat alle Features
+- Nur noch Backend starten und testen
+
+**Option C: V1 Features in Dashboard integrieren**
+- Dashboard hat kein Budget-Modul
+- V1 Features als neue Seite in Dashboard einbauen
+- Bestehende Services wiederverwenden
+
+---
+
+#### Empfehlung
+
+1. **Sofort:** V1 im `frontend/` testen (Backend + Frontend starten)
+2. **Dann:** Mit Marco klaeren wo V2-Code liegt
+3. **Langfristig:** Code-Basis vereinheitlichen (eine Version)
 
 ---
 
