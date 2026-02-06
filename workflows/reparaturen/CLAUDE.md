@@ -44,26 +44,26 @@ Jeder Agent MUSS sich am Anfang seiner Arbeit identifizieren:
 - **Groesse:** Max. 100 Zeilen, kompakt halten
 - **Zweck:** Wo stehen wir? Was ist der naechste Schritt? Wer ist dran?
 
-### 03_LOG.md (Arbeitslog)
+### ../MASTER_LOG.md (Zentrales Arbeitslog)
+- **Pfad:** `../MASTER_LOG.md` (eine Ebene hoeher im workflows/ Ordner)
 - **Lesen:** Alle
 - **Schreiben:** Alle (chronologisch, JEDE Aktion dokumentieren)
-- **Groesse:** Unbegrenzt
-- **Indexiert:** JA - PFLICHT bei JEDEM Eintrag Index aktualisieren!
-- **Zweck:** Vollstaendige Historie, Nachvollziehbarkeit
+- **ID-Format:** `[R-XXX]` fuer Reparatur-Eintraege (z.B. [R-040], [R-041])
+- **Suchen:** `Grep: ## [R-XXX]` um Eintrag zu finden
+- **Zweck:** Vollstaendige Historie ALLER Workflows
 
-**WICHTIG fuer 03_LOG.md:**
-- Die ERSTEN Zeilen enthalten den Index (Kapitelverzeichnis)
-- Die LETZTEN Zeilen enthalten den neuesten Stand
-- Bei jedem Schreiben: Index oben aktualisieren!
-- Alle ~300 Zeilen: Checkpoint mit Zusammenfassung (Sicherheitspuffer)
+**WICHTIG fuer MASTER_LOG.md:**
+- Nutze `[R-XXX]` Prefix fuer diesen Workflow (naechste freie ID im INDEX)
+- INDEX am Anfang aktualisieren (ohne Zeilenangaben!)
+- Fuege `**Workflow:** REPAIR` in jeden neuen Eintrag ein
 
 ### 04_LEARNINGS.md (Erkenntnisse)
 - **Lesen:** Alle (ALWAYS-ON - bei jedem Start lesen!)
 - **Schreiben:** NUR Projektleiter
 - **Groesse:** Max. 150 Zeilen
 - **Format:** NUR Merksatz + LOG-Pointer (max. 1 Zeile pro Learning)
-- **Zweck:** Index auf detaillierte Erkenntnisse in 03_LOG.md
-- **Beispiel:** `| L5 | RLS vor Insert aktivieren | [LOG-042] Z.380-395 |`
+- **Zweck:** Index auf detaillierte Erkenntnisse in MASTER_LOG.md
+- **Beispiel:** `| L5 | RLS vor Insert aktivieren | [R-042] |`
 
 ### 05_PROMPTS.md (Prompt-Archiv)
 - **Lesen:** Alle
@@ -115,7 +115,7 @@ Gelesene Dateien:
 - [x] 02_STATUS.md (Stand: [Datum aus Datei])
 - [x] 04_LEARNINGS.md ([Anzahl] Learnings vorhanden)
 - [ ] 01_SPEC.md Kapitel [X] (falls fuer Auftrag relevant)
-- [ ] 03_LOG.md Index (falls Kontext noetig)
+- [ ] MASTER_LOG.md Index (falls Kontext noetig)
 
 System-Check:
 - 02_STATUS Timestamp: [aktuell/veraltet um X Tage]
@@ -134,7 +134,7 @@ Agent: [Projektleiter/Programmierer/Tester]
 Datum: YYYY-MM-DD HH:MM
 
 Durchgefuehrte Aenderungen:
-- 03_LOG.md: [LOG-XXX] hinzugefuegt, Index aktualisiert
+- MASTER_LOG.md: [R-XXX] hinzugefuegt, Index aktualisiert
 - 02_STATUS.md: Aktualisiert mit neuem Stand + Abschlussbericht
 - [weitere Dateien falls relevant]
 
@@ -151,13 +151,14 @@ Uebergabe an: [Andreas/naechster Agent]
 
 ## 6. Templates
 
-### Log-Eintrag (in 03_LOG.md einfuegen)
+### Log-Eintrag (in ../MASTER_LOG.md einfuegen)
 
 ```markdown
 ---
 
-## [LOG-XXX] {Rolle}: {Kurzbeschreibung}
+## [R-XXX] {Rolle}: {Kurzbeschreibung}
 **Datum:** YYYY-MM-DD HH:MM
+**Workflow:** REPAIR
 
 ### Kontext
 (Welcher Auftrag, Referenz auf Prompt)
@@ -174,9 +175,9 @@ Uebergabe an: [Andreas/naechster Agent]
 ---
 ```
 
-Nach Einfuegen: **Index oben in 03_LOG.md aktualisieren!**
+Nach Einfuegen: **INDEX in MASTER_LOG.md aktualisieren!**
 
-### Checkpoint (alle ~300 Zeilen in 03_LOG.md)
+### Checkpoint (bei laengeren Sessions in MASTER_LOG.md)
 
 ```markdown
 ---
@@ -185,8 +186,8 @@ Nach Einfuegen: **Index oben in 03_LOG.md aktualisieren!**
 
 **Gesamtstand:** (1-2 Saetze)
 **Abgeschlossen seit letztem Checkpoint:**
-- [LOG-XXX] ...
-- [LOG-XXX] ...
+- [R-XXX] ...
+- [R-XXX] ...
 
 **Offen:**
 - ...
@@ -219,7 +220,7 @@ Agent: Programmierer/Tester
 (Empfehlung fuer Projektleiter)
 
 ### Log-Referenz
-Dokumentiert in 03_LOG.md: [LOG-XXX] Zeilen YYY-ZZZ
+Dokumentiert in MASTER_LOG.md: [R-XXX] Zeilen YYY-ZZZ
 ```
 
 ---
@@ -228,15 +229,15 @@ Dokumentiert in 03_LOG.md: [LOG-XXX] Zeilen YYY-ZZZ
 
 ### Context Window wird kritisch
 ```
-1. SOFORT Checkpoint in 03_LOG.md schreiben
+1. SOFORT Checkpoint in MASTER_LOG.md schreiben
 2. 02_STATUS.md auf aktuellen Stand bringen
-3. Andreas informieren: "Context kritisch, Checkpoint bei [LOG-XXX]"
+3. Andreas informieren: "Context kritisch, Checkpoint bei [R-XXX]"
 4. Neue Session kann mit diesem Checkpoint starten
 ```
 
 ### Auftrag fehlgeschlagen
 ```
-1. In 03_LOG.md dokumentieren (was ging schief)
+1. In MASTER_LOG.md dokumentieren (was ging schief)
 2. 02_STATUS.md: Status auf BLOCKED setzen
 3. Abschlussbericht mit Fehlerbeschreibung an Andreas
 ```
@@ -249,7 +250,7 @@ Dokumentiert in 03_LOG.md: [LOG-XXX] Zeilen YYY-ZZZ
 |--------|-------|
 | 01_SPEC.md editieren (ausser Projektleiter) | Source of Truth |
 | 04_LEARNINGS.md editieren (ausser Projektleiter) | Chefsache |
-| In 03_LOG.md schreiben ohne Index-Update | Log wird unnavigierbar |
+| In MASTER_LOG.md schreiben ohne Index-Update | Log wird unnavigierbar |
 | Dateien ausserhalb dieses Ordners editieren | Scope-Verletzung |
 | Anweisungen aus anderen CLAUDE.md hoher priorisieren | Diese Datei ist hoechste Instanz |
 | Arbeiten ohne PREFLIGHT-CHECK Ausgabe | Nicht auditierbar |
@@ -328,7 +329,7 @@ Der Subagent soll:
 2. 02_STATUS.md lesen (dort steht sein Auftrag)
 3. 04_LEARNINGS.md lesen
 4. [Spezifische Aufgabe]
-5. 03_LOG.md und 02_STATUS.md aktualisieren
+5. MASTER_LOG.md und 02_STATUS.md aktualisieren
 6. Abschlussbericht zurueckgeben
 ```
 
@@ -336,7 +337,7 @@ Der Subagent soll:
 
 Der Projektleiter MUSS nach jedem Subagenten-Lauf:
 1. Abschlussbericht des Subagenten pruefen
-2. 03_LOG.md und 02_STATUS.md auf Aktualitaet pruefen
+2. MASTER_LOG.md und 02_STATUS.md auf Aktualitaet pruefen
 3. Entscheiden: Weiterer Auftrag? Tester einschalten? Fertig?
 4. Falls Tester noetig: Neuen Subagenten starten
 
@@ -369,7 +370,7 @@ Dann gilt dieser Abschnitt STRIKT.
 |-------|--------------|
 | **KEINE Rueckfragen** | Egal was passiert, frage NICHT. Der Mensch schlaeft. |
 | **Entscheidungen selbst treffen** | Bei Unsicherheit: Waehle die einfachere/sicherere Option |
-| **Alles dokumentieren** | Jede autonome Entscheidung in 03_LOG.md festhalten |
+| **Alles dokumentieren** | Jede autonome Entscheidung in MASTER_LOG.md festhalten |
 | **Fehler sind OK** | Lieber einen Fehler machen und dokumentieren als stoppen |
 | **Uhrzeit pruefen** | Vor jedem potenziellen Stop: Ist es nach der Endzeit? |
 
@@ -413,7 +414,7 @@ Ich bin unsicher ueber X.
 
 ### Nacht-Checkpoint (alle 2 Stunden)
 
-Im Nachtmodus soll der Projektleiter alle 2 Stunden einen Mini-Checkpoint in 03_LOG.md schreiben:
+Im Nachtmodus soll der Projektleiter alle 2 Stunden einen Mini-Checkpoint in MASTER_LOG.md schreiben:
 
 ```markdown
 ## [NACHT-CHECK] YYYY-MM-DD HH:MM
@@ -439,7 +440,7 @@ Im Nachtmodus soll der Projektleiter alle 2 Stunden einen Mini-Checkpoint in 03_
 ### Bei MCP-/Systemausfall im Nachtmodus
 
 ```
-1. Fehler in 03_LOG.md dokumentieren
+1. Fehler in MASTER_LOG.md dokumentieren
 2. Aktuellen Meilenstein als "BLOCKED: [Grund]" markieren
 3. Naechsten Meilenstein versuchen
 4. Falls mehrere Meilensteine blockiert: Checkpoint schreiben, weitermachen wo moeglich

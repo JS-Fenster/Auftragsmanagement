@@ -543,15 +543,41 @@ EMPFOHLEN:
 
 ---
 
-## 9. Workflow-Logs Konsolidierung
+## 9. Workflow-Logs Konsolidierung ✅ ERLEDIGT
 
-### 9.1 Aktuelle Situation
+> **Status:** Umgesetzt am 2026-02-06
+
+### 9.1 Neue Struktur
+
+```
+workflows/
+├── MASTER_LOG.md              ← 77 Eintraege (R-001 bis R-039 + B-001 bis B-038)
+├── budgetangebote/
+│   ├── CLAUDE.md              ← Vollstaendig, verweist auf ../MASTER_LOG.md
+│   ├── 03_LOG_ARCHIVED.md     ← Alte Version
+│   └── 04_LEARNINGS.md        ← Nutzt [B-XXX] IDs
+└── reparaturen/
+    ├── CLAUDE.md              ← Vollstaendig, verweist auf ../MASTER_LOG.md
+    ├── 03_LOG_ARCHIVED.md     ← Alte Version
+    └── 04_LEARNINGS.md        ← Nutzt [R-XXX] IDs
+```
+
+### 9.2 Entscheidungen
+
+| Thema | Entscheidung | Grund |
+|-------|--------------|-------|
+| CLAUDE.md | Bleibt vollstaendig pro Workflow | Claude liest nur 1 Datei - einfacher |
+| LOG | Zentralisiert in MASTER_LOG.md | Ein Ort zum Suchen, uebergreifende Aenderungen sichtbar |
+| INDEX | Ohne Zeilenangaben | Suche per `## [R-XXX]` ist robuster |
+| LEARNINGS | Bleiben lokal pro Workflow | Workflow-spezifische Erkenntnisse |
+
+### 9.3 Urspruengliche Analyse (historisch)
 
 | Datei | Budgetangebote | Reparaturen | Problem |
 |-------|----------------|-------------|---------|
-| `03_LOG.md` | 2663 Zeilen, 38 Eintraege | 2301 Zeilen, 39 Eintraege | Kein Problem - workflow-spezifisch |
-| `04_LEARNINGS.md` | 72 Zeilen, 35 Learnings | 53 Zeilen, 23 Learnings | Ueberschneidungen bei System-Themen |
-| `CLAUDE.md` | 442 Zeilen | 454 Zeilen | 95% identisch! |
+| `03_LOG.md` | 2663 Zeilen, 38 Eintraege | 2301 Zeilen, 39 Eintraege | Jetzt in MASTER_LOG.md |
+| `04_LEARNINGS.md` | 72 Zeilen, 35 Learnings | 53 Zeilen, 23 Learnings | Bleiben lokal |
+| `CLAUDE.md` | 442 Zeilen | 454 Zeilen | Bleiben vollstaendig (95% identisch ist OK) |
 
 ### 9.2 Ueberschneidende Learnings (sollten zentralisiert werden)
 
@@ -654,16 +680,18 @@ workflows/
 | T3.3 | Frontend/Dashboard Entscheidung | 6.1.2 |
 | T3.4 | TypeScript Migration evaluieren | 3 |
 
-### Prioritaet 4 - Workflow-Konsolidierung
+### Prioritaet 4 - Workflow-Konsolidierung ✅ ERLEDIGT
 
-| # | Aufgabe | Quelle |
+| # | Aufgabe | Status |
 |---|---------|--------|
-| T4.1 | _SHARED Ordner erstellen | 9.6 |
-| T4.2 | WORKFLOW_CLAUDE_BASE.md extrahieren | 9.6 |
-| T4.3 | SYSTEM_LEARNINGS.md erstellen | 9.6 |
-| T4.4 | Budgetangebote CLAUDE.md reduzieren | 9.6 |
-| T4.5 | Reparaturen CLAUDE.md reduzieren | 9.6 |
-| T4.6 | 04_LEARNINGS.md bereinigen | 9.6 |
+| T4.1 | ~~_SHARED Ordner erstellen~~ | ❌ Verworfen - CLAUDE.md bleibt vollstaendig pro Workflow |
+| T4.2 | ~~WORKFLOW_CLAUDE_BASE.md extrahieren~~ | ❌ Verworfen - einfacher wenn alles in einer Datei |
+| T4.3 | MASTER_LOG.md erstellen | ✅ ERLEDIGT 2026-02-06 |
+| T4.4 | CLAUDE.md auf MASTER_LOG.md umstellen | ✅ ERLEDIGT 2026-02-06 |
+| T4.5 | 04_LEARNINGS.md IDs anpassen | ✅ ERLEDIGT 2026-02-06 |
+| T4.6 | Alte 03_LOG.md archivieren | ✅ ERLEDIGT 2026-02-06 |
+
+**Entscheidung:** CLAUDE.md bleibt vollstaendig pro Workflow (besser fuer Claude), nur der LOG wurde zentralisiert.
 
 ---
 
