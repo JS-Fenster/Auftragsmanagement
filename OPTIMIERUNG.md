@@ -894,4 +894,171 @@ Aktuell (Work4All) gibt es keine standardisierte Eingabe - Sachbearbeiter rechne
 
 ---
 
-*Aktualisiert: 2026-02-06 - Feature-Ergaenzungen hinzugefuegt*
+### 11.3 E-Mail-Klassifizierung + Revisionssicherheit (Betriebspruefung) 📋
+
+| Attribut | Wert |
+|----------|------|
+| **Prioritaet** | Mittel-Hoch |
+| **Bereich** | E-Mail-Pipeline, Dokumente, Compliance |
+| **Anlass** | Steuerberater-Empfehlung (2026-02-09) |
+| **Herkunft** | PLAN.md PRIO 3 (sensibel-Feld) + neue Anforderung |
+
+---
+
+#### Hintergrund
+
+Fuer eine **Betriebspruefung** muessen steuerrelevante E-Mails vorgelegt werden koennen.
+Das Tool soll diese E-Mails klassifizieren, damit im Pruefungsfall nur die relevanten
+Nachrichten gefiltert und bereitgestellt werden koennen.
+
+---
+
+#### Ist-Zustand (Stand 2026-02-09)
+
+| Was | Status | Details |
+|-----|--------|---------|
+| E-Mails in DB | **515 Stueck** | `documents`-Tabelle, `source = 'email'` |
+| Body (Text) | Gespeichert | `email_body_text` (515/515) |
+| Body (HTML) | Gespeichert | `email_body_html` (482/515) |
+| KI-Kategorie | Vorhanden | `email_kategorie` (z.B. Auftragserteilung, Lead_Anfrage, Sonstiges) |
+| Original .eml | **NICHT gespeichert** | `dokument_url` ist nur `email://`-Referenz auf MS Graph |
+| File-Hash | **NICHT befuellt** | 0/515 haben `file_hash` |
+| `sensibel`-Flag | **NICHT vorhanden** | War in PLAN.md PRIO 3 geplant, nie umgesetzt |
+| `steuerrelevant`-Flag | **NICHT vorhanden** | Neuer Bedarf |
+| Loeschsperre | **NICHT vorhanden** | Kein Schutz gegen Loeschung |
+
+---
+
+#### Konzept: Drei Ebenen
+
+**1. Klassifizierung (steuerrelevant ja/nein)**
+
+Automatisches Mapping der bestehenden `email_kategorie` auf Steuerrelevanz:
+
+| Steuerrelevant | Kategorien |
+|----------------|------------|
+| **JA** | Eingangsrechnung, Ausgangsrechnung, Gutschrift, Auftragsbestaetigung, Auftragserteilung, Lieferschein, Mahnung, Zahlungsavis, Steuerbescheid, Finanzamt-Korrespondenz, Vertrag |
+| **NEIN** | Newsletter, Werbung, Spam, Lead_Anfrage (ohne Zahlungsbezug), Sonstiges |
+| **PRUEFEN** | Geschaeftskorrespondenz (manuell entscheiden) |
+
+Umsetzung:
+- Neues Feld `steuerrelevant` (ENUM: 'ja', 'nein', 'pruefen', NULL)
+- Automatische Klassifizierung per Trigger oder bei E-Mail-Verarbeitung
+- Manuelles Override moeglich (`steuerrelevant_manual`)
+
+**2. Revisionssichere Archivierung (GoBD-konform)**
+
+> **Grundsatz:** Die Archivierung erfolgt IMMER - unabhaengig davon, ob eine E-Mail
+> im Tool sichtbar ist oder nicht. Das Archiv ist die "Wahrheit", das Tool ist die "Ansicht".
+
+Was fuer GoBD-Konformitaet benoetigt wird:
+
+| Anforderung | Umsetzung |
+|-------------|-----------|
+| Unveraendertes Original | .eml-Datei in Supabase Storage (Bucket: `email-archiv`) |
+| Integritaetsnachweis | SHA-256 Hash beim Archivieren → `file_hash` Feld |
+| Zeitstempel | `email_empfangen_am` (bereits vorhanden) + `archiviert_am` (neu) |
+| Aufbewahrungsfrist | 6 Jahre (Handelsbrief) / 10 Jahre (Buchungsbelege) |
+| Nachvollziehbarkeit | Audit-Log bei jeder Aenderung (Kategorie, Steuerrelevanz) |
+
+Offene Frage: .eml-Export ueber Microsoft Graph API moeglich? Oder reicht Body-Text + HTML + Metadaten als "digitale Kopie"? → **Mit Steuerberater klaeren.**
+
+**3. Sichtbarkeit vs. Archivierung (Trennung!)**
+
+> **Wichtig:** Nicht jede E-Mail muss im Tool sichtbar sein. Die Archivierung
+> (Revisionssicherheit) laeuft unabhaengig von der Anzeige im Dashboard.
+
+| Konzept | Beschreibung |
+|---------|--------------|
+| **Archiv** | ALLE E-Mails werden revisionssicher gespeichert (immer, automatisch) |
+| **Tool-Sichtbarkeit** | Nur relevante E-Mails werden im Dashboard angezeigt |
+| **Verstecken ≠ Loeschen** | E-Mails koennen aus der Tool-Ansicht ausgeblendet werden, bleiben aber im Archiv |
+| **Betriebspruefung** | Filter auf `steuerrelevant = 'ja'` liefert nur die relevanten E-Mails |
+
+Moegliche Umsetzung:
+- Neues Feld `sichtbar_im_tool` (BOOLEAN, Default: TRUE)
+- Dashboard-Filter zeigt nur `sichtbar_im_tool = TRUE`
+- Betriebspruefungs-Export ignoriert Sichtbarkeit, filtert nur nach `steuerrelevant`
+- Admin-Ansicht kann auch versteckte E-Mails zeigen
+
+---
+
+#### Idee: Loeschsperre-Flag
+
+> **Status:** Nur Idee - muss nicht zwingend im Tool sichtbar sein.
+
+Ein `loeschsperre`-Flag (BOOLEAN) koennte verhindern, dass steuerrelevante E-Mails
+versehentlich geloescht werden. Ob das Flag im UI angezeigt wird oder nur als
+DB-Constraint (Trigger der DELETE blockiert) existiert, ist noch offen.
+
+Optionen:
+- **Option A:** Nur DB-Trigger (unsichtbar, blockiert DELETE bei `steuerrelevant = 'ja'`)
+- **Option B:** Sichtbares Flag im Tool + DB-Trigger
+- **Option C:** Soft-Delete Pattern (`deleted_at` Timestamp statt echtem DELETE)
+
+---
+
+#### Vorhandene Vorarbeit (aus PLAN.md PRIO 3)
+
+Bereits konzipiert war ein `sensibel`-Feld fuer die `documents`-Tabelle:
+
+```sql
+ALTER TABLE documents
+ADD COLUMN IF NOT EXISTS sensibel BOOLEAN DEFAULT FALSE;
+
+-- Trigger: Automatisch TRUE bei sensiblen Kategorien
+-- AU_Bescheinigung, Lohnabrechnung, Arbeitsvertrag, Finanzierung, Versicherung
+```
+
+Dieses Konzept wird hier erweitert: `sensibel` (Datenschutz/intern) und `steuerrelevant`
+(Betriebspruefung) sind zwei verschiedene Flags mit unterschiedlichem Zweck.
+
+| Flag | Zweck | Beispiele |
+|------|-------|-----------|
+| `sensibel` | Datenschutz - eingeschraenkter Zugriff | Lohnabrechnungen, AU-Bescheinigungen, Arbeitsvertraege |
+| `steuerrelevant` | Betriebspruefung - muss vorgelegt werden | Rechnungen, Gutschriften, Vertraege, Steuerbescheide |
+
+Beide Flags koennen gleichzeitig gesetzt sein (z.B. Lohnabrechnung = sensibel + steuerrelevant).
+
+---
+
+#### Moegliche DB-Migration (Entwurf)
+
+```sql
+-- Steuerrelevanz
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS steuerrelevant TEXT;
+-- Werte: 'ja', 'nein', 'pruefen', NULL (noch nicht klassifiziert)
+
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS steuerrelevant_manual TEXT;
+-- Manuelles Override
+
+-- Sensibel (Datenschutz)
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS sensibel BOOLEAN DEFAULT FALSE;
+
+-- Sichtbarkeit im Tool
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS sichtbar_im_tool BOOLEAN DEFAULT TRUE;
+
+-- Archivierung
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS archiviert_am TIMESTAMPTZ;
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS archiv_storage_path TEXT;
+-- Pfad zur .eml-Datei in Supabase Storage
+```
+
+---
+
+#### TODO
+
+| # | Aufgabe | Aufwand | Abhaengigkeit |
+|---|---------|---------|---------------|
+| 1 | Mit Steuerberater klaeren: Reicht Body+HTML oder braucht man .eml? | - | Steuerberater |
+| 2 | `steuerrelevant` + `sensibel` + `sichtbar_im_tool` Felder anlegen | 30 Min | - |
+| 3 | Kategorie→Steuerrelevanz Mapping definieren | 1 Std | - |
+| 4 | Automatische Klassifizierung in E-Mail-Pipeline einbauen | 2-3 Std | #2, #3 |
+| 5 | Dashboard-Filter erweitern (sichtbar/versteckt/steuerrelevant) | 2-3 Std | #2 |
+| 6 | .eml-Export ueber MS Graph implementieren (falls noetig, siehe #1) | 4-6 Std | #1 |
+| 7 | Loeschsperre-Trigger implementieren (falls gewuenscht) | 1 Std | #2 |
+| 8 | Betriebspruefungs-Export (CSV/ZIP mit allen steuerrelevanten E-Mails) | 3-4 Std | #4 |
+
+---
+
+*Aktualisiert: 2026-02-09 - E-Mail-Klassifizierung + Revisionssicherheit hinzugefuegt*

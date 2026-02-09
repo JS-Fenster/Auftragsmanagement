@@ -72,25 +72,18 @@ process-document/
 
 ---
 
-### PRIO 3: Feld 'sensibel' + Sicherheit
+### PRIO 3: Feld 'sensibel' + Sicherheit + E-Mail-Klassifizierung
 
-**Status:** Offen
-**Prioritaet:** NIEDRIG
+**Status:** → Verschoben nach OPTIMIERUNG.md Abschnitt 11.3
+**Prioritaet:** MITTEL-HOCH (aufgewertet wegen Steuerberater-Anforderung)
 
-#### 3.1 Migration: sensibel Feld + Trigger
-```sql
-ALTER TABLE documents
-ADD COLUMN IF NOT EXISTS sensibel BOOLEAN DEFAULT FALSE;
+Konzept wurde erweitert um:
+- E-Mail-Klassifizierung fuer Betriebspruefung (`steuerrelevant`-Flag)
+- Revisionssichere Archivierung (GoBD)
+- Trennung: Archivierung (immer) vs. Sichtbarkeit im Tool (steuerbar)
+- Loeschsperre-Idee
 
--- Trigger: Automatisch TRUE bei sensiblen Kategorien
--- AU_Bescheinigung, Lohnabrechnung, Arbeitsvertrag, Finanzierung, Versicherung
-```
-
-#### 3.2 Zugriffskontrolle
-Optionen:
-1. RLS Policy basierend auf `sensibel` Feld
-2. Separate Tabelle `documents_sensibel` mit eingeschraenktem Zugriff
-3. Storage-Bucket mit separaten Berechtigungen
+**→ Siehe `OPTIMIERUNG.md` Abschnitt 11.3 fuer vollstaendiges Konzept.**
 
 ---
 
@@ -172,4 +165,4 @@ Einheitliches Drag & Drop Tool fuer alle Dokument-Quellen:
 
 ---
 
-*Zuletzt aktualisiert: 2026-02-02*
+*Zuletzt aktualisiert: 2026-02-09 - PRIO 3 nach OPTIMIERUNG.md verschoben*
