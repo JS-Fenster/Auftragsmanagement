@@ -39,3 +39,11 @@ nul
 # Claude temp files
 tmpclaude-*
 *.cwd
+
+# WERU Preislisten (lokal, nicht committed)
+backend/_calido_prices.json
+backend/_impreo_castello_prices.json
+backend/_extras_prices.json
+backend/_parse_calido.py
+backend/_preisliste_fenster.txt
+backend/_preisliste_extras.txt

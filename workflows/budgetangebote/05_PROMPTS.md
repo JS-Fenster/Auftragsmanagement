@@ -8,10 +8,10 @@
 | P001 | 2026-02-03 | Analyse | Agent A | Work4All Datenanalyse | ✅ Erfolg | 25-45 |
 | P002 | 2026-02-03 | Analyse | Agent B | Supabase Datenmodell | ✅ Erfolg | 50-70 |
 | P003 | 2026-02-03 | Analyse | Agent C | Bridge/Proxy Plan | ✅ Erfolg | 75-95 |
-| P004 | 2026-02-09 | Auftrag | Programmierer | LV granular erweitern (Migration + Build-Script) | ⏳ | 65-130 |
+| P004 | 2026-02-09 | Auftrag | Programmierer | LV granular erweitern (Migration + Build-Script) | ✅ Erfolg (B-040) | 65-130 |
 | P005 | 2026-02-09 | Auftrag | Tester | Backtest LV-Preise vs. Rechnungen | ✅ Erfolg (B-041) | 135-185 |
-| P006 | 2026-02-09 | Auftrag | Programmierer | Stulp-Fix + Kombi + Rollladen + L-Split | ⏳ | 160-250 |
-| P007 | 2026-02-09 | Auftrag | Tester | Re-Backtest + Verbesserungspotential-Analyse | ⏳ | 255-320 |
+| P006 | 2026-02-09 | Auftrag | Programmierer | Stulp-Fix + Kombi + Rollladen + L-Split | ✅ Erfolg (B-042) | 160-250 |
+| P007 | 2026-02-09 | Auftrag | Tester | Re-Backtest + Verbesserungspotential-Analyse | ✅ Erfolg (B-043) | 255-320 |
 
 ---
 
