@@ -1061,4 +1061,255 @@ ALTER TABLE documents ADD COLUMN IF NOT EXISTS archiv_storage_path TEXT;
 
 ---
 
-*Aktualisiert: 2026-02-09 - E-Mail-Klassifizierung + Revisionssicherheit hinzugefuegt*
+### 11.4 Erweitertes Kontakt-/Kundenstamm-Management 📋
+
+| Attribut | Wert |
+|----------|------|
+| **Prioritaet** | Hoch (betrifft fast alle Workflows) |
+| **Bereich** | Kunden, Lieferanten, CRM |
+| **Anlass** | Praxisfaelle: Rao/Bornschlaeger, Zimmermann, Naturstein Franz, Betreuer-Szenarien |
+| **Notiert** | 2026-02-09 |
+
+---
+
+#### Problem: ERP-Kundenstamm ist zu einfach
+
+Das aktuelle Modell (`erp_kunden`) hat pro Kunde:
+- **1x** Telefon, **1x** E-Mail, **1x** Name
+- Keine Kontaktpersonen (Ehepartner, Betreuer, Ansprechpartner)
+- Keine Verknuepfung Kunde ↔ Lieferant
+- Keine dynamische Erweiterung
+
+**Praxisfaelle, die heute nicht abbildbar sind:**
+
+| Fall | Problem |
+|------|---------|
+| **Rao/Bornschlaeger** | Kundin hat alten Namen als E-Mail-Adresse (`bornschleglchristine@yahoo.de`). System erkennt sie nicht als Kundin Rao, weil nur `rao.avanti@gmail.com` hinterlegt ist. |
+| **Ehepaar Zimmermann** | Ein Kundenstamm, aber zwei Personen mit verschiedenen Telefonnummern. Nur eine Nummer hinterlegbar. |
+| **Naturstein Franz** | Ist gleichzeitig Kunde (bestellt Fenster) UND Lieferant (liefert Fensterbaenke). Existiert in zwei getrennten Tabellen ohne Verknuepfung. |
+| **Pflegebeduerftiger + Tochter** | Die Tochter ist Betreuerin der Mutter UND eigene Kundin. Ihre Nummer muesste an zwei Stellen gepflegt werden. |
+| **Kunde mit 4 Telefonnummern** | Mobil privat, Mobil Arbeit, Festnetz privat, Festnetz Buero - nur 1 Feld vorhanden. |
+
+---
+
+#### Zukunftsperspektive: Eigene Master-Tabellen
+
+Die `erp_kunden` / `erp_lieferanten` Tabellen sind heute **Import-/Cache-Tabellen** aus Work4all.
+In Zukunft wird das Auftragsmanagement die Daten **selbst fuehren** - ohne ERP davor.
+
+Das neue Datenmodell muss daher:
+1. **Heute** als Anreicherung der ERP-Daten funktionieren (optionaler Link)
+2. **Morgen** als eigenstaendiger Master funktionieren (ohne ERP)
+
+→ Der ERP-Link (`erp_kunden_code`) ist optional/nullable. Wenn NULL = eigener Datensatz.
+
+---
+
+#### Datenmodell: 3 Tabellen
+
+**1. `kontakte` - Der Account/Stamm (ersetzt langfristig erp_kunden + erp_lieferanten)**
+
+```sql
+CREATE TABLE kontakte (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+
+    -- ERP-Links (optional, NULL = eigener Datensatz ohne ERP)
+    erp_kunden_code INT,              -- FK zu erp_kunden.code (nullable)
+    erp_lieferanten_code INT,         -- FK zu erp_lieferanten.code (nullable)
+
+    -- Rollen (ein Kontakt kann beides sein)
+    ist_kunde BOOLEAN DEFAULT FALSE,
+    ist_lieferant BOOLEAN DEFAULT FALSE,
+
+    -- Nummern
+    kundennummer TEXT,                -- Eigene Kundennr. (oder aus ERP uebernommen)
+    lieferantennummer TEXT,           -- Eigene Lieferantennr.
+    unsere_nr_bei_ihm TEXT,           -- Unter welcher Nr. kennt er UNS?
+
+    -- Stammdaten
+    typ TEXT DEFAULT 'privat',        -- privat / gewerbe / oeffentlich
+    firma1 TEXT,
+    firma2 TEXT,
+    strasse TEXT,
+    plz TEXT,
+    ort TEXT,
+
+    -- Hinweise
+    hinweis_kontakt TEXT,             -- z.B. "Immer ueber Tochter kontaktieren"
+    notiz TEXT
+);
+```
+
+**Beispiele:**
+
+| kontakte | ist_kunde | ist_lieferant | erp_kunden_code | hinweis |
+|----------|-----------|---------------|-----------------|---------|
+| Rao, Christine | TRUE | FALSE | 1856019620 | - |
+| Zimmermann | TRUE | FALSE | 12345 | - |
+| Naturstein Franz | TRUE | TRUE | 5678 | unsere_nr_bei_ihm: K-4711 |
+| Mutter Schmidt | TRUE | FALSE | 9999 | "Immer ueber Tochter kontaktieren" |
+| Tochter Mueller | TRUE | FALSE | 7777 | - |
+
+---
+
+**2. `kontakt_personen` - Personen unter einem Account**
+
+Ein Kontakt/Kundenstamm kann mehrere Personen haben (Ehepartner, Betreuer, Ansprechpartner).
+
+```sql
+CREATE TABLE kontakt_personen (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    kontakt_id UUID NOT NULL REFERENCES kontakte(id),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+
+    -- Person
+    anrede TEXT,                      -- Herr / Frau
+    vorname TEXT,
+    nachname TEXT,
+
+    -- Rolle in diesem Account
+    rolle TEXT,                       -- 'Eigentuemer' / 'Ehepartner' / 'Betreuerin' /
+                                      -- 'Ansprechpartner' / 'Geschaeftsfuehrer' /
+                                      -- 'Lebenspartner' / 'Mieter'
+    ist_hauptkontakt BOOLEAN DEFAULT FALSE,
+
+    -- Verweis auf eigenen Kundenstamm (falls vorhanden)
+    referenz_kontakt_id UUID REFERENCES kontakte(id),
+    -- Wenn gesetzt: Diese Person IST auch ein eigener Kunde.
+    -- Kontaktdaten werden aus dem verlinkten Kundenstamm gelesen.
+    -- Keine Doppelpflege noetig!
+    -- Beispiel: Tochter Mueller → verweist auf kontakte.id der Tochter
+
+    hinweis TEXT                      -- z.B. "Bevollmaechtigt fuer Unterschriften"
+);
+```
+
+**Beispiele:**
+
+| kontakt_personen | kontakt_id | rolle | referenz_kontakt_id | ist_hauptkontakt |
+|------------------|------------|-------|---------------------|------------------|
+| Christine Rao | Rao | Eigentuemerin | NULL | TRUE |
+| Herr Zimmermann | Zimmermann | Eigentuemer | NULL | TRUE |
+| Frau Zimmermann | Zimmermann | Ehepartnerin | NULL | FALSE |
+| Mutter Schmidt | Mutter Schmidt | Eigentuemerin | NULL | TRUE |
+| Tochter Mueller | Mutter Schmidt | Betreuerin | → kontakte.Tochter Mueller | FALSE |
+| Tochter Mueller | Tochter Mueller | Eigentuemerin | NULL | TRUE |
+
+**Effekt bei Tochter Mueller:**
+- Unter Mutter Schmidt: `referenz_kontakt_id` zeigt auf Tochter-Kundenstamm
+- Kontaktdaten (Telefon, E-Mail) werden AUTOMATISCH aus dem Tochter-Kundenstamm gelesen
+- Aenderung an einer Stelle → ueberall aktuell
+
+---
+
+**3. `kontakt_details` - Unbegrenzte Kontaktwege (dynamisch, "+"-Button)**
+
+Keine festen Felder mehr. Jede Person kann beliebig viele Telefonnummern, E-Mails, etc. haben.
+
+```sql
+CREATE TABLE kontakt_details (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    kontakt_person_id UUID NOT NULL REFERENCES kontakt_personen(id),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+
+    -- Kontaktweg
+    typ TEXT NOT NULL,                -- 'telefon' / 'email' / 'fax' / 'website'
+    label TEXT,                       -- Frei waehlbar: 'Mobil privat', 'Buero',
+                                      -- 'Arbeitshandy', 'Festnetz Werkstatt', etc.
+    wert TEXT NOT NULL,               -- Die Nummer / Adresse
+    ist_primaer BOOLEAN DEFAULT FALSE,
+
+    notiz TEXT
+);
+```
+
+**Beispiel: Kundin Rao**
+
+| typ | label | wert | primaer |
+|-----|-------|------|---------|
+| email | Aktuell | rao.avanti@gmail.com | TRUE |
+| email | Alt (Yahoo) | bornschleglchristine@yahoo.de | FALSE |
+| telefon | Mobil | 0171-1234567 | TRUE |
+| telefon | Festnetz | 09624-98765 | FALSE |
+
+**Beispiel: Herr Zimmermann**
+
+| typ | label | wert | primaer |
+|-----|-------|------|---------|
+| telefon | Mobil privat | 0171-1111111 | TRUE |
+| telefon | Mobil Arbeit | 0160-2222222 | FALSE |
+| telefon | Festnetz | 09624-33333 | FALSE |
+| email | Privat | zimmermann@web.de | TRUE |
+
+→ Im UI: Jeder Eintrag hat ein "x" zum Loeschen und unten steht `[+ Kontaktweg hinzufuegen]`.
+
+---
+
+#### E-Mail-Matching: Automatische Zuordnung
+
+Mit diesem Modell kann das System eingehende E-Mails **gegen ALLE hinterlegten Adressen matchen**:
+
+```
+Eingehende E-Mail von: bornschleglchristine@yahoo.de
+→ Suche in kontakt_details WHERE typ = 'email' AND wert = '...'
+→ Treffer: kontakt_person_id → Christine Rao
+→ Kontakt: Rao (Kundennr. 1856019620)
+→ Automatische Zuordnung!
+```
+
+Kein manuelles Zuordnen noetig, auch wenn die Kundin eine alte E-Mail-Adresse benutzt.
+
+---
+
+#### Betreuer-Szenario im Projekt-Kontext
+
+Fuer Projekte/Auftraege koennen verschiedene Rollen zugeordnet werden:
+
+```sql
+-- In auftraege / projekte:
+kontakt_id              -- Wessen Objekt? (Mutter Schmidt)
+ansprechpartner_id      -- Wen anrufen? (Tochter Mueller, via referenz_kontakt_id)
+rechnungsempfaenger_id  -- Wer zahlt? (Mutter oder Tochter)
+```
+
+**Im Dashboard bei einem Anruf:**
+```
+Anruf: Tochter Mueller (0171-xxxx)
+├── Eigene Projekte: P-789 (Fenster Tochter-Wohnung)
+├── Betreut: Mutter Schmidt
+│   └── Projekt P-456 (Reparatur bei Mutter)
+```
+
+---
+
+#### Migration: Schrittweise Einfuehrung
+
+| Phase | Was | Aufwand |
+|-------|-----|---------|
+| **Phase 1** | Tabellen anlegen, ERP-Daten initial importieren (erp_kunden → kontakte + kontakt_personen mit je 1 Person + kontakt_details mit vorhandener Tel/Email) | 4-6 Std |
+| **Phase 2** | Dashboard: Kunden-Detail um Kontaktpersonen + dynamische Details erweitern | 6-8 Std |
+| **Phase 3** | E-Mail-Matching gegen kontakt_details statt nur erp_kunden.email | 2-3 Std |
+| **Phase 4** | Kontakt-Rollen: Kunde + Lieferant Verknuepfung, unsere_nr_bei_ihm | 2-3 Std |
+| **Phase 5** | Betreuer-Referenz: referenz_kontakt_id + Projekt-Ansprechpartner | 3-4 Std |
+
+**Gesamt: ca. 17-24 Stunden**
+
+---
+
+#### TODO
+
+| # | Aufgabe | Abhaengigkeit |
+|---|---------|---------------|
+| 1 | DB-Tabellen `kontakte`, `kontakt_personen`, `kontakt_details` anlegen | - |
+| 2 | Migrations-Script: erp_kunden → kontakte (initialer Import) | #1 |
+| 3 | Dashboard Kunden-Detail: Kontaktpersonen-Section + "+"-Button fuer Details | #1 |
+| 4 | E-Mail-Pipeline: Matching gegen kontakt_details.wert erweitern | #2 |
+| 5 | Lieferanten-Verknuepfung: ist_lieferant + unsere_nr_bei_ihm | #1 |
+| 6 | Betreuer-Referenz: referenz_kontakt_id + UI fuer Verknuepfung | #3 |
+| 7 | Auftraege: ansprechpartner_id + rechnungsempfaenger_id Felder | #6 |
+
+---
+
+*Aktualisiert: 2026-02-09 - E-Mail-Klassifizierung + Kontakt-Management hinzugefuegt*
