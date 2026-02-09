@@ -79,6 +79,13 @@ function kundeAdresse(a) {
   return '–'
 }
 
+function einsatzortAdresse(a) {
+  if (a.einsatzort_strasse || a.einsatzort_ort) {
+    return [a.einsatzort_strasse, [a.einsatzort_plz, a.einsatzort_ort].filter(Boolean).join(' ')].filter(Boolean).join(', ')
+  }
+  return null
+}
+
 function kundeTelefon(a) {
   if (a.kunde_telefon_erp) return a.kunde_telefon_erp
   if (a.neukunde_telefon) return a.neukunde_telefon
@@ -212,6 +219,9 @@ const FIELD_LABELS = {
   neukunde_name: 'Neukunde Name',
   neukunde_telefon: 'Neukunde Telefon',
   neukunde_email: 'Neukunde E-Mail',
+  einsatzort_strasse: 'Einsatzort Strasse',
+  einsatzort_plz: 'Einsatzort PLZ',
+  einsatzort_ort: 'Einsatzort Ort',
 }
 
 // ══════════════════════════════════════════════════════════
@@ -281,6 +291,9 @@ function AuftragDetailModal({ auftrag, onClose, onRefresh }) {
     neukunde_name: a.neukunde_name || '',
     neukunde_telefon: a.neukunde_telefon || '',
     neukunde_email: a.neukunde_email || '',
+    einsatzort_strasse: a.einsatzort_strasse || '',
+    einsatzort_plz: a.einsatzort_plz || '',
+    einsatzort_ort: a.einsatzort_ort || '',
   })
 
   // ── Kundensuche fuer Bestandskunde wechseln ──
@@ -499,6 +512,55 @@ function AuftragDetailModal({ auftrag, onClose, onRefresh }) {
                 />
               </div>
             )}
+          </div>
+
+          {/* 2b. Einsatzort (abweichend) */}
+          <div className="border-t border-gray-200 pt-4 mt-4">
+            <div className="text-sm space-y-2">
+              <label className="flex items-center gap-2 text-gray-600">
+                <input
+                  type="checkbox"
+                  checked={form.values.einsatzort_strasse !== '' || form.values.einsatzort_plz !== '' || form.values.einsatzort_ort !== ''}
+                  onChange={e => {
+                    if (!e.target.checked) {
+                      form.setValue('einsatzort_strasse', '')
+                      form.setValue('einsatzort_plz', '')
+                      form.setValue('einsatzort_ort', '')
+                    }
+                  }}
+                  className="rounded border-gray-300"
+                />
+                <MapPin className="w-3.5 h-3.5 text-gray-400" />
+                Einsatzort abweichend
+              </label>
+              {(form.values.einsatzort_strasse !== '' || form.values.einsatzort_plz !== '' || form.values.einsatzort_ort !== '') && (
+                <div className="grid grid-cols-1 gap-2 pl-6">
+                  <input
+                    type="text"
+                    placeholder="Strasse"
+                    value={form.values.einsatzort_strasse}
+                    onChange={e => form.setValue('einsatzort_strasse', e.target.value)}
+                    className={`px-2 py-1 border border-gray-300 rounded text-sm ${dirtyBg('einsatzort_strasse')}`}
+                  />
+                  <div className="grid grid-cols-3 gap-2">
+                    <input
+                      type="text"
+                      placeholder="PLZ"
+                      value={form.values.einsatzort_plz}
+                      onChange={e => form.setValue('einsatzort_plz', e.target.value)}
+                      className={`px-2 py-1 border border-gray-300 rounded text-sm ${dirtyBg('einsatzort_plz')}`}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Ort"
+                      value={form.values.einsatzort_ort}
+                      onChange={e => form.setValue('einsatzort_ort', e.target.value)}
+                      className={`col-span-2 px-2 py-1 border border-gray-300 rounded text-sm ${dirtyBg('einsatzort_ort')}`}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* 3. Beschreibung (editierbar) */}
@@ -735,6 +797,8 @@ function NeuAuftragModal({ onClose, onRefresh }) {
   const [neukunde, setNeukunde] = useState({ name: '', telefon: '', strasse: '', plz: '', ort: '' })
   const [prioritaet, setPrioritaet] = useState('NORMAL')
   const [beschreibung, setBeschreibung] = useState('')
+  const [einsatzortAktiv, setEinsatzortAktiv] = useState(false)
+  const [einsatzort, setEinsatzort] = useState({ strasse: '', plz: '', ort: '' })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
 
@@ -773,6 +837,11 @@ function NeuAuftragModal({ onClose, onRefresh }) {
         } else {
           body.erp_kunde_id = selectedKunde.code
         }
+      }
+      if (einsatzortAktiv && (einsatzort.strasse || einsatzort.plz || einsatzort.ort)) {
+        body.einsatzort_strasse = einsatzort.strasse
+        body.einsatzort_plz = einsatzort.plz
+        body.einsatzort_ort = einsatzort.ort
       }
       await apiFetch('/reparatur-api/reparatur', { method: 'POST', body })
       onRefresh()
@@ -877,6 +946,47 @@ function NeuAuftragModal({ onClose, onRefresh }) {
               value={beschreibung}
               onChange={e => setBeschreibung(e.target.value)}
             />
+          </div>
+
+          {/* Einsatzort (optional) */}
+          <div className="mb-4">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+              <input
+                type="checkbox"
+                checked={einsatzortAktiv}
+                onChange={e => {
+                  setEinsatzortAktiv(e.target.checked)
+                  if (!e.target.checked) setEinsatzort({ strasse: '', plz: '', ort: '' })
+                }}
+                className="rounded border-gray-300"
+              />
+              <MapPin className="w-4 h-4 text-gray-400" />
+              Einsatzort abweichend
+            </label>
+            {einsatzortAktiv && (
+              <div className="grid grid-cols-1 gap-2 pl-6">
+                <input
+                  placeholder="Strasse"
+                  className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+                  value={einsatzort.strasse}
+                  onChange={e => setEinsatzort({ ...einsatzort, strasse: e.target.value })}
+                />
+                <div className="flex gap-2">
+                  <input
+                    placeholder="PLZ"
+                    className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-24"
+                    value={einsatzort.plz}
+                    onChange={e => setEinsatzort({ ...einsatzort, plz: e.target.value })}
+                  />
+                  <input
+                    placeholder="Ort"
+                    className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm flex-1"
+                    value={einsatzort.ort}
+                    onChange={e => setEinsatzort({ ...einsatzort, ort: e.target.value })}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
@@ -1083,7 +1193,7 @@ export default function Auftraege() {
                     <td className="px-4 py-3"><StatusBadge status={a.status} /></td>
                     <td className="px-4 py-3"><PriorityBadge priority={a.prioritaet} /></td>
                     <td className="px-4 py-3 font-medium text-gray-900">{truncate(kundeName(a), 30)}</td>
-                    <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{truncate(kundeAdresse(a), 40)}</td>
+                    <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{truncate(einsatzortAdresse(a) || kundeAdresse(a), 40)}</td>
                     <td className="px-4 py-3 text-gray-600 hidden lg:table-cell">{truncate(a.beschreibung, 50)}</td>
                     <td className="px-4 py-3 text-gray-600 hidden sm:table-cell whitespace-nowrap">{formatDate(a.termin_sv1)}</td>
                     <td className="px-4 py-3">

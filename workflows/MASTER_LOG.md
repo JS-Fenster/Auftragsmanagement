@@ -50,6 +50,9 @@
 | [R-039] | 2026-02-05 | REPAIR | PL | renew-subscriptions 401-Fix verifiziert + Architektur |
 | [R-040] | 2026-02-09 | REPAIR | PROG | P016-PROG: View v_auftraege + PATCH Update + Auftraege.jsx Ueberarbeitung |
 | [R-041] | 2026-02-09 | REPAIR | TEST | T016-TEST: P016 Verifizierung - Alle 5 Tests BESTANDEN |
+| [R-042] | 2026-02-09 | REPAIR | PROG | P017-PROG: Einsatzort-Feld (DB + API + Frontend) |
+| [R-043] | 2026-02-09 | REPAIR | PROG | P018-PROG: Bundle-Optimierung (manualChunks Code-Splitting) |
+| [R-044] | 2026-02-09 | REPAIR | TEST | T017-TEST: Gesamttest 5/5 BESTANDEN |
 | [B-001] | 2026-02-03 | BUDGET | PL | System-Initialisierung |
 | [B-002] | 2026-02-03 | BUDGET | PL | 3-Agenten-Analyse abgeschlossen |
 | [B-003] | 2026-02-03 | BUDGET | PROG | Supabase Migration: 11 Tabellen angelegt |
@@ -1722,6 +1725,105 @@ Projektleiter kann P016 als abgeschlossen markieren und naechste Aufgabe planen.
 
 ---
 
+## [R-042] Programmierer: P017-PROG - Einsatzort-Feld (DB + API + Frontend)
+**Datum:** 2026-02-09 15:30
+**Workflow:** REPAIR
+
+### Kontext
+Auftrag P017-PROG: Einsatzort-Feld implementieren (abweichende Lieferadresse). 5 Teile: DB-Migration, View-Update, Edge Function, Detail-Modal, NeuAuftragModal.
+
+### Durchgefuehrt
+
+**Teil 1: DB-Migration `add_einsatzort_fields`**
+- 3 neue TEXT-Spalten in `auftraege`: `einsatzort_strasse`, `einsatzort_plz`, `einsatzort_ort`
+- Migration erfolgreich
+
+**Teil 2: View `v_auftraege` aktualisiert `update_v_auftraege_einsatzort`**
+- DROP VIEW + CREATE VIEW mit `a.*` (inkludiert neue Spalten automatisch)
+- Verifiziert: `SELECT einsatzort_strasse FROM v_auftraege LIMIT 1` -> OK (null, keine Daten)
+
+**Teil 3: Edge Function `reparatur-api` v2.3.0 (Deploy 12)**
+- UPDATE_WHITELIST: +3 Felder (einsatzort_strasse, einsatzort_plz, einsatzort_ort)
+- CreateAuftragBody Interface: +3 optionale Felder
+- createAuftrag Funktion: insertData um 3 Felder erweitert
+- Health-Endpoint Version auf 2.3.0 aktualisiert
+- verify_jwt: false (wie vorher)
+
+**Teil 4: Dashboard Auftraege.jsx - Detail-Modal**
+- 4a: FIELD_LABELS um 3 Einsatzort-Labels erweitert
+- 4b: useFormWithUndo initialValues um 3 Einsatzort-Felder erweitert
+- 4c: Einsatzort-Sektion mit Checkbox "Einsatzort abweichend" eingefuegt (nach Kunden-Info, vor Beschreibung)
+  - Checkbox steuert Sichtbarkeit der Felder (Strasse, PLZ, Ort)
+  - Deaktivieren loescht alle 3 Felder (setzt auf '')
+  - dirtyBg-Highlighting fuer Aenderungsverfolgung
+- 4d: Neuer Helper `einsatzortAdresse()` erstellt
+  - Tabellen-Spalte "Adresse" zeigt Einsatzort bevorzugt: `einsatzortAdresse(a) || kundeAdresse(a)`
+
+**Teil 5: Dashboard Auftraege.jsx - NeuAuftragModal**
+- State: `einsatzortAktiv` (boolean) + `einsatzort` (strasse/plz/ort)
+- UI: Checkbox "Einsatzort abweichend" mit MapPin-Icon nach Beschreibung
+- Submit: Einsatzort-Daten werden nur gesendet wenn Checkbox aktiv und Felder befuellt
+
+**Build-Verifizierung:**
+- `npx vite build` erfolgreich: 2593 Module, build in 5.49s
+- Keine Fehler, Chunk-Warnung 563 kB (bekannt, P018 adressiert)
+
+### Ergebnis
+- Alle 5 Teile erfolgreich implementiert
+- DB: 3 neue Spalten + View aktualisiert
+- API: v2.3.0 deployed mit Einsatzort-Support (CRUD)
+- Frontend: Einsatzort im Detail-Modal (editierbar) + NeuAuftragModal (optional)
+- Build fehlerfrei
+
+### Naechster Schritt
+Tester (T017-TEST) soll Einsatzort End-to-End pruefen (DB -> API -> Frontend).
+
+---
+
+## [R-043] Programmierer: P018-PROG - Bundle-Optimierung (manualChunks Code-Splitting)
+**Datum:** 2026-02-09 16:00
+**Workflow:** REPAIR
+
+### Kontext
+Auftrag P018-PROG: Dashboard JS-Bundle war 563 kB in einem einzelnen Chunk (ueber 500 kB Warnung). Code-Splitting per manualChunks in vite.config.js gefordert.
+
+### Durchgefuehrt
+
+**Baseline-Build (vorher):**
+- 1 JS-Chunk: `index.js` 563.84 kB (gzip: 158.18 kB)
+- Vite Warnung: "Some chunks are larger than 500 kB after minification"
+
+**Aenderung: `dashboard/vite.config.js`**
+- `build.rollupOptions.output.manualChunks` hinzugefuegt
+- 3 Vendor-Chunks definiert:
+  - `vendor-react`: react, react-dom, react-router-dom
+  - `vendor-supabase`: @supabase/supabase-js
+  - `vendor-ui`: lucide-react, date-fns
+
+**Optimierter Build (nachher):**
+- `index.js` 313.14 kB (gzip: 87.23 kB) - App-Code
+- `vendor-supabase.js` 170.49 kB (gzip: 45.34 kB)
+- `vendor-react.js` 46.59 kB (gzip: 16.50 kB)
+- `vendor-ui.js` 33.74 kB (gzip: 10.81 kB)
+- KEINE Chunk-Warnung mehr (kein Chunk > 500 kB)
+
+**Groessenvergleich:**
+- Gesamt JS vorher: 563.84 kB (gzip: 158.18 kB)
+- Gesamt JS nachher: 563.96 kB (gzip: 159.88 kB) - minimal mehr durch Chunk-Overhead
+- Groesster Chunk: 313.14 kB (vorher 563.84 kB) = **44% Reduktion**
+- Vorteil: Vendor-Chunks werden vom Browser gecacht, App-Code separat geladen
+
+### Ergebnis
+- vite.config.js erfolgreich erweitert
+- Build fehlerfrei, keine Warnung
+- Groesster Chunk von 563 kB auf 313 kB reduziert (44%)
+- Vendor-Bibliotheken in 3 separate, cachefaehige Chunks aufgeteilt
+
+### Naechster Schritt
+Tester (T017-TEST) soll Bundle-Groesse und Frontend-Build verifizieren.
+
+---
+
 ## [B-001] Projektleiter: System-Initialisierung
 **Datum:** 2026-02-03 14:00
 **Workflow:** BUDGET
@@ -3073,6 +3175,69 @@ sind fuer praezise Budgetschaetzungen - ohne manuelle Preispflege.
 1. Weighted Average Matching in budget-ki Edge Function (Quick-Win)
 2. Rollladen-Aufpreis im Matching
 3. LV-Aggregation verdichten (2891 → ~300 Cluster)
+
+---
+
+## [R-044] Tester: T017-TEST - Gesamttest (5 Tests)
+**Datum:** 2026-02-09 20:35
+**Workflow:** REPAIR
+
+### Kontext
+Gesamttest nach P017-PROG (Einsatzort-Feld) und P018-PROG (Bundle-Optimierung).
+5 Tests: Einsatzort Migration, Telegram Health, Dashboard API, Bundle-Groesse, Frontend Code Review.
+
+### Durchgefuehrt
+
+**Test 1: Einsatzort Migration - BESTANDEN**
+- 1a: 3 Spalten existieren (einsatzort_strasse, einsatzort_plz, einsatzort_ort), alle TEXT
+- 1b: View v_auftraege liefert 3 Einsatzort-Spalten (NULL-Werte wie erwartet)
+- 1c: PATCH /update HTTP 200, aktualisierte_felder = [einsatzort_strasse, einsatzort_plz, einsatzort_ort]
+- 1d: SQL-Verifikation: Teststrasse 42, 93047, Regensburg korrekt gespeichert
+- 1e: Aufraeumen: PATCH mit leeren Strings, HTTP 200, Felder leer bestaetigt
+
+**Test 2: Telegram-Bot Health Check - BESTANDEN**
+- HTTP 200, version: "3.3.0", ok: true
+- Features: persistent_keyboard, score_based_search, voice_description, auftragsnummer
+- Edge Function Status: ACTIVE, Version 10
+
+**Test 3: Dashboard API-Endpunkte - BESTANDEN**
+- 3a: GET /reparatur HTTP 200, 12 Auftraege (erwartet: 7+) - BESTANDEN
+- 3b: GET /kunden?q=Kraus HTTP 200, 15 Treffer - BESTANDEN
+- 3c: GET /optionen/auftragstyp HTTP 200, 4 Auftragstypen (Auftrag, Reparaturauftrag, Lieferung, Abholung) - BESTANDEN
+- 3d: Documents Count: 2.187 (erwartet: 1600+) - BESTANDEN
+- 3e: ERP-Kunden Count: 8.687 (erwartet: 8600+) - BESTANDEN
+- 3f: Email-Documents: 514 (erwartet: >0) - BESTANDEN
+
+**Test 4: Bundle-Groesse - BESTANDEN**
+- Build erfolgreich (2.51s, 2593 Module)
+- 4 JS-Chunks vorhanden (erwartet: 3+)
+- Groesster Chunk: index.js 313.14 kB (unter 500 kB Grenze)
+- vendor-react: 46.59 kB, vendor-supabase: 170.49 kB, vendor-ui: 33.74 kB
+- KEINE Vite-Warnung "chunks are larger than 500 kB"
+
+**Test 5: Frontend Code Review - BESTANDEN**
+- 5a: einsatzortAdresse Helper Zeile 82-87, gibt formatierte Adresse zurueck oder null - BESTANDEN
+- 5b: FIELD_LABELS hat 3 Einsatzort-Eintraege (Zeile 222-224) - BESTANDEN
+- 5c: useFormWithUndo hat einsatzort_strasse, _plz, _ort (Zeile 294-296) - BESTANDEN
+- 5d: Checkbox "Einsatzort abweichend" im Detail-Modal (Zeile 521-534) - BESTANDEN
+- 5e: NeuAuftragModal hat einsatzortAktiv State (Zeile 800) + Felder (Zeile 841-845, 951-989) - BESTANDEN
+- 5f: Tabellen-Spalte "Adresse" zeigt einsatzortAdresse(a) || kundeAdresse(a) (Zeile 1196) - BESTANDEN
+- 5g: vite.config.js hat manualChunks mit 3 Vendor-Gruppen (vendor-react, vendor-supabase, vendor-ui) - BESTANDEN
+
+### Ergebnis
+
+| Test | Beschreibung | Status |
+|------|--------------|--------|
+| Test 1 | Einsatzort Migration (DB + View + API + Cleanup) | BESTANDEN |
+| Test 2 | Telegram-Bot Health Check (v3.3.0) | BESTANDEN |
+| Test 3 | Dashboard API alle 6 Seiten | BESTANDEN |
+| Test 4 | Bundle-Groesse (4 Chunks, kein >500 kB) | BESTANDEN |
+| Test 5 | Frontend Code Review (Einsatzort) | BESTANDEN |
+
+**GESAMTERGEBNIS: 5/5 Tests BESTANDEN**
+
+### Naechster Schritt
+Alle Features verifiziert. System ist produktionsbereit.
 
 ---
 

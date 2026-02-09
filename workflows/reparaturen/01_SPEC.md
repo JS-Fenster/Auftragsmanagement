@@ -1,7 +1,7 @@
 # Projektspezifikation: Reparatur-Workflow
 
 > **Nur Projektleiter darf diese Datei editieren.**
-> Stand: 2026-01-30 | Version: 1.5
+> Stand: 2026-02-09 | Version: 1.6
 
 ---
 
@@ -90,18 +90,31 @@ Abnahmeprotokoll, Angebot, Aufmassblatt, Auftragsbestaetigung, Audio, Ausgangsre
 | `erp_lieferanten` | 663 | Lieferantenstammdaten |
 | `erp_ra` | 2.993 | Rechnungsausgang (offene Posten) |
 
-#### Reparatur-Workflow Tabellen (NEU - Step 1 MVP)
+#### Auftrags-Workflow Tabellen (Step 1 MVP + Step 3 Erweiterungen)
 
 | Tabelle | Zeilen | Zweck | Erstellt |
 |---------|--------|-------|----------|
-| `reparatur_auftraege` | ~2 (Test) | Haupt-Tabelle fuer Reparatur-Workflow | 2026-01-29 |
-| `telegram_sessions` | 0 | Telegram-Bot Sessions (Step 2 Vorbereitung) | 2026-01-26 |
+| `auftraege` | 7+ | Zentrale Auftrags-Tabelle (alle Typen) | 2026-01-29 |
+| `telegram_sessions` | ~2 | Telegram-Bot Sessions | 2026-01-26 |
+| `manuelle_kunden` | ~3 | Manuell erfasste Kunden (via Telegram/Dashboard) | 2026-02-02 |
+| `einstellungen_optionen` | ~8 | Dropdown-Optionen (Auftragstypen, Kundentypen) | 2026-02-02 |
+| `telegram_fotos` | ~5 | Telegram-Bot Foto-Uploads | 2026-02-02 |
 
-**Tabelle `reparatur_auftraege` Details:**
-- 27 Spalten inkl. Status-Ladder, Zeitfenster, Mannstaerke, Aging-Flag
+**Tabelle `auftraege` Details (34 Spalten):**
+- Auftragstyp via Feld `auftragstyp` (Default: 'Reparaturauftrag')
+- Auftragstypen (aus `einstellungen_optionen`): Auftrag, Reparaturauftrag, Lieferung, Abholung
+- Kundentypen: Privat, Gewerbe, Oeffentlich, Architekt
+- Status-Ladder: OFFEN → IN_BEARBEITUNG → TERMIN_RESERVIERT → TERMIN_FIX → ERLEDIGT
+- Reparatur-spezifische Felder: termin_sv1, termin_sv2, zeitfenster, outcome_sv1, mannstaerke, ist_no_show
+- Einsatzort (optional abweichend): einsatzort_strasse, einsatzort_plz, einsatzort_ort
+- Kunde: erp_kunde_id (Bestandskunde) ODER neukunde_* Felder (Neukunde)
+- Herkunft: erstellt_via (dashboard/telegram), document_id, telegram_chat_id
+- Auftragsnummer: Auto-generiert (Format: REP-YYYY-XXXX)
 - RLS aktiviert (Service-Role + Authenticated)
 - Foreign Keys zu `erp_kunden` und `documents`
 - Indizes auf status, prioritaet, erp_kunde_id, termin_sv1, erstellt_am
+
+**View `v_auftraege`:** auftraege LEFT JOIN erp_kunden - liefert kunde_firma, kunde_*_erp Felder
 
 #### Auftrags-Tracking Tabellen (alt, noch leer)
 
@@ -150,15 +163,15 @@ Abnahmeprotokoll, Angebot, Aufmassblatt, Auftragsbestaetigung, Audio, Ausgangsre
 | `setup-andreas-mailbox` | v2 | Nein | Andreas' Postfach einrichten |
 | `debug-env` | v2 | Nein | Umgebungsvariablen debuggen |
 
-#### NEUE Functions (Reparatur-Workflow - Step 1 MVP)
+#### Workflow Functions (Auftrags-System)
 
 | Function | Version | JWT | Zweck | Aktualisiert |
 |----------|---------|-----|-------|--------------|
-| `reparatur-api` | v6 (1.5.0) | Ja | CRUD fuer Reparatur-Auftraege - Step 1 MVP KOMPLETT | 2026-01-30 |
-| `reparatur-aging` | v1 (1.0.0) | Nein | Cron-Job: Setzt ist_zu_lange_offen Flag nach 14 Tagen | 2026-01-29 |
-| `telegram-bot` | v1 | Nein | Telegram Webhook (Step 2 Vorbereitung) | 2026-01-26 |
+| `reparatur-api` | v11 (2.2.0) | Nein | CRUD fuer Auftraege + Kundensuche + Update | 2026-02-09 |
+| `reparatur-aging` | v3 (2.0.0) | Nein | Cron-Job: Setzt ist_zu_lange_offen Flag nach 14 Tagen | 2026-02-02 |
+| `telegram-bot` | v10 (3.3.0) | Nein | Telegram Webhook: Auftraege+Kunden anlegen, Foto, Voice | 2026-02-09 |
 
-**Endpoints `reparatur-api` v1.5.0 (GETESTET - T011-TEST):**
+**Endpoints `reparatur-api` v2.2.0 (GETESTET - T016-TEST):**
 
 | Endpoint | Methode | Beschreibung |
 |----------|---------|--------------|
@@ -170,7 +183,9 @@ Abnahmeprotokoll, Angebot, Aufmassblatt, Auftragsbestaetigung, Audio, Ausgangsre
 | `/reparatur/:id/outcome` | PATCH | Outcome SV1 setzen (A=erledigt, B=Folgeeinsatz) |
 | `/reparatur/:id/termin-sv2` | PATCH | Termin SV2 setzen (nur bei Outcome B) |
 | `/reparatur/:id/mannstaerke` | PATCH | Mannstaerke setzen (1/2/null) |
-| `/kunden` | GET | Kundensuche in erp_kunden (?q=suchbegriff) |
+| `/reparatur/:id/update` | PATCH | Genereller Update (Whitelist-basiert) |
+| `/kunden` | GET | Kundensuche in erp_kunden + manuelle_kunden (?q=suchbegriff) |
+| `/optionen/:kategorie` | GET | Dropdown-Optionen abrufen |
 | `?health=1` | GET | Health Check |
 
 **Cron-Job `reparatur-aging` (noch zu konfigurieren):**
@@ -933,9 +948,10 @@ Jede neue Edge Function oder Tabelle muss in diesem Dokument (Kapitel 2) nachget
 ---
 
 *Ende der Spezifikation*
-*Version 1.5 | Erstellt: 2026-01-26 | Autor: Projektleiter (Diktat von Andreas)*
+*Version 1.6 | Erstellt: 2026-01-26 | Autor: Projektleiter (Diktat von Andreas)*
 *Aenderungen v1.1: 100€ Pauschale, Prio-Einstufung, KI-Vision Ersatzteil-ID, Bestellprozess mit Freigabe, Telegram vs. App Szenarien*
 *Aenderungen v1.2: Servicebesuch 1 mit 2 Outcomes (A: erledigt, B: Folgeeinsatz), Terminplanung FRUEH nach Annahme, Begutachtungsauftrag vs. Auftragsbestaetigung klargestellt, Kap. 3.3.2 + 3.3.3 neu, Terminerinnerung konkretisiert*
 *Aenderungen v1.3: Auftrags-Statusmodell (Kap. 3.8), Neukunde vs. Bestandskunde (Kap. 3.2), 2-Mann-Constraints (Kap. 3.3.4), No-Show-Regel, Aging-Eskalation, Rollout-Strategie Step 1/2 (Kap. 4.7), Outlook als SPAETER markiert*
 *Aenderungen v1.4: Kapitel 2 aktualisiert mit neuen Edge Functions (reparatur-api, reparatur-aging, telegram-bot) und Tabellen (reparatur_auftraege, telegram_sessions)*
 *Aenderungen v1.5: Step 1 MVP KOMPLETT - reparatur-api v1.5.0 mit 10 Endpoints (Kundensuche, Outcome, Termin-SV2, Mannstaerke) - GETESTET (T011-TEST: 10/10)*
+*Aenderungen v1.6: Kap. 2 aktualisiert - reparatur_auftraege -> auftraege (zentrale Tabelle), Edge Functions auf aktuelle Versionen, Einsatzort-Felder, View v_auftraege dokumentiert*
