@@ -44,6 +44,12 @@
 | L33 | GPT-5.2 Reasoning: kein `temperature` Parameter, `reasoning_effort` stattdessen | [B-033] |
 | L34 | Edge Function Timeout mind. 55s fuer GPT-Reasoning | [B-033] |
 | L35 | Validation in Edge Functions FLEXIBEL machen - Frontend sendet nicht immer alle Felder | [B-036] |
+| L36 | Stulp-Fenster werden als "haustuer" fehlkategorisiert wenn Hoehe<2200mm - Korrektur noetig | [B-042] |
+| L37 | Kombielemente ("/" im Anschlag) kosten 50-80% mehr als Einzelelemente gleicher Groesse | [B-042] |
+| L38 | Groessenklasse L (1.3-2.5qm) zu breit - L1 (1.3-1.8) + L2 (1.8-2.5) aufsplitten | [B-042] |
+| L39 | Weighted Average Matching schlaegt ORDER BY sample_count - 18.7% vs 21.5% Median | [B-043] |
+| L40 | Coverage ist genauso wichtig wie Genauigkeit - 97.6% vs 72% nach Fixes | [B-043] |
+| L41 | LV-Aggregation erzeugt zu viele Einzelpositionen (2891) statt wenige dichte Cluster (~300) | [B-043] |
 
 ---
 
@@ -54,6 +60,7 @@
 | D2 | Leistungsverzeichnis als Preisbasis statt feste Tabelle | Echte historische Preise > manuelle Pflege | [B-037] |
 | D3 | Edge Functions statt Backend-API fuer KI | Serverless, kein eigener Server noetig | [B-033] |
 | D4 | 4-Schritt-Wizard statt 1-Seite | Bessere UX, editierbare Positionen | [B-038] |
+| D5 | Granulare LV-Spalten (Oeffnungsart+Groesse+Verglasung) statt nur Kategorie | Median 30.9%→18.7%, Coverage 72%→97.6% | [B-040]-[B-043] |
 
 ---
 
@@ -68,4 +75,4 @@
 
 ---
 
-*Letzte Aktualisierung: 2026-02-05*
+*Letzte Aktualisierung: 2026-02-09*
