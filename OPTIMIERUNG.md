@@ -513,7 +513,7 @@ EMPFOHLEN:
 | Datei | Zeilen | Zweck |
 |-------|--------|-------|
 | `CLAUDE.md` | 110 | Projekt-Anweisungen |
-| `PLAN.md` | 176 | Sprint-Plan |
+| ~~`PLAN.md`~~ | ~~176~~ | ~~Sprint-Plan~~ → Aufgeloest, Inhalte in diese Datei uebernommen (2026-02-09) |
 | `SETUP_ANLEITUNG.md` | 90 | Quick-Start |
 | `OPTIMIERUNG.md` | 400+ | Diese Datei |
 | `docs/Auftragsmanagement_Projektplan.md` | 416 | Urspruenglicher Plan |
@@ -1312,4 +1312,96 @@ Anruf: Tochter Mueller (0171-xxxx)
 
 ---
 
-*Aktualisiert: 2026-02-09 - E-Mail-Klassifizierung + Kontakt-Management hinzugefuegt*
+### 11.5 Kategorisierungs-Optimierung (Dokumente + E-Mails) 🔴
+
+| Attribut | Wert |
+|----------|------|
+| **Prioritaet** | HOCH |
+| **Bereich** | E-Mail-Pipeline, Dokument-Pipeline |
+| **Herkunft** | PLAN.md PRIO 1 (aufgeloest) |
+| **Notiert** | 2026-02-02 |
+
+#### Problem
+
+Die KI-Kategorisierung hat Verbesserungspotenzial:
+- **14%** der Dokumente landen als "Sonstiges_Dokument"
+- **97.5%** der E-Mails landen als "Sonstiges"
+- Falsche Zuordnungen (z.B. Lieferschein → Auftragsbestaetigung)
+
+#### Wichtige Regeln
+
+- **Konsistenz:** Analyse-Script MUSS identisch zur Edge Function laufen
+- Aenderungen im Prompt muessen 1:1 in der Edge Function umgesetzt werden
+
+#### Massenupload vs. Tagesgeschaeft
+
+| Zeitraum | Typ | Anzahl |
+|----------|-----|--------|
+| 29.12.2025 | Massenupload | 134 |
+| 02.01.2026 | Massenupload | 184 |
+| 12.01.2026 | Massenupload | 635 |
+| **ab 15.01.2026** | **Tagesgeschaeft** | 30-80/Tag |
+
+**→ Nur Dokumente ab 15.01.2026 fuer Analyse heranziehen!**
+
+#### Vorgehen
+
+1. [x] Massenupload-Zeitraum identifiziert
+2. [ ] Stichprobe aus Tagesgeschaeft (ab 15.01.) ziehen
+3. [ ] Fehlermuster identifizieren
+4. [ ] OCR-Texte analysieren (besonders Ueberschriften/erste Zeilen)
+5. [ ] Heuristik-Regeln basierend auf echten Daten ableiten
+6. [ ] In categories.ts und prompts.ts anpassen
+
+---
+
+### 11.6 Edge Functions aufsplitten (Token-Optimierung) 🟡
+
+| Attribut | Wert |
+|----------|------|
+| **Prioritaet** | MITTEL |
+| **Bereich** | Edge Functions, Code-Qualitaet |
+| **Herkunft** | PLAN.md PRIO 2 (aufgeloest) |
+| **Notiert** | 2026-02-02 |
+
+#### Problem
+
+Die Edge Functions sind zu gross und verbrauchen beim Einlesen massiv Tokens:
+
+| Datei | Zeilen | Tokens |
+|-------|--------|--------|
+| process-document/index.ts | 1.437 | ~13.300 |
+| process-email/index.ts | 1.118 | ~10.100 |
+| email-webhook/index.ts | 982 | ~8.800 |
+
+#### Loesung
+
+Edge Functions in kleinere Module aufsplitten:
+
+```
+process-document/
+├── index.ts          # Nur Orchestrierung (~500 Tokens)
+├── ocr.ts            # Mistral OCR-Logik
+├── categorization.ts # GPT-Kategorisierung
+├── storage.ts        # Supabase Upload
+├── database.ts       # DB-Operationen
+├── prompts.ts        # System-Prompts (bleibt)
+├── categories.ts     # Heuristik-Regeln (bleibt)
+└── types.ts          # TypeScript Interfaces
+```
+
+---
+
+### 11.7 Fehlende Scanner-Dateien nachholen 📋
+
+| Attribut | Wert |
+|----------|------|
+| **Prioritaet** | NIEDRIG |
+| **Herkunft** | PLAN.md PRIO 4 (aufgeloest) |
+
+Dateien vom 22.-23.01.2026 wurden gescannt aber nicht verarbeitet (ca. 40+ Dateien).
+Scanner-Problem wurde am 28.01.2026 behoben, alte Dateien liegen in `\\appserver\Work4all`.
+
+---
+
+*Aktualisiert: 2026-02-09 - PLAN.md Inhalte konsolidiert + PLAN.md aufgeloest*
