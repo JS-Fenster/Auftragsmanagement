@@ -191,39 +191,120 @@ function detectElementType(text) {
 }
 
 /**
+ * Erkennt Hersteller aus Positionstext oder Header
+ * LOG-028: Erweiterte Hersteller-Erkennung
+ * @param {string} text
+ * @returns {string} - WERU, INTERNORM, ALUPROF, etc.
+ */
+function detectManufacturer(text) {
+    if (!text) return 'WERU';
+    const t = text.toLowerCase();
+
+    if (t.includes('internorm')) return 'INTERNORM';
+    if (t.includes('aluprof')) return 'ALUPROF';
+    if (t.includes('schüco') || t.includes('schueco') || t.includes('schuco')) return 'SCHUECO';
+    if (t.includes('heroal')) return 'HEROAL';
+    if (t.includes('drutex')) return 'DRUTEX';
+    if (t.includes('veka')) return 'VEKA';
+    if (t.includes('warema')) return 'WAREMA';
+    if (t.includes('weru')) return 'WERU';
+
+    return 'WERU'; // Default
+}
+
+/**
  * Erkennt System aus Positionstext oder Header
+ * LOG-028: Erweiterte System-Erkennung fuer alle Hersteller
+ * @param {string} text
+ * @returns {Object} - { manufacturer, system }
+ */
+function detectManufacturerAndSystem(text) {
+    if (!text) return { manufacturer: 'WERU', system: 'DEFAULT' };
+    const t = text.toLowerCase();
+
+    // INTERNORM Systeme (spezifisch zuerst)
+    if (t.includes('hf310') || t.includes('hf 310')) return { manufacturer: 'INTERNORM', system: 'HF310' };
+    if (t.includes('kf410') || t.includes('kf 410')) return { manufacturer: 'INTERNORM', system: 'KF410' };
+    if (t.includes('kf310') || t.includes('kf 310')) return { manufacturer: 'INTERNORM', system: 'KF310' };
+    if (t.includes('hs330') || t.includes('hs 330')) return { manufacturer: 'INTERNORM', system: 'HS330' };
+    if (t.includes('internorm')) return { manufacturer: 'INTERNORM', system: 'DEFAULT' };
+
+    // ALUPROF Systeme
+    if (t.includes('mb-86') || t.includes('mb 86') || t.includes('mb86')) return { manufacturer: 'ALUPROF', system: 'MB-86' };
+    if (t.includes('mb-70') || t.includes('mb 70') || t.includes('mb70')) return { manufacturer: 'ALUPROF', system: 'MB-70' };
+    if (t.includes('aluprof')) return { manufacturer: 'ALUPROF', system: 'MB-70' };
+
+    // SCHUECO Systeme
+    if (t.includes('aws 75') || t.includes('aws-75')) return { manufacturer: 'SCHUECO', system: 'AWS-75' };
+    if (t.includes('aws 70') || t.includes('aws-70')) return { manufacturer: 'SCHUECO', system: 'AWS-70' };
+    if (t.includes('schüco') || t.includes('schueco') || t.includes('schuco')) return { manufacturer: 'SCHUECO', system: 'DEFAULT' };
+
+    // HEROAL Systeme
+    if (t.includes('w92') || t.includes('w 92')) return { manufacturer: 'HEROAL', system: 'W92' };
+    if (t.includes('w72') || t.includes('w 72')) return { manufacturer: 'HEROAL', system: 'W72' };
+    if (t.includes('heroal')) return { manufacturer: 'HEROAL', system: 'DEFAULT' };
+
+    // DRUTEX / VEKA (Legacy)
+    if (t.includes('iglo energy') || t.includes('iglo-energy')) return { manufacturer: 'DRUTEX', system: 'IGLO-ENERGY' };
+    if (t.includes('iglo 5') || t.includes('iglo5')) return { manufacturer: 'DRUTEX', system: 'IGLO5' };
+    if (t.includes('drutex')) return { manufacturer: 'DRUTEX', system: 'DEFAULT' };
+    if (t.includes('vekamotion')) return { manufacturer: 'VEKA', system: 'VEKAMOTION' };
+    if (t.includes('veka 82')) return { manufacturer: 'VEKA', system: 'VEKA-82' };
+    if (t.includes('veka 76')) return { manufacturer: 'VEKA', system: 'VEKA-76' };
+    if (t.includes('veka')) return { manufacturer: 'VEKA', system: 'DEFAULT' };
+
+    // WERU Systeme (Hauptfokus)
+    if (t.includes('impreo-top') || t.includes('impreo top')) return { manufacturer: 'WERU', system: 'IMPREO' };
+    if (t.includes('impreo')) return { manufacturer: 'WERU', system: 'IMPREO' };
+    if (t.includes('calido')) return { manufacturer: 'WERU', system: 'CALIDO' };
+    if (t.includes('castello')) return { manufacturer: 'WERU', system: 'CASTELLO' };
+    if (t.includes('afino-one') || t.includes('afino one')) return { manufacturer: 'WERU', system: 'AFINO' };
+    if (t.includes('afino-top') || t.includes('afino top')) return { manufacturer: 'WERU', system: 'AFINO' };
+    if (t.includes('afino')) return { manufacturer: 'WERU', system: 'AFINO' };
+    if (t.includes('atris')) return { manufacturer: 'WERU', system: 'ATRIS' };
+    if (t.includes('avida')) return { manufacturer: 'WERU', system: 'AVIDA' };
+    if (t.includes('alegra-top') || t.includes('alegra top')) return { manufacturer: 'WERU', system: 'ALEGRA' };
+    if (t.includes('alegra')) return { manufacturer: 'WERU', system: 'ALEGRA' };
+
+    // Verglasung als Hinweis (nur WERU-Fallback)
+    if (t.includes('weru')) {
+        if (t.includes('3-fach') || t.includes('3fach') || t.includes('dreifach')) return { manufacturer: 'WERU', system: 'CALIDO' };
+        if (t.includes('2-fach') || t.includes('2fach') || t.includes('zweifach')) return { manufacturer: 'WERU', system: 'CASTELLO' };
+        return { manufacturer: 'WERU', system: 'DEFAULT' };
+    }
+
+    // Nur Verglasung ohne Hersteller -> WERU Default
+    if (t.includes('3-fach') || t.includes('3fach') || t.includes('dreifach')) return { manufacturer: 'WERU', system: 'CALIDO' };
+    if (t.includes('2-fach') || t.includes('2fach') || t.includes('zweifach')) return { manufacturer: 'WERU', system: 'CASTELLO' };
+
+    return { manufacturer: 'WERU', system: 'DEFAULT' };
+}
+
+/**
+ * Erkennt System aus Positionstext oder Header (Kompatibilitaets-Wrapper)
  * @param {string} text
  * @returns {string} - CASTELLO, CALIDO, IMPREO, DEFAULT
  */
 function detectSystem(text) {
-    if (!text) return 'DEFAULT';
-    const t = text.toLowerCase();
-
-    if (t.includes('impreo')) return 'IMPREO';
-    if (t.includes('calido')) return 'CALIDO';
-    if (t.includes('castello')) return 'CASTELLO';
-    if (t.includes('afino')) return 'AFINO';
-
-    // Verglasung als Hinweis
-    if (t.includes('3-fach') || t.includes('3fach') || t.includes('dreifach')) return 'CALIDO';
-    if (t.includes('2-fach') || t.includes('2fach') || t.includes('zweifach')) return 'CASTELLO';
-
-    return 'DEFAULT';
+    return detectManufacturerAndSystem(text).system;
 }
 
 /**
  * Erkennt ob Position ein Header ist
- * LOG-025: Header = PozNr OHNE Punkt (1, 2, 3) ODER Anzahl=0 UND EinzPreis=0
+ * LOG-028: Header = PozNr OHNE Punkt (1, 2, 3) ODER PozNr NULL ODER Anzahl=0 UND EinzPreis=0
  */
 function isHeader(pos) {
-    // Neue Logik: PozNr ohne Punkt = Header
-    if (pos.PosNr) {
-        const posNrStr = String(pos.PosNr).trim();
-        // Wenn PozNr ein Integer ist (keine Dezimalstelle/Punkt), dann Header
-        if (!posNrStr.includes('.') && /^\d+$/.test(posNrStr)) {
-            return true;
-        }
+    // LOG-028: PozNr NULL ist auch ein Header (oft mit System-Info!)
+    if (!pos.PosNr || pos.PosNr === null) {
+        return true;
     }
+
+    // PozNr ohne Punkt = Header
+    const posNrStr = String(pos.PosNr).trim();
+    if (!posNrStr.includes('.') && /^\d+$/.test(posNrStr)) {
+        return true;
+    }
+
     // Fallback: Alte Logik
     return (!pos.Anzahl || pos.Anzahl === 0) && (!pos.EinzPreis || pos.EinzPreis === 0);
 }
@@ -379,7 +460,7 @@ async function fetchPositions(pool, invoiceCode) {
         FROM dbo.Positionen
         WHERE BZObjType = ${CONFIG.BZOBJTYPE_RECHNUNG}
           AND BZObjMemberCode = @invoiceCode
-        ORDER BY PozNr
+        ORDER BY Code  -- LOG-028: Code statt PozNr, weil NULL-Werte sonst falsch sortiert werden
     `;
 
     const result = await pool.request()
@@ -425,20 +506,17 @@ function analyzePositions(positions) {
         if (isHeader(pos)) {
             analysis.headers.push(pos);
 
-            // System aus Header extrahieren
-            const system = detectSystem(text);
+            // LOG-028: Hersteller UND System kombiniert erkennen (verbessert)
+            const { manufacturer, system } = detectManufacturerAndSystem(text);
+
             if (system !== 'DEFAULT') {
                 currentHeaderContext.system = system;
                 analysis.context.system = system;
             }
 
-            // Hersteller erkennen
-            if (text.toLowerCase().includes('aluprof')) {
-                currentHeaderContext.manufacturer = 'ALUPROF';
-                analysis.context.manufacturer = 'ALUPROF';
-            } else if (text.toLowerCase().includes('weru')) {
-                currentHeaderContext.manufacturer = 'WERU';
-                analysis.context.manufacturer = 'WERU';
+            if (manufacturer !== 'WERU' || !analysis.context.manufacturer) {
+                currentHeaderContext.manufacturer = manufacturer;
+                analysis.context.manufacturer = manufacturer;
             }
 
             // Verglasung
@@ -733,6 +811,7 @@ async function runBacktest() {
                 abs_deviation_percent: Math.round(absDeviation * 100) / 100,
                 is_hit: isHit,
                 element_count: budgetPrice.element_count,
+                manufacturer: budgetPrice.context.manufacturer,  // LOG-028
                 system: budgetPrice.context.system,
                 breakdown: budgetPrice.breakdown
             });
@@ -769,19 +848,36 @@ async function runBacktest() {
     // Top 5 beste Treffer
     const bestResults = [...results].sort((a, b) => a.abs_deviation_percent - b.abs_deviation_percent).slice(0, 5);
 
-    // System-Analyse
+    // System-Analyse (erweitert mit Hersteller)
     const systemStats = {};
+    const manufacturerStats = {};
+
     for (const r of results) {
-        if (!systemStats[r.system]) {
-            systemStats[r.system] = { count: 0, deviations: [] };
+        // System-Stats
+        const sysKey = r.system || 'DEFAULT';
+        if (!systemStats[sysKey]) {
+            systemStats[sysKey] = { count: 0, deviations: [] };
         }
-        systemStats[r.system].count++;
-        systemStats[r.system].deviations.push(r.deviation_percent);
+        systemStats[sysKey].count++;
+        systemStats[sysKey].deviations.push(r.deviation_percent);
+
+        // Hersteller-Stats (LOG-028)
+        const mfrKey = r.manufacturer || 'WERU';
+        if (!manufacturerStats[mfrKey]) {
+            manufacturerStats[mfrKey] = { count: 0, deviations: [] };
+        }
+        manufacturerStats[mfrKey].count++;
+        manufacturerStats[mfrKey].deviations.push(r.deviation_percent);
     }
 
     for (const sys of Object.keys(systemStats)) {
         systemStats[sys].avg_deviation = calculateStats(systemStats[sys].deviations).avg;
         systemStats[sys].median_deviation = calculateStats(systemStats[sys].deviations).median;
+    }
+
+    for (const mfr of Object.keys(manufacturerStats)) {
+        manufacturerStats[mfr].avg_deviation = calculateStats(manufacturerStats[mfr].deviations).avg;
+        manufacturerStats[mfr].median_deviation = calculateStats(manufacturerStats[mfr].deviations).median;
     }
 
     // 4. Ergebnisse ausgeben
@@ -807,6 +903,11 @@ async function runBacktest() {
     console.log(`  - Median: ${stats.abs_deviation.median}%`);
     console.log(`  - Durchschnitt: ${stats.abs_deviation.avg}%`);
 
+    console.log('\n  NACH HERSTELLER:');
+    for (const [mfr, data] of Object.entries(manufacturerStats)) {
+        console.log(`  - ${mfr}: ${data.count} Rechnungen, Median ${data.median_deviation}%, Avg ${data.avg_deviation}%`);
+    }
+
     console.log('\n  NACH SYSTEM:');
     for (const [sys, data] of Object.entries(systemStats)) {
         console.log(`  - ${sys}: ${data.count} Rechnungen, Median ${data.median_deviation}%, Avg ${data.avg_deviation}%`);
@@ -820,7 +921,7 @@ async function runBacktest() {
     console.log('\n  TOP 5 GROESSTE ABWEICHUNGEN:');
     for (const r of worstResults) {
         console.log(`  - ${r.invoice_nummer}: Budget ${r.budget_brutto} EUR vs. Actual ${r.actual_brutto} EUR (${r.deviation_percent > 0 ? '+' : ''}${r.deviation_percent}%)`);
-        console.log(`      Notiz: ${r.notiz || '-'}, System: ${r.system}, Elemente: ${r.element_count}`);
+        console.log(`      Notiz: ${r.notiz || '-'}, Hersteller: ${r.manufacturer}, System: ${r.system}, Elemente: ${r.element_count}`);
     }
 
     console.log('\n═══════════════════════════════════════════════════════════════');

@@ -36,10 +36,61 @@ const ELEMENT_TYPES = [
   { value: 'haustuer', label: 'Haustuer' }
 ];
 
-// System-Optionen
-const SYSTEMS = ['CASTELLO', 'CALIDO', 'IMPREO', 'AFINO'];
+// Hersteller-Optionen
+const MANUFACTURERS = [
+  { value: 'WERU', label: 'WERU' },
+  { value: 'INTERNORM', label: 'Internorm' },
+  { value: 'ALUPROF', label: 'Aluprof' },
+  { value: 'DRUTEX', label: 'Drutex' },
+  { value: 'SCHUCO', label: 'Schueco' },
+  { value: 'HEROAL', label: 'Heroal' },
+  { value: 'ANDERE', label: 'Andere' }
+];
+
+// System-Optionen nach Hersteller
+const SYSTEMS_BY_MANUFACTURER = {
+  WERU: [
+    { value: 'CASTELLO', label: 'CASTELLO (2-fach, 70mm)' },
+    { value: 'CALIDO', label: 'CALIDO (3-fach, 80mm)' },
+    { value: 'IMPREO', label: 'IMPREO (Alumix)' },
+    { value: 'AFINO', label: 'AFINO (Legacy)' },
+    { value: 'ATRIS', label: 'ATRIS (Alu-Haustuer)' },
+    { value: 'AVIDA', label: 'AVIDA (Kunststoff-Haustuer)' },
+    { value: 'ALEGRA', label: 'ALEGRA (Hebeschiebe)' }
+  ],
+  INTERNORM: [
+    { value: 'HF310', label: 'HF310 (Holz-Alu)' },
+    { value: 'KF410', label: 'KF410 (Kunststoff-Alu)' },
+    { value: 'KF310', label: 'KF310 (Kunststoff-Alu)' },
+    { value: 'HS330', label: 'HS330 (Hebeschiebe)' }
+  ],
+  ALUPROF: [
+    { value: 'MB-70', label: 'MB-70 (Alu, 70mm)' },
+    { value: 'MB-86', label: 'MB-86 (Alu, 86mm)' }
+  ],
+  DRUTEX: [
+    { value: 'IGLO5', label: 'IGLO 5' },
+    { value: 'IGLO-ENERGY', label: 'IGLO Energy' },
+    { value: 'MB-70', label: 'MB-70 (Alu)' }
+  ],
+  SCHUCO: [
+    { value: 'AWS-70', label: 'AWS 70' },
+    { value: 'AWS-75', label: 'AWS 75' }
+  ],
+  HEROAL: [
+    { value: 'W72', label: 'W72' },
+    { value: 'W92', label: 'W92' }
+  ],
+  ANDERE: [
+    { value: 'STANDARD', label: 'Standard' }
+  ]
+};
+
+// Alle Systeme flach (fuer Fallback)
+const ALL_SYSTEMS = Object.values(SYSTEMS_BY_MANUFACTURER).flat();
+
 const GLAZINGS = ['2-fach', '3-fach'];
-const COLORS = ['weiss', 'anthrazit', 'golden oak', 'nussbaum', 'mooreiche', 'grau', 'silber'];
+const COLORS = ['weiss', 'anthrazit', 'golden oak', 'nussbaum', 'mooreiche', 'grau', 'silber', 'RAL'];
 
 function getStatusInfo(statusValue) {
   return BUDGET_STATUS.find(s => s.value === statusValue) || BUDGET_STATUS[0];
@@ -568,12 +619,13 @@ function BudgetDetail() {
                   {/* Hersteller */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Hersteller</label>
-                    <input
-                      type="text"
+                    <select
                       value={profile.manufacturer}
-                      onChange={(e) => setProfile({...profile, manufacturer: e.target.value})}
+                      onChange={(e) => setProfile({...profile, manufacturer: e.target.value, system: ''})}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
+                    >
+                      {MANUFACTURERS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                    </select>
                   </div>
 
                   {/* System */}
@@ -585,7 +637,9 @@ function BudgetDetail() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="">Automatisch</option>
-                      {SYSTEMS.map(s => <option key={s} value={s}>{s}</option>)}
+                      {(SYSTEMS_BY_MANUFACTURER[profile.manufacturer] || ALL_SYSTEMS).map(s => (
+                        <option key={s.value} value={s.value}>{s.label}</option>
+                      ))}
                     </select>
                   </div>
 

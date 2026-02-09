@@ -31,7 +31,11 @@ const MANUFACTURERS = {
     'koemmerling': 'KOEMMERLING',
     'aluplast': 'ALUPLAST',
     'gealan': 'GEALAN',
-    'internorm': 'INTERNORM'
+    'internorm': 'INTERNORM',
+    'aluprof': 'ALUPROF',
+    'drutex': 'DRUTEX',
+    'heroal': 'HEROAL',
+    'warema': 'WAREMA'
 };
 
 /**
@@ -41,8 +45,55 @@ const WERU_SYSTEMS = {
     'castello': 'CASTELLO',
     'calido': 'CALIDO',
     'impreo': 'IMPREO',
+    'impreo-top': 'IMPREO',
     'afino': 'AFINO',
-    'afino-art': 'AFINO-ART'
+    'afino-art': 'AFINO',
+    'afino-one': 'AFINO',
+    'afino-top': 'AFINO',
+    'atris': 'ATRIS',
+    'avida': 'AVIDA',
+    'alegra': 'ALEGRA',
+    'alegra-top': 'ALEGRA'
+};
+
+/**
+ * Systeme anderer Hersteller
+ */
+const OTHER_SYSTEMS = {
+    // INTERNORM
+    'hf310': { manufacturer: 'INTERNORM', system: 'HF310' },
+    'hf 310': { manufacturer: 'INTERNORM', system: 'HF310' },
+    'kf410': { manufacturer: 'INTERNORM', system: 'KF410' },
+    'kf 410': { manufacturer: 'INTERNORM', system: 'KF410' },
+    'kf310': { manufacturer: 'INTERNORM', system: 'KF310' },
+    'kf 310': { manufacturer: 'INTERNORM', system: 'KF310' },
+    'hs330': { manufacturer: 'INTERNORM', system: 'HS330' },
+    'hs 330': { manufacturer: 'INTERNORM', system: 'HS330' },
+    // ALUPROF
+    'mb-70': { manufacturer: 'ALUPROF', system: 'MB-70' },
+    'mb 70': { manufacturer: 'ALUPROF', system: 'MB-70' },
+    'mb70': { manufacturer: 'ALUPROF', system: 'MB-70' },
+    'mb-86': { manufacturer: 'ALUPROF', system: 'MB-86' },
+    'mb 86': { manufacturer: 'ALUPROF', system: 'MB-86' },
+    'mb86': { manufacturer: 'ALUPROF', system: 'MB-86' },
+    // SCHUECO
+    'aws 70': { manufacturer: 'SCHUECO', system: 'AWS-70' },
+    'aws-70': { manufacturer: 'SCHUECO', system: 'AWS-70' },
+    'aws 75': { manufacturer: 'SCHUECO', system: 'AWS-75' },
+    'aws-75': { manufacturer: 'SCHUECO', system: 'AWS-75' },
+    // HEROAL
+    'w72': { manufacturer: 'HEROAL', system: 'W72' },
+    'w 72': { manufacturer: 'HEROAL', system: 'W72' },
+    'w92': { manufacturer: 'HEROAL', system: 'W92' },
+    'w 92': { manufacturer: 'HEROAL', system: 'W92' },
+    // DRUTEX / VEKA (Legacy)
+    'iglo 5': { manufacturer: 'DRUTEX', system: 'IGLO5' },
+    'iglo5': { manufacturer: 'DRUTEX', system: 'IGLO5' },
+    'iglo energy': { manufacturer: 'DRUTEX', system: 'IGLO-ENERGY' },
+    'iglo-energy': { manufacturer: 'DRUTEX', system: 'IGLO-ENERGY' },
+    'veka 76': { manufacturer: 'VEKA', system: 'VEKA-76' },
+    'veka 82': { manufacturer: 'VEKA', system: 'VEKA-82' },
+    'vekamotion': { manufacturer: 'VEKA', system: 'VEKAMOTION' }
 };
 
 /**
@@ -135,9 +186,13 @@ function parseContext(headerText) {
     const text = headerText;
     const textLower = text.toLowerCase();
 
-    // Extrahiere einzelne Komponenten
-    const manufacturer = extractManufacturer(textLower);
-    const system = extractSystem(textLower, manufacturer);
+    // Extrahiere Hersteller + System kombiniert (bessere Erkennung)
+    const { manufacturer: detectedMfr, system: detectedSys } = extractManufacturerAndSystem(textLower);
+
+    // Fallback auf einzelne Extraktion
+    const manufacturer = detectedMfr || extractManufacturer(textLower);
+    const system = detectedSys || extractSystem(textLower, manufacturer);
+
     const glazing = extractGlazing(text);
     const colors = extractColors(text);
     const material = extractMaterial(textLower);
@@ -182,20 +237,66 @@ function extractManufacturer(textLower) {
 }
 
 /**
- * Extrahiert System (WERU-spezifisch)
+ * Extrahiert System (alle Hersteller)
  */
 function extractSystem(textLower, manufacturer) {
-    // Nur WERU-Systeme wenn WERU oder kein Hersteller
-    if (manufacturer && manufacturer !== 'WERU') {
-        return null;
-    }
-
-    for (const [key, value] of Object.entries(WERU_SYSTEMS)) {
+    // 1. Zuerst OTHER_SYSTEMS pruefen (spezifischer)
+    for (const [key, info] of Object.entries(OTHER_SYSTEMS)) {
         if (textLower.includes(key)) {
-            return value;
+            return info.system;
         }
     }
+
+    // 2. WERU-Systeme wenn WERU oder kein Hersteller
+    if (!manufacturer || manufacturer === 'WERU') {
+        for (const [key, value] of Object.entries(WERU_SYSTEMS)) {
+            if (textLower.includes(key)) {
+                return value;
+            }
+        }
+    }
+
     return null;
+}
+
+/**
+ * Extrahiert Hersteller UND System kombiniert (fuer bessere Erkennung)
+ * Nutzt OTHER_SYSTEMS um Hersteller aus System abzuleiten
+ */
+function extractManufacturerAndSystem(textLower) {
+    // Zuerst OTHER_SYSTEMS pruefen - dort ist Hersteller implizit
+    for (const [key, info] of Object.entries(OTHER_SYSTEMS)) {
+        if (textLower.includes(key)) {
+            return {
+                manufacturer: info.manufacturer,
+                system: info.system
+            };
+        }
+    }
+
+    // Dann explizite Hersteller
+    let manufacturer = null;
+    for (const [key, value] of Object.entries(MANUFACTURERS)) {
+        if (textLower.includes(key)) {
+            manufacturer = value;
+            break;
+        }
+    }
+
+    // WERU-Systeme
+    let system = null;
+    for (const [key, value] of Object.entries(WERU_SYSTEMS)) {
+        if (textLower.includes(key)) {
+            system = value;
+            // Wenn System gefunden aber kein Hersteller -> WERU
+            if (!manufacturer) {
+                manufacturer = 'WERU';
+            }
+            break;
+        }
+    }
+
+    return { manufacturer, system };
 }
 
 /**
@@ -419,10 +520,12 @@ module.exports = {
     applyContextInheritance,
     mergeContexts,
     getDefaultContext,
+    extractManufacturerAndSystem,
     // Fuer Tests
     _constants: {
         MANUFACTURERS,
         WERU_SYSTEMS,
+        OTHER_SYSTEMS,
         COLORS,
         MATERIALS
     }
