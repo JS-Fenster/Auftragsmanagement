@@ -1,96 +1,140 @@
 # Status: Reparatur-Workflow
 
-> Letzte Aktualisierung: 2026-02-05 16:00
-> Aktualisiert von: Projektleiter (renew-subscriptions Fix verifiziert)
+> Letzte Aktualisierung: 2026-02-09 (T016-TEST abgeschlossen - ALLE 5 TESTS BESTANDEN)
+> Aktualisiert von: Tester (T016-TEST)
 
 ---
 
 ## Aktueller Stand
 
-**Phase:** Step 3 ABGESCHLOSSEN - Dashboard + ERP-Integration + E-Mail Fix
-
-**SPEC Version:** v1.5 (2026-02-02)
-
-**Neues Dashboard (Step 3):**
-- Komplett neues Frontend unter `/dashboard` (React 18 + Vite + Tailwind v4)
-- 6 Seiten: Uebersicht, Auftraege, Dokumente, Kunden, E-Mail, Einstellungen
-- ERP-Daten-Strategie: View-Schicht (read-only ERP-Tabellen + neue auftraege-Tabelle)
-- Kunden-Detail mit vollstaendiger ERP-Historie (Projekte, Angebote, Rechnungen, Bestellungen, Offene Posten)
-
-**API Versionen:**
-- reparatur-api v2.0.1 (Version 9) - DEPLOYED (verify_jwt:false)
-- reparatur-aging v2.0.0 (Version 3) - DEPLOYED
-- telegram-bot v3.1.0 (Version 8) - DEPLOYED
-- renew-subscriptions v1.2 (Version 13) - DEPLOYED + GEFIXT (401 behoben)
+**Phase:** Step 3+ - Dashboard Erweiterungen (Auftragsnummer, Bearbeitungsmodus) - VERIFIZIERT
+**SPEC Version:** v1.5 (2026-02-02) - ACHTUNG: SPEC referenziert noch `reparatur_auftraege`, real existiert nur `auftraege`
 
 ---
 
-## Meilenstein-Plan (Step 3 - Dashboard)
+## WICHTIG: Datenbank-Realitaet (Stand 2026-02-09)
 
-| MS | Beschreibung | Status |
-|----|--------------|--------|
-| **DASH-1** | Neues Vite+React+Tailwind Projekt scaffolden | FERTIG |
-| **DASH-2** | Uebersicht (KPIs, Pipeline, Verarbeitung, Aging) | FERTIG |
-| **DASH-3** | Auftraege-Seite (Liste, Detail, Neu-Modal) | FERTIG |
-| **DASH-4** | Dokumente-Seite (Two-Panel, Preview, Filter) | FERTIG |
-| **DASH-5** | Kunden-Seite (Suche, ERP-Historie Detail-Modal) | FERTIG |
-| **DASH-6** | E-Mail-Seite (Pipeline-Status, Filter, Body) | FERTIG |
-| **DASH-7** | Einstellungen-Seite (Optionen CRUD, System) | FERTIG |
-| **DASH-8** | RLS-Policies fuer Dashboard-Zugriff | FERTIG |
-| **DASH-9** | ERP-Daten Integrations-Strategie | FERTIG |
-| **FIX-1** | E-Mail Pipeline reparieren (renew-subscriptions 401) | FERTIG (2026-02-04) |
-| **FIX-2** | Expired Graph Subscriptions erneuern | FERTIG (auto-renewal laeuft) |
+**Es gibt KEINE Tabelle `reparatur_auftraege`.** Alles wurde in eine zentrale `auftraege`-Tabelle gemergt.
+
+**Tabelle `auftraege` (33 Spalten):**
+- Auftragstyp via Feld `auftragstyp` (Default: 'Reparaturauftrag')
+- Auftragstypen (aus `einstellungen_optionen`): Auftrag, Reparaturauftrag, Lieferung, Abholung
+- Kundentypen: Privat, Gewerbe, Oeffentlich, Architekt
+- Reparatur-spezifische Felder: termin_sv1, termin_sv2, zeitfenster, outcome_sv1, mannstaerke, ist_no_show
+- Kunde: erp_kunde_id (Bestandskunde) ODER neukunde_* Felder (Neukunde)
+- Herkunft: erstellt_via (dashboard/telegram), document_id, telegram_chat_id
+
+**View `v_auftraege` (P016, VERIFIZIERT T016):** auftraege LEFT JOIN erp_kunden - liefert kunde_firma, kunde_*_erp Felder
+
+**Testdaten:** 7+ Auftraege (5 original + 2 via Telegram/Email)
 
 ---
 
-## ERP-Uebergangs-Strategie
+## Dashboard (Step 3)
 
-**Entscheidung:** ERP-Tabellen bleiben read-only, keine Datenmigration.
+**Pfad:** `/dashboard` (React 19 + Vite 7 + Tailwind v4 + Supabase JS)
+**Server:** `npm run dev` -> http://localhost:3000
 
-| Tabelle | Datensaetze | Zweck im Dashboard |
-|---------|-------------|-------------------|
-| erp_kunden | 8.687 | Kundenstamm (PK: code) |
-| erp_projekte | 2.486 | Projekt-Historie |
-| erp_angebote | 4.744 | Angebote/Auftraege (1.434 mit auftrags_datum) |
-| erp_rechnungen | 2.996 | Rechnungen |
-| erp_ra | 2.993 | Offene Posten / Mahnstufen |
-| erp_bestellungen | 3.839 | Bestellungen an Lieferanten |
-| erp_lieferanten | 663 | Lieferantenstamm |
+6 Seiten gebaut:
+| Seite | Status | Funktion |
+|-------|--------|----------|
+| Uebersicht | FERTIG | KPIs, Pipeline-Status, Verarbeitung, Aging |
+| Auftraege | VERIFIZIERT (T016) | Liste mit Nr.-Spalte, Detail mit Bearbeitungsmodus, Neu-Modal, Kundensuche, View-Query |
+| Dokumente | FERTIG | Two-Panel, Preview, Filter |
+| Kunden | FERTIG | ERP-Suche (8.687 Kunden), Detail mit Historie |
+| E-Mail | FERTIG | Pipeline-Status, Filter, Body-Ansicht |
+| Einstellungen | FERTIG | Optionen CRUD (Auftragstypen, Kundentypen) |
 
-Verknuepfung: `auftraege.erp_kunde_id` → `erp_kunden.code`
+---
+
+## API (Edge Functions)
+
+| Function | Version | Status |
+|----------|---------|--------|
+| reparatur-api | v2.2.0 (Deploy 11) | DEPLOYED, verify_jwt:false, PATCH /update VERIFIZIERT |
+| reparatur-aging | v2.0.0 (Deploy 3) | DEPLOYED |
+| telegram-bot | v3.1.0 (Deploy 8) | DEPLOYED |
+| renew-subscriptions | v1.2 (Deploy 13) | DEPLOYED, GEFIXT (2026-02-04) |
+
+---
+
+## ERP-Daten (Read-Only)
+
+| Tabelle | Datensaetze |
+|---------|-------------|
+| erp_kunden | 8.687 |
+| erp_projekte | 2.486 |
+| erp_angebote | 4.744 |
+| erp_rechnungen | 2.996 |
+| erp_ra | 2.993 |
+| erp_bestellungen | 3.839 |
+| erp_lieferanten | 663 |
 
 ---
 
 ## Bekannte Probleme
 
-- [x] ~~E-Mail Pipeline down seit 29.01.~~ GEFIXT 2026-02-04: app_config INTERNAL_API_KEY aktualisiert
-- [x] ~~renew-subscriptions v1.2 API-Key Mismatch~~ GEFIXT: app_config hatte alten Key mit Sonderzeichen
+- [x] ~~E-Mail Pipeline down seit 29.01.~~ GEFIXT 2026-02-04
+- [x] ~~renew-subscriptions 401 Fehler~~ GEFIXT 2026-02-04
+- [x] ~~Bestandskunde-Bug: Dashboard schickte `kunde_code` statt `erp_kunde_id`~~ GEFIXT 2026-02-09
+- [x] ~~Auftragsnummer fehlt (nur UUID, nicht telefonisch kommunizierbar)~~ GEFIXT P016-PROG, VERIFIZIERT T016
 - [ ] Dokument-Vorschau schlaegt bei manchen Dateien fehl (Storage Signed URL)
+- [ ] 01_SPEC.md Kapitel 2 referenziert noch `reparatur_auftraege` statt `auftraege`
+- [ ] Einsatzort-Feld fehlt (Rechnungsadresse != Lieferadresse)
+- [ ] Dashboard JS-Bundle 560 kB (Chunk-Splitting empfohlen fuer Produktion)
 
 ---
 
-## E-Mail Subscription Renewal (Architektur)
+## Aktueller Auftrag
 
-- **Edge Function:** renew-subscriptions v1.2 (v13)
-- **Cron:** 4x taeglich (6:00, 12:00, 18:00, 24:00)
-- **Subscription Lifetime:** 4200 Min (~70h / ~3 Tage), MS Graph Mail Max: 4230 Min
-- **Renewal-Window:** 24h vor Ablauf
-- **Auth:** Cron nutzt `get_app_config('INTERNAL_API_KEY')` → Edge Function validiert gegen Secret
-- **Token Hardening:** Azure Client Secret wird getrimmt (.trim()), AADSTS-Fehlercode-Erkennung
-- **Status:** FUNKTIONIERT seit 2026-02-04
+**Auftrag:** T016-TEST - ABGESCHLOSSEN
+**Rolle:** Tester
+**Modus:** Foreground
+**Log-ID:** [R-041]
+
+### Testergebnis T016-TEST
+
+| Test | Ergebnis | Details |
+|------|----------|---------|
+| 1. View v_auftraege | BESTANDEN | ERP-Daten korrekt fuer Bestandskunden, NULL fuer Neukunden |
+| 2. PATCH /update | BESTANDEN | Erlaubt=200, Verboten=400, Ungueltig=ignoriert |
+| 3. Frontend Code-Review | BESTANDEN | Alle 7 Pruefpunkte OK, bestehende Sections unveraendert |
+| 4. Regression GET-Endpoints | BESTANDEN | /reparatur=200 (7 Auftraege), /kunden?q=Kraus=200 (15 Kunden) |
+| 5. Frontend Build | BESTANDEN | 2593 Module, 6.59s, keine Fehler |
 
 ---
 
-## Naechste Schritte
+## Vorheriger Auftrag (abgeschlossen)
 
-1. **Dashboard-Tests** - Alle 6 Seiten mit Echtdaten im Tagesgeschaeft testen
-2. **Settings CRUD testen** - Kundentypen/Auftragstypen verwalten
-3. **E-Mail Pipeline beobachten** - Pruefen ob neue Emails korrekt verarbeitet werden
+**Auftrag:** P016-PROG - ABGESCHLOSSEN
+**Rolle:** Programmierer
+**Log-ID:** [R-040]
+
+### Ergebnis P016-PROG
+- [x] Teil 1: View `v_auftraege` angelegt (Migration)
+- [x] Teil 2: PATCH /reparatur/:id/update Endpoint (Edge Function v2.2.0)
+- [x] Teil 3a: Auftragsnummer-Spalte in Tabelle
+- [x] Teil 3b: Query auf v_auftraege umgestellt
+- [x] Teil 3c: kundeName/kundeAdresse Helper gefixt + Telefon/Email
+- [x] Teil 3d: Bearbeitungsmodus mit useFormWithUndo + UnsavedChangesDialog
+- [x] Teil 3e: Modal-Header mit Auftragsnummer
+
+---
+
+## Naechste Schritte (nach T016)
+
+1. ~~**Tester:** P016 verifizieren (View, API, Frontend)~~ ERLEDIGT
+2. **Einsatzort-Feld** - Separater Einsatzort (abweichend von Kundenadresse)
+3. **SPEC aktualisieren** - `reparatur_auftraege` -> `auftraege` korrigieren
+4. **Telegram-Bot Webhook pruefen**
+5. **Dashboard Feldtest** - Alle 6 Seiten mit Echtdaten testen
+6. **Bundle-Optimierung** - Code-Splitting fuer JS-Bundle (560 kB)
 
 ---
 
 ## Log-Referenz
 
-Letzte Eintraege:
-- [LOG-039] renew-subscriptions Fix verifiziert + Architektur dokumentiert (2026-02-05)
-- [LOG-038] Dashboard-Build + ERP-Integration (2026-02-02)
+- [R-041] T016-TEST: P016 Verifizierung - Alle 5 Tests BESTANDEN (2026-02-09)
+- [R-040] P016-PROG: View + PATCH Update + Auftraege.jsx (2026-02-09)
+- [R-039] renew-subscriptions Fix verifiziert (2026-02-05)
+- [R-038] Dashboard-Build + ERP-Integration (2026-02-02)
