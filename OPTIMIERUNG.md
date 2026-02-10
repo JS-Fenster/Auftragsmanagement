@@ -1376,9 +1376,22 @@ nachkategorisiert (parallele Verarbeitung, 5 GPT-Calls gleichzeitig, 9 Batch-Run
 
 - [x] recategorize-batch deaktiviert (v6 Stub, verify_jwt:true, HTTP 410 Gone)
 
+#### Dokument-Kategorisierung optimiert (2026-02-10)
+
+**process-document v33** deployed:
+- GPT-5.2 → GPT-5 mini (Kosten: $0.03→$0.002/Doc, -93%)
+- Heuristik komplett entfernt (war Hauptursache fuer Fehlklassifizierungen)
+- canonicalizeKategorie() fuer Typo-Korrektur
+- 500-Docs-Backtest: 235 geaendert (47%), Stichproben korrekt
+
+**Bulk-Re-Kategorisierung** aller 308 Scanner-Docs:
+- 126 geaendert (40.9%), 120 in DB applied
+- Top: 15x ER→Lieferschein, 13x AB→Lieferschein, 12x Sonstiges→Bild, 10x ER→Montageauftrag
+- Stichproben-Verifikation: Alle korrekt
+
 #### Offen
 
-- [ ] Dokument-Kategorisierung (process-document) noch nicht optimiert (14% Sonstiges)
+- [x] ~~Dokument-Kategorisierung optimiert~~ ERLEDIGT (process-document v33 + Bulk-Rekat)
 - [ ] Evaluierung nach 1 Woche Echtbetrieb (geplant ~16.02.2026)
 
 ---

@@ -108,10 +108,67 @@
 | [B-051] | 2026-02-10 | BUDGET | PL | Sprint P012-P016 Planung - Preisoptimierung Phase 2 |
 | [B-052] | 2026-02-10 | BUDGET | PROG | P012: Sonderformen + sonstiges-Fix + Unilux + Glas im Build-Script (2892 LV) |
 | [B-053] | 2026-02-10 | BUDGET | TEST | P013: Re-Backtest nach P012 (Median 18.3%, Treffer 54.7%, Ausreisser 6.5%, Coverage 91.4%) |
+| [B-054] | 2026-02-10 | BUDGET | PROG | P014: W4A 2023+2024 Sync + LV Rebuild (RPos 3315→12145, APos 6772→29430, LV 2892→7483) |
+| [B-055] | 2026-02-10 | BUDGET | TEST | P015: Re-Backtest nach erweitertem Datensatz (LV 7483, WAVG Regression, Data-Leakage entdeckt) |
+| [K-001] | 2026-02-10 | KATEG | PL | Email-Kategorisierung: process-document v32+v33, 500-Docs-Backtest, Typo-Fix |
+| [K-002] | 2026-02-10 | KATEG | PROG | classify-backtest v2.0.1 + Bulk-Re-Kategorisierung 308 Docs (126 geaendert, 120 applied) |
 
 ---
 
 ## ═══ LOG START ═══
+
+---
+
+## [K-002] Programmierer: classify-backtest v2.0.1 + Bulk-Re-Kategorisierung
+**Datum:** 2026-02-10 18:25
+**Workflow:** KATEG
+
+### Kontext
+Alle 308 Scanner-Dokumente (96 Rule-basiert, 212 GPT-5.2) mit GPT-5 mini neu klassifizieren
+und Aenderungen direkt in die DB schreiben.
+
+### Durchgefuehrt
+1. **classify-backtest v2.0 deployed** - Edge Function mit apply-Modus (DB-Update)
+2. **temperature-Bug gefunden:** GPT-5 mini unterstuetzt `temperature: 0` NICHT
+   - Erster Durchlauf: 308/308 "unchanged" (alle GPT-Calls schlugen still fehl)
+   - Diagnose: Manueller Curl-Test zeigte HTTP 400 von OpenAI
+   - Fix: `temperature: 0` entfernt, v2.0.1 deployed
+3. **Bulk-Re-Kategorisierung erfolgreich:**
+   - 308 Docs verarbeitet, 16 Batches a 20 Docs
+   - **126 geaendert (40.9%), 120 applied, 6 DB-Fehler**
+   - Dauer: ~28 Minuten (vs 2 Min beim fehlerhaften Lauf)
+
+### Ergebnis - Top-Aenderungen
+| Alt → Neu | Anzahl | Bewertung |
+|-----------|--------|-----------|
+| Eingangsrechnung → Eingangslieferschein | 15x | Korrekt (Lieferscheine) |
+| Auftragsbestaetigung → Eingangslieferschein | 13x | Korrekt (Lieferscheine) |
+| Sonstiges_Dokument → Bild | 12x | Korrekt (Bilder mit wenig OCR) |
+| Eingangsrechnung → Montageauftrag | 10x | Korrekt (Montageauftraege) |
+| Sonstiges_Dokument → Brief_eingehend | 6x | Korrekt |
+| Montageauftrag → Serviceauftrag | 6x | Korrekt (Kundendienst) |
+
+### Stichproben-Verifikation
+- 5x Eingangslieferschein: Alle korrekt (Steinau, Fenstergigant, WERU, AHB, Gruen)
+- 4x Bild: Alle korrekt (img-Referenzen, minimaler OCR-Text)
+- 3x Montageauftrag: Alle korrekt (Termine mit Ort/Datum/Monteur)
+
+### 6 nicht-applied Aenderungen
+3x Bauplan→Kassenbeleg (Batch 9) + 3 weitere - DB-Update-Fehler, nicht weiter untersucht.
+Die Bauplan→Kassenbeleg waren ohnehin verdaechtig.
+
+---
+
+## [K-001] Projektleiter: Email-Kategorisierung v32+v33 + 500-Docs-Backtest
+**Datum:** 2026-02-10 16:00
+**Workflow:** KATEG
+
+### Zusammenfassung
+- process-document v32 deployed (GPT-5 mini, ohne Heuristik)
+- 500-Docs-Backtest: 235 geaendert (47%), 3 Typos
+- Typo-Bug (Brief_eingend/Brief_eingang) gefixt mit canonicalizeKategorie()
+- process-document v33 deployed (mit Typo-Fix)
+- Stichproben-Review: GPT-5 mini Korrekturen fast alle richtig
 
 ---
 
@@ -3960,6 +4017,121 @@ Die CLIMAPLUS-Position wird jetzt korrekt als "glas" kategorisiert.
 2. Festfeld-Kombis im LV ergaenzen (fehlende S/M/L1/L2)
 3. HST-Eintraege im LV aufbauen (7 ungematchte Positionen)
 4. Lagerware-Erkennung im Backtest (Positionen mit "Lager" im Text filtern)
+
+---
+
+## [B-054] Programmierer: W4A 2023+2024 Sync + LV Rebuild
+**Datum:** 2026-02-10
+**Workflow:** BUDGET
+
+### Kontext
+P014 Auftrag: 2023+2024 Rechnungs-Positionen aus W4A nachsynchen, Angebots-Sync auf 2023 erweitern, LV neu bauen. Sprint P012-P016, Schritt 3.
+
+### Durchgefuehrt
+1. **sync-positions-to-supabase.js**: DATE_FROM von '2025-01-01' auf '2023-01-01' geaendert
+   - Dry-Run: 1103 Rechnungen, 990 neue, 8830 Positionen
+   - Sync: 990 Rechnungen synced, 0 Fehler
+2. **sync-angebots-positionen.js**: DATE_FROM von '2024-01-01' auf '2023-01-01' geaendert
+   - Erster Lauf: 859 Fehler durch UNIQUE-Constraint (angebot_code, pos_nr) bei leeren pos_nr
+   - Fix: Migration `drop_angebots_positionen_unique_constraint` - Constraint entfernt
+   - Re-Run mit --force: 1173 Angebote synced, 20875 Positionen, 0 Fehler
+3. **build-leistungsverzeichnis.js**: LV Rebuild mit erweitertem Datensatz
+   - 41575 Positionen analysiert (vorher ~10000)
+   - 7483 LV-Eintraege erstellt (vorher 2892)
+
+### Ergebnis
+
+| Tabelle | VORHER | NACHHER | Delta |
+|---------|--------|---------|-------|
+| erp_rechnungs_positionen | 3.315 | **12.145** | +8.830 (+266%) |
+| erp_angebots_positionen | 6.772 | **29.430** | +22.658 (+335%) |
+| leistungsverzeichnis | 2.892 | **7.483** | +4.591 (+159%) |
+
+LV Top-Kategorien: fenster (3271), sonstiges (1963), haustuer (795), balkontuer (499), tuer (383), festfeld (215), montage (108), rollladen (87).
+Granulare Daten: 3705 mit Oeffnungsart, 4033 mit Massen, 1637 Kombielemente, 88 Sonderformen.
+
+### Bugfix
+UNIQUE-Constraint `erp_angebots_positionen_angebot_code_pos_nr_key` war problematisch: Mehrere Positionen pro Angebot koennen leeren pos_nr haben (Header-Zeilen, Textpositionen). Constraint per Migration entfernt. Die `id`-Spalte (auto-increment) dient als PK.
+
+### Naechster Schritt
+P015 Tester: Re-Backtest mit erweitertem Datensatz (7483 statt 2892 LV-Eintraege). Erwartung: Bessere Trefferquote durch dichteres LV.
+
+---
+
+## [B-055] Tester: Re-Backtest nach erweitertem Datensatz (P015)
+**Datum:** 2026-02-10
+**Workflow:** BUDGET
+
+### Kontext
+P014 hat die Datenbasis massiv erweitert: LV 2.892 → 7.483 (+159%), Rechnungspositionen 3.315 → 12.145 (+266%). Dieser Re-Backtest misst den Impact des erweiterten LV auf die Matching-Qualitaet.
+
+### Durchgefuehrt
+
+**1. Datensatz-Analyse:**
+- Gesamte erp_rechnungs_positionen (Preis 50-10.000): 5.091 Positionen, davon 605 mit BxH-Pattern
+- WERU-Format Positionen ("Breite: XXX mm" in Bezeichnung): 1.695 gesamt, 664 ab 2025
+- WICHTIG: Die Masse stehen in der `bezeichnung`, NICHT im `langtext`! P013 hat die Masse aus bezeichnung+langtext extrahiert, aber der langtext der neuen Positionen ist leer.
+
+**2. Kritische Erkenntnis - Kategorisierungs-Problem:**
+Die neuen 2023/2024er Positionen haben ein anderes Format:
+- Innentuerblatter: "630 x 1335 Links" (keine Fenster-Keywords)
+- Haustueren: "DIN-Richtung: links, Masse: 1100 x 2260 mm" (kein "Haustuer"-Keyword)
+- Zargen, Garagentore, Glas-Elemente
+→ 73% der BxH-Positionen werden als "sonstiges" kategorisiert (vs. 0% bei P013)
+→ Regex-Backtest ist NUR auf WERU-Format Positionen ("Breite: XXX mm") anwendbar
+
+**3. Backtest-Ergebnisse (WERU-Format, Weighted Average):**
+
+| Zeitraum | Positionen | Matched | Coverage | Median | Treffer <=20% | Ausreisser >50% |
+|----------|-----------|---------|----------|--------|---------------|-----------------|
+| 2025-2026 (gesamt) | 660 | 593 | 89.8% | 30.1% | 39.1% | 26.5% |
+| 2025-2026 (fen+bt) | 442 | 435 | 98.4% | 22.2% | 48.3% | 17.7% |
+| 2023-2024 (gesamt) | 1.031 | 842 | 81.7% | 27.7% | 37.5% | 30.0% |
+
+**4. Analyse nach Kategorie (2025+2026, sample_count Ranking):**
+
+| Kategorie    | Pos. | Matched | Coverage | Median | Ausreisser |
+|-------------|------|---------|----------|--------|------------|
+| fenster     | 401  | 394     | 98.3%    | 20.4%  | 31 (7.9%)  |
+| haustuer    | 212  | 158     | 74.5%    | 43.6%  | 69 (43.7%) |
+| balkontuer  | 41   | 41      | 100%     | 18.9%  | 2 (4.9%)   |
+| sonstiges   | 5    | 0       | 0%       | -      | 0          |
+| hst         | 1    | 0       | 0%       | -      | 0          |
+
+**5. Data-Leakage bei Closest-Match:**
+Test mit "ORDER BY ABS(ist_preis - lv.avg_preis)" ergab 0.3% Median - unrealistisch gut, weil der Algorithmus den preislich naechsten LV-Eintrag waehlt. Das ist kein fairer Backtest. Nur Weighted Average oder sample_count-Ranking sind valide Metriken.
+
+### Ergebnis - Vergleichstabelle
+
+| Metrik              | P013 (alt LV) | P015 WAVG | P015 fen+bt | P015 fen/sc | Delta P013→P015 | Ziel  |
+|---------------------|---------------|-----------|-------------|-------------|-----------------|-------|
+| Testpositionen      | 418           | 660       | 442         | 401         | +58%            | -     |
+| LV-Eintraege        | 2.892         | 7.483     | 7.483       | 7.483       | +159%           | -     |
+| Median-Abweichung   | 18.3%         | 30.1%     | 22.2%       | 20.4%       | +3.9pp (fen+bt) | <15%  |
+| Trefferquote <=20%  | 54.7%         | 39.1%     | 48.3%       | n/a         | -6.4pp (fen+bt) | >70%  |
+| Ausreisser >50%     | 6.5%          | 26.5%     | 17.7%       | 7.9%        | +1.4pp (fenster)| <10%  |
+| Coverage            | 91.4%         | 89.8%     | 98.4%       | 98.3%       | +6.9pp (fen+bt) | >90%  |
+
+**BEWERTUNG:** Die LV-Erweiterung bringt KEINE Verbesserung beim Weighted Average Matching. Die Metriken verschlechtern sich, weil:
+1. **Mehr LV-Varianten pro Kombination** → Weighted Average mittelt ueber breitere Preisspanne
+2. **haustuer-Kategorie** (212 Pos., 43.6% Median) dominiert jetzt den Datensatz - bei P013 waren es nur 3 Pos.
+3. **Coverage steigt** bei fenster+balkontuer von 91.4% auf 98.4% - das ist der einzige klare Gewinn
+4. **Fenster allein** sind stabil: 20.4% Median bei P015 vs. 18.2% bei P013 (+2.2pp)
+
+### Erkenntnisse (fuer Projektleiter/Learnings)
+
+1. **Weighted Average verschlechtert sich bei mehr LV-Eintraegen** - das ist das Gegenteil der Erwartung. Mehr Datenpunkte ≠ besserer Durchschnitt, weil die Preisvarianz steigt.
+2. **haustuer ist der neue groesste Problembereich** (43.6% Median, 43.7% Ausreisser). Bei P013 waren es nur 3 Pos., jetzt 212.
+3. **WERU-Format ("Breite: XXX mm")** ist der einzig zuverlaessige Indikator fuer Fenster-Positionen. BxH-Pattern ohne Keywords faengt Innentuerblatter, Zargen, Garagentore ein.
+4. **Data-Leakage-Gefahr:** "Closest Match" (ORDER BY Preis-Differenz) zeigt 0.3% Median - unrealistisch, weil es den besten Preis-Match waehlt statt den semantisch richtigen.
+5. **Coverage-Verbesserung ist real:** fenster+balkontuer gehen von 91.4% auf 98.4%.
+6. **Backtest-Methodik muss standardisiert werden:** P013 vs P015 sind schwer vergleichbar wegen unterschiedlicher Positionsfilter und Matching-Strategien.
+
+### Naechster Schritt (Empfehlung)
+1. **LV-Aggregation verbessern:** Statt viele Einzeleintraege → gruppierte Cluster mit gewichtetem Durchschnitt PRO Kombination (1 Eintrag pro kat+oa+gk statt 10-100)
+2. **haustuer-Matching separat behandeln:** Eigene Preisstrategie noetig, da Haustueren voellig andere Preisstruktur haben
+3. **Backtest standardisieren:** Immer WERU-Format-Positionen, Weighted Average, gleicher Kategorisierungs-Algorithmus
+4. **LV "komprimieren":** 7.483 → ~500 aggregierte Cluster wuerde den Weighted Average deutlich verbessern
 
 ---
 

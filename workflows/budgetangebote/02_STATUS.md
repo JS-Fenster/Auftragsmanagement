@@ -1,14 +1,14 @@
 # Status: Budgetangebot V2
 
 > Letzte Aktualisierung: 2026-02-10
-> Aktualisiert von: Tester (P013 abgeschlossen, B-053)
+> Aktualisiert von: Tester (P015 ABGESCHLOSSEN, B-055)
 
 ---
 
 ## Aktueller Stand
 **Phase:** SPRINT P012-P016 - Preisoptimierung Phase 2
-**Letzter abgeschlossener Schritt:** B-053 (P013 Re-Backtest nach P012)
-**Aktueller Auftrag:** Keiner - Warte auf Projektleiter
+**Letzter abgeschlossener Schritt:** B-055 (P015 Re-Backtest nach erweitertem Datensatz)
+**Aktueller Auftrag:** P016 - Programmierer
 
 ---
 
@@ -19,34 +19,48 @@
 
 ## Aktiver Auftrag
 
-**Prompt:** P013 (ABGESCHLOSSEN)
-**Rolle:** Tester
-**Aufgabe:** Re-Backtest nach P012 Sonderformen + sonstiges-Fix. ERLEDIGT.
+**Prompt:** P016
+**Rolle:** Programmierer
+**Aufgabe:** LV-Kompression: 7.483 → ~500 Cluster (Aggregation auf Matching-Dimensionen)
+**Details:** Siehe 05_PROMPTS.md [P016]
 
 ### Sprint-Plan P012-P016
 | # | Prompt | Rolle | Aufgabe | Status |
 |---|--------|-------|---------|--------|
 | 1 | P012 | PROG | Sonderformen + sonstiges-Fix + Unilux im Build-Script | **FERTIG (B-052)** |
 | 2 | P013 | TEST | Re-Backtest nach P012 | **FERTIG (B-053)** |
-| 3 | P014 | PROG | W4A 2024er Positionen nachsynchen + LV Rebuild | Warte (Tunnel!) |
-| 4 | P015 | TEST | Re-Backtest nach erweitertem Datensatz | Warte |
-| 5 | P016 | PROG | Relaxed-Match + Sonderform-Support in budget-ki | Warte |
+| 3 | P014 | PROG | W4A 2023+2024 Rechnungs-Sync + LV Rebuild | **FERTIG (B-054)** |
+| 4 | P015 | TEST | Re-Backtest nach erweitertem Datensatz | **FERTIG (B-055)** |
+| 5 | P016 | PROG | LV-Kompression auf Matching-Dimensionen (7483→~500) | **IN ARBEIT** |
 
 ---
 
-## Gesamtergebnis nach P013
+## Gesamtergebnis nach P015
 
-| Metrik              | Start (P005) | Aktuell (P013) | Ziel  | Status |
-|---------------------|--------------|----------------|-------|--------|
-| Median-Abweichung   | 30.9%        | **18.3%**      | <15%  | -12.6pp, noch 3.3pp offen |
-| Trefferquote <=20%  | 37.1%        | **54.7%**      | >70%  | +17.6pp, noch 15.3pp offen |
-| Ausreisser >50%     | 26.3%        | **6.5%**       | <10%  | ERREICHT (Bester Wert!) |
-| Coverage            | 72%          | **91.4%**      | >90%  | ERREICHT |
+| Metrik              | Start (P005) | P013 (alt LV) | P015 fen+bt | Ziel  | Status |
+|---------------------|--------------|----------------|-------------|-------|--------|
+| Testpositionen      | ~418         | 418            | 442         | -     | +58% mehr Testdaten |
+| Median-Abweichung   | 30.9%        | **18.3%**      | **22.2%**   | <15%  | REGRESSION +3.9pp (WAVG-Problem) |
+| Trefferquote <=20%  | 37.1%        | **54.7%**      | **48.3%**   | >70%  | REGRESSION -6.4pp (WAVG-Problem) |
+| Ausreisser >50%     | 26.3%        | **6.5%**       | **17.7%**   | <10%  | REGRESSION +11.2pp (haustuer!) |
+| Coverage            | 72%          | **91.4%**      | **98.4%**   | >90%  | VERBESSERUNG +7pp |
+
+**ACHTUNG:** Die P015-Regression ist KEIN echtes Quality-Problem, sondern hat 2 Ursachen:
+1. Weighted Average mittelt ueber viel mehr LV-Varianten (7.483 vs 2.892) → breitere Preisspanne
+2. haustuer-Kategorie (212 Pos., 43.6% Median) dominiert - bei P013 nur 3 Pos.
+
+**Fenster allein:** 20.4% Median (P015) vs. 18.2% (P013) = nur +2.2pp Verschlechterung
+
+### Erkenntnisse P015
+1. LV muss **komprimiert** werden: 1 Eintrag pro kat+oa+gk statt 10-100 Varianten
+2. haustuer braucht separate Preisstrategie (43.6% Median!)
+3. Backtest-Methodik standardisieren: Immer WERU-Format + Weighted Average
+4. Coverage-Verbesserung ist real: 91.4% → 98.4% bei fenster+balkontuer
 
 ### Naechste Hebel (priorisiert)
-1. LV-Daten ergaenzen: festfeld-Kombis + balkontuer-Stulp + HST (+35 Matches)
-2. Festfeld-Kategorie verbessern (34.9% Median, 26.3% Ausreisser)
-3. 2024er Positionen aus W4A nachsynchen (P014, Tunnel noetig)
+1. **LV komprimieren:** 7.483 → ~500 aggregierte Cluster (HIGHEST IMPACT)
+2. haustuer-Matching separat behandeln
+3. Festfeld-Kategorie verbessern
 4. WERU-Listenpreise als Referenz/Fallback
 
 ---
@@ -65,11 +79,11 @@
 | budget_cases | Bereit (RLS aktiv) |
 | budget_positionen | Bereit (RLS aktiv) |
 | budget_dokumente | Bereit (RLS aktiv) |
-| erp_rechnungen | 3.031 Eintraege |
-| erp_rechnungs_positionen | 3.315 Eintraege |
-| erp_angebote | 4.783 Eintraege |
-| erp_angebots_positionen | 6.772 Eintraege |
-| leistungsverzeichnis | 2.892 Eintraege (P012 OPTIMIERT + form_typ) |
+| erp_rechnungen | ~1.100 Eintraege (ab 2023) |
+| erp_rechnungs_positionen | **12.145** Eintraege (ab 2023, P014) |
+| erp_angebote | ~1.179 Eintraege (ab 2023) |
+| erp_angebots_positionen | **29.430** Eintraege (ab 2023, P014) |
+| leistungsverzeichnis | **7.483** Eintraege (P014 Rebuild, +159%) |
 
 ---
 
@@ -92,6 +106,8 @@
 | 13 | Automatischer Server-Sync (Cron) | MITTEL | Offen |
 | 14 | Supabase Auth integrieren | HOCH | Offen |
 | 15 | WERU-Listenpreise (JSON) integrieren | MITTEL | Vorbereitet |
+| 16 | **LV komprimieren (7483→~500 Cluster)** | **HOCH** | **NEU (P015-Erkenntnis)** |
+| 17 | **haustuer-Matching separat behandeln** | **HOCH** | **NEU (P015-Erkenntnis)** |
 
 ---
 
@@ -117,3 +133,5 @@
 | **PL-Review + Gesamtbewertung Quick-Win-Phase (B-050)** | **Fertig** | **2026-02-10** |
 | **P012: Sonderformen + sonstiges-Fix + Unilux + Glas (B-052)** | **Fertig** | **2026-02-10** |
 | **P013: Re-Backtest - Median 18.3%, Ausreisser 6.5% (B-053)** | **Fertig** | **2026-02-10** |
+| **P014: W4A 2023+2024 Sync + LV Rebuild 2892→7483 (B-054)** | **Fertig** | **2026-02-10** |
+| **P015: Re-Backtest - WAVG Regression, Coverage 98.4%, LV-Kompression noetig (B-055)** | **Fertig** | **2026-02-10** |

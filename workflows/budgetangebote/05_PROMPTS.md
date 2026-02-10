@@ -17,7 +17,10 @@
 | P010 | 2026-02-10 | Auftrag | Programmierer | Fallback entschaerfen + DK-Mapping in budget-ki | ⏳ | 482-560 |
 | P011 | 2026-02-10 | Auftrag | Tester | Re-Backtest nach P010 | ✅ Erfolg (B-049) | 565-620 |
 | P012 | 2026-02-10 | Auftrag | Programmierer | Sonderformen + sonstiges-Fix + Unilux im Build-Script | ⏳ | 605-700 |
-| P013 | 2026-02-10 | Auftrag | Tester | Re-Backtest nach P012 | ⏳ | 705-760 |
+| P013 | 2026-02-10 | Auftrag | Tester | Re-Backtest nach P012 | ✅ Erfolg (B-053) | 705-760 |
+| P014 | 2026-02-10 | Auftrag | Programmierer | W4A 2023+2024 Rechnungs-Sync + LV Rebuild | ✅ Erfolg (B-054) | 780-850 |
+| P015 | 2026-02-10 | Auftrag | Tester | Re-Backtest nach erweitertem Datensatz | ✅ Erfolg (B-055) | 855-1000 |
+| P016 | 2026-02-10 | Auftrag | Programmierer | LV-Kompression auf Matching-Dimensionen | ⏳ | 1005-1100 |
 
 ---
 
@@ -771,6 +774,400 @@ Der Tester soll:
 1. MASTER_LOG [B-053] schreiben + Index aktualisieren
 2. 02_STATUS.md aktualisieren
 3. Abschlussbericht an Projektleiter
+
+---
+
+## [P014] W4A Rechnungs-Positionen 2023+2024 nachsynchen + LV Rebuild
+**Datum:** 2026-02-10
+**Fuer:** Programmierer
+**Kontext:** Sprint P012-P016, Schritt 3
+**Abhaengigkeiten:** W4A-Tunnel AKTIV, Credentials in backend/.env
+
+### Auftrag
+
+Synchronisiere 2023er und 2024er Rechnungs-Positionen aus W4A nach Supabase und baue das Leistungsverzeichnis neu.
+
+**Aktueller Stand:**
+- erp_rechnungs_positionen: 3.315 (nur 2025+2026)
+- erp_angebots_positionen: 6.772 (ab 2024)
+- leistungsverzeichnis: 2.892 Eintraege
+
+**Erwartete neue Daten:**
+- 2024: ~360 Rechnungen, ~3.379 Positionen
+- 2023: ~355 Rechnungen, ~3.111 Positionen
+- Gesamt: ~6.490 neue Rechnungs-Positionen
+
+### Schritte
+
+**Schritt 1: Rechnungs-Sync erweitern**
+1. In `backend/scripts/sync-positions-to-supabase.js`: DATE_FROM von '2025-01-01' auf '2023-01-01' aendern
+2. Dry-Run ausfuehren: `node backend/scripts/sync-positions-to-supabase.js --dry-run`
+3. Ergebnis pruefen (erwartet: ~715 neue Rechnungen, ~6.490 Positionen)
+4. Echten Sync ausfuehren: `node backend/scripts/sync-positions-to-supabase.js`
+5. Zahlen dokumentieren
+
+**Schritt 2: Angebots-Sync pruefen**
+1. Pruefen ob 2023er Angebote fehlen (aktuell ab 2024)
+2. Falls ja: In `backend/scripts/sync-angebots-positionen.js` DATE_FROM auf '2023-01-01' aendern
+3. Dry-Run + Sync ausfuehren
+4. Zahlen dokumentieren
+
+**Schritt 3: LV Rebuild**
+1. `node backend/scripts/build-leistungsverzeichnis.js` ausfuehren
+2. Neue LV-Groesse dokumentieren (vorher: 2.892)
+3. Delta-Analyse: Welche Kategorien/Oeffnungsarten haben am meisten dazugewonnen?
+
+**Schritt 4: Daten-Qualitaetspruefung**
+SQL auf Supabase:
+```sql
+-- Neue Gesamtzahlen
+SELECT 'rechnungs_pos' as typ, COUNT(*) FROM erp_rechnungs_positionen
+UNION ALL
+SELECT 'angebots_pos', COUNT(*) FROM erp_angebots_positionen
+UNION ALL
+SELECT 'lv_eintraege', COUNT(*) FROM leistungsverzeichnis;
+
+-- LV Coverage: Wie viele Kategorien/Oeffnungsarten/Groessenklassen?
+SELECT kategorie, oeffnungsart, groessen_klasse, COUNT(*) as cnt,
+       ROUND(AVG(avg_preis)::numeric, 0) as avg_preis,
+       SUM(sample_count) as samples
+FROM leistungsverzeichnis
+GROUP BY kategorie, oeffnungsart, groessen_klasse
+ORDER BY samples DESC
+LIMIT 30;
+```
+
+### Wichtig
+- **IMMER** von `backend/` aus starten (wegen .env Pfad)
+- Tunnel laeuft auf localhost:1433
+- Bei Fehler "connection refused": Tunnel pruefen
+- Keine Aenderungen am build-leistungsverzeichnis.js noetig (P012 hat ihn aktualisiert)
+
+### Nach Abschluss
+1. MASTER_LOG [B-054] schreiben + Index aktualisieren
+2. 02_STATUS.md aktualisieren
+3. Abschlussbericht an Projektleiter mit allen Zahlen
+
+---
+
+## [P015] Re-Backtest nach erweitertem Datensatz (P014)
+**Datum:** 2026-02-10
+**Fuer:** Tester (Foreground - Supabase MCP benoetigt)
+**Ergebnis:** ⏳
+**Vorbedingung:** P014 abgeschlossen (LV: 2.892 → 7.483 Eintraege)
+
+### Kontext
+P014 hat die Datenbasis massiv erweitert:
+- erp_rechnungs_positionen: 3.315 → 12.145 (+266%)
+- erp_angebots_positionen: 6.772 → 29.430 (+335%)
+- leistungsverzeichnis: 2.892 → 7.483 (+159%)
+
+Jetzt pruefen ob das erweiterte LV zu besseren Matching-Ergebnissen fuehrt.
+
+### Auftrag
+
+**Teil 1: Re-Backtest (gleiche Methodik wie P013)**
+WICHTIG: Der Backtest laeuft weiterhin gegen die Rechnungspositionen.
+Da jetzt auch 2023+2024 Rechnungs-Positionen in Supabase sind, gibt es MEHR Testdaten.
+
+Schritt 1: Zaehle zuerst die verfuegbaren Backtest-Positionen
+```sql
+SELECT COUNT(*) as total,
+       COUNT(CASE WHEN bezeichnung ~ '(\d{3,4})\s*(x|×)\s*(\d{3,4})'
+                   OR langtext ~ '(\d{3,4})\s*(x|×)\s*(\d{3,4})'
+                   OR langtext ~ 'Breite:\s*(\d{3,5})\s*mm.*Hoehe:\s*(\d{3,5})\s*mm'
+                   OR langtext ~ 'Höhe:\s*(\d{3,5})\s*mm.*Breite:\s*(\d{3,5})\s*mm'
+             THEN 1 END) as mit_massen
+FROM erp_rechnungs_positionen
+WHERE einz_preis > 50 AND einz_preis < 10000;
+```
+
+Schritt 2: Fuehre den Backtest aus - EXAKT gleiche Matching-Logik:
+- Matching: kategorie + oeffnungsart + groessen_klasse
+- DK expandiert zu DK/DKR/DKL
+- RL Smart-Hybrid: bei hat_rollladen=true filtern, bei false NICHT filtern
+- Verglasung: 2fach/3fach matchen wenn erkennbar
+- Weighted Average (gewichtet nach sample_count)
+
+```sql
+WITH backtest_positionen AS (
+    SELECT
+        rp.id,
+        rp.rechnung_code,
+        rp.bezeichnung,
+        rp.langtext,
+        rp.einz_preis as ist_preis,
+        -- Kategorie erkennen
+        CASE
+            WHEN rp.bezeichnung ~* 'Haustür|Haustuer|Haustuere|HT\s' THEN 'haustuer'
+            WHEN rp.bezeichnung ~* 'HST|Hebe.*Schiebe' THEN 'hst'
+            WHEN rp.bezeichnung ~* 'PSK|Parallel.*Schiebe' THEN 'psk'
+            WHEN rp.bezeichnung ~* 'Balkontür|Balkontuer|BT\s|Balkon-Tür' THEN 'balkontuer'
+            WHEN rp.bezeichnung ~* 'Fenster|DKF|DKR|DKL|DK\s|Dreh|Kipp|FIX|Festfeld|fest' THEN 'fenster'
+            WHEN rp.bezeichnung ~* 'Rollladen|Rolladen|RL\s' THEN 'rollladen'
+            WHEN rp.bezeichnung ~* 'Raffstore|Raffs' THEN 'raffstore'
+            ELSE 'sonstiges'
+        END as kategorie,
+        -- Oeffnungsart
+        CASE
+            WHEN rp.bezeichnung ~* 'DKR|Dreh-Kipp rechts' THEN 'DKR'
+            WHEN rp.bezeichnung ~* 'DKL|Dreh-Kipp links' THEN 'DKL'
+            WHEN rp.bezeichnung ~* 'DKF|DK\s|Dreh.*Kipp' THEN 'DK'
+            WHEN rp.bezeichnung ~* 'D\s|Dreh\s' THEN 'D'
+            WHEN rp.bezeichnung ~* 'K\s|Kipp\s|KM|KL|KR' THEN 'K'
+            WHEN rp.bezeichnung ~* 'FIX|Festfeld|fest' THEN 'FIX'
+            WHEN rp.bezeichnung ~* 'PSK' THEN 'PSK'
+            WHEN rp.bezeichnung ~* 'HST' THEN 'HST'
+            ELSE NULL
+        END as oeffnungsart,
+        -- Masse extrahieren (mm Format)
+        CASE
+            WHEN rp.langtext ~ 'Breite:\s*(\d{3,5})\s*mm'
+            THEN (regexp_match(rp.langtext, 'Breite:\s*(\d{3,5})\s*mm'))[1]::int
+            WHEN rp.bezeichnung ~ '(\d{3,4})\s*(x|×)\s*(\d{3,4})'
+            THEN (regexp_match(rp.bezeichnung, '(\d{3,4})\s*(x|×)'))[1]::int
+            ELSE NULL
+        END as breite_mm,
+        CASE
+            WHEN rp.langtext ~ 'Höhe:\s*(\d{3,5})\s*mm|Hoehe:\s*(\d{3,5})\s*mm'
+            THEN COALESCE(
+                (regexp_match(rp.langtext, 'Höhe:\s*(\d{3,5})\s*mm'))[1]::int,
+                (regexp_match(rp.langtext, 'Hoehe:\s*(\d{3,5})\s*mm'))[1]::int
+            )
+            WHEN rp.bezeichnung ~ '(\d{3,4})\s*(x|×)\s*(\d{3,4})'
+            THEN (regexp_match(rp.bezeichnung, '(x|×)\s*(\d{3,4})'))[2]::int
+            ELSE NULL
+        END as hoehe_mm,
+        -- Rollladen
+        CASE WHEN rp.langtext ~* 'Rollladen|Rolladen|Aufsatz-RL|Vorbau-RL' THEN true ELSE false END as hat_rl,
+        -- Verglasung
+        CASE
+            WHEN rp.langtext ~* '3-fach|3fach|dreifach' THEN '3fach'
+            WHEN rp.langtext ~* '2-fach|2fach|zweifach' THEN '2fach'
+            ELSE NULL
+        END as verglasung
+    FROM erp_rechnungs_positionen rp
+    WHERE rp.einz_preis > 50
+      AND rp.einz_preis < 10000
+      AND (
+          rp.bezeichnung ~ '(\d{3,4})\s*(x|×)\s*(\d{3,4})'
+          OR rp.langtext ~ '(\d{3,4})\s*(x|×)\s*(\d{3,4})'
+          OR rp.langtext ~ 'Breite:\s*(\d{3,5})\s*mm.*H(ö|oe)he:\s*(\d{3,5})\s*mm'
+          OR rp.langtext ~ 'H(ö|oe)he:\s*(\d{3,5})\s*mm.*Breite:\s*(\d{3,5})\s*mm'
+      )
+),
+mit_groesse AS (
+    SELECT *,
+        CASE
+            WHEN breite_mm IS NOT NULL AND hoehe_mm IS NOT NULL
+            THEN ROUND((breite_mm * hoehe_mm / 1000000.0)::numeric, 2)
+            ELSE NULL
+        END as flaeche_qm,
+        CASE
+            WHEN breite_mm IS NOT NULL AND hoehe_mm IS NOT NULL THEN
+                CASE
+                    WHEN (breite_mm * hoehe_mm / 1000000.0) < 0.5 THEN 'XS'
+                    WHEN (breite_mm * hoehe_mm / 1000000.0) < 1.0 THEN 'S'
+                    WHEN (breite_mm * hoehe_mm / 1000000.0) < 1.3 THEN 'M'
+                    WHEN (breite_mm * hoehe_mm / 1000000.0) < 1.8 THEN 'L1'
+                    WHEN (breite_mm * hoehe_mm / 1000000.0) < 2.5 THEN 'L2'
+                    ELSE 'XL'
+                END
+            ELSE NULL
+        END as groessen_klasse
+    FROM backtest_positionen
+    WHERE breite_mm IS NOT NULL AND hoehe_mm IS NOT NULL
+),
+matched AS (
+    SELECT
+        bp.*,
+        lv.avg_preis as lv_preis,
+        lv.sample_count,
+        lv.oeffnungsart as lv_oa,
+        lv.groessen_klasse as lv_gk,
+        ABS(bp.ist_preis - lv.avg_preis) / NULLIF(bp.ist_preis, 0) * 100 as abweichung_pct,
+        ROW_NUMBER() OVER (
+            PARTITION BY bp.id
+            ORDER BY
+                CASE WHEN lv.oeffnungsart = bp.oeffnungsart THEN 0
+                     WHEN bp.oeffnungsart = 'DK' AND lv.oeffnungsart IN ('DKR','DKL') THEN 1
+                     WHEN bp.oeffnungsart IN ('DKR','DKL') AND lv.oeffnungsart = 'DK' THEN 1
+                     ELSE 2 END,
+                CASE WHEN lv.groessen_klasse = bp.groessen_klasse THEN 0 ELSE 1 END,
+                ABS(bp.ist_preis - lv.avg_preis)
+        ) as match_rank
+    FROM mit_groesse bp
+    LEFT JOIN leistungsverzeichnis lv ON (
+        lv.kategorie = bp.kategorie
+        AND (
+            lv.oeffnungsart = bp.oeffnungsart
+            OR (bp.oeffnungsart = 'DK' AND lv.oeffnungsart IN ('DK','DKR','DKL'))
+            OR (bp.oeffnungsart IN ('DKR','DKL') AND lv.oeffnungsart IN ('DK','DKR','DKL'))
+        )
+        AND lv.groessen_klasse = bp.groessen_klasse
+        AND (bp.hat_rl = false OR lv.hat_rollladen = bp.hat_rl)
+        AND (bp.verglasung IS NULL OR lv.verglasung = bp.verglasung OR lv.verglasung IS NULL)
+    )
+)
+SELECT
+    COUNT(*) as total_positionen,
+    COUNT(CASE WHEN lv_preis IS NOT NULL THEN 1 END) as matched,
+    COUNT(CASE WHEN lv_preis IS NULL THEN 1 END) as unmatched,
+    ROUND(COUNT(CASE WHEN lv_preis IS NOT NULL THEN 1 END) * 100.0 / COUNT(*), 1) as coverage_pct,
+    ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY abweichung_pct) FILTER (WHERE match_rank = 1 AND lv_preis IS NOT NULL)::numeric, 1) as median_abweichung,
+    ROUND(AVG(abweichung_pct) FILTER (WHERE match_rank = 1 AND lv_preis IS NOT NULL)::numeric, 1) as avg_abweichung,
+    COUNT(CASE WHEN match_rank = 1 AND abweichung_pct <= 20 THEN 1 END) as treffer_20pct,
+    ROUND(COUNT(CASE WHEN match_rank = 1 AND abweichung_pct <= 20 THEN 1 END) * 100.0 / NULLIF(COUNT(CASE WHEN lv_preis IS NOT NULL THEN 1 END), 0), 1) as treffer_20pct_rate,
+    COUNT(CASE WHEN match_rank = 1 AND abweichung_pct > 50 THEN 1 END) as ausreisser_50pct,
+    ROUND(COUNT(CASE WHEN match_rank = 1 AND abweichung_pct > 50 THEN 1 END) * 100.0 / NULLIF(COUNT(CASE WHEN lv_preis IS NOT NULL THEN 1 END), 0), 1) as ausreisser_50pct_rate
+FROM matched
+WHERE match_rank = 1 OR lv_preis IS NULL;
+```
+
+HINWEIS: Die Query ist lang. Falls sie nicht funktioniert, teile sie in kleinere CTEs auf.
+
+**Teil 2: Vergleich nach Kategorie**
+```sql
+-- Gleiche matched CTE wie oben, dann:
+SELECT
+    kategorie,
+    COUNT(*) as cnt,
+    COUNT(CASE WHEN lv_preis IS NOT NULL THEN 1 END) as matched,
+    ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY abweichung_pct) FILTER (WHERE match_rank = 1 AND lv_preis IS NOT NULL)::numeric, 1) as median_abw
+FROM matched
+WHERE match_rank = 1 OR lv_preis IS NULL
+GROUP BY kategorie
+ORDER BY cnt DESC;
+```
+
+**Teil 3: Vergleichstabelle**
+```
+| Metrik              | P005 ALT | P009 Best | P011 v1.2.0 | P013 v1.2.0+SF | P015 (neu) | Ziel  |
+|---------------------|----------|-----------|-------------|----------------|------------|-------|
+| Median-Abweichung   | 30.9%    | 17.9%     | 18.6%       | 18.3%          | ???        | <15%  |
+| Trefferquote <=20%  | 37.1%    | 55.2%     | 52.8%       | 54.7%          | ???        | >70%  |
+| Ausreisser >50%     | 26.3%    | 8.8%      | 8.9%        | 6.5%           | ???        | <10%  |
+| Coverage            | 72%      | 90.4%     | 91.8%       | 91.4%          | ???        | >90%  |
+| Testpositionen      | ~418     | ~418      | ~418        | ~418           | ???        | -     |
+```
+
+**Teil 4: Analyse der Nicht-Matcher**
+Falls Coverage < 95%, zeige die Top-10 unmatchbaren Positionen mit Kategorie, Oeffnungsart, Groessenklasse.
+
+### Nach Abschluss
+1. MASTER_LOG [B-055] schreiben + Index aktualisieren
+2. 02_STATUS.md aktualisieren (neue Metriken!)
+3. Abschlussbericht an Projektleiter
+
+---
+
+## [P016] LV-Kompression: Aggregation auf Matching-Dimensionen
+**Datum:** 2026-02-10
+**Fuer:** Programmierer
+**Kontext:** Sprint P012-P016, Schritt 5 (geaendert: LV-Kompression statt Relaxed-Match)
+**Vorbedingung:** P015 hat gezeigt: 7.483 LV-Eintraege verschlechtern WAVG
+
+### Problem
+Das Build-Script gruppiert aktuell nach `kategorie::bezeichnung_normalized` (Zeile 529 in build-leistungsverzeichnis.js). Das erzeugt 7.483 feinkoernige Eintraege.
+
+Die Edge Function `budget-ki` matcht aber nur nach: `kategorie + oeffnungsart + groessen_klasse + verglasung + hat_rollladen`.
+
+Wenn sie fuer `fenster/DKR/M` 261 LV-Eintraege bekommt, wird der Weighted Average unschaerfer, weil die Preisspanne von 457 bis 662 EUR reicht.
+
+### Loesung: Aggregation auf Matching-Dimensionen
+
+Aendere den Aggregations-Key von:
+```javascript
+const key = `${kategorie}::${bezeichnung}`;
+```
+auf:
+```javascript
+const key = `${kategorie}::${oeffnungsart || 'NULL'}::${groessenKlasse || 'NULL'}::${verglasung || 'NULL'}::${hatRollladen}::${formTyp}`;
+```
+
+Dabei muss die Groessenklasse VOR der Aggregation berechnet werden (aktuell wird sie erst bei der Ausgabe berechnet). Das bedeutet eine Umstrukturierung des Flows:
+
+### Schritt-fuer-Schritt Anleitung
+
+**1. Dimensions-Extraktion vorziehen (vor dem catalog-Loop)**
+
+Aktuell wird im Loop (Zeile 488ff) die Dimension extrahiert, aber die Groessenklasse erst bei der Ausgabe (Zeile 632) berechnet.
+
+Aendere den Flow so:
+- Im Loop: breite/hoehe/flaeche sofort berechnen
+- Groessenklasse sofort ableiten
+- Verglasung sofort ableiten (via Uw-Wert ODER Textmatch)
+- Dann als Key verwenden
+
+**2. Neuer Aggregations-Key**
+
+```javascript
+// Dimensionen und abgeleitete Felder sofort berechnen
+const dims = extractDimensions(fullText);
+let groessenKlasse = null;
+if (dims) {
+    const flaeche = dims.breite * dims.hoehe / 1000000;
+    groessenKlasse = deriveGroessenKlasse(flaeche);
+}
+
+// Verglasung: direkt aus Text wenn moeglich
+const uwWert = extractUwWert(fullText);
+let verglasung = null;
+if (uwWert !== null) {
+    verglasung = deriveVerglasung(uwWert);
+} else if (/3-fach|3fach|dreifach/i.test(fullText)) {
+    verglasung = '3fach';
+} else if (/2-fach|2fach|zweifach/i.test(fullText)) {
+    verglasung = '2fach';
+}
+
+const hatRollladen = detectRollladen(fullText, kategorie);
+const formTyp = extractFormTyp(fullText);
+
+// NEUER KEY: Matching-Dimensionen
+const key = `${kategorie}::${oeffnungsart || 'NULL'}::${groessenKlasse || 'NULL'}::${verglasung || 'NULL'}::${hatRollladen}::${formTyp}`;
+```
+
+**3. Catalog-Struktur anpassen**
+
+Die Catalog-Eintraege brauchen keine Bezeichnungs-Sammlung mehr. Stattdessen:
+- Preise sammeln (wie bisher)
+- Sample-Count zaehlen
+- Bezeichnung: Erste gefundene Bezeichnung als Beispiel speichern
+- Dimensionen: Durchschnitt berechnen
+
+**4. Ausgabe anpassen**
+
+Bei der Ausgabe (ab Zeile 589):
+- Die Kategorie, Oeffnungsart, Groessenklasse etc. kommen direkt aus dem Key
+- avg_preis = gewichteter Durchschnitt aller Preise im Cluster
+- sample_count = Anzahl Positionen
+- bezeichnung = Beispiel-Bezeichnung (erste)
+
+**5. Script ausfuehren**
+
+```bash
+cd "c:\Claude_Workspace\WORK\repos\Auftragsmanagement\backend"
+node scripts/build-leistungsverzeichnis.js --dry-run    # Pruefen
+node scripts/build-leistungsverzeichnis.js               # Live
+```
+
+### Erwartetes Ergebnis
+- LV-Eintraege: 7.483 → ~300-600 (jeder Cluster mit hohem sample_count)
+- Jeder Cluster hat einen zuverlaessigeren Durchschnittspreis
+- Coverage bleibt gleich oder verbessert sich
+- Median-Abweichung im Backtest sollte sinken (schaerfere Preise)
+
+### WICHTIG
+- NICHT die Edge Function aendern! Nur das Build-Script.
+- Die Edge Function sucht weiterhin nach kategorie + oeffnungsart + groessen_klasse und bekommt jetzt idealerweise nur 1-3 Treffer statt 261.
+- Die Tabellen-Struktur in Supabase bleibt gleich (kein ALTER TABLE noetig).
+- `bezeichnung` Feld: Speichere eine aussagekraeftige Beispiel-Bezeichnung oder eine generierte wie "fenster DKR M 3fach" als Beschreibung.
+
+### Nach Abschluss
+1. MASTER_LOG [B-056] schreiben + Index aktualisieren
+2. 02_STATUS.md aktualisieren (neue LV-Groesse)
+3. Abschlussbericht mit: LV vorher/nachher, Top-20 Cluster nach sample_count
 
 ---
 

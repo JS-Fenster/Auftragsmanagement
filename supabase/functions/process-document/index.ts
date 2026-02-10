@@ -1,7 +1,10 @@
 // =============================================================================
 // Process Document - OCR + GPT Kategorisierung
-// Version: 32 - 2026-02-10 (GPT-5 mini ohne Heuristik)
+// Version: 33 - 2026-02-10 (Typo-Fix Brief_eingend/Brief_eingang)
 // =============================================================================
+// Aenderungen v33:
+// - FIX: Typo-Aliases fuer GPT-5 mini (Brief_eingend, Brief_eingang -> Brief_eingehend)
+//
 // Aenderungen v32:
 // - Modell: gpt-5.2 → gpt-5-mini (15x guenstiger, gleiche Qualitaet)
 // - Response-Format: json_schema → json_object (GPT-5 mini Kompatibilitaet)
@@ -267,7 +270,7 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         service: "process-document",
-        version: "32.0.0",
+        version: "33.0.0",
         status: "ready",
         configured: {
           mistral: !!MISTRAL_API_KEY,

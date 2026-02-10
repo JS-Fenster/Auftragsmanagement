@@ -1,24 +1,28 @@
 // =============================================================================
-// Classify Backtest - Re-Klassifizierung ohne Datenaenderung
-// Version: 1.0.0 - 2026-02-10
+// Classify Backtest - Re-Klassifizierung mit optionalem DB-Update
+// Version: 2.0.1 - 2026-02-10
 // =============================================================================
 // Liest Dokumente aus der DB, sendet den OCR-Text an GPT-5 mini mit dem
 // SYSTEM_PROMPT aus process-document/prompts.ts und vergleicht die neue
-// Kategorie mit der bestehenden. KEIN Schreibzugriff auf documents.
+// Kategorie mit der bestehenden.
+//
+// NEU v2.0: apply=true schreibt die neue Kategorie in die DB zurueck.
 //
 // Usage:
 //   POST /functions/v1/classify-backtest
 //   Header: x-api-key: <INTERNAL_API_KEY>
-//   Body: { "document_ids": ["uuid1", ...], "limit": 20 }
+//   Body: { "doc_ids": ["uuid1", ...], "apply": false }
 //
 // Parameter:
-//   - document_ids: (optional) Array von Dokument-UUIDs zum Testen
-//   - limit: (optional) Max Anzahl Dokumente, default 20, max 20
+//   - doc_ids: (optional) Array von Dokument-UUIDs zum Testen (max 50)
+//   - apply: (optional) true = DB-Update, false = nur Vergleich (default: false)
+//   - limit: (optional) Max Anzahl Dokumente, default 20, max 50
 // =============================================================================
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { SYSTEM_PROMPT } from "../process-document/prompts.ts";
+import { canonicalizeKategorie } from "../process-document/categories.ts";
 
 // =============================================================================
 // Environment
@@ -35,7 +39,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 // Constants
 // =============================================================================
 
-const MAX_DOCS_PER_CALL = 20;
+const MAX_DOCS_PER_CALL = 50;
 const GPT_MODEL = "gpt-5-mini";
 
 const KATEGORIE_ENUM = [
@@ -123,7 +127,11 @@ interface ClassificationResult {
   kategorie: string;
 }
 
-async function classifyText(ocrText: string): Promise<ClassificationResult> {
+async function classifyText(ocrText: string, fileName?: string): Promise<ClassificationResult> {
+  const userContent = fileName
+    ? `Dateiname: ${fileName}\n\nKategorisiere das folgende Dokument. Gib NUR die Kategorie zurueck, keine weiteren Felder.\n\n${ocrText}`
+    : `Kategorisiere das folgende Dokument. Gib NUR die Kategorie zurueck, keine weiteren Felder.\n\n${ocrText}`;
+
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -133,16 +141,10 @@ async function classifyText(ocrText: string): Promise<ClassificationResult> {
     body: JSON.stringify({
       model: GPT_MODEL,
       messages: [
-        {
-          role: "system",
-          content: SYSTEM_PROMPT,
-        },
-        {
-          role: "user",
-          content: `Kategorisiere das folgende Dokument. Gib NUR die Kategorie zurueck, keine weiteren Felder.\n\n${ocrText}`,
-        },
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: userContent },
       ],
-      temperature: 0,
+      // GPT-5 mini: temperature nur default(1) erlaubt, NICHT 0
       response_format: {
         type: "json_schema",
         json_schema: {
@@ -174,20 +176,17 @@ interface DocumentRow {
   betreff: string | null;
   kategorisiert_von: string | null;
   ocr_text: string;
+  dokument_url: string | null;
 }
 
 interface BacktestResult {
   id: string;
-  old_kategorie: string | null;
-  new_kategorie: string;
+  alt: string | null;
+  neu: string;
   changed: boolean;
-  betreff_old: string | null;
-  old_kategorisiert_von: string | null;
-  text_preview: string;
-}
-
-interface ChangeSummary {
-  [key: string]: number;
+  applied: boolean;
+  alt_source: string | null;
+  grund?: string;
 }
 
 // =============================================================================
@@ -200,21 +199,16 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         service: "classify-backtest",
-        version: "1.0.0",
+        version: "2.0.1",
         status: "ready",
         model: GPT_MODEL,
         max_docs_per_call: MAX_DOCS_PER_CALL,
-        configured: {
-          openai: !!OPENAI_API_KEY,
-          supabase: !!(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY),
-          internalApiKey: !!INTERNAL_API_KEY,
-        },
+        features: { apply_mode: true },
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   }
 
-  // ---- Only POST ----
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,
@@ -233,138 +227,138 @@ Deno.serve(async (req: Request) => {
 
   try {
     // ---- Parse Body ----
-    let documentIds: string[] | null = null;
-    let limit = MAX_DOCS_PER_CALL;
+    let docIds: string[] | null = null;
+    let limit = 20;
+    let applyChanges = false;
 
     try {
       const body = await req.json();
-      if (Array.isArray(body.document_ids) && body.document_ids.length > 0) {
-        documentIds = body.document_ids.slice(0, MAX_DOCS_PER_CALL);
+      // Support both doc_ids and document_ids
+      const ids = body.doc_ids || body.document_ids;
+      if (Array.isArray(ids) && ids.length > 0) {
+        docIds = ids.slice(0, MAX_DOCS_PER_CALL);
       }
       if (typeof body.limit === "number" && body.limit > 0) {
         limit = Math.min(body.limit, MAX_DOCS_PER_CALL);
       }
+      if (body.apply === true) {
+        applyChanges = true;
+      }
     } catch {
-      // Leerer Body ist OK - defaults werden genutzt
+      // Leerer Body ist OK
+    }
+
+    if (!docIds || docIds.length === 0) {
+      return new Response(
+        JSON.stringify({ error: "Provide 1-50 doc_ids" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
     }
 
     // ---- Load Documents ----
-    let documents: DocumentRow[];
+    console.log(`[BACKTEST] Loading ${docIds.length} docs, apply=${applyChanges}`);
+    const { data, error } = await supabase
+      .from("documents")
+      .select("id, kategorie, betreff, kategorisiert_von, ocr_text, dokument_url")
+      .in("id", docIds)
+      .not("ocr_text", "is", null);
 
-    if (documentIds && documentIds.length > 0) {
-      // Modus A: Spezifische IDs
-      console.log(`[BACKTEST] Loading ${documentIds.length} specific document(s)`);
-      const { data, error } = await supabase
-        .from("documents")
-        .select("id, kategorie, betreff, kategorisiert_von, ocr_text")
-        .in("id", documentIds)
-        .not("ocr_text", "is", null);
-
-      if (error) {
-        throw new Error(`DB query failed: ${error.message}`);
-      }
-      documents = (data || []) as DocumentRow[];
-    } else {
-      // Modus B: Die letzten `limit` Dokumente mit OCR-Text
-      console.log(`[BACKTEST] Loading last ${limit} documents with OCR text`);
-      const { data, error } = await supabase
-        .from("documents")
-        .select("id, kategorie, betreff, kategorisiert_von, ocr_text")
-        .not("ocr_text", "is", null)
-        .order("created_at", { ascending: false })
-        .limit(limit);
-
-      if (error) {
-        throw new Error(`DB query failed: ${error.message}`);
-      }
-      documents = (data || []) as DocumentRow[];
-    }
+    if (error) throw new Error(`DB query failed: ${error.message}`);
+    const documents = (data || []) as DocumentRow[];
 
     if (documents.length === 0) {
       return new Response(
-        JSON.stringify({
-          results: [],
-          summary: { total: 0, changed: 0, unchanged: 0, changes: {} },
-        }),
+        JSON.stringify({ results: [], summary: { total: 0, changed: 0, unchanged: 0 } }),
         { status: 200, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`[BACKTEST] Processing ${documents.length} document(s) with ${GPT_MODEL}`);
-
     // ---- Classify each document ----
     const results: BacktestResult[] = [];
-    const changes: ChangeSummary = {};
+    const changes: Record<string, number> = {};
     let changedCount = 0;
-    let unchangedCount = 0;
+    let appliedCount = 0;
 
     for (const doc of documents) {
       try {
-        const classification = await classifyText(doc.ocr_text);
-        const newKategorie = classification.kategorie;
+        // Extract filename from dokument_url
+        const fileName = doc.dokument_url?.split("/").pop() || undefined;
+
+        const classification = await classifyText(doc.ocr_text, fileName);
+        // Apply alias mapping (typo fix etc.)
+        const rawKategorie = classification.kategorie;
+        const newKategorie = canonicalizeKategorie(rawKategorie) || rawKategorie;
         const oldKategorie = doc.kategorie;
         const changed = newKategorie !== oldKategorie;
+        let applied = false;
 
         if (changed) {
           changedCount++;
-          const changeKey = `${oldKategorie || "(null)"}→${newKategorie}`;
+          const changeKey = `${oldKategorie || "(null)"} -> ${newKategorie}`;
           changes[changeKey] = (changes[changeKey] || 0) + 1;
-        } else {
-          unchangedCount++;
+
+          // Apply to DB if requested
+          if (applyChanges) {
+            const now = new Date().toISOString();
+            const { error: updateError } = await supabase
+              .from("documents")
+              .update({
+                kategorie: newKategorie,
+                kategorisiert_von: "process-document-gpt",
+                kategorisiert_am: now,
+              })
+              .eq("id", doc.id);
+
+            if (updateError) {
+              console.error(`[APPLY] Failed to update ${doc.id}: ${updateError.message}`);
+            } else {
+              applied = true;
+              appliedCount++;
+              console.log(`[APPLY] ${doc.id}: ${oldKategorie} -> ${newKategorie}`);
+            }
+          }
         }
 
         results.push({
           id: doc.id,
-          old_kategorie: oldKategorie,
-          new_kategorie: newKategorie,
+          alt: oldKategorie,
+          neu: newKategorie,
           changed,
-          betreff_old: doc.betreff,
-          old_kategorisiert_von: doc.kategorisiert_von,
-          text_preview: doc.ocr_text.substring(0, 100),
+          applied,
+          alt_source: doc.kategorisiert_von,
         });
-
-        console.log(
-          `[BACKTEST] ${doc.id}: ${oldKategorie} -> ${newKategorie} ${changed ? "[CHANGED]" : "[OK]"}`
-        );
       } catch (classifyError) {
         console.error(`[BACKTEST] Error classifying ${doc.id}:`, classifyError);
         results.push({
           id: doc.id,
-          old_kategorie: doc.kategorie,
-          new_kategorie: `ERROR: ${classifyError instanceof Error ? classifyError.message : String(classifyError)}`,
+          alt: doc.kategorie,
+          neu: "ERROR",
           changed: false,
-          betreff_old: doc.betreff,
-          old_kategorisiert_von: doc.kategorisiert_von,
-          text_preview: doc.ocr_text.substring(0, 100),
+          applied: false,
+          alt_source: doc.kategorisiert_von,
+          grund: classifyError instanceof Error ? classifyError.message : String(classifyError),
         });
       }
     }
 
-    // ---- Response ----
-    const response = {
-      results,
-      summary: {
-        total: documents.length,
-        changed: changedCount,
-        unchanged: unchangedCount,
-        changes,
-      },
+    const summary = {
+      total: documents.length,
+      changed: changedCount,
+      unchanged: documents.length - changedCount,
+      applied: appliedCount,
+      apply_mode: applyChanges,
     };
 
-    console.log(
-      `[BACKTEST] Done: ${documents.length} total, ${changedCount} changed, ${unchangedCount} unchanged`
-    );
+    console.log(`[BACKTEST] Done: ${summary.total} total, ${summary.changed} changed, ${summary.applied} applied`);
 
-    return new Response(JSON.stringify(response), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ results, summary, changes }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
   } catch (error) {
     console.error("[BACKTEST] Fatal error:", error);
     return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : String(error),
-      }),
+      JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
