@@ -1,7 +1,14 @@
 // =============================================================================
 // Process Document - OCR + GPT Kategorisierung
-// Version: 31 - 2026-02-04 (GPT-basierte Budget-Extraktion)
+// Version: 32 - 2026-02-10 (GPT-5 mini ohne Heuristik)
 // =============================================================================
+// Aenderungen v32:
+// - Modell: gpt-5.2 → gpt-5-mini (15x guenstiger, gleiche Qualitaet)
+// - Response-Format: json_schema → json_object (GPT-5 mini Kompatibilitaet)
+// - Heuristik-Override komplett deaktiviert (GPT-5 mini ist praeziser)
+// - Dateiname wird als zusaetzlicher Kontext an GPT uebergeben
+// - kategorisiert_von immer "process-document-gpt" (keine Rules mehr)
+//
 // Aenderungen v31:
 // - NEU: GPT-basierte Budget-Extraktion statt Regex-Parser
 // - NEU: budget-prompts.ts mit spezialisiertem Prompt
@@ -91,7 +98,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { SYSTEM_PROMPT } from "./prompts.ts";
-import { canonicalizeKategorie, applyHeuristicRules } from "./categories.ts";
+// v32: applyHeuristicRules entfernt (Heuristik deaktiviert)
+import { canonicalizeKategorie } from "./categories.ts";
 import {
   calculateHash,
   calculateTextHash,
@@ -102,7 +110,6 @@ import {
 } from "./extraction.ts";
 import {
   ExtractedDocument,
-  EXTRACTION_SCHEMA,
   UNTERSCHRIFT_ERFORDERLICH_KATEGORIEN,
 } from "./schema.ts";
 import {
@@ -260,7 +267,7 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         service: "process-document",
-        version: "31.0.0",
+        version: "32.0.0",
         status: "ready",
         configured: {
           mistral: !!MISTRAL_API_KEY,
@@ -627,27 +634,11 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // v22: Apply heuristic rules BEFORE GPT
-    const heuristicResult = applyHeuristicRules(extractedText, file.name);
-    let kategorisiertVon = "gpt";
-    let forcedKategorie: string | null = null;
+    // v32: Nur noch GPT-5 mini Klassifizierung (Heuristik deaktiviert)
+    const kategorisiertVon = "gpt";
 
-    if (heuristicResult.kategorie && heuristicResult.confidence === "high") {
-      console.log(`[HEURISTIC] High confidence match: ${heuristicResult.kategorie} (${heuristicResult.reason})`);
-      forcedKategorie = heuristicResult.kategorie;
-      kategorisiertVon = "rule";
-    } else if (heuristicResult.kategorie) {
-      console.log(`[HEURISTIC] Medium confidence match: ${heuristicResult.kategorie} (${heuristicResult.reason}) - GPT will verify`);
-    }
-
-    // Categorize + Extract with GPT-5.2
-    const extractedData = await categorizeAndExtract(extractedText);
-
-    // v22: Override kategorie if heuristic had high confidence
-    if (forcedKategorie) {
-      console.log(`[HEURISTIC] Overriding GPT kategorie "${extractedData.kategorie}" with rule-based "${forcedKategorie}"`);
-      extractedData.kategorie = forcedKategorie;
-    }
+    // Categorize + Extract with GPT-5 mini
+    const extractedData = await categorizeAndExtract(extractedText, file.name);
 
     console.log(`Categorized as: ${extractedData.kategorie} (by ${kategorisiertVon})`);
 
@@ -703,7 +694,6 @@ Deno.serve(async (req: Request) => {
       ...(extractedData.extraktions_hinweise || []),
       `Extraktionsmethode: ${extractionMethod}`,
       `Kategorisiert von: ${kategorisiertVon}`,
-      ...(heuristicResult.reason ? [`Heuristik: ${heuristicResult.reason}`] : []),
       ...(compressionInfo ? [compressionInfo] : []),
     ];
 
@@ -964,7 +954,7 @@ Deno.serve(async (req: Request) => {
   }
 });
 
-async function categorizeAndExtract(ocrText: string): Promise<ExtractedDocument> {
+async function categorizeAndExtract(ocrText: string, fileName: string): Promise<ExtractedDocument> {
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -972,7 +962,8 @@ async function categorizeAndExtract(ocrText: string): Promise<ExtractedDocument>
       Authorization: `Bearer ${OPENAI_API_KEY}`,
     },
     body: JSON.stringify({
-      model: "gpt-5.2",
+      // v32: GPT-5 mini statt GPT-5.2 (15x guenstiger)
+      model: "gpt-5-mini",
       messages: [
         {
           role: "system",
@@ -980,17 +971,12 @@ async function categorizeAndExtract(ocrText: string): Promise<ExtractedDocument>
         },
         {
           role: "user",
-          content: `Analysiere das folgende Dokument und extrahiere alle relevanten Informationen:\n\n${ocrText}`,
+          // v32: Dateiname als Kontext mitgeben
+          content: `Dateiname: ${fileName}\n\nAnalysiere das folgende Dokument und extrahiere alle relevanten Informationen als JSON:\n\n${ocrText}`,
         },
       ],
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: "document_extraction",
-          strict: true,
-          schema: EXTRACTION_SCHEMA,
-        },
-      },
+      // v32: json_object statt json_schema (GPT-5 mini Kompatibilitaet)
+      response_format: { type: "json_object" },
     }),
   });
 

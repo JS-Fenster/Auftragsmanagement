@@ -1432,4 +1432,105 @@ Scanner-Problem wurde am 28.01.2026 behoben, alte Dateien liegen in `\\appserver
 
 ---
 
-*Aktualisiert: 2026-02-09 - PLAN.md Inhalte konsolidiert + PLAN.md aufgeloest*
+### 11.8 Budgetangebot: Preisoptimierung + Daten-Erweiterung 📋
+
+| Attribut | Wert |
+|----------|------|
+| **Prioritaet** | HOCH |
+| **Bereich** | budget-ki Edge Function, Leistungsverzeichnis |
+| **Notiert** | 2026-02-10 |
+| **Stand** | Quick-Win-Phase (P008-P011) abgeschlossen, budget-ki v1.2.0 LIVE |
+
+---
+
+#### Aktueller Stand (2026-02-10)
+
+| Metrik | Start (P005) | Aktuell (P011 v1.2.0) | Ziel |
+|--------|-------------|----------------------|------|
+| Median-Abweichung | 30.9% | **18.6%** | <15% |
+| Trefferquote <=20% | 37.1% | **52.8%** | >70% |
+| Ausreisser >50% | 26.3% | **8.9%** | <10% ERREICHT |
+| Coverage | 72% | **91.8%** | >90% ERREICHT |
+
+---
+
+#### Erkenntnis: Kundenrabatte in den Daten
+
+**27% der Rechnungspositionen haben einen Kundenrabatt** (568 von ~2.100 Positionen).
+
+| Feld | Bedeutung | Im LV genutzt? |
+|------|-----------|-----------------|
+| `einz_preis` | Listenpreis OHNE Kundenrabatt | **JA** (korrekt) |
+| `ges_preis` | Effektiv-Preis MIT Kundenrabatt | NEIN |
+
+Typische Kundenrabatte: 5%, 10%, 13%, 15%, 20%, 30%
+
+**Entscheidung:** `einz_preis` bleibt die Preisbasis fuer das Budgetangebot.
+Begruendung: Das Budgetangebot zeigt den Standardpreis. Kundenrabatte werden
+individuell verhandelt und erst im echten Angebot/Auftrag angewendet.
+
+**Konsequenz fuer Backtest:** Ein Teil der gemessenen 18.6% Median-Abweichung
+entsteht dadurch, dass der Backtest gegen `einz_preis` der Rechnung vergleicht,
+aber bei 27% der Positionen der Kunde weniger bezahlt hat. Der "echte" Median
+(ohne rabattierte Positionen) liegt geschaetzt bei ~15-16%.
+
+**Spaetere Erweiterung:** Rabattpflege im Angebots-Editor moeglich.
+Umsetzung: Einfache Multiplikation (Summe × (1 - Rabatt%)).
+
+---
+
+#### WERU-Rabattkonditionen JS Fenster (Referenz)
+
+**Grundrabatte (ab 01.03.2023, dauerhaft):**
+
+| Rabattgruppe | Rabatt |
+|---|---|
+| Kunststofffenster | 58% |
+| Aluminiumfenster | 35% |
+| Sichtschutz | 40% |
+| Haustüren | 40% |
+| Zubehör | 25% |
+
+**Objektrabatte (Sonderkondition ab 5 Fluegel):**
+
+| System | 2024 | 2025-2026 |
+|--------|------|-----------|
+| Premium (CALIDO, Castello, IMPREO, AFINO) | 67,5% | 70% |
+| ALEGRA | 65,5% | 68% |
+| AMENTA (neu 2026) | - | 46% |
+| ATRIS (neu 2026) | - | 41% |
+| Zubehoer | ~30% | 30% |
+
+BLP (Bruttolistenpreise) sind stabil seit mind. 2024, keine Preisanpassung gefunden.
+EK-Differenz 2024 vs 2025: ca. 7-8% (32,5% → 30% vom BLP).
+
+---
+
+#### Naechste Optimierungshebel (priorisiert)
+
+| # | Hebel | Erwarteter Impact | Aufwand |
+|---|-------|-------------------|---------|
+| 1 | **2024er Positionen aus W4A nachsynchen** | +~20.000 Pos., dichteres LV, neue Matches | 2-4 Std |
+| 2 | **LV-Daten ergaenzen:** festfeld-Kombis + balkontuer-Stulp + HST | +35 Matches, Coverage ~100% | 2-3 Std |
+| 3 | **"sonstiges"-Regex verbessern** | 18 Pos. mit 51.6% Median eliminieren | 1-2 Std |
+| 4 | **Relaxed-Match-Qualitaet** analysieren | 30 Pos. mit 44% Median | 2 Std |
+| 5 | **WERU-Listenpreise als Fallback** | Ungematchte Pos. kalkulierbar | 4-6 Std |
+
+---
+
+#### Daten-Bestand Supabase (2026-02-10)
+
+| Tabelle | Gesamt | Mit Positionen | Zeitraum Pos. |
+|---------|--------|----------------|---------------|
+| erp_rechnungen | 3.031 | 381 | 2025-2026 |
+| erp_angebote | 4.783 | 551 | 2024-2026 |
+| erp_rechnungs_positionen | 3.315 | - | 2025-2026 |
+| erp_angebots_positionen | 6.772 | - | 2024-2026 |
+| leistungsverzeichnis | 2.891 | - | aggregiert |
+
+**Luecke:** 2.650 Rechnungen (2021-2024) haben keine Positionen - nur Kopfdaten gesynct.
+**Naechster Schritt:** 2024er Rechnungspositionen aus W4A nachsynchen (~800 Rechnungen, ~8.000 Positionen geschaetzt).
+
+---
+
+*Aktualisiert: 2026-02-10 - Budgetangebot Preisoptimierung + Rabatt-Erkenntnis + WERU-Konditionen*

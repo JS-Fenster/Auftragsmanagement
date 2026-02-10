@@ -1,14 +1,14 @@
 # Status: Budgetangebot V2
 
-> Letzte Aktualisierung: 2026-02-09
-> Aktualisiert von: Tester (P007 abgeschlossen)
+> Letzte Aktualisierung: 2026-02-10
+> Aktualisiert von: Tester (P013 abgeschlossen, B-053)
 
 ---
 
 ## Aktueller Stand
-**Phase:** RE-BACKTEST ABGESCHLOSSEN - NAECHSTE OPTIMIERUNG NOETIG
-**Letzter abgeschlossener Schritt:** P007 - Re-Backtest + Verbesserungsanalyse (B-043)
-**Aktueller Auftrag:** KEINER - Projektleiter entscheidet naechste Schritte
+**Phase:** SPRINT P012-P016 - Preisoptimierung Phase 2
+**Letzter abgeschlossener Schritt:** B-053 (P013 Re-Backtest nach P012)
+**Aktueller Auftrag:** Keiner - Warte auf Projektleiter
 
 ---
 
@@ -19,80 +19,45 @@
 
 ## Aktiver Auftrag
 
-KEIN aktiver Auftrag. Warte auf Projektleiter-Entscheidung.
+**Prompt:** P013 (ABGESCHLOSSEN)
+**Rolle:** Tester
+**Aufgabe:** Re-Backtest nach P012 Sonderformen + sonstiges-Fix. ERLEDIGT.
+
+### Sprint-Plan P012-P016
+| # | Prompt | Rolle | Aufgabe | Status |
+|---|--------|-------|---------|--------|
+| 1 | P012 | PROG | Sonderformen + sonstiges-Fix + Unilux im Build-Script | **FERTIG (B-052)** |
+| 2 | P013 | TEST | Re-Backtest nach P012 | **FERTIG (B-053)** |
+| 3 | P014 | PROG | W4A 2024er Positionen nachsynchen + LV Rebuild | Warte (Tunnel!) |
+| 4 | P015 | TEST | Re-Backtest nach erweitertem Datensatz | Warte |
+| 5 | P016 | PROG | Relaxed-Match + Sonderform-Support in budget-ki | Warte |
 
 ---
 
-## Abschlussbericht P007-TEST
+## Gesamtergebnis nach P013
 
-### Ergebnis
-- [x] Erfolgreich (alle 3 Teile ausgefuehrt)
+| Metrik              | Start (P005) | Aktuell (P013) | Ziel  | Status |
+|---------------------|--------------|----------------|-------|--------|
+| Median-Abweichung   | 30.9%        | **18.3%**      | <15%  | -12.6pp, noch 3.3pp offen |
+| Trefferquote <=20%  | 37.1%        | **54.7%**      | >70%  | +17.6pp, noch 15.3pp offen |
+| Ausreisser >50%     | 26.3%        | **6.5%**       | <10%  | ERREICHT (Bester Wert!) |
+| Coverage            | 72%          | **91.4%**      | >90%  | ERREICHT |
 
-### Backtest-Ergebnisse (418 Positionen)
-
-| Metrik              | P005 ALT | P005 NEU(A) | P007 Original | P007 Weighted | Ziel  | Status        |
-|---------------------|----------|-------------|---------------|---------------|-------|---------------|
-| Median-Abweichung   | 30.9%    | 19.2%       | 21.5%         | **18.7%**     | <15%  | KNAPP (-3.3pp)|
-| Trefferquote <=20%  | 37.1%    | 52.2%       | 44.4%         | **52.9%**     | >70%  | VERFEHLT      |
-| Ausreisser >50%     | 26.3%    | 6.6%        | 13.0%         | **10.8%**     | <10%  | KNAPP (+0.8pp)|
-| Match-Coverage      | 100%     | 72.0%       | 97.6%         | **97.6%**     | >90%  | ERREICHT      |
-
-**Wichtig:** P005 NEU hatte nur 72% Coverage (301/418). P007 Weighted hat 97.6% Coverage (408/418)
-bei besserer Median-Abweichung. Das ist eine echte Verbesserung.
-
-### Top 5 Verbesserungsvorschlaege
-
-1. **Matching auf Weighted Average umstellen** (Quick-Win, HOCH)
-2. **Rollladen-Aufpreis im Matching** (HOCH, ~2-5pp Verbesserung)
-3. **FIX→festfeld Kategorie-Mapping** (MITTEL, 14 Positionen)
-4. **Kipp-Oeffnungsart ergaenzen** (MITTEL, 2-3 Positionen)
-5. **LV-Aggregation im Build-Script** (NIEDRIG, bessere Datenqualitaet)
-
-### Log-Referenz
-Dokumentiert in MASTER_LOG.md: [B-043]
-
----
-
-## Abschlussbericht P006-PROG
-
-### Ergebnis
-- [x] Erfolgreich (alle 4 Fixes implementiert und verifiziert)
-
-### Durchgefuehrte Aenderungen
-
-**Migration:**
-- `ist_kombi BOOLEAN DEFAULT false` hinzugefuegt
-- `ist_lagerware BOOLEAN DEFAULT false` hinzugefuegt
-
-**Fix 1: Stulp-Kategorisierung**
-- 202 fenster/Stulp Eintraege (vorher 0 - alles als haustuer fehlkategorisiert)
-- 38 haustuer/Stulp bleiben korrekt (Hoehe >= 2200mm)
-
-**Fix 2: Kombielement-Erkennung**
-- 491 LV-Eintraege als ist_kombi=true markiert
-- 720 Kombi-Positionen auf Positionsebene erkannt (10%)
-
-**Fix 3: Groessenklasse L aufsplitten**
-- L1 (1.3-1.8 qm): 297 Eintraege
-- L2 (1.8-2.5 qm): 322 Eintraege
-
-**Fix 4: Lagerware-Erkennung**
-- 2 Lagerware-Positionen aus Preisaggregation ausgeschlossen
-
-**Build-Ergebnis:** 2.891 LV-Eintraege (vorher 2.903)
-
-### Log-Referenz
-Dokumentiert in MASTER_LOG.md: [B-042]
+### Naechste Hebel (priorisiert)
+1. LV-Daten ergaenzen: festfeld-Kombis + balkontuer-Stulp + HST (+35 Matches)
+2. Festfeld-Kategorie verbessern (34.9% Median, 26.3% Ausreisser)
+3. 2024er Positionen aus W4A nachsynchen (P014, Tunnel noetig)
+4. WERU-Listenpreise als Referenz/Fallback
 
 ---
 
 ## System-Uebersicht V2
 
 ### Edge Functions (Supabase - LIVE)
-| Function | Status | URL |
-|----------|--------|-----|
-| `budget-ki` | ACTIVE | `.../functions/v1/budget-ki` |
-| `budget-dokument` | ACTIVE | `.../functions/v1/budget-dokument` |
+| Function | Status | Version | Tools |
+|----------|--------|---------|-------|
+| `budget-ki` | ACTIVE | **v1.2.0** | **4 Tools** (suche_lv_granular, suche_leistungsverzeichnis, hole_preishistorie, berechne_fensterpreis) |
+| `budget-dokument` | ACTIVE | v1.0.0 | - |
 
 ### Datenbank (Supabase)
 | Tabelle | Status |
@@ -104,7 +69,7 @@ Dokumentiert in MASTER_LOG.md: [B-042]
 | erp_rechnungs_positionen | 3.315 Eintraege |
 | erp_angebote | 4.783 Eintraege |
 | erp_angebots_positionen | 6.772 Eintraege |
-| leistungsverzeichnis | 2.891 Eintraege (P006 OPTIMIERT: +ist_kombi, +ist_lagerware, L1/L2) |
+| leistungsverzeichnis | 2.892 Eintraege (P012 OPTIMIERT + form_typ) |
 
 ---
 
@@ -116,12 +81,17 @@ Dokumentiert in MASTER_LOG.md: [B-042]
 | 2 | ~~Backtest LV vs. Rechnungen (P005)~~ | ~~HOCH~~ | **ERLEDIGT (B-041)** |
 | 3 | ~~Stulp-Fix + Kombi-Erkennung im LV (P006)~~ | ~~HOCH~~ | **ERLEDIGT (B-042)** |
 | 4 | ~~Re-Backtest + Verbesserungsanalyse (P007)~~ | ~~HOCH~~ | **ERLEDIGT (B-043)** |
-| 5 | **Matching auf Weighted Average umstellen** | **HOCH** | Quick-Win empfohlen |
-| 6 | **Rollladen-Aufpreis im Matching** | **HOCH** | Empfohlen |
-| 7 | FIX→festfeld Kategorie-Mapping | MITTEL | Empfohlen |
-| 8 | Automatischer Server-Sync (Cron) | MITTEL | Offen |
-| 9 | Supabase Auth integrieren | HOCH | Offen |
-| 10 | WERU-Listenpreise (JSON) integrieren | MITTEL | Vorbereitet |
+| 5 | ~~Weighted Average Matching (P008)~~ | ~~HOCH~~ | **ERLEDIGT (B-045)** |
+| 6 | ~~Rollladen-Aufpreis im Matching (P008)~~ | ~~HOCH~~ | **ERLEDIGT (B-045)** |
+| 7 | ~~FIX->festfeld Kategorie-Mapping (P008)~~ | ~~MITTEL~~ | **ERLEDIGT (B-045)** |
+| 8 | ~~Re-Backtest P008 Quick-Wins (P009)~~ | ~~HOCH~~ | **ERLEDIGT (B-046)** |
+| 9 | ~~Edge Function: Fallback-Stufen entschaerfen~~ | ~~HOCH~~ | **ERLEDIGT (B-048)** |
+| 10 | ~~DK-Mapping ergaenzen (DK -> DKR+DKL)~~ | ~~HOCH~~ | **ERLEDIGT (B-048)** |
+| 11 | LV-Daten ergaenzen (festfeld-Kombis, balkontuer-Stulp, HST) | HOCH | Offen |
+| 12 | ~~"sonstiges"-Kategorie-Regex verbessern~~ | ~~HOCH~~ | **ERLEDIGT (B-052)** |
+| 13 | Automatischer Server-Sync (Cron) | MITTEL | Offen |
+| 14 | Supabase Auth integrieren | HOCH | Offen |
+| 15 | WERU-Listenpreise (JSON) integrieren | MITTEL | Vorbereitet |
 
 ---
 
@@ -140,3 +110,10 @@ Dokumentiert in MASTER_LOG.md: [B-042]
 | **Backtest LV vs. Rechnungen (B-041)** | **Fertig** | **2026-02-09** |
 | **Stulp-Fix + Kombi + L-Split + Lagerware (B-042)** | **Fertig** | **2026-02-09** |
 | **Re-Backtest + Verbesserungsanalyse (B-043)** | **Fertig** | **2026-02-09** |
+| **budget-ki v1.1.0 - Weighted Avg + Rollladen + FIX-Mapping (B-045)** | **Fertig** | **2026-02-10** |
+| **Re-Backtest P009 - 5 Strategien + RL-Impact (B-046)** | **Fertig** | **2026-02-10** |
+| **budget-ki v1.2.0 - Fallback entschaerft + DK-Mapping + RL Smart-Hybrid (B-048)** | **Fertig** | **2026-02-10** |
+| **Re-Backtest P011 v1.2.0 - Median 18.6%, Coverage 91.8% (B-049)** | **Fertig** | **2026-02-10** |
+| **PL-Review + Gesamtbewertung Quick-Win-Phase (B-050)** | **Fertig** | **2026-02-10** |
+| **P012: Sonderformen + sonstiges-Fix + Unilux + Glas (B-052)** | **Fertig** | **2026-02-10** |
+| **P013: Re-Backtest - Median 18.3%, Ausreisser 6.5% (B-053)** | **Fertig** | **2026-02-10** |

@@ -85,6 +85,8 @@ const KATEGORIE_PATTERNS = [
     { kategorie: 'fensterbank', patterns: [/fensterbank|AFB|IFB/i] },
     { kategorie: 'montage', patterns: [/montage|einbau|demontage|ausbau/i] },
     { kategorie: 'entsorgung', patterns: [/entsorgung|abtransport/i] },
+    // P012: Glas-Scheiben als eigene Kategorie (statt sonstiges)
+    { kategorie: 'glas', patterns: [/CLIMAPLUS|[Ii]solierglas|[Gg]lasscheibe|VSG\s+\d/i] },
 ];
 
 function kategorisiere(bezeichnung, langtext = '') {
@@ -109,6 +111,15 @@ function kategorisiere(bezeichnung, langtext = '') {
         const dims = extractDimensions(text);
         const hasAnschlag = /Anschlag:/i.test(text);
         if (dims && dims.hoehe < 2200 && hasAnschlag) {
+            kategorie = 'fenster';
+        }
+    }
+
+    // P012: Fallback fuer sonstiges - Wenn Anschlag + Masse vorhanden → wahrscheinlich Fenster
+    if (kategorie === 'sonstiges') {
+        const hasAnschlag = /Anschlag:/i.test(text);
+        const hasDims = extractDimensions(text);
+        if (hasAnschlag && hasDims) {
             kategorie = 'fenster';
         }
     }
@@ -191,6 +202,15 @@ function extractOeffnungsart(text) {
     // K = Kipp (ohne Dreh)
     if (/\bK\s+Kipp\b|Anschlag:.*\bKipp\b(?!.*[Dd]reh)/i.test(text)) return 'K';
 
+    // KM = Kipp Mitte (P012: sonstiges-Fix)
+    if (/\bKM\b.*[Kk]ipp|[Kk]ipp\s+[Mm]itte/i.test(text)) return 'K';
+
+    // KL = Kipp links (nicht DKL!) (P012: sonstiges-Fix)
+    if (/\bKL\s+Kipp\b|Anschlag:.*\bKipp\s+links\b(?!.*[Dd]reh)/i.test(text)) return 'K';
+
+    // KR = Kipp rechts (P012: sonstiges-Fix)
+    if (/\bKR\s+Kipp\b|Anschlag:.*\bKipp\s+rechts\b(?!.*[Dd]reh)/i.test(text)) return 'K';
+
     return null;
 }
 
@@ -260,6 +280,31 @@ function detectRollladen(text, kategorie) {
 }
 
 /**
+ * Extrahiert die Fensterform aus dem Positionstext.
+ * Sonderformen kosten 25-50% mehr als Rechteck-Fenster.
+ * Werte: 'rechteck', 'schraeg', 'rundbogen', 'korbbogen', 'segmentbogen', 'stichbogen', 'dreieck', 'trapez'
+ */
+function extractFormTyp(text) {
+    if (!text) return 'rechteck';
+
+    // Rundbogen-Varianten (Reihenfolge: spezifisch vor generisch)
+    if (/Bogenart:\s*Segmentbogen/i.test(text)) return 'segmentbogen';
+    if (/Bogenart:\s*Korbbogen/i.test(text)) return 'korbbogen';
+    if (/Bogenart:\s*Stichbogen/i.test(text)) return 'stichbogen';
+    if (/Bogenart:\s*Rundbogen/i.test(text)) return 'rundbogen';
+    if (/Form:\s*Rund/i.test(text)) return 'rundbogen';
+
+    // Schraeg (Giebel, Dachschraege)
+    if (/Form:\s*Schr[aä]g/i.test(text)) return 'schraeg';
+
+    // Dreieck, Trapez (selten aber moeglich)
+    if (/Form:\s*Dreieck/i.test(text)) return 'dreieck';
+    if (/Form:\s*Trapez/i.test(text)) return 'trapez';
+
+    return 'rechteck';
+}
+
+/**
  * Leitet die Groessenklasse aus der Flaeche in qm ab.
  * XS: < 0.3 qm, S: 0.3-0.7 qm, M: 0.7-1.3 qm,
  * L1: 1.3-1.8 qm, L2: 1.8-2.5 qm, XL: > 2.5 qm
@@ -295,6 +340,9 @@ function extractHersteller(text) {
         { name: 'Veka', pattern: /\bVeka\b/i },
         { name: 'Aluplast', pattern: /\bAluplast\b/i },
         { name: 'Heroal', pattern: /\bHeroal\b/i },
+        // P012: Neue Hersteller
+        { name: 'Unilux', pattern: /\bUnilux\b/i },
+        { name: 'ALUPROF', pattern: /\bALUPROF\b/i },
     ];
 
     for (const { name, pattern } of herstellerPatterns) {
@@ -433,6 +481,7 @@ async function main() {
         kombi_found: 0,
         lagerware_found: 0,
         lagerware_excluded: 0,
+        sonderform_found: 0,
         total_processed: 0
     };
 
@@ -463,6 +512,9 @@ async function main() {
         // P006: Lagerware-Erkennung
         const istLagerware = detectLagerware(fullText);
 
+        // P012: Sonderform-Erkennung
+        const formTyp = extractFormTyp(fullText);
+
         // Statistik
         if (oeffnungsart) stats.oeffnungsart_found++;
         if (dims) stats.dims_found++;
@@ -472,6 +524,7 @@ async function main() {
         if (systemName) stats.system_found++;
         if (kombiInfo.istKombi) stats.kombi_found++;
         if (istLagerware) stats.lagerware_found++;
+        if (formTyp !== 'rechteck') stats.sonderform_found++;
 
         const key = `${kategorie}::${bezeichnung}`;
 
@@ -488,6 +541,7 @@ async function main() {
                 systeme: [],
                 kombiFlags: [],
                 kombiFelder: [],
+                formTypen: [],
                 lagerwaren_count: 0,
                 meta: {}
             });
@@ -512,6 +566,7 @@ async function main() {
         if (systemName) entry.systeme.push(systemName);
         entry.kombiFlags.push(kombiInfo.istKombi);
         entry.kombiFelder.push(kombiInfo.felder);
+        entry.formTypen.push(formTyp);
     }
 
     console.log(`      ${catalog.size} eindeutige Leistungen identifiziert`);
@@ -524,6 +579,7 @@ async function main() {
     console.log(`        System:       ${stats.system_found}/${stats.total_processed} (${pct(stats.system_found, stats.total_processed)})`);
     console.log(`        Kombi:        ${stats.kombi_found}/${stats.total_processed} (${pct(stats.kombi_found, stats.total_processed)})`);
     console.log(`        Lagerware:    ${stats.lagerware_found}/${stats.total_processed} (${pct(stats.lagerware_found, stats.total_processed)}) - ${stats.lagerware_excluded} aus Preisen ausgeschlossen`);
+    console.log(`        Sonderform:   ${stats.sonderform_found}/${stats.total_processed} (${pct(stats.sonderform_found, stats.total_processed)})`);
 
     // 4. Leistungsverzeichnis-Eintraege erstellen
     console.log('\n[4/4] Erstelle Leistungsverzeichnis...');
@@ -589,6 +645,9 @@ async function main() {
         const dominantHersteller = getModus(entry.hersteller);
         const dominantSystem = getModus(entry.systeme);
 
+        // P012: Haeufigste Fensterform (Modus)
+        const dominantFormTyp = getModus(entry.formTypen) || 'rechteck';
+
         // Einheit ableiten
         let einheit = 'Stk';
         if (entry.kategorie === 'montage' || entry.kategorie === 'entsorgung') {
@@ -622,14 +681,17 @@ async function main() {
             // P006: Neue Felder
             ist_kombi: kombiMajority,
             ist_lagerware: entry.lagerwaren_count > 0,
+            // P012: Sonderform
+            form_typ: dominantFormTyp,
             meta: {
                 median_preis: round2(median),
-                quelle: 'auto-sync-v2-p006',
+                quelle: 'auto-sync-v2-p012',
                 oeffnungsart_samples: entry.oeffnungsarten.length,
                 dim_samples: entry.dimensions.length,
                 uw_samples: entry.uwWerte.length,
                 kombi_samples: kombiTrueCount,
-                lagerwaren_count: entry.lagerwaren_count
+                lagerwaren_count: entry.lagerwaren_count,
+                form_typ_samples: entry.formTypen.filter(f => f !== 'rechteck').length
             }
         });
     }
@@ -646,6 +708,7 @@ async function main() {
         with_lagerware: lvEntries.filter(e => e.ist_lagerware).length,
         with_hersteller: lvEntries.filter(e => e.hersteller).length,
         with_system: lvEntries.filter(e => e.system_name).length,
+        with_sonderform: lvEntries.filter(e => e.form_typ !== 'rechteck').length,
     };
 
     console.log(`      LV-Eintraege mit granularen Daten:`);
@@ -657,6 +720,7 @@ async function main() {
     console.log(`        Mit System:       ${granularStats.with_system}/${lvEntries.length}`);
     console.log(`        Kombielemente:    ${granularStats.with_kombi}/${lvEntries.length}`);
     console.log(`        Lagerware-Flag:   ${granularStats.with_lagerware}/${lvEntries.length}`);
+    console.log(`        Sonderformen:    ${granularStats.with_sonderform}/${lvEntries.length}`);
 
     if (DRY_RUN) {
         console.log('\n  [DRY RUN] Top 30 Eintraege mit granularen Daten:');
@@ -741,6 +805,19 @@ async function main() {
     }
     console.log(`  Granular angereichert:  ${granularStats.with_oeffnungsart} mit Oeffnungsart, ${granularStats.with_dims} mit Massen`);
     console.log(`  P006 Fixes:  ${granularStats.with_kombi} Kombielemente, ${granularStats.with_lagerware} mit Lagerware-Flag, ${stats.lagerware_excluded} Preise ausgeschlossen`);
+    console.log(`  P012 Fixes:  ${granularStats.with_sonderform} Sonderformen, ${stats.sonderform_found} Sonderform-Positionen erkannt`);
+
+    // P012: Sonderform-Verteilung anzeigen
+    const formTypVerteilung = {};
+    for (const e of lvEntries) {
+        formTypVerteilung[e.form_typ] = (formTypVerteilung[e.form_typ] || 0) + 1;
+    }
+    if (Object.keys(formTypVerteilung).length > 1) {
+        console.log(`  Sonderform-Verteilung:`);
+        for (const [form, count] of Object.entries(formTypVerteilung).sort((a, b) => b[1] - a[1])) {
+            console.log(`    ${form.padEnd(20)} ${count}`);
+        }
+    }
     console.log(`${'='.repeat(70)}\n`);
 }
 

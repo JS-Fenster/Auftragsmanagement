@@ -50,6 +50,12 @@
 | L39 | Weighted Average Matching schlaegt ORDER BY sample_count - 18.7% vs 21.5% Median | [B-043] |
 | L40 | Coverage ist genauso wichtig wie Genauigkeit - 97.6% vs 72% nach Fixes | [B-043] |
 | L41 | LV-Aggregation erzeugt zu viele Einzelpositionen (2891) statt wenige dichte Cluster (~300) | [B-043] |
+| L42 | RL Smart-Hybrid (nur bei true filtern) senkt Ausreisser um 1.8pp bei minimalem Median-Trade-off | [B-049] |
+| L43 | Fallback-Stufen im Backtest nicht aktiv - Entfernung hat 0 Effekt, schadet nur Edge-Function-Live | [B-049] |
+| L44 | DK-Mapping hat 0 Backtest-Effekt (Regex erkennt immer DKR/DKL), aber korrekt fuer GPT-Input | [B-049] |
+| L45 | Relaxed-Matches (kat+oa+gk) haben 44.1% Median und 40% Ausreisser - fast so schlecht wie kein Match | [B-049] |
+| L46 | "sonstiges" (18 Pos.) und "haustuer" (3 Pos.) sind Ausreisser-Treiber (Median >50%) | [B-049] |
+| L47 | festfeld-Kombis fehlen im LV fuer S/M/L1/L2 - nur XL vorhanden → 19 ungematchte Positionen | [B-049] |
 
 ---
 
@@ -75,4 +81,4 @@
 
 ---
 
-*Letzte Aktualisierung: 2026-02-09*
+*Letzte Aktualisierung: 2026-02-10*

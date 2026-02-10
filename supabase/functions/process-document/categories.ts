@@ -117,6 +117,10 @@ const KATEGORIE_ALIASES: Record<string, string> = {
   "Order confirmation": "Auftragsbestaetigung",
   "Bestellbestaetigung": "Auftragsbestaetigung",
 
+  // GPT-5 mini Typo-Korrekturen (Backtest 500 Docs, 3x aufgetreten)
+  "Brief_eingend": "Brief_eingehend",
+  "Brief_eingang": "Brief_eingehend",
+
   // v2.1.0: "Purchase order" und "PO" entfernt - kann Bestellung ODER Kundenbestellung sein
   // Heuristik entscheidet basierend auf Kontext (wer ist Absender/Empfaenger)
 };
