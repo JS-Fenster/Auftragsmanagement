@@ -53,6 +53,7 @@
 | [R-042] | 2026-02-09 | REPAIR | PROG | P017-PROG: Einsatzort-Feld (DB + API + Frontend) |
 | [R-043] | 2026-02-09 | REPAIR | PROG | P018-PROG: Bundle-Optimierung (manualChunks Code-Splitting) |
 | [R-044] | 2026-02-09 | REPAIR | TEST | T017-TEST: Gesamttest 5/5 BESTANDEN |
+| [R-045] | 2026-02-10 | REPAIR | PL | Email-Nachkategorisierung 468 Emails + recategorize-batch deaktiviert |
 | [B-001] | 2026-02-03 | BUDGET | PL | System-Initialisierung |
 | [B-002] | 2026-02-03 | BUDGET | PL | 3-Agenten-Analyse abgeschlossen |
 | [B-003] | 2026-02-03 | BUDGET | PROG | Supabase Migration: 11 Tabellen angelegt |
@@ -3238,6 +3239,57 @@ Gesamttest nach P017-PROG (Einsatzort-Feld) und P018-PROG (Bundle-Optimierung).
 
 ### Naechster Schritt
 Alle Features verifiziert. System ist produktionsbereit.
+
+---
+
+## [R-045] PL: Email-Nachkategorisierung + recategorize-batch deaktiviert
+**Datum:** 2026-02-10 22:00
+**Workflow:** REPAIR
+
+### Kontext
+OPTIMIERUNG.md 11.5 Kategorisierungs-Optimierung. Nach dem Deploy von process-email v4.2.1
+(09.02.) mit verbessertem GPT-Prompt waren 468 aeltere Emails noch mit dem alten Prompt
+klassifiziert (fast alles "Sonstiges"). Ausserdem war recategorize-batch ohne Auth deployed.
+
+### Durchgefuehrt
+1. **recategorize-batch v5** deployed: Parallele Verarbeitung (5 GPT-Calls gleichzeitig),
+   ohne Datumsfilter, mit LIMIT-Parameter. ~73 Emails pro Run statt 20.
+2. **9 Batch-Runs** ausgefuehrt: Alle 468 Emails nachkategorisiert (Sonstiges 87% → 11%)
+3. **Qualitaets-Audit** durchgefuehrt:
+   - Newsletter (197 St.): Stichprobe 15/15 korrekt
+   - Anfrage-Kategorien (65 St.): Ueberwiegend korrekt, Architekten/Baufirmen richtig erkannt
+   - Sonstiges (59 St.): GitHub, Instagram, eBay, Kleinanzeigen Auto - plausibel
+   - Probleme: 4 Fiat-Punto-Kleinanzeigen als Lead_Anfrage, 1 Personalvermittler als Lead_Anfrage
+   - Geschaetzte Genauigkeit: ~90%
+4. **recategorize-batch v6** deployed: Stub mit verify_jwt:true, HTTP 410 Gone.
+   Funktion effektiv deaktiviert.
+
+### Ergebnis - Gesamtverteilung (534 Emails)
+| Kategorie | Anzahl | % |
+|-----------|--------|---|
+| Newsletter_Werbung | 197 | 36.9% |
+| Lieferstatus_Update | 59 | 11.0% |
+| Sonstiges | 59 | 11.0% |
+| Intern | 42 | 7.9% |
+| Rechnung_Eingang | 33 | 6.2% |
+| Angebot_Anforderung | 25 | 4.7% |
+| Nachverfolgung | 24 | 4.5% |
+| Bestellbestaetigung | 20 | 3.7% |
+| Terminanfrage | 17 | 3.2% |
+| Kundenanfrage | 16 | 3.0% |
+| Lead_Anfrage | 15 | 2.8% |
+| Serviceanfrage | 9 | 1.7% |
+| Auftragserteilung | 9 | 1.7% |
+| Reklamation | 4 | 0.7% |
+| Bewerbung | 3 | 0.6% |
+| Anforderung_Unterlagen | 1 | 0.2% |
+| Antwort_oder_Weiterleitung | 1 | 0.2% |
+
+17 von 20 Kategorien aktiv genutzt. Nicht genutzt: BAFA_Foerderung, Versicherung_Schaden, Rechnung_Gesendet.
+
+### Naechster Schritt
+- 1-Wochen-Evaluierung laeuft bis ~16.02 (neue Emails via v4.2.1 beobachten)
+- Bekanntes Problem: Kleinanzeigen "Fiat Punto" wird gelegentlich als Lead_Anfrage erkannt
 
 ---
 

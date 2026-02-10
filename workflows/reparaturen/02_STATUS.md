@@ -1,18 +1,18 @@
 # Status: Reparatur-Workflow
 
-> Letzte Aktualisierung: 2026-02-09 20:35 (TEST: T017-TEST abgeschlossen)
-> Aktualisiert von: Tester
+> Letzte Aktualisierung: 2026-02-10 22:00 (PL: Email-Nachkategorisierung abgeschlossen)
+> Aktualisiert von: Projektleiter
 
 ---
 
 ## Aktueller Stand
 
-**Phase:** Step 3+ - Einsatzort-Feld + Bundle-Optimierung - VERIFIZIERT
+**Phase:** Step 3+ - Email-Kategorisierung optimiert + Nachkategorisierung ABGESCHLOSSEN
 **SPEC Version:** v1.6 (2026-02-09) - Kapitel 2 korrigiert (auftraege statt reparatur_auftraege)
 
 ---
 
-## WICHTIG: Datenbank-Realitaet (Stand 2026-02-09)
+## WICHTIG: Datenbank-Realitaet (Stand 2026-02-10)
 
 **Zentrale Tabelle `auftraege` (37 Spalten):**
 - Auftragstyp via Feld `auftragstyp` (Default: 'Reparaturauftrag')
@@ -25,7 +25,9 @@
 
 **View `v_auftraege`:** auftraege LEFT JOIN erp_kunden - liefert kunde_firma, kunde_*_erp Felder
 
-**Testdaten:** 12 Auftraege (5 original + 2 Telegram + 5 Email)
+**Email-Kategorisierung:** 534 Emails, 17/20 Kategorien aktiv, Sonstiges-Rate 11%
+
+**Testdaten:** 13 Auftraege (5 original + 2 Telegram + 5 Email + 1 Dashboard)
 
 ---
 
@@ -54,6 +56,8 @@
 | reparatur-aging | v2.0.0 (Deploy 3) | DEPLOYED |
 | telegram-bot | v3.3.0 (Deploy 10) | DEPLOYED, T017 VERIFIZIERT |
 | renew-subscriptions | v1.2 (Deploy 13) | DEPLOYED, GEFIXT (2026-02-04) |
+| process-email | v4.2.1 (Deploy 36) | DEPLOYED, optimierter GPT-Prompt, 20 Kategorien |
+| recategorize-batch | v6 (Stub) | DEAKTIVIERT, verify_jwt:true, HTTP 410 Gone |
 
 ---
 
@@ -63,8 +67,8 @@
 |---------|-------------|
 | erp_kunden | 8.687 |
 | erp_projekte | 2.486 |
-| erp_angebote | 4.744 |
-| erp_rechnungen | 2.996 |
+| erp_angebote | 4.783 |
+| erp_rechnungen | 3.031 |
 | erp_ra | 2.993 |
 | erp_bestellungen | 3.839 |
 | erp_lieferanten | 663 |
@@ -81,26 +85,22 @@
 - [ ] Dokument-Vorschau schlaegt bei manchen Dateien fehl (Storage Signed URL)
 - [x] ~~Einsatzort-Feld fehlt (Rechnungsadresse != Lieferadresse)~~ GEFIXT P017-PROG, VERIFIZIERT T017
 - [x] ~~Dashboard JS-Bundle 560 kB (Chunk-Splitting empfohlen)~~ GEFIXT P018-PROG, VERIFIZIERT T017
+- [x] ~~recategorize-batch ohne Auth deployed~~ DEAKTIVIERT 2026-02-10 (v6 Stub)
+- [ ] Kleinanzeigen "Fiat Punto" wird gelegentlich als Lead_Anfrage statt Sonstiges erkannt (~4 von 9)
 
 ---
 
 ## Aktueller Auftrag
 
-**Auftrag:** T017-TEST - Gesamttest (ABGESCHLOSSEN)
-**Rolle:** Tester
-**Log-ID:** [R-044]
-
-### Aufgaben T017-TEST (ABGESCHLOSSEN - 5/5 BESTANDEN)
-- [x] Test 1: Einsatzort Migration + API + Frontend - BESTANDEN
-- [x] Test 2: Telegram-Bot Health Check - BESTANDEN
-- [x] Test 3: Dashboard alle 6 Seiten (API-basiert) - BESTANDEN
-- [x] Test 4: Bundle-Groesse nach Splitting - BESTANDEN
-- [x] Test 5: Frontend Code Review (Einsatzort) - BESTANDEN
+**Auftrag:** Kein aktiver Auftrag
+**Rolle:** -
+**Log-ID:** [R-045]
 
 ---
 
 ## Log-Referenz
 
+- [R-045] PL: Email-Nachkategorisierung 468 Emails + recategorize-batch deaktiviert (2026-02-10)
 - [R-044] T017-TEST: Gesamttest 5/5 BESTANDEN (2026-02-09)
 - [R-043] P018-PROG: Bundle-Optimierung manualChunks (2026-02-09)
 - [R-042] P017-PROG: Einsatzort-Feld DB + API + Frontend (2026-02-09)

@@ -1312,7 +1312,7 @@ Anruf: Tochter Mueller (0171-xxxx)
 
 ---
 
-### 11.5 Kategorisierungs-Optimierung (Dokumente + E-Mails) 🟡
+### 11.5 Kategorisierungs-Optimierung (Dokumente + E-Mails) 🟢
 
 | Attribut | Wert |
 |----------|------|
@@ -1320,7 +1320,7 @@ Anruf: Tochter Mueller (0171-xxxx)
 | **Bereich** | E-Mail-Pipeline, Dokument-Pipeline |
 | **Herkunft** | PLAN.md PRIO 1 (aufgeloest) |
 | **Notiert** | 2026-02-02 |
-| **Stand** | 2026-02-09: E-Mail-Prompt v4.2.1 deployed, Sonstiges 75%→8% |
+| **Stand** | 2026-02-10: ALLE 534 Emails kategorisiert, Sonstiges 87%→11%, Batch deaktiviert |
 
 #### Problem (urspruenglich)
 
@@ -1342,22 +1342,44 @@ Die KI-Kategorisierung hatte massives Verbesserungspotenzial:
 - Coaching-Absagen = Intern, nicht Terminanfrage
 - "Sonstiges" als explizit letzte Option betont
 
-**Ergebnis Re-Kategorisierung (49 Emails, 2026-02-09):**
+#### Nachkategorisierung aller Emails (2026-02-10)
 
-| Kategorie | VORHER | NACHHER |
-|-----------|--------|---------|
-| Sonstiges | 37 (75.5%) | 4 (8.2%) |
-| Newsletter_Werbung | 1 (2%) | 19 (38.8%) |
-| Intern | 2 (4%) | 5 (10.2%) |
-| Angebot_Anforderung | 1 (2%) | 4 (8.2%) |
-| Lieferstatus_Update | 1 (2%) | 4 (8.2%) |
-| 8 weitere | je 0-3 | verteilt |
+468 aeltere Emails (kategorisiert_von: process-email-gpt) per recategorize-batch v5
+nachkategorisiert (parallele Verarbeitung, 5 GPT-Calls gleichzeitig, 9 Batch-Runs).
+
+**Gesamtergebnis (534 Emails):**
+
+| Kategorie | Anzahl | % |
+|-----------|--------|---|
+| Newsletter_Werbung | 197 | 36.9% |
+| Lieferstatus_Update | 59 | 11.0% |
+| Sonstiges | 59 | 11.0% |
+| Intern | 42 | 7.9% |
+| Rechnung_Eingang | 33 | 6.2% |
+| Angebot_Anforderung | 25 | 4.7% |
+| Nachverfolgung | 24 | 4.5% |
+| Bestellbestaetigung | 20 | 3.7% |
+| Terminanfrage | 17 | 3.2% |
+| Kundenanfrage | 16 | 3.0% |
+| Lead_Anfrage | 15 | 2.8% |
+| + 6 weitere | 27 | 5.1% |
+
+**17 von 20 Kategorien aktiv genutzt.** Nicht genutzt: BAFA_Foerderung, Versicherung_Schaden, Rechnung_Gesendet.
+
+**Qualitaets-Audit:**
+- Newsletter Stichprobe 15/15 korrekt
+- Anfrage-Kategorien ueberwiegend korrekt
+- Geschaetzte Genauigkeit: ~90%
+- Bekanntes Problem: Kleinanzeigen "Fiat Punto" 4 von 9 falsch als Lead_Anfrage
+
+#### Cleanup (2026-02-10)
+
+- [x] recategorize-batch deaktiviert (v6 Stub, verify_jwt:true, HTTP 410 Gone)
 
 #### Offen
 
 - [ ] Dokument-Kategorisierung (process-document) noch nicht optimiert (14% Sonstiges)
 - [ ] Evaluierung nach 1 Woche Echtbetrieb (geplant ~16.02.2026)
-- [ ] recategorize-batch Edge Function loeschen (temporaer, ohne Auth)
 
 ---
 
