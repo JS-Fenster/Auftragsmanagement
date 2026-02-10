@@ -25,7 +25,7 @@
 
 **View `v_auftraege`:** auftraege LEFT JOIN erp_kunden - liefert kunde_firma, kunde_*_erp Felder
 
-**Email-Kategorisierung:** 534 Emails, 17/20 Kategorien aktiv, Sonstiges-Rate 11%
+**Email-Kategorisierung:** 534 Emails, 18/21 Kategorien aktiv, Sonstiges-Rate 10.1%
 
 **Testdaten:** 13 Auftraege (5 original + 2 Telegram + 5 Email + 1 Dashboard)
 
@@ -56,7 +56,7 @@
 | reparatur-aging | v2.0.0 (Deploy 3) | DEPLOYED |
 | telegram-bot | v3.3.0 (Deploy 10) | DEPLOYED, T017 VERIFIZIERT |
 | renew-subscriptions | v1.2 (Deploy 13) | DEPLOYED, GEFIXT (2026-02-04) |
-| process-email | v4.2.1 (Deploy 36) | DEPLOYED, optimierter GPT-Prompt, 20 Kategorien |
+| process-email | v4.3.0 (Deploy 37) | DEPLOYED, +Marktplatz_Anfrage, 21 Kategorien |
 | recategorize-batch | v6 (Stub) | DEAKTIVIERT, verify_jwt:true, HTTP 410 Gone |
 
 ---
@@ -86,7 +86,7 @@
 - [x] ~~Einsatzort-Feld fehlt (Rechnungsadresse != Lieferadresse)~~ GEFIXT P017-PROG, VERIFIZIERT T017
 - [x] ~~Dashboard JS-Bundle 560 kB (Chunk-Splitting empfohlen)~~ GEFIXT P018-PROG, VERIFIZIERT T017
 - [x] ~~recategorize-batch ohne Auth deployed~~ DEAKTIVIERT 2026-02-10 (v6 Stub)
-- [ ] Kleinanzeigen "Fiat Punto" wird gelegentlich als Lead_Anfrage statt Sonstiges erkannt (~4 von 9)
+- [x] ~~Kleinanzeigen "Fiat Punto" als Lead_Anfrage~~ GEFIXT: Neue Kategorie Marktplatz_Anfrage (v4.3.0)
 
 ---
 
@@ -100,6 +100,7 @@
 
 ## Log-Referenz
 
+- [R-046] PL: Neue Kategorie Marktplatz_Anfrage (process-email v4.3.0) (2026-02-10)
 - [R-045] PL: Email-Nachkategorisierung 468 Emails + recategorize-batch deaktiviert (2026-02-10)
 - [R-044] T017-TEST: Gesamttest 5/5 BESTANDEN (2026-02-09)
 - [R-043] P018-PROG: Bundle-Optimierung manualChunks (2026-02-09)

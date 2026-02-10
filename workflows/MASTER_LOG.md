@@ -54,6 +54,7 @@
 | [R-043] | 2026-02-09 | REPAIR | PROG | P018-PROG: Bundle-Optimierung (manualChunks Code-Splitting) |
 | [R-044] | 2026-02-09 | REPAIR | TEST | T017-TEST: Gesamttest 5/5 BESTANDEN |
 | [R-045] | 2026-02-10 | REPAIR | PL | Email-Nachkategorisierung 468 Emails + recategorize-batch deaktiviert |
+| [R-046] | 2026-02-10 | REPAIR | PL | Neue Kategorie Marktplatz_Anfrage (process-email v4.3.0, Deploy 37) |
 | [B-001] | 2026-02-03 | BUDGET | PL | System-Initialisierung |
 | [B-002] | 2026-02-03 | BUDGET | PL | 3-Agenten-Analyse abgeschlossen |
 | [B-003] | 2026-02-03 | BUDGET | PROG | Supabase Migration: 11 Tabellen angelegt |
@@ -3290,6 +3291,35 @@ klassifiziert (fast alles "Sonstiges"). Ausserdem war recategorize-batch ohne Au
 ### Naechster Schritt
 - 1-Wochen-Evaluierung laeuft bis ~16.02 (neue Emails via v4.2.1 beobachten)
 - Bekanntes Problem: Kleinanzeigen "Fiat Punto" wird gelegentlich als Lead_Anfrage erkannt
+
+---
+
+## [R-046] PL: Neue Kategorie Marktplatz_Anfrage
+**Datum:** 2026-02-10 22:30
+**Workflow:** REPAIR
+
+### Kontext
+Kleinanzeigen-Emails wurden inkonsistent kategorisiert (teils Lead_Anfrage, teils Sonstiges).
+User will kuenftig auch eBay nutzen. Alle Marktplatz-Anfragen sollen einheitlich behandelt
+werden und einen Auftrag anlegen (fuer Rechnungserstellung etc.).
+
+### Durchgefuehrt
+1. **process-email v4.3.0** (Deploy 37) deployed:
+   - Neue Kategorie `Marktplatz_Anfrage` in VALID_CATEGORIES (jetzt 21 Kategorien)
+   - `Marktplatz_Anfrage` in ANFRAGE_CATEGORIES (triggert extract-anfrage → Auftrag)
+   - GPT-Prompt: Absender-Erkennung @mail.kleinanzeigen.de, @ebay.de, @ebay.com
+   - GPT-Prompt: System-Mails (Anzeige veroeffentlicht) → Newsletter_Werbung
+   - kategorisiert_von: "process-email-v4.3.0"
+2. **13 bestehende Kleinanzeigen-Nutzer-Emails** auf Marktplatz_Anfrage umgestellt
+3. **4 System-Mails** ("Anzeige veroeffentlicht") von Sonstiges auf Newsletter_Werbung korrigiert
+
+### Ergebnis
+- 18 Kategorien aktiv genutzt (neu: Marktplatz_Anfrage mit 13)
+- Lead_Anfrage bereinigt: 15 → 10 (Kleinanzeigen raus)
+- Sonstiges weiter reduziert: 59 → 54
+
+### Naechster Schritt
+Neue Emails werden automatisch via v4.3.0 kategorisiert. Bei eBay-Start: selbe Kategorie.
 
 ---
 
