@@ -1312,7 +1312,7 @@ Anruf: Tochter Mueller (0171-xxxx)
 
 ---
 
-### 11.5 Kategorisierungs-Optimierung (Dokumente + E-Mails) 🔴
+### 11.5 Kategorisierungs-Optimierung (Dokumente + E-Mails) 🟡
 
 | Attribut | Wert |
 |----------|------|
@@ -1320,38 +1320,44 @@ Anruf: Tochter Mueller (0171-xxxx)
 | **Bereich** | E-Mail-Pipeline, Dokument-Pipeline |
 | **Herkunft** | PLAN.md PRIO 1 (aufgeloest) |
 | **Notiert** | 2026-02-02 |
+| **Stand** | 2026-02-09: E-Mail-Prompt v4.2.1 deployed, Sonstiges 75%→8% |
 
-#### Problem
+#### Problem (urspruenglich)
 
-Die KI-Kategorisierung hat Verbesserungspotenzial:
+Die KI-Kategorisierung hatte massives Verbesserungspotenzial:
 - **14%** der Dokumente landen als "Sonstiges_Dokument"
 - **97.5%** der E-Mails landen als "Sonstiges"
-- Falsche Zuordnungen (z.B. Lieferschein → Auftragsbestaetigung)
 
-#### Wichtige Regeln
+#### Umgesetzt: E-Mail-Prompt v4.2.1 (2026-02-09)
 
-- **Konsistenz:** Analyse-Script MUSS identisch zur Edge Function laufen
-- Aenderungen im Prompt muessen 1:1 in der Edge Function umgesetzt werden
+**process-email Edge Function** v4.1.1 → v4.2.1 (Deploy 36):
+- Komplett ueberarbeiteter GPT-5 Nano System-Prompt
+- Few-Shot-Beispiele fuer ALLE Kategorien (nicht nur Kundenanfrage)
+- Absender-Muster-Erkennung (partnerinfo@, marketing@, news@ = Newsletter)
+- Bekannte Lieferanten-Domains als Hint (weru.de, unilux.de, becker-antriebe.com)
+- Neue Kategorie **Nachverfolgung** (Status-Nachfragen, loest KEINEN neuen Auftrag aus)
+- Personalvermittler = Newsletter_Werbung, nicht Bewerbung
+- Kleinanzeigen = Sonstiges, nicht Lead_Anfrage
+- Inhalt vor Betreff priorisieren ("Re: Beauftragung" kann Statusfrage sein)
+- Coaching-Absagen = Intern, nicht Terminanfrage
+- "Sonstiges" als explizit letzte Option betont
 
-#### Massenupload vs. Tagesgeschaeft
+**Ergebnis Re-Kategorisierung (49 Emails, 2026-02-09):**
 
-| Zeitraum | Typ | Anzahl |
-|----------|-----|--------|
-| 29.12.2025 | Massenupload | 134 |
-| 02.01.2026 | Massenupload | 184 |
-| 12.01.2026 | Massenupload | 635 |
-| **ab 15.01.2026** | **Tagesgeschaeft** | 30-80/Tag |
+| Kategorie | VORHER | NACHHER |
+|-----------|--------|---------|
+| Sonstiges | 37 (75.5%) | 4 (8.2%) |
+| Newsletter_Werbung | 1 (2%) | 19 (38.8%) |
+| Intern | 2 (4%) | 5 (10.2%) |
+| Angebot_Anforderung | 1 (2%) | 4 (8.2%) |
+| Lieferstatus_Update | 1 (2%) | 4 (8.2%) |
+| 8 weitere | je 0-3 | verteilt |
 
-**→ Nur Dokumente ab 15.01.2026 fuer Analyse heranziehen!**
+#### Offen
 
-#### Vorgehen
-
-1. [x] Massenupload-Zeitraum identifiziert
-2. [ ] Stichprobe aus Tagesgeschaeft (ab 15.01.) ziehen
-3. [ ] Fehlermuster identifizieren
-4. [ ] OCR-Texte analysieren (besonders Ueberschriften/erste Zeilen)
-5. [ ] Heuristik-Regeln basierend auf echten Daten ableiten
-6. [ ] In categories.ts und prompts.ts anpassen
+- [ ] Dokument-Kategorisierung (process-document) noch nicht optimiert (14% Sonstiges)
+- [ ] Evaluierung nach 1 Woche Echtbetrieb (geplant ~16.02.2026)
+- [ ] recategorize-batch Edge Function loeschen (temporaer, ohne Auth)
 
 ---
 
