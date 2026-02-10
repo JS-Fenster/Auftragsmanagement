@@ -20,7 +20,8 @@
 | P013 | 2026-02-10 | Auftrag | Tester | Re-Backtest nach P012 | ✅ Erfolg (B-053) | 705-760 |
 | P014 | 2026-02-10 | Auftrag | Programmierer | W4A 2023+2024 Rechnungs-Sync + LV Rebuild | ✅ Erfolg (B-054) | 780-850 |
 | P015 | 2026-02-10 | Auftrag | Tester | Re-Backtest nach erweitertem Datensatz | ✅ Erfolg (B-055) | 855-1000 |
-| P016 | 2026-02-10 | Auftrag | Programmierer | LV-Kompression auf Matching-Dimensionen | ⏳ | 1005-1100 |
+| P016 | 2026-02-10 | Auftrag | Programmierer | LV-Kompression auf Matching-Dimensionen | ✅ Erfolg (B-056) | 1005-1100 |
+| P017 | 2026-02-10 | Auftrag | Tester | Re-Backtest nach LV-Kompression | ⏳ | 1105-1200 |
 
 ---
 
@@ -1168,6 +1169,178 @@ node scripts/build-leistungsverzeichnis.js               # Live
 1. MASTER_LOG [B-056] schreiben + Index aktualisieren
 2. 02_STATUS.md aktualisieren (neue LV-Groesse)
 3. Abschlussbericht mit: LV vorher/nachher, Top-20 Cluster nach sample_count
+
+---
+
+## [P017] Re-Backtest nach LV-Kompression (P016)
+**Datum:** 2026-02-10
+**Fuer:** Tester (Foreground - Supabase MCP benoetigt)
+**Ergebnis:** ⏳
+**Vorbedingung:** P016 abgeschlossen (LV: 7.483 → 364 Cluster)
+
+### Kontext
+P016 hat das LV massiv komprimiert: 364 Cluster statt 7.483. Jeder Cluster hat durchschnittlich 77.7 Samples (vorher ~3.8). Der Weighted Average sollte jetzt deutlich stabiler sein.
+
+### Auftrag
+
+**Gleiche Backtest-Methodik wie P015**, aber mit dem komprimierten LV.
+
+Fuehre auf Supabase (project_id: rsmjgdujlpnydbsfuiek) aus:
+
+**Schritt 1: LV-Uebersicht**
+```sql
+SELECT COUNT(*) as total_cluster,
+       ROUND(AVG(sample_count)::numeric, 1) as avg_samples,
+       SUM(sample_count) as total_samples,
+       COUNT(CASE WHEN oeffnungsart IS NOT NULL THEN 1 END) as mit_oa,
+       COUNT(CASE WHEN groessen_klasse IS NOT NULL THEN 1 END) as mit_gk
+FROM leistungsverzeichnis;
+```
+
+**Schritt 2: Hauptbacktest**
+Exakt gleiche Query wie P015 - die CTEs backtest_pos, mit_groesse, matched und die finale Aggregation. Da die LV-Struktur gleich geblieben ist (nur weniger Eintraege), funktioniert dieselbe Query.
+
+```sql
+WITH backtest_pos AS (
+    SELECT
+        rp.id,
+        rp.rechnung_code,
+        rp.bezeichnung,
+        rp.langtext,
+        rp.einz_preis as ist_preis,
+        CASE
+            WHEN rp.bezeichnung ~* 'Haustür|Haustuer|Haustuere|HT\s' THEN 'haustuer'
+            WHEN rp.bezeichnung ~* 'HST|Hebe.*Schiebe' THEN 'hst'
+            WHEN rp.bezeichnung ~* 'PSK|Parallel.*Schiebe' THEN 'psk'
+            WHEN rp.bezeichnung ~* 'Balkontür|Balkontuer|BT\s|Balkon-Tür' THEN 'balkontuer'
+            WHEN rp.bezeichnung ~* 'Fenster|DKF|DKR|DKL|DK\s|Dreh|Kipp|FIX|Festfeld|fest' THEN 'fenster'
+            WHEN rp.bezeichnung ~* 'Rollladen|Rolladen|RL\s' THEN 'rollladen'
+            WHEN rp.bezeichnung ~* 'Raffstore|Raffs' THEN 'raffstore'
+            ELSE 'sonstiges'
+        END as kategorie,
+        CASE
+            WHEN rp.bezeichnung ~* 'DKR|Dreh-Kipp rechts' THEN 'DKR'
+            WHEN rp.bezeichnung ~* 'DKL|Dreh-Kipp links' THEN 'DKL'
+            WHEN rp.bezeichnung ~* 'DKF|DK\s|Dreh.*Kipp' THEN 'DK'
+            WHEN rp.bezeichnung ~* 'D\s|Dreh\s' THEN 'D'
+            WHEN rp.bezeichnung ~* 'K\s|Kipp\s|KM|KL|KR' THEN 'K'
+            WHEN rp.bezeichnung ~* 'FIX|Festfeld|fest' THEN 'FIX'
+            WHEN rp.bezeichnung ~* 'PSK' THEN 'PSK'
+            WHEN rp.bezeichnung ~* 'HST' THEN 'HST'
+            ELSE NULL
+        END as oeffnungsart,
+        CASE
+            WHEN rp.langtext ~ 'Breite:\s*(\d{3,5})\s*mm'
+            THEN (regexp_match(rp.langtext, 'Breite:\s*(\d{3,5})\s*mm'))[1]::int
+            WHEN rp.bezeichnung ~ '(\d{3,4})\s*(x|×)\s*(\d{3,4})'
+            THEN (regexp_match(rp.bezeichnung, '(\d{3,4})\s*(x|×)'))[1]::int
+            ELSE NULL
+        END as breite_mm,
+        CASE
+            WHEN rp.langtext ~ 'Höhe:\s*(\d{3,5})\s*mm'
+            THEN (regexp_match(rp.langtext, 'Höhe:\s*(\d{3,5})\s*mm'))[1]::int
+            WHEN rp.langtext ~ 'Hoehe:\s*(\d{3,5})\s*mm'
+            THEN (regexp_match(rp.langtext, 'Hoehe:\s*(\d{3,5})\s*mm'))[1]::int
+            WHEN rp.bezeichnung ~ '(\d{3,4})\s*(x|×)\s*(\d{3,4})'
+            THEN (regexp_match(rp.bezeichnung, '(x|×)\s*(\d{3,4})'))[2]::int
+            ELSE NULL
+        END as hoehe_mm,
+        CASE WHEN rp.langtext ~* 'Rollladen|Rolladen|Aufsatz-RL|Vorbau-RL' THEN true ELSE false END as hat_rl,
+        CASE
+            WHEN rp.langtext ~* '3-fach|3fach|dreifach' THEN '3fach'
+            WHEN rp.langtext ~* '2-fach|2fach|zweifach' THEN '2fach'
+            ELSE NULL
+        END as verglasung
+    FROM erp_rechnungs_positionen rp
+    WHERE rp.einz_preis > 50
+      AND rp.einz_preis < 10000
+      AND (
+          rp.bezeichnung ~ '(\d{3,4})\s*(x|×)\s*(\d{3,4})'
+          OR rp.langtext ~ '(\d{3,4})\s*(x|×)\s*(\d{3,4})'
+          OR rp.langtext ~ 'Breite:\s*(\d{3,5})\s*mm'
+      )
+),
+mit_groesse AS (
+    SELECT *,
+        ROUND((breite_mm * hoehe_mm / 1000000.0)::numeric, 2) as flaeche_qm,
+        CASE
+            WHEN (breite_mm * hoehe_mm / 1000000.0) < 0.5 THEN 'XS'
+            WHEN (breite_mm * hoehe_mm / 1000000.0) < 1.0 THEN 'S'
+            WHEN (breite_mm * hoehe_mm / 1000000.0) < 1.3 THEN 'M'
+            WHEN (breite_mm * hoehe_mm / 1000000.0) < 1.8 THEN 'L1'
+            WHEN (breite_mm * hoehe_mm / 1000000.0) < 2.5 THEN 'L2'
+            ELSE 'XL'
+        END as groessen_klasse
+    FROM backtest_pos
+    WHERE breite_mm IS NOT NULL AND hoehe_mm IS NOT NULL
+),
+matched AS (
+    SELECT
+        bp.*,
+        lv.avg_preis as lv_preis,
+        lv.sample_count,
+        ABS(bp.ist_preis - lv.avg_preis) / NULLIF(bp.ist_preis, 0) * 100 as abweichung_pct,
+        ROW_NUMBER() OVER (
+            PARTITION BY bp.id
+            ORDER BY
+                CASE WHEN lv.oeffnungsart = bp.oeffnungsart THEN 0
+                     WHEN bp.oeffnungsart = 'DK' AND lv.oeffnungsart IN ('DKR','DKL') THEN 1
+                     WHEN bp.oeffnungsart IN ('DKR','DKL') AND lv.oeffnungsart = 'DK' THEN 1
+                     ELSE 2 END,
+                ABS(bp.ist_preis - lv.avg_preis)
+        ) as match_rank
+    FROM mit_groesse bp
+    LEFT JOIN leistungsverzeichnis lv ON (
+        lv.kategorie = bp.kategorie
+        AND (
+            lv.oeffnungsart = bp.oeffnungsart
+            OR (bp.oeffnungsart = 'DK' AND lv.oeffnungsart IN ('DK','DKR','DKL'))
+            OR (bp.oeffnungsart IN ('DKR','DKL') AND lv.oeffnungsart IN ('DK','DKR','DKL'))
+        )
+        AND lv.groessen_klasse = bp.groessen_klasse
+        AND (bp.hat_rl = false OR lv.hat_rollladen = bp.hat_rl)
+        AND (bp.verglasung IS NULL OR lv.verglasung = bp.verglasung OR lv.verglasung IS NULL)
+    )
+)
+SELECT
+    COUNT(*) as total,
+    COUNT(CASE WHEN lv_preis IS NOT NULL THEN 1 END) as matched,
+    COUNT(CASE WHEN lv_preis IS NULL THEN 1 END) as unmatched,
+    ROUND(COUNT(CASE WHEN lv_preis IS NOT NULL THEN 1 END) * 100.0 / COUNT(*), 1) as coverage_pct,
+    ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY abweichung_pct) FILTER (WHERE match_rank = 1 AND lv_preis IS NOT NULL)::numeric, 1) as median_abw,
+    COUNT(CASE WHEN match_rank = 1 AND abweichung_pct <= 20 THEN 1 END) as treffer_20,
+    ROUND(COUNT(CASE WHEN match_rank = 1 AND abweichung_pct <= 20 THEN 1 END) * 100.0 / NULLIF(COUNT(CASE WHEN lv_preis IS NOT NULL THEN 1 END), 0), 1) as treffer_20_pct,
+    COUNT(CASE WHEN match_rank = 1 AND abweichung_pct > 50 THEN 1 END) as ausreisser_50,
+    ROUND(COUNT(CASE WHEN match_rank = 1 AND abweichung_pct > 50 THEN 1 END) * 100.0 / NULLIF(COUNT(CASE WHEN lv_preis IS NOT NULL THEN 1 END), 0), 1) as ausreisser_50_pct
+FROM matched
+WHERE match_rank = 1 OR lv_preis IS NULL;
+```
+
+**Schritt 3: Analyse nach Kategorie**
+Gleiche CTEs, dann:
+```sql
+SELECT kategorie, COUNT(*) as cnt,
+       COUNT(CASE WHEN lv_preis IS NOT NULL THEN 1 END) as matched,
+       ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY abweichung_pct) FILTER (WHERE match_rank = 1 AND lv_preis IS NOT NULL)::numeric, 1) as median,
+       COUNT(CASE WHEN match_rank = 1 AND abweichung_pct > 50 THEN 1 END) as ausreisser
+FROM matched WHERE match_rank = 1 OR lv_preis IS NULL
+GROUP BY kategorie ORDER BY cnt DESC;
+```
+
+**Schritt 4: Vergleichstabelle**
+```
+| Metrik              | P005 ALT | P013 (418 Pos) | P015 (442 fen+bt) | P017 (neu) | Ziel  |
+|---------------------|----------|----------------|--------------------|-----------:|-------|
+| Median-Abweichung   | 30.9%    | 18.3%          | 22.2%              | ???        | <15%  |
+| Trefferquote <=20%  | 37.1%    | 54.7%          | 48.3%              | ???        | >70%  |
+| Ausreisser >50%     | 26.3%    | 6.5%           | 17.7%              | ???        | <10%  |
+| Coverage            | 72%      | 91.4%          | 98.4%              | ???        | >90%  |
+```
+
+### Dokumentation
+1. MASTER_LOG [B-057] schreiben + Index
+2. 02_STATUS.md aktualisieren mit P017-Metriken
+3. Abschlussbericht
 
 ---
 

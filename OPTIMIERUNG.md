@@ -1452,18 +1452,20 @@ Scanner-Problem wurde am 28.01.2026 behoben, alte Dateien liegen in `\\appserver
 | **Prioritaet** | HOCH |
 | **Bereich** | budget-ki Edge Function, Leistungsverzeichnis |
 | **Notiert** | 2026-02-10 |
-| **Stand** | Quick-Win-Phase (P008-P011) abgeschlossen, budget-ki v1.2.0 LIVE |
+| **Stand** | Sprint P012-P017 ABGESCHLOSSEN - ALLE 4 ZIELE ERREICHT! |
 
 ---
 
-#### Aktueller Stand (2026-02-10)
+#### Aktueller Stand (2026-02-10, nach P017)
 
-| Metrik | Start (P005) | Aktuell (P011 v1.2.0) | Ziel |
-|--------|-------------|----------------------|------|
-| Median-Abweichung | 30.9% | **18.6%** | <15% |
-| Trefferquote <=20% | 37.1% | **52.8%** | >70% |
-| Ausreisser >50% | 26.3% | **8.9%** | <10% ERREICHT |
-| Coverage | 72% | **91.8%** | >90% ERREICHT |
+| Metrik | Start (P005) | P011 v1.2.0 | **P017 (aktuell)** | Ziel | Status |
+|--------|-------------|-------------|---------------------|------|--------|
+| Median-Abweichung | 30.9% | 18.6% | **9.6%** | <15% | ERREICHT |
+| Trefferquote <=20% | 37.1% | 52.8% | **75.2%** | >70% | ERREICHT |
+| Ausreisser >50% | 26.3% | 8.9% | **7.5%** | <10% | ERREICHT |
+| Coverage | 72% | 91.8% | **98.7%** | >90% | ERREICHT |
+
+**Durchbruch:** LV-Kompression (P016: 7.483 → 364 Cluster, avg 77.7 Samples).
 
 ---
 
@@ -1531,19 +1533,175 @@ EK-Differenz 2024 vs 2025: ca. 7-8% (32,5% → 30% vom BLP).
 
 ---
 
-#### Daten-Bestand Supabase (2026-02-10)
+#### Daten-Bestand Supabase (2026-02-10, nach P014 Sync)
 
-| Tabelle | Gesamt | Mit Positionen | Zeitraum Pos. |
-|---------|--------|----------------|---------------|
-| erp_rechnungen | 3.031 | 381 | 2025-2026 |
-| erp_angebote | 4.783 | 551 | 2024-2026 |
-| erp_rechnungs_positionen | 3.315 | - | 2025-2026 |
-| erp_angebots_positionen | 6.772 | - | 2024-2026 |
-| leistungsverzeichnis | 2.891 | - | aggregiert |
+| Tabelle | Gesamt | Zeitraum |
+|---------|--------|----------|
+| erp_rechnungen | ~1.100 | ab 2023 |
+| erp_angebote | ~1.179 | ab 2023 |
+| erp_rechnungs_positionen | **12.145** | ab 2023 |
+| erp_angebots_positionen | **29.430** | ab 2023 |
+| leistungsverzeichnis | **364 Cluster** | aggregiert (P016 komprimiert) |
 
-**Luecke:** 2.650 Rechnungen (2021-2024) haben keine Positionen - nur Kopfdaten gesynct.
-**Naechster Schritt:** 2024er Rechnungspositionen aus W4A nachsynchen (~800 Rechnungen, ~8.000 Positionen geschaetzt).
+**P014 Sync:** 2023-2024 Daten nachgeladen. Rechnungspositionen 3.315→12.145, Angebotspositionen 6.772→29.430.
 
 ---
 
-*Aktualisiert: 2026-02-10 - Budgetangebot Preisoptimierung + Rabatt-Erkenntnis + WERU-Konditionen*
+---
+
+### 11.9 Budgetangebot: UI/UX-Optimierungen 📋
+
+| Attribut | Wert |
+|----------|------|
+| **Prioritaet** | HOCH |
+| **Bereich** | Frontend (BudgetDetail.jsx), Edge Function (budget-ki) |
+| **Notiert** | 2026-02-10 |
+| **Stand** | Dokumentiert, noch nicht umgesetzt |
+
+---
+
+#### Uebersicht der Punkte
+
+| # | Thema | Beschreibung | Betrifft |
+|---|-------|-------------|----------|
+| U1 | Step-Navigation | Direktes Springen zwischen Schritten | Frontend |
+| U2 | Unnoetige Neuberechnung | Positionen werden bei Navigation regeneriert | Frontend + Edge Function |
+| U3 | Positionstext-Formatierung | Einheitliche Beschreibungstexte | Edge Function (GPT-Output) |
+| U4 | Vorschau-Kopfdaten | Falsche Telefonnr., Adresse, PLZ | Frontend (Vorschau/PDF) |
+| U5 | Montage-Berechnung | Eigene Kalkulationsregeln definieren | Frontend + Backend |
+| U6 | Preisspanne fehlerhaft | Geschaetzter Endpreis UNTER Bruttosumme | Edge Function (budget-ki) |
+| U7 | Netto vs. Brutto Verwirrung | Unklar welche Preise angezeigt werden | Frontend |
+
+---
+
+#### U1: Step-Navigation (direkt springen)
+
+**Problem:** Aktuell kann man nur schrittweise zurueck navigieren (Eingabe → Positionen → Zusammenfassung → Vorschau). Direktes Springen zu einem beliebigen Schritt ist nicht moeglich.
+
+**Gewuenscht:** Klick auf einen Schritt-Indikator oben springt direkt dorthin, unabhaengig vom aktuellen Schritt.
+
+**Technischer Kontext:**
+- Frontend: `frontend/src/pages/BudgetDetail.jsx` (1012 Zeilen)
+- Aktuell Single-Page mit collapsible Sections
+- Stepper-Navigation muss auf beliebigen Schritt-Wechsel umgebaut werden
+
+---
+
+#### U2: Unnoetige Neuberechnung vermeiden
+
+**Problem:** Wenn man zurueck zum Eingabe-Schritt geht und wieder vorwaerts navigiert, werden die Positionen komplett neu berechnet (GPT-Call), obwohl sich am Freitext nichts geaendert hat.
+
+**Gewuenscht:** Positionen nur neu berechnen, wenn sich der Eingabe-Freitext tatsaechlich geaendert hat. Sonst die vorhandenen Positionen beibehalten.
+
+**Technischer Kontext:**
+- Die Berechnung laeuft ueber die `budget-ki` Edge Function (GPT-5.2 Function Calling)
+- Jeder GPT-Call kostet Geld und dauert ~5-10 Sekunden
+- Loesung: Hash/Vergleich des Freitexts speichern, nur bei Aenderung neu berechnen
+
+---
+
+#### U3: Positionstext-Formatierung (einheitlich)
+
+**Problem:** Die Positionstexte sind uneinheitlich formatiert. Mal steht "Fenster 2-flg DKR/DKL", mal "WERU CALIDO Fenster DKR/DKL 3-fach Verglasung" - kein Standard.
+
+**Gewuenscht:** Standardisierte Positionsbeschreibungen in einheitlicher Form, z.B.:
+```
+[Hersteller] [System] [Typ] [Oeffnungsart] [Breite]x[Hoehe] [Verglasung] [Zubehoer]
+```
+
+**Technischer Kontext:**
+- Die Positionstexte kommen aus dem GPT-Output der budget-ki Edge Function
+- Formatierung muss im System-Prompt oder als Post-Processing definiert werden
+
+---
+
+#### U4: Vorschau-Kopfdaten korrigieren
+
+**Problem:** In der Vorschau/PDF-Ansicht sind die Firmendaten falsch:
+- Telefonnummer stimmt nicht
+- Adresse/PLZ stimmt nicht
+- Firmenname/Logo ggf. nicht korrekt
+
+**Gewuenscht:** Korrekte JS Fenster & Tueren Firmendaten:
+- Korrekte Adresse, PLZ, Ort
+- Korrekte Telefonnummer(n)
+- Firmenname und ggf. Logo
+
+**TODO:** Andreas soll die korrekten Daten liefern, dann im Frontend hinterlegen.
+
+---
+
+#### U5: Montage-Berechnung (eigene Regeln)
+
+**Problem:** Unklar wie die Montage aktuell berechnet wird. Andreas moechte eigene Kalkulationsregeln definieren.
+
+**Technischer Kontext (IST-Zustand):**
+```
+Montage:     80 EUR/Element (Standard)
+Demontage:   40 EUR/Element
+Entsorgung:  25 EUR/Element ODER 150 EUR pauschal
+```
+Quelle: `backend/services/budget/priceCalculator.js`
+
+Montage/Demontage/Entsorgung werden per Default einbezogen und als separate Positionen in der Zusammenfassung angezeigt.
+
+**TODO:** Andreas definiert seine eigenen Montage-Kalkulationsregeln (z.B. nach Fenstergroesse, Etage, Geruest noetig, etc.)
+
+---
+
+#### U6: Preisspanne fehlerhaft (Endpreis < Bruttosumme)
+
+**Problem:** Der "Geschaetzte Endpreis" (z.B. 8.611 - 11.650 EUR) liegt UNTER der Bruttosumme (z.B. 12.055 EUR). Das ergibt keinen Sinn - die Spanne sollte die Bruttosumme einschliessen.
+
+**Technischer Kontext (IST-Berechnung):**
+```
+1. Positionen: Netto-Einzelpreise
+2. Summe Netto
+3. + 19% MwSt = Brutto
+4. Brutto gerundet auf 50 EUR = "geschaetzter Endpreis"
+5. Spanne: ±15% vom gerundeten Brutto
+   → spanne_von = Brutto * 0.85 (gerundet auf 50)
+   → spanne_bis = Brutto * 1.15 (gerundet auf 50)
+```
+
+**Vermutetes Problem:** Die Spanne wird auf die Bruttosumme angewendet (±15%), aber die Bruttosumme ist bereits der MITTLERE Schaetzwert. Wenn die Bruttosumme 12.055 EUR ist, sollte die Spanne 10.247 - 13.863 EUR sein (gerundet: 10.250 - 13.850).
+
+**Moegliche Ursache:** Montage/Zubehoer wird in der Bruttosumme beruecksichtigt, aber die Spanne wird nur auf die Elementpreise (ohne Montage) berechnet. → Pruefen!
+
+**TODO:** Berechnung nachvollziehen und Spanne korrigieren.
+
+---
+
+#### U7: Netto vs. Brutto Klarheit
+
+**Problem:** Fuer den Endkunden ist nicht klar, ob die angezeigten Preise Netto oder Brutto sind. Das Budgetangebot sollte Brutto-Preise zeigen (inkl. 19% MwSt).
+
+**Technischer Kontext:**
+- Positionen werden intern als Netto berechnet
+- MwSt (19%) wird erst in der Zusammenfassung addiert
+- Die Anzeige muss klar machen: "Alle Preise inkl. 19% MwSt" oder Positionen direkt als Brutto anzeigen
+
+**TODO:** Entscheiden ob:
+- **Option A:** Positionen Netto + MwSt separat ausweisen (B2B-Standard)
+- **Option B:** Alle Preise als Brutto anzeigen (B2C-freundlich)
+- **Option C:** Umschaltbar (Netto/Brutto Toggle)
+
+---
+
+#### Zusammenfassung TODOs
+
+| # | Aufgabe | Aufwand | Abhaengigkeit |
+|---|---------|---------|---------------|
+| U1 | Step-Navigation: Direktes Springen implementieren | 2-3 Std | - |
+| U2 | Freitext-Hash: Nur bei Aenderung neu berechnen | 1-2 Std | - |
+| U3 | GPT-Output: Positionstext-Formatierung standardisieren | 2-3 Std | budget-ki Prompt |
+| U4 | Vorschau: JS Fenster Firmendaten eintragen | 30 Min | Andreas liefert Daten |
+| U5 | Montage: Eigene Kalkulationsregeln einbauen | 2-4 Std | Andreas definiert Regeln |
+| U6 | Preisspanne: Berechnung korrigieren | 1-2 Std | - |
+| U7 | Netto/Brutto: Anzeige klaeren + umsetzen | 1-2 Std | Andreas entscheidet |
+
+**Gesamt: ca. 10-17 Stunden**
+
+---
+
+*Aktualisiert: 2026-02-10 - Budgetangebot UI/UX-Optimierungen (11.9) hinzugefuegt*

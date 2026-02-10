@@ -36,7 +36,7 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
 }
 
 const CONFIG = {
-    DATE_FROM: '2025-01-01',        // Ab diesem Datum synchen
+    DATE_FROM: '2023-01-01',        // Ab diesem Datum synchen (erweitert P014)
     KEYWORDS: ['DKF', 'HT', 'HST', 'PSK', 'BT'],  // Fenster/Tueren Keywords
     BATCH_SIZE: 50,                  // Rechnungen pro Batch
     DRY_RUN: process.argv.includes('--dry-run'),

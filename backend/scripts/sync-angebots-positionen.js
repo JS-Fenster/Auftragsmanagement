@@ -33,7 +33,7 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
 }
 
 const CONFIG = {
-    DATE_FROM: '2024-01-01',        // Ab diesem Datum (breiter als Rechnungen)
+    DATE_FROM: '2023-01-01',        // Ab diesem Datum (erweitert P014)
     KEYWORDS: ['DKF', 'HT', 'HST', 'PSK', 'BT', 'Fenster', 'Tuer', 'Tür', 'Haustür', 'Haustuer'],
     BATCH_SIZE: 50,
     DRY_RUN: process.argv.includes('--dry-run'),

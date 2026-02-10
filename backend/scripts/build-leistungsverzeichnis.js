@@ -515,6 +515,24 @@ async function main() {
         // P012: Sonderform-Erkennung
         const formTyp = extractFormTyp(fullText);
 
+        // P016: Groessenklasse sofort berechnen (fuer Aggregations-Key)
+        let groessenKlasse = null;
+        let flaeche = null;
+        if (dims) {
+            flaeche = dims.breite * dims.hoehe / 1000000;
+            groessenKlasse = deriveGroessenKlasse(flaeche);
+        }
+
+        // P016: Verglasung sofort ableiten (fuer Aggregations-Key)
+        let verglasung = null;
+        if (uwWert !== null) {
+            verglasung = deriveVerglasung(uwWert);
+        } else if (/3-fach|3fach|dreifach/i.test(fullText)) {
+            verglasung = '3-fach';
+        } else if (/2-fach|2fach|zweifach/i.test(fullText)) {
+            verglasung = '2-fach';
+        }
+
         // Statistik
         if (oeffnungsart) stats.oeffnungsart_found++;
         if (dims) stats.dims_found++;
@@ -526,24 +544,27 @@ async function main() {
         if (istLagerware) stats.lagerware_found++;
         if (formTyp !== 'rechteck') stats.sonderform_found++;
 
-        const key = `${kategorie}::${bezeichnung}`;
+        // P016: Aggregation auf Matching-Dimensionen statt bezeichnung_normalized
+        // ALT: const key = `${kategorie}::${bezeichnung}`;
+        const key = `${kategorie}::${oeffnungsart || 'NULL'}::${groessenKlasse || 'NULL'}::${verglasung || 'NULL'}::${hatRollladen}::${formTyp}`;
 
         if (!catalog.has(key)) {
             catalog.set(key, {
                 kategorie,
-                bezeichnung: pos.bezeichnung.trim().substring(0, 200),
+                oeffnungsart: oeffnungsart || null,
+                groessen_klasse: groessenKlasse,
+                verglasung: verglasung,
+                hat_rollladen: hatRollladen,
+                form_typ: formTyp,
+                bezeichnung_beispiel: pos.bezeichnung.trim().substring(0, 200),
                 preise: [],
                 dimensions: [],
-                oeffnungsarten: [],
                 uwWerte: [],
-                rollladenFlags: [],
                 hersteller: [],
                 systeme: [],
                 kombiFlags: [],
                 kombiFelder: [],
-                formTypen: [],
                 lagerwaren_count: 0,
-                meta: {}
             });
         }
 
@@ -559,14 +580,11 @@ async function main() {
         }
 
         if (dims) entry.dimensions.push(dims);
-        if (oeffnungsart) entry.oeffnungsarten.push(oeffnungsart);
         if (uwWert !== null) entry.uwWerte.push(uwWert);
-        entry.rollladenFlags.push(hatRollladen);
         if (hersteller) entry.hersteller.push(hersteller);
         if (systemName) entry.systeme.push(systemName);
         entry.kombiFlags.push(kombiInfo.istKombi);
         entry.kombiFelder.push(kombiInfo.felder);
-        entry.formTypen.push(formTyp);
     }
 
     console.log(`      ${catalog.size} eindeutige Leistungen identifiziert`);
@@ -610,8 +628,9 @@ async function main() {
             avgFlaeche = round3(avgBreite * avgHoehe / 1000000);
         }
 
-        // Haeufigste Oeffnungsart (Modus)
-        const dominantOeffnungsart = getModus(entry.oeffnungsarten);
+        // Haeufigster Hersteller und System
+        const dominantHersteller = getModus(entry.hersteller);
+        const dominantSystem = getModus(entry.systeme);
 
         // P006: Kombi-Erkennung - Mehrheit bestimmt ob Kombi
         const kombiTrueCount = entry.kombiFlags.filter(Boolean).length;
@@ -623,30 +642,15 @@ async function main() {
             const kombiFelder = entry.kombiFelder.filter(f => f > 1);
             anzahlFluegel = kombiFelder.length > 0
                 ? parseInt(getModus(kombiFelder.map(String)))
-                : deriveAnzahlFluegel(dominantOeffnungsart);
+                : deriveAnzahlFluegel(entry.oeffnungsart);
         } else {
-            anzahlFluegel = deriveAnzahlFluegel(dominantOeffnungsart);
+            anzahlFluegel = deriveAnzahlFluegel(entry.oeffnungsart);
         }
-
-        // Groessenklasse
-        const groessenKlasse = avgFlaeche !== null ? deriveGroessenKlasse(avgFlaeche) : null;
 
         // Durchschnittlicher Uw-Wert
         const avgUw = entry.uwWerte.length > 0
             ? round2(entry.uwWerte.reduce((s, v) => s + v, 0) / entry.uwWerte.length)
             : null;
-        const verglasung = deriveVerglasung(avgUw);
-
-        // Rollladen: true wenn Mehrheit der Positionen Rollladen hat
-        const rollladenCount = entry.rollladenFlags.filter(Boolean).length;
-        const hatRollladen = rollladenCount > entry.rollladenFlags.length / 2;
-
-        // Haeufigster Hersteller und System
-        const dominantHersteller = getModus(entry.hersteller);
-        const dominantSystem = getModus(entry.systeme);
-
-        // P012: Haeufigste Fensterform (Modus)
-        const dominantFormTyp = getModus(entry.formTypen) || 'rechteck';
 
         // Einheit ableiten
         let einheit = 'Stk';
@@ -656,42 +660,47 @@ async function main() {
             einheit = 'lfm';
         }
 
+        // P016: Generierte Bezeichnung aus Matching-Dimensionen
+        const teile = [entry.kategorie];
+        if (entry.oeffnungsart) teile.push(entry.oeffnungsart);
+        if (entry.groessen_klasse) teile.push(entry.groessen_klasse);
+        if (entry.verglasung) teile.push(entry.verglasung);
+        if (entry.hat_rollladen) teile.push('RL');
+        if (entry.form_typ !== 'rechteck') teile.push(entry.form_typ);
+        const generierteBezeichnung = teile.join(' ');
+
         lvEntries.push({
             kategorie: entry.kategorie,
-            bezeichnung: entry.bezeichnung,
-            beschreibung: null,
+            bezeichnung: generierteBezeichnung,
+            beschreibung: entry.bezeichnung_beispiel,
             einheit,
             avg_preis: round2(avg),
             min_preis: round2(min),
             max_preis: round2(max),
             sample_count: entry.preise.length,
             letzte_aktualisierung: new Date().toISOString(),
-            // Neue granulare Felder
-            oeffnungsart: dominantOeffnungsart,
+            // P016: Matching-Dimensionen direkt aus Catalog-Entry
+            oeffnungsart: entry.oeffnungsart,
             anzahl_fluegel: anzahlFluegel,
             breite_mm: avgBreite,
             hoehe_mm: avgHoehe,
             flaeche_qm: avgFlaeche,
-            groessen_klasse: groessenKlasse,
+            groessen_klasse: entry.groessen_klasse,
             uw_wert: avgUw,
-            verglasung: verglasung,
-            hat_rollladen: hatRollladen,
+            verglasung: entry.verglasung,
+            hat_rollladen: entry.hat_rollladen,
             hersteller: dominantHersteller,
             system_name: dominantSystem,
-            // P006: Neue Felder
             ist_kombi: kombiMajority,
             ist_lagerware: entry.lagerwaren_count > 0,
-            // P012: Sonderform
-            form_typ: dominantFormTyp,
+            form_typ: entry.form_typ,
             meta: {
                 median_preis: round2(median),
-                quelle: 'auto-sync-v2-p012',
-                oeffnungsart_samples: entry.oeffnungsarten.length,
+                quelle: 'auto-sync-v3-compressed',
                 dim_samples: entry.dimensions.length,
                 uw_samples: entry.uwWerte.length,
                 kombi_samples: kombiTrueCount,
                 lagerwaren_count: entry.lagerwaren_count,
-                form_typ_samples: entry.formTypen.filter(f => f !== 'rechteck').length
             }
         });
     }
