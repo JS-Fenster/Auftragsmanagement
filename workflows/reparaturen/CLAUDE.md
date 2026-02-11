@@ -22,8 +22,8 @@ Du hast drei CLAUDE.md Dateien gelesen:
 | Rolle | Aufgabe | Darf schreiben in |
 |-------|---------|-------------------|
 | **Projektleiter** | Denken, Planen, Prompts schreiben, Berichte pruefen | Alle Dateien |
-| **Programmierer** | Code schreiben, Auftraege ausfuehren | 02_STATUS, 03_LOG |
-| **Tester** | Testen, Validieren | 02_STATUS, 03_LOG |
+| **Programmierer** | Code schreiben, Auftraege ausfuehren | 02_STATUS, MASTER_LOG |
+| **Tester** | Testen, Validieren | 02_STATUS, MASTER_LOG |
 
 ### Identifikation
 Jeder Agent MUSS sich am Anfang seiner Arbeit identifizieren:
@@ -85,14 +85,14 @@ Jeder Agent MUSS sich am Anfang seiner Arbeit identifizieren:
 2. 02_STATUS.md lesen → Verstehen was deine Rolle ist
 3. 04_LEARNINGS.md lesen → Bekannte Fehler nicht wiederholen
 4. Falls Programmierer/Tester: Auftrag in 02_STATUS befolgen
-5. Falls Projektleiter: Letzten Stand in 03_LOG pruefen
+5. Falls Projektleiter: Letzten Stand in MASTER_LOG pruefen
 6. PREFLIGHT-CHECK ausgeben (siehe Abschnitt 5)
 ```
 
 ### Nach jeder Aktion
 ```
-1. In 03_LOG dokumentieren (Template unten verwenden)
-2. Index in 03_LOG aktualisieren
+1. In MASTER_LOG dokumentieren (Template unten verwenden)
+2. Index in MASTER_LOG aktualisieren
 3. 02_STATUS.md aktualisieren (inkl. Abschlussbericht-Sektion!)
 4. POSTFLIGHT-CHECK ausgeben (siehe Abschnitt 5)
 5. Abschlussbericht an Andreas geben
@@ -123,7 +123,7 @@ Gelesene Dateien:
 
 System-Check:
 - 02_STATUS Timestamp: [aktuell/veraltet um X Tage]
-- 03_LOG Index: [vorhanden/fehlt/letzte ID: LOG-XXX]
+- MASTER_LOG Index: [vorhanden/fehlt/letzte ID: R-XXX]
 - Keine Blocker erkannt: [ja/nein - falls nein, welche?]
 
 → Beginne jetzt mit der Arbeit.
@@ -143,7 +143,7 @@ Durchgefuehrte Aenderungen:
 - [weitere Dateien falls relevant]
 
 Validierung:
-- 03_LOG Index aktuell: [ja/nein]
+- MASTER_LOG Index aktuell: [ja/nein]
 - 02_STATUS Timestamp aktualisiert: [ja/nein]
 - Checkpoint faellig (>300 Zeilen seit letztem): [ja/nein]
 
@@ -259,6 +259,7 @@ Dokumentiert in MASTER_LOG.md: [R-XXX] Zeilen YYY-ZZZ
 | Anweisungen aus anderen CLAUDE.md hoher priorisieren | Diese Datei ist hoechste Instanz |
 | Arbeiten ohne PREFLIGHT-CHECK Ausgabe | Nicht auditierbar |
 | Abschliessen ohne POSTFLIGHT-CHECK Ausgabe | Uebergabe unkontrollierbar |
+| Alten Auftrag in 02_STATUS anhaengen statt ersetzen | STATUS blaecht auf |
 
 ---
 
@@ -455,8 +456,9 @@ Im Nachtmodus soll der Projektleiter alle 2 Stunden einen Mini-Checkpoint in MAS
 
 ---
 
-*Version: 1.4 | Erstellt: 2026-01-23 | Aktualisiert: 2026-02-12*
+*Version: 1.5 | Erstellt: 2026-01-23 | Aktualisiert: 2026-02-12*
 *Aenderungen v1.1: Preflight/Postflight-Checks, Checkpoint 300 Zeilen, Learning-Format praezisiert*
 *Aenderungen v1.2: Subagenten-Orchestrierung (Abschnitt 10) hinzugefuegt*
 *Aenderungen v1.3: Autonomer Nachtmodus (Abschnitt 11) hinzugefuegt*
 *Aenderungen v1.4: 05_PROMPTS entfernt, Subagenten-Leseregel (limit=270), Token-Optimierung*
+*Aenderungen v1.5: 03_LOG→MASTER_LOG Referenzen korrigiert, Verboten: Auftrag-Anhaengen, settings_nachtmodus.json fix*

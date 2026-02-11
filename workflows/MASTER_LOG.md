@@ -64,11 +64,10 @@
 | [R-048] | 2026-02-11 | REPAIR | PL | Kontakt-Management Sprint gestartet (4 Meilensteine) |
 | [R-049] | 2026-02-11 | REPAIR | PROG | M1 DB-Tabellen + Trigger + Import (8.687 Kontakte) |
 | [R-050] | 2026-02-11 | REPAIR | PROG | M2 Dashboard UI: Kunden.jsx umgebaut (593→1215 Zeilen) |
-| [R-051] | 2026-02-11 | REPAIR | PROG | M3 E-Mail-Matching (27/562, 4.8%) |
+| [R-051] | 2026-02-11 | REPAIR | PROG | M3 E-Mail-Matching: kontakt_id + Trigger + Bulk-Match (27/562) |
 | [R-052] | 2026-02-11 | REPAIR | PROG | M4 Lieferanten-Import (663) + auftraege.kontakt_id + v_auftraege |
 | [R-053] | 2026-02-11 | REPAIR | PL | Kontakt-Management Sprint ABGESCHLOSSEN |
 | [R-054] | 2026-02-11 | REPAIR | PROG | P019-PROG: process-document absichern (Version-Fix + Golden Backup + Schutzregel) |
-| [R-051] | 2026-02-11 | REPAIR | PROG | M3 E-Mail-Matching: kontakt_id + Trigger + Bulk-Match (27/562) |
 | [B-063] | 2026-02-11 | BUDGET | PL | P022: categories.ts Duplikat-Fix (lokal OK, Deploy ausstehend) |
 | [B-064] | 2026-02-11 | BUDGET | PROG | P023: V2 Edge Functions lokal gesichert (budget-ki v1.0.0->v1.3.0) |
 | [B-065] | 2026-02-11 | BUDGET | PROG | P024: Step-Navigation + Freitext-Hash (U1 + U2 UX-Verbesserungen) |
@@ -5018,6 +5017,33 @@ Auftrag P019: process-document Edge Function absichern (3 Massnahmen). Die Kateg
 ### Naechster Schritt
 - Projektleiter: Git Commit + Tag erstellen
 - Danach: Backtest/Budget-Workflow weiterverfolgen (haustuer-Matching)
+
+---
+
+## ═══ CHECKPOINT 2026-02-12 ═══
+
+**Gesamtstand:** Auftragsmanagement ist feature-komplett fuer Reparatur (MVP + Kontakt-Management) und Budget (Kalkulation V2 + Kunden-Autocomplete). Beide Workflows aktiv.
+
+**REPAIR (R-001 bis R-054):**
+- MVP Feature-komplett (R-035)
+- Dashboard + ERP-Integration (R-038)
+- Kontakt-Management Sprint abgeschlossen: DB-Tabellen, Import 8.687 Kontakte, E-Mail-Matching, Lieferanten-Import 663 (R-049 bis R-053)
+- process-document abgesichert mit Golden Backup v34 (R-054)
+- Dokument-Vorschau + Email-Anzeige (R-047)
+- Email-Nachkategorisierung + Marktplatz_Anfrage Kategorie (R-045, R-046)
+
+**BUDGET (B-001 bis B-067):**
+- System-Initialisierung bis Frontend komplett (B-001 bis B-008)
+- Quick-Win-Phase: Median 18.3% → 9.6%, alle 4 Ziele erreicht (B-040 bis B-057)
+- Sprint P018-P024: Montage V2, HST/PSK, Firmendaten, UX (B-058 bis B-065)
+- Hotfix Frontend→Dashboard (B-066)
+- Kunden-Autocomplete + Suchmodal (B-067)
+
+**Offen:**
+- haustuer-Matching separat behandeln (544 Pos., 32.7% Median)
+- categories.ts Deploy ausstehend (B-063)
+- Supabase Auth Integration
+- Automatischer Server-Sync (Cron)
 
 ---
 

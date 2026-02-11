@@ -89,60 +89,12 @@
 
 ---
 
-## Offene Punkte (TODO)
+## Offene Punkte
 
-| # | Aufgabe | Prioritaet | Status |
-|---|---------|------------|--------|
-| 1 | ~~LV granular erweitern (P004)~~ | ~~HOCH~~ | **ERLEDIGT (B-040)** |
-| 2 | ~~Backtest LV vs. Rechnungen (P005)~~ | ~~HOCH~~ | **ERLEDIGT (B-041)** |
-| 3 | ~~Stulp-Fix + Kombi-Erkennung im LV (P006)~~ | ~~HOCH~~ | **ERLEDIGT (B-042)** |
-| 4 | ~~Re-Backtest + Verbesserungsanalyse (P007)~~ | ~~HOCH~~ | **ERLEDIGT (B-043)** |
-| 5 | ~~Weighted Average Matching (P008)~~ | ~~HOCH~~ | **ERLEDIGT (B-045)** |
-| 6 | ~~Rollladen-Aufpreis im Matching (P008)~~ | ~~HOCH~~ | **ERLEDIGT (B-045)** |
-| 7 | ~~FIX->festfeld Kategorie-Mapping (P008)~~ | ~~MITTEL~~ | **ERLEDIGT (B-045)** |
-| 8 | ~~Re-Backtest P008 Quick-Wins (P009)~~ | ~~HOCH~~ | **ERLEDIGT (B-046)** |
-| 9 | ~~Edge Function: Fallback-Stufen entschaerfen~~ | ~~HOCH~~ | **ERLEDIGT (B-048)** |
-| 10 | ~~DK-Mapping ergaenzen (DK -> DKR+DKL)~~ | ~~HOCH~~ | **ERLEDIGT (B-048)** |
-| 11 | LV-Daten ergaenzen (festfeld-Kombis, balkontuer-Stulp, HST) | HOCH | Offen |
-| 12 | ~~"sonstiges"-Kategorie-Regex verbessern~~ | ~~HOCH~~ | **ERLEDIGT (B-052)** |
-| 13 | Automatischer Server-Sync (Cron) | MITTEL | Offen |
-| 14 | Supabase Auth integrieren | HOCH | Offen |
-| 16 | ~~LV komprimieren (7483→364 Cluster)~~ | ~~HOCH~~ | **ERLEDIGT (B-056)** |
-| 17 | **haustuer-Matching separat behandeln** | **HOCH** | **NEU (P015-Erkenntnis)** |
-| 18 | ~~formatPreis() Netto-Bug im Breakdown (P021 gefunden)~~ | ~~NIEDRIG~~ | **ERLEDIGT** |
-| 19 | ~~process-document redeployen (categories.ts _shared Import)~~ | ~~NIEDRIG~~ | **ENTFAELLT** (Impact=0, Heuristik deaktiviert) |
-
----
-
-## Erledigte Auftraege
-
-| Schritt | Status | Datum |
-|---------|--------|-------|
-| SQL Migration (10 Tabellen) | Fertig | 2026-02-05 |
-| Edge Functions deployed | Fertig | 2026-02-05 |
-| Prefer Header Bugs gefixt (B-034) | Fertig | 2026-02-05 |
-| Dashboard Field Normalization (B-035) | Fertig | 2026-02-05 |
-| budget-dokument Validation (B-036) | Fertig | 2026-02-05 |
-| Sync komplett (B-037) | Fertig | 2026-02-05 |
-| E2E Test bestanden (B-038) | Fertig | 2026-02-05 |
-| **LV granular erweitert (B-040)** | **Fertig** | **2026-02-09** |
-| **Backtest LV vs. Rechnungen (B-041)** | **Fertig** | **2026-02-09** |
-| **Stulp-Fix + Kombi + L-Split + Lagerware (B-042)** | **Fertig** | **2026-02-09** |
-| **Re-Backtest + Verbesserungsanalyse (B-043)** | **Fertig** | **2026-02-09** |
-| **budget-ki v1.1.0 - Weighted Avg + Rollladen + FIX-Mapping (B-045)** | **Fertig** | **2026-02-10** |
-| **Re-Backtest P009 - 5 Strategien + RL-Impact (B-046)** | **Fertig** | **2026-02-10** |
-| **budget-ki v1.2.0 - Fallback entschaerft + DK-Mapping + RL Smart-Hybrid (B-048)** | **Fertig** | **2026-02-10** |
-| **Re-Backtest P011 v1.2.0 - Median 18.6%, Coverage 91.8% (B-049)** | **Fertig** | **2026-02-10** |
-| **PL-Review + Gesamtbewertung Quick-Win-Phase (B-050)** | **Fertig** | **2026-02-10** |
-| **P012: Sonderformen + sonstiges-Fix + Unilux + Glas (B-052)** | **Fertig** | **2026-02-10** |
-| **P013: Re-Backtest - Median 18.3%, Ausreisser 6.5% (B-053)** | **Fertig** | **2026-02-10** |
-| **P014: W4A 2023+2024 Sync + LV Rebuild 2892→7483 (B-054)** | **Fertig** | **2026-02-10** |
-| **P015: Re-Backtest - WAVG Regression, Coverage 98.4%, LV-Kompression noetig (B-055)** | **Fertig** | **2026-02-10** |
-| **P016: LV-Kompression 7483→364 Cluster, avg 77.7 Samples (B-056)** | **Fertig** | **2026-02-10** |
-| **P017: Re-Backtest - ALLE ZIELE ERREICHT! Median 9.6%, Treffer 75.2% (B-057)** | **Fertig** | **2026-02-10** |
-| **P018: Montage-Kalkulation V2 - stundenbasiert + lfm (B-059)** | **Fertig** | **2026-02-11** |
-| **P019: Verglasung-Format fix + HST/PSK als Fenster - budget-ki v1.3.0 (B-060)** | **Fertig** | **2026-02-11** |
-| **P020: Firmendaten + Preisspanne fix + Netto/Brutto Toggle (B-061)** | **Fertig** | **2026-02-11** |
-| **P021: Re-Backtest + UI-Verifikation P018-P020 - 4/4 BESTANDEN (B-062)** | **Fertig** | **2026-02-11** |
-| **P023: V2 Edge Functions lokal gesichert - budget-ki v1.0.0->v1.3.0 (B-064)** | **Fertig** | **2026-02-11** |
-| **P024: Step-Navigation + Freitext-Hash - U1+U2 UX-Verbesserungen (B-065)** | **Fertig** | **2026-02-11** |
+| # | Aufgabe | Prioritaet |
+|---|---------|------------|
+| 11 | LV-Daten ergaenzen (festfeld-Kombis, balkontuer-Stulp, HST) | HOCH |
+| 14 | Supabase Auth integrieren | HOCH |
+| 17 | **haustuer-Matching separat behandeln** (544 Pos., 32.7% Median) | **HOCH** |
+| 13 | Automatischer Server-Sync (Cron) | MITTEL |
+| P022 | categories.ts Deploy ausstehend (B-063) | NIEDRIG |
