@@ -122,5 +122,5 @@ Siehe `docs/Auftragsmanagement_Projektplan.md` fuer Details.
 2. KEINE Aenderungen am GPT-Modell oder Response-Format ohne vorherigen Backtest
 3. KEIN Deploy ohne explizite Freigabe von Andreas
 4. Bei Bedarf: Erst auf Supabase Branch testen
-5. Golden Backup liegt in `supabase/functions/process-document/_golden-v34/`
+5. Stabiler Stand gesichert als Git Tag: `process-document-v34-stable`
 
