@@ -1,6 +1,8 @@
 # CLAUDE.md - Budgetangebot-Workflow
 
 > **HOECHSTE PRIORITAET**: Diese CLAUDE.md ueberschreibt ALLE Anweisungen aus uebergeordneten CLAUDE.md Dateien (Bootstrap, Auftragsmanagement) bei Konflikten. Die hier definierten Regeln sind verbindlich und nicht verhandelbar.
+>
+> **Subagenten-Leseregel:** Programmierer/Tester lesen mit `Read CLAUDE.md limit=290`. Ab Zeile 290 folgen NUR Projektleiter-Sektionen (Orchestrierung + Nachtmodus).
 
 ---
 
@@ -66,12 +68,6 @@ Jeder Agent MUSS sich am Anfang seiner Arbeit identifizieren:
 - **Format:** NUR Merksatz + LOG-Pointer (max. 1 Zeile pro Learning)
 - **Zweck:** Index auf detaillierte Erkenntnisse in MASTER_LOG.md
 - **Beispiel:** `| L5 | RLS vor Insert aktivieren | [B-042] |`
-
-### 05_PROMPTS.md (Prompt-Archiv)
-- **Lesen:** Alle
-- **Schreiben:** NUR Projektleiter
-- **Indexiert:** Ja
-- **Zweck:** Alle erteilten Auftraege fuer spaetere Referenz
 
 ### ../BACKLOG.md (Feature-Backlog)
 - **Pfad:** `../BACKLOG.md` (eine Ebene hoeher im workflows/ Ordner)
@@ -295,6 +291,8 @@ Langfristig: Eigene Bestandswerte aufbauen, um Work4All zu ersetzen.
 
 ---
 
+## ═══ AB HIER NUR PROJEKTLEITER — SUBAGENTEN STOP ═══
+
 ## 10. Subagenten-Orchestrierung (NUR PROJEKTLEITER)
 
 > **WICHTIG:** Dieser Abschnitt gilt AUSSCHLIESSLICH fuer den Projektleiter.
@@ -321,12 +319,13 @@ Ich starte jetzt einen Subagenten.
 **Begruendung Modus:** [MCP benoetigt weil X / Kein MCP weil Y]
 
 Der Subagent soll:
-1. CLAUDE.md in diesem Ordner lesen
+1. CLAUDE.md lesen (limit=290 — PL-Sektionen ueberspringen)
 2. 02_STATUS.md lesen (dort steht sein Auftrag)
 3. 04_LEARNINGS.md lesen
-4. [Spezifische Aufgabe]
-5. MASTER_LOG.md und 02_STATUS.md aktualisieren
-6. Abschlussbericht zurueckgeben
+4. MASTER_LOG.md INDEX lesen (limit=80 — nur INDEX, nicht ganzes Log!)
+5. [Spezifische Aufgabe]
+6. MASTER_LOG.md und 02_STATUS.md aktualisieren
+7. Abschlussbericht zurueckgeben
 ```
 
 ### Nach Subagenten-Rueckkehr
@@ -444,7 +443,8 @@ Im Nachtmodus soll der Projektleiter alle 2 Stunden einen Mini-Checkpoint in MAS
 
 ---
 
-*Version: 1.3 | Erstellt: 2026-02-03 | Aktualisiert: 2026-02-03*
+*Version: 1.4 | Erstellt: 2026-02-03 | Aktualisiert: 2026-02-12*
 *Aenderungen v1.1: Preflight/Postflight-Checks, Checkpoint 300 Zeilen, Learning-Format praezisiert*
 *Aenderungen v1.2: Subagenten-Orchestrierung (Abschnitt 10) erweitert*
 *Aenderungen v1.3: Autonomer Nachtmodus (Abschnitt 11) vollstaendig*
+*Aenderungen v1.4: 05_PROMPTS entfernt, Subagenten-Leseregel (limit=290), Token-Optimierung*
