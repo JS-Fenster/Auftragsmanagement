@@ -3,14 +3,14 @@ import { supabase } from '../lib/supabase'
 import { DOKUMENT_KATEGORIEN, DOKUMENT_QUELLEN, PROCESSING_STATUS } from '../lib/constants'
 import { format, subDays, startOfDay } from 'date-fns'
 import { de } from 'date-fns/locale'
-import { Search, FileText, ChevronDown, ChevronRight, Eye, Download, X, Loader2 } from 'lucide-react'
+import { Search, FileText, ChevronDown, ChevronRight, Eye, Download, X, Loader2, Mail, Paperclip } from 'lucide-react'
 
 const PAGE_SIZE = 50
 
 const STATUS_DOT = {
   done: '#10B981',
-  processing: '#F59E0B',
-  queued: '#F59E0B',
+  processing: '#3B82F6',
+  queued: '#9CA3AF',
   pending_ocr: '#F59E0B',
   error: '#EF4444',
 }
@@ -19,12 +19,12 @@ const KATEGORIE_COLORS = {
   Eingangsrechnung: { bg: '#FEF2F2', text: '#991B1B' },
   Ausgangsrechnung: { bg: '#ECFDF5', text: '#065F46' },
   Angebot: { bg: '#EFF6FF', text: '#1E40AF' },
-  Auftragsbestaetigung: { bg: '#F5F3FF', text: '#5B21B6' },
+  Auftragsbestaetigung: { bg: '#EFF6FF', text: '#1E40AF' },
   Reklamation: { bg: '#FEF2F2', text: '#991B1B' },
   Vertrag: { bg: '#FFFBEB', text: '#92400E' },
-  Montageauftrag: { bg: '#F0FDF4', text: '#166534' },
-  Email_Eingehend: { bg: '#F0F9FF', text: '#0C4A6E' },
-  Email_Anhang: { bg: '#F8FAFC', text: '#475569' },
+  Montageauftrag: { bg: '#ECFDF5', text: '#065F46' },
+  Email_Eingehend: { bg: '#F3F4F6', text: '#374151' },
+  Email_Anhang: { bg: '#F3F4F6', text: '#374151' },
 }
 const DEFAULT_BADGE = { bg: '#F3F4F6', text: '#374151' }
 
@@ -65,6 +65,7 @@ export default function Dokumente() {
     meta: false,
   })
   const [ocrExpanded, setOcrExpanded] = useState(false)
+  const [emailBodyExpanded, setEmailBodyExpanded] = useState(false)
 
   const debounceRef = useRef(null)
 
@@ -155,6 +156,7 @@ export default function Dokumente() {
       setLoadingDetail(true)
       setPreviewUrl(null)
       setOcrExpanded(false)
+      setEmailBodyExpanded(false)
       try {
         const { data, error } = await supabase
           .from('documents')
@@ -164,12 +166,13 @@ export default function Dokumente() {
         if (error) throw error
         if (!cancelled) setSelectedDoc(data)
 
-        if (data?.dokument_url) {
+        // Only create signed URL for real storage paths (not email:// pseudo-URLs)
+        if (data?.dokument_url && !data.dokument_url.startsWith('email://')) {
           setLoadingPreview(true)
           try {
             const { data: signedData, error: signErr } = await supabase.storage
               .from('documents')
-              .createSignedUrl(data.dokument_url, 300)
+              .createSignedUrl(data.dokument_url, 300, { download: false })
             if (!cancelled && !signErr) {
               setPreviewUrl(signedData.signedUrl)
             }
@@ -425,8 +428,116 @@ export default function Dokumente() {
               )}
             </div>
 
+            {/* Email Meta */}
+            {selectedDoc.source === 'email' && (selectedDoc.email_von_name || selectedDoc.email_von_email || selectedDoc.email_an_email) && (
+              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 space-y-1.5">
+                <div className="flex items-center gap-2 mb-2">
+                  <Mail className="w-4 h-4 text-gray-500" />
+                  <span className="text-sm font-medium text-gray-700">E-Mail Details</span>
+                </div>
+                {(selectedDoc.email_von_name || selectedDoc.email_von_email) && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Von</span>
+                    <span className="text-gray-900 text-right">
+                      {selectedDoc.email_von_name && <span className="font-medium">{selectedDoc.email_von_name}</span>}
+                      {selectedDoc.email_von_name && selectedDoc.email_von_email && ' '}
+                      {selectedDoc.email_von_email && <span className="text-gray-500">&lt;{selectedDoc.email_von_email}&gt;</span>}
+                    </span>
+                  </div>
+                )}
+                {selectedDoc.email_an_email && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">An</span>
+                    <span className="text-gray-900 text-right">{selectedDoc.email_an_email}</span>
+                  </div>
+                )}
+                {selectedDoc.email_betreff && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Betreff</span>
+                    <span className="text-gray-900 text-right max-w-[60%] break-words">{selectedDoc.email_betreff}</span>
+                  </div>
+                )}
+                {selectedDoc.email_kategorie && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">E-Mail Kategorie</span>
+                    <span className="text-gray-900">{selectedDoc.email_kategorie.replace(/_/g, ' ')}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Email Body */}
+            {selectedDoc.email_body_text && (
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-200">
+                  <span className="text-sm font-medium text-gray-700">E-Mail Inhalt</span>
+                </div>
+                <div className="p-4">
+                  <pre className={`text-sm text-gray-700 whitespace-pre-wrap font-sans ${!emailBodyExpanded ? 'max-h-[300px] overflow-y-auto' : ''}`}>
+                    {emailBodyExpanded ? selectedDoc.email_body_text : selectedDoc.email_body_text.slice(0, 2000)}
+                    {!emailBodyExpanded && selectedDoc.email_body_text.length > 2000 && '...'}
+                  </pre>
+                  {selectedDoc.email_body_text.length > 2000 && (
+                    <button
+                      onClick={() => setEmailBodyExpanded(!emailBodyExpanded)}
+                      className="text-xs text-blue-600 hover:underline mt-2"
+                    >
+                      {emailBodyExpanded ? 'Weniger anzeigen' : 'Vollstaendig anzeigen'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Email Attachments */}
+            {selectedDoc.email_anhaenge_meta && selectedDoc.email_anhaenge_meta.length > 0 && (
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
+                  <Paperclip className="w-4 h-4 text-gray-500" />
+                  <span className="text-sm font-medium text-gray-700">
+                    Anhaenge ({selectedDoc.email_anhaenge_meta.length})
+                  </span>
+                </div>
+                <div className="divide-y divide-gray-100">
+                  {selectedDoc.email_anhaenge_meta.map((att, idx) => (
+                    <button
+                      key={att.id || idx}
+                      onClick={async () => {
+                        if (!att.storagePath) return
+                        try {
+                          const { data: signedData, error: signErr } = await supabase.storage
+                            .from('documents')
+                            .createSignedUrl(att.storagePath, 300)
+                          if (!signErr && signedData?.signedUrl) {
+                            window.open(signedData.signedUrl, '_blank')
+                          }
+                        } catch (e) {
+                          console.error('Anhang-URL fehlgeschlagen:', e)
+                        }
+                      }}
+                      className="w-full text-left px-4 py-2.5 hover:bg-gray-50 flex items-center justify-between gap-3 transition-colors"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <FileText className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        <span className="text-sm text-gray-900 truncate">{att.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className="text-xs text-gray-400">
+                          {att.size ? (att.size < 1024 * 1024
+                            ? `${Math.round(att.size / 1024)} KB`
+                            : `${(att.size / (1024 * 1024)).toFixed(1)} MB`
+                          ) : ''}
+                        </span>
+                        <Download className="w-3.5 h-3.5 text-gray-400" />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Preview */}
-            {selectedDoc.dokument_url && (
+            {selectedDoc.dokument_url && !selectedDoc.dokument_url.startsWith('email://') && (
               <div className="border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
                 {loadingPreview ? (
                   <div className="flex items-center justify-center h-64">

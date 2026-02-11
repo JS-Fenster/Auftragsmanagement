@@ -183,9 +183,9 @@ export default function Uebersicht() {
 
   const processingConfig = {
     done: { label: 'Fertig', color: '#10B981' },
-    queued: { label: 'Warteschlange', color: '#3B82F6' },
-    processing: { label: 'Verarbeitung', color: '#F59E0B' },
-    pending_ocr: { label: 'OCR ausstehend', color: '#8B5CF6' },
+    queued: { label: 'Warteschlange', color: '#9CA3AF' },
+    processing: { label: 'Verarbeitung', color: '#3B82F6' },
+    pending_ocr: { label: 'OCR ausstehend', color: '#F59E0B' },
     error: { label: 'Fehler', color: '#EF4444' },
   }
 
@@ -207,10 +207,10 @@ export default function Uebersicht() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-4 gap-4">
-        <KpiCard icon={ClipboardList} label="Offene Aufträge" value={kpis.offeneAuftraege} loading={loading} color="text-blue-600" bgColor="bg-blue-50" />
-        <KpiCard icon={FileText} label="Dokumente gesamt" value={kpis.dokumente} loading={loading} color="text-purple-600" bgColor="bg-purple-50" />
-        <KpiCard icon={Mail} label="E-Mails heute" value={kpis.emailsHeute} loading={loading} color="text-green-600" bgColor="bg-green-50" />
-        <KpiCard icon={Users} label="Kunden gesamt" value={kpis.kunden} loading={loading} color="text-orange-600" bgColor="bg-orange-50" />
+        <KpiCard icon={ClipboardList} label="Offene Aufträge" value={kpis.offeneAuftraege} loading={loading} color="text-gray-600" bgColor="bg-gray-100" />
+        <KpiCard icon={FileText} label="Dokumente gesamt" value={kpis.dokumente} loading={loading} color="text-gray-600" bgColor="bg-gray-100" />
+        <KpiCard icon={Mail} label="E-Mails heute" value={kpis.emailsHeute} loading={loading} color="text-gray-600" bgColor="bg-gray-100" />
+        <KpiCard icon={Users} label="Kunden gesamt" value={kpis.kunden} loading={loading} color="text-gray-600" bgColor="bg-gray-100" />
       </div>
 
       {/* System Health */}
@@ -313,9 +313,9 @@ export default function Uebersicht() {
                 <tr key={idx} className="hover:bg-gray-50">
                   <td className="py-3 pr-4">
                     {item.typ === 'auftrag' ? (
-                      <ClipboardList className="w-4 h-4 text-blue-500" />
+                      <ClipboardList className="w-4 h-4 text-gray-400" />
                     ) : (
-                      <Mail className="w-4 h-4 text-green-500" />
+                      <Mail className="w-4 h-4 text-gray-400" />
                     )}
                   </td>
                   <td className="py-3 pr-4">

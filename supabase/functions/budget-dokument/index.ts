@@ -390,8 +390,8 @@ function generateHTML(
             J.S. Fenster &amp; T\u00fcren GmbH
           </div>
           <div style="color: #666; font-size: 0.85em; margin-top: 4px; line-height: 1.6;">
-            Handwerksstra\u00DFe 12 &middot; 78549 Spaichingen<br>
-            Tel: 07424 / 98 45-0<br>
+            Regensburger Stra\u00DFe 59 &middot; 92224 Amberg<br>
+            Tel: 09621 / 76 35 33<br>
             info@js-fenster.de &middot; www.js-fenster.de
           </div>
         </td>
@@ -407,7 +407,7 @@ function generateHTML(
     <!-- ABSENDER / EMPFAENGER -->
     <!-- ============================================================ -->
     <div style="font-size: 0.75em; color: #999; border-bottom: 1px solid #ccc; padding-bottom: 2px; margin-bottom: 6px;">
-      J.S. Fenster &amp; T\u00fcren GmbH &middot; Handwerksstra\u00DFe 12 &middot; 78549 Spaichingen
+      J.S. Fenster &amp; T\u00fcren GmbH &middot; Regensburger Stra\u00DFe 59 &middot; 92224 Amberg
     </div>
     <div style="margin-bottom: 30px; min-height: 80px;">
       <strong style="color: #333;">${escapeHtml(kunde.name)}</strong><br>
@@ -497,11 +497,6 @@ function generateHTML(
             <td style="padding: 12px 0; color: #003366; font-weight: 700; font-size: 1.15em;">Bruttosumme</td>
             <td style="padding: 12px 0; text-align: right; color: #003366; font-weight: 700; font-size: 1.15em;">${formatEuro(zusammenfassung.brutto)}</td>
           </tr>
-          ${zusammenfassung.brutto_gerundet !== zusammenfassung.brutto ? `
-          <tr>
-            <td style="padding: 6px 0; color: #666; font-size: 0.9em;">Gerundeter Richtwert</td>
-            <td style="padding: 6px 0; text-align: right; color: #003366; font-weight: 600; font-size: 1.05em;">ca. ${formatEuro(zusammenfassung.brutto_gerundet)}</td>
-          </tr>` : ""}
         </tbody>
       </table>
     </div>
@@ -554,8 +549,8 @@ function generateHTML(
             <span style="color: #666; font-size: 0.85em;">Gesch\u00e4ftsf\u00fchrung</span>
           </td>
           <td style="vertical-align: top; width: 50%; text-align: right; color: #999; font-size: 0.8em; line-height: 1.6;">
-            Handwerksstra\u00DFe 12 &middot; 78549 Spaichingen<br>
-            Tel: 07424 / 98 45-0 &middot; Fax: 07424 / 98 45-20<br>
+            Regensburger Stra\u00DFe 59 &middot; 92224 Amberg<br>
+            Tel: 09621 / 76 35 33 &middot; Fax: 09621 / 78 32 59<br>
             info@js-fenster.de &middot; www.js-fenster.de
           </td>
         </tr>
@@ -648,13 +643,13 @@ function validateRequest(
       };
     }
   }
-  // spanne_von/spanne_bis optional - aus preis_spanne oder flach
-  const preisSpanne = (zf.preis_spanne as Record<string, unknown>) || {};
+  // spanne_von/spanne_bis: ±15% vom Brutto, gerundet auf 50 EUR
+  const brutto = zf.brutto as number;
   if (typeof zf.spanne_von !== "number") {
-    zf.spanne_von = (typeof preisSpanne.von === "number" ? preisSpanne.von : (zf.netto as number) * 0.85);
+    zf.spanne_von = Math.round((brutto * 0.85) / 50) * 50;
   }
   if (typeof zf.spanne_bis !== "number") {
-    zf.spanne_bis = (typeof preisSpanne.bis === "number" ? preisSpanne.bis : (zf.netto as number) * 1.15);
+    zf.spanne_bis = Math.round((brutto * 1.15) / 50) * 50;
   }
 
   // Positionen validieren

@@ -424,12 +424,12 @@ router.post('/cases/:id/calculate', async (req, res) => {
                 color_inside: profile.color_inside,
                 color_outside: profile.color_outside
             },
-            workConfig: workConfig || { montage: true, demontage: true, entsorgung: 'element' }
+            workConfig: workConfig || { montage: true, entsorgung: true, bautyp: 'altbau' }
         };
 
         const result = budgetServices.calculateBudget(budgetCase);
 
-        // Ergebnis in budget_results speichern
+        // Ergebnis in budget_results speichern (inkl. Montage-Details V2)
         const resultData = {
             budget_case_id: id,
             net_total: result.net_total,
@@ -438,7 +438,12 @@ router.post('/cases/:id/calculate', async (req, res) => {
             gross_rounded_50: result.gross_rounded_50,
             range_low: result.range_low,
             range_high: result.range_high,
-            assumptions_json: result.assumptions_json,
+            assumptions_json: {
+                ...result.assumptions_json,
+                breakdown: result.breakdown,
+                work_breakdown: result.work_breakdown,
+                work_details: result.work_details
+            },
             model_version: result.model_version
         };
 

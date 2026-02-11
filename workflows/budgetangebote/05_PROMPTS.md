@@ -21,7 +21,14 @@
 | P014 | 2026-02-10 | Auftrag | Programmierer | W4A 2023+2024 Rechnungs-Sync + LV Rebuild | ✅ Erfolg (B-054) | 780-850 |
 | P015 | 2026-02-10 | Auftrag | Tester | Re-Backtest nach erweitertem Datensatz | ✅ Erfolg (B-055) | 855-1000 |
 | P016 | 2026-02-10 | Auftrag | Programmierer | LV-Kompression auf Matching-Dimensionen | ✅ Erfolg (B-056) | 1005-1100 |
-| P017 | 2026-02-10 | Auftrag | Tester | Re-Backtest nach LV-Kompression | ⏳ | 1105-1200 |
+| P017 | 2026-02-10 | Auftrag | Tester | Re-Backtest nach LV-Kompression | ✅ Erfolg (B-057) | 1105-1200 |
+| P018 | 2026-02-11 | Auftrag | Programmierer | Montage-Kalkulation NEU (Stunden + lfm) | ⏳ | 1350-1550 |
+| P019 | 2026-02-11 | Auftrag | Programmierer | Verglasung-Format fix + HST/PSK als Fenster | ⏳ | 1555-1620 |
+| P020 | 2026-02-11 | Auftrag | Programmierer | Firmendaten + Preisspanne fix + Netto/Brutto Toggle | ⏳ | 1625-1750 |
+| P021 | 2026-02-11 | Auftrag | Tester | Re-Backtest + UI-Verifikation P018-P020 | ⏳ | 1755-1820 |
+| P022 | 2026-02-11 | Auftrag | Programmierer | categories.ts Duplikat fix | ⏳ | 1825-1870 |
+| P023 | 2026-02-11 | Auftrag | Programmierer | V2 Edge Functions lokal sichern | ⏳ | 1875-1920 |
+| P024 | 2026-02-11 | Auftrag | Programmierer | Step-Navigation + Freitext-Hash | ⏳ | 1925-2000 |
 
 ---
 
@@ -1340,6 +1347,278 @@ GROUP BY kategorie ORDER BY cnt DESC;
 ### Dokumentation
 1. MASTER_LOG [B-057] schreiben + Index
 2. 02_STATUS.md aktualisieren mit P017-Metriken
+3. Abschlussbericht
+
+---
+
+## [P018] Montage-Kalkulation NEU (Stunden + lfm)
+**Datum:** 2026-02-11
+**Fuer:** Programmierer
+**Ergebnis:** ⏳
+
+### Prompt
+
+Du bist der **Programmierer**. Lies CLAUDE.md, 02_STATUS.md, 04_LEARNINGS.md.
+
+**Auftrag:** Montage-Kalkulation im Budget-System komplett ueberarbeiten.
+
+**IST-Zustand (priceCalculator.js):**
+```
+Montage: 80 EUR/Element (pauschal)
+Demontage: 40 EUR/Element
+Entsorgung: 25 EUR/Element oder 150 EUR pauschal
+```
+
+**SOLL (aus Rechnungsdaten + WPS-Screenshots analysiert):**
+
+1. **Arbeitsstunden pro Fenster (58,82 EUR/Std netto):**
+   - 1-2 Fenster: 6.0 Std/Fenster
+   - 3-4 Fenster: 5.5 Std/Fenster
+   - 5-9 Fenster: 5.3 Std/Fenster
+   - 10+ Fenster: 5.3 Std/Fenster
+   - Inkludiert: Demontage + Montage + Beiputz
+
+2. **Entsorgung (degressiv nach lfm Umfang = 2*B + 2*H):**
+   - bis 2.0 lfm: 13,70 EUR/lfm
+   - bis 2.5 lfm: 11,42 EUR/lfm
+   - bis 3.0 lfm: 9,90 EUR/lfm
+   - bis 3.5 lfm: 8,76 EUR/lfm
+   - bis 4.0 lfm: 7,80 EUR/lfm
+   - ab 4.0 lfm: 7,61 EUR/lfm
+
+3. **Montagematerial (flat pro lfm):**
+   - Altbau (Default): 3,25 EUR/lfm
+   - Neubau: 3,50 EUR/lfm
+   - HST-Aufpreis: +100 EUR
+
+4. **Ausgabe:** Montage als EINE separate Endposition (nicht pro Element), in Stunden ausweisen.
+
+**Dateien die geaendert werden muessen:**
+- `backend/services/budget/priceCalculator.js` - Montage-Logik ersetzen
+- `frontend/src/pages/BudgetDetail.jsx` - Montage-Position Anzeige anpassen
+
+**WICHTIG:**
+- Breite (B) und Hoehe (H) der Elemente in Metern fuer lfm-Berechnung
+- Gesamtstunden = Summe(Std/Fenster * Anzahl) ueber alle Elemente
+- Montage-Position soll Stunden + Stundensatz + Gesamt zeigen
+- Entsorgung + Material separat oder als Teil der Montage-Position
+
+### Dokumentation
+1. MASTER_LOG [B-059] schreiben + Index
+2. 02_STATUS.md aktualisieren
+3. Abschlussbericht
+
+---
+
+## [P019] Verglasung-Format fix + HST/PSK als Fenster
+**Datum:** 2026-02-11
+**Fuer:** Programmierer
+**Ergebnis:** ⏳
+
+### Prompt
+
+Du bist der **Programmierer**. Lies CLAUDE.md, 02_STATUS.md, 04_LEARNINGS.md.
+
+**Auftrag:** Zwei Fixes im Build-Script und/oder der Edge Function.
+
+**Fix 1: Verglasung-Format Mismatch**
+- LV (leistungsverzeichnis) speichert: `'3-fach'`, `'2-fach'` (MIT Bindestrich)
+- Edge Function budget-ki sendet: `'3fach'`, `'2fach'` (OHNE Bindestrich)
+- **Loesung:** In der Edge Function `budget-ki` beim Matching den Bindestrich einfuegen ODER im LV-Query flexibel matchen (LIKE oder Normalisierung).
+
+**Fix 2: HST/PSK als Fenster-Kategorie**
+- HST (Hebeschiebetuer) = Fenster-Kategorie
+- PSK (Parallel-Schiebe-Kipp) = Fenster-Kategorie
+- **Loesung:** Im Build-Script `backend/scripts/build-leistungsverzeichnis.js` HST und PSK zur Fenster-Kategorie mappen statt als eigene Kategorie.
+- Alternativ in der Edge Function beim Matching: Wenn kategorie=HST oder PSK, dann auch fenster-Cluster durchsuchen.
+
+**Dateien:**
+- `supabase/functions/budget-ki/index.ts` - Verglasung-Format fix
+- `backend/scripts/build-leistungsverzeichnis.js` - HST/PSK Kategorie-Mapping
+
+**Nach Aenderung am Build-Script:** LV neu bauen und in Supabase hochladen!
+
+### Dokumentation
+1. MASTER_LOG [B-060] schreiben + Index
+2. 02_STATUS.md aktualisieren
+3. Abschlussbericht
+
+---
+
+## [P020] Firmendaten + Preisspanne fix + Netto/Brutto Toggle
+**Datum:** 2026-02-11
+**Fuer:** Programmierer
+**Ergebnis:** ⏳
+
+### Prompt
+
+Du bist der **Programmierer**. Lies CLAUDE.md, 02_STATUS.md, 04_LEARNINGS.md.
+
+**Auftrag:** Drei UI-Fixes im Budgetangebot-Frontend.
+
+**Fix 1: Firmendaten (U4)**
+Korrekte Daten in der Vorschau/PDF-Ansicht:
+- **Firma:** J.S. Fenster und Tueren GmbH
+- **Adresse:** Regensburger Strasse 59, 92224 Amberg
+- **Telefon:** 0 96 21 / 76 35 33
+- **E-Mail:** info@js-fenster.de
+
+**Fix 2: Preisspanne (U6)**
+Problem: Geschaetzter Endpreis liegt UNTER der Bruttosumme.
+- Pruefen wie die Spanne berechnet wird in `frontend/src/pages/BudgetDetail.jsx`
+- Die Spanne muss die Bruttosumme EINSCHLIESSEN (Brutto ist der Mittelwert, Spanne ±15%)
+- Montage/Zubehoer muessen in der Spanne enthalten sein
+
+**Fix 3: Netto/Brutto Toggle (U7)**
+- Standard: Brutto (B2C, inkl. 19% MwSt)
+- Umschaltbar auf Netto (B2B)
+- Toggle-Button in der Zusammenfassung/Vorschau
+- Alle Positionen, Summen und Spanne entsprechend umrechnen
+
+**Dateien:**
+- `frontend/src/pages/BudgetDetail.jsx` - Alle drei Fixes
+
+### Dokumentation
+1. MASTER_LOG [B-061] schreiben + Index
+2. 02_STATUS.md aktualisieren
+3. Abschlussbericht
+
+---
+
+## [P021] Re-Backtest + UI-Verifikation P018-P020
+**Datum:** 2026-02-11
+**Fuer:** Tester
+**Ergebnis:** ⏳
+
+### Prompt
+
+Du bist der **Tester**. Lies CLAUDE.md, 02_STATUS.md, 04_LEARNINGS.md.
+
+**Auftrag:** Verifiziere die Aenderungen aus P018-P020.
+
+**Test 1: Montage-Kalkulation (P018)**
+- Berechne manuell fuer 5 Fenster (je 1200x1400mm):
+  - Erwartete Stunden: 5 * 5.3 = 26.5 Std
+  - Erwartete Montagekosten: 26.5 * 58.82 = 1.558,73 EUR
+  - Entsorgung: lfm = 2*(1.2+1.4) = 5.2 → ab 4.0 lfm: 7,61 EUR/lfm → 5 * 5.2 * 7.61 = 197,86 EUR
+  - Material Altbau: 5 * 5.2 * 3.25 = 84,50 EUR
+- Pruefen ob Montage als eine Endposition angezeigt wird
+- Pruefen ob Stunden korrekt ausgewiesen werden
+
+**Test 2: Verglasung + HST/PSK (P019)**
+- Supabase-Query: Pruefen ob LV-Eintraege fuer HST/PSK existieren
+- Backtest mit Verglasung-Parameter `'3-fach'` vs `'3fach'` - beide muessen matchen
+
+**Test 3: Firmendaten + Preisspanne + Toggle (P020)**
+- Vorschau pruefen: Korrekte Firmendaten?
+- Preisspanne: Bruttosumme muss INNERHALB der Spanne liegen
+- Toggle: Netto ↔ Brutto umschalten, Preise muessen korrekt umgerechnet werden
+
+**Optional: Re-Backtest**
+Falls P019 das Matching beeinflusst hat, Backtest erneut laufen lassen und Metriken vergleichen.
+
+### Dokumentation
+1. MASTER_LOG [B-062] schreiben + Index
+2. 02_STATUS.md aktualisieren
+3. Abschlussbericht
+
+---
+
+## [P022] categories.ts Duplikat fix
+**Datum:** 2026-02-11
+**Fuer:** Programmierer
+**Ergebnis:** ⏳
+
+### Prompt
+
+Du bist der **Programmierer**. Lies CLAUDE.md, 02_STATUS.md, 04_LEARNINGS.md.
+
+**Auftrag:** categories.ts Duplikat in process-document bereinigen (OPTIMIERUNG.md 6.1.1).
+
+**Problem:**
+- `supabase/functions/_shared/categories.ts` = v2.4.0 (43 Kategorien, AKTUELL)
+- `supabase/functions/process-document/categories.ts` = v2.3.0 (42 Kategorien, VERALTET)
+- process-document importiert die lokale Kopie statt _shared
+
+**Loesung:**
+1. `supabase/functions/process-document/categories.ts` LOESCHEN
+2. In `supabase/functions/process-document/index.ts` den Import aendern:
+   - ALT: `import { ... } from './categories.ts'`
+   - NEU: `import { ... } from '../_shared/categories.ts'`
+3. Edge Function `process-document` neu deployen
+4. Testen: Ein Dokument hochladen und pruefen ob Kategorisierung funktioniert
+
+**ACHTUNG:** Pruefen ob process-document noch weitere lokale Imports hat die auf _shared umgestellt werden muessen.
+
+### Dokumentation
+1. MASTER_LOG [B-063] schreiben + Index
+2. 02_STATUS.md aktualisieren
+3. Abschlussbericht
+
+---
+
+## [P023] V2 Edge Functions lokal sichern
+**Datum:** 2026-02-11
+**Fuer:** Programmierer
+**Ergebnis:** ⏳
+
+### Prompt
+
+Du bist der **Programmierer**. Lies CLAUDE.md, 02_STATUS.md, 04_LEARNINGS.md.
+
+**Auftrag:** Sicherstellen dass alle Edge Functions lokal im Repo vorhanden und aktuell sind.
+
+**Pruefen:**
+1. `supabase/functions/budget-ki/` - Existiert lokal? Aktuell?
+2. `supabase/functions/budget-dokument/` - Existiert lokal? Aktuell?
+
+**Falls nicht vorhanden oder veraltet:**
+- Code von Supabase Dashboard exportieren (ueber MCP `mcp__supabase__get_edge_function`)
+- Lokal speichern unter `supabase/functions/[name]/index.ts`
+- Sicherstellen dass `deno.json` und alle Dependencies vorhanden sind
+
+**Zusaetzlich:**
+- Alle anderen Edge Functions auflisten (`mcp__supabase__list_edge_functions`)
+- Fuer jede pruefen ob lokaler Code == deployed Code
+- Differenzen dokumentieren
+
+### Dokumentation
+1. MASTER_LOG [B-064] schreiben + Index
+2. 02_STATUS.md aktualisieren
+3. Abschlussbericht
+
+---
+
+## [P024] Step-Navigation + Freitext-Hash
+**Datum:** 2026-02-11
+**Fuer:** Programmierer
+**Ergebnis:** ⏳
+
+### Prompt
+
+Du bist der **Programmierer**. Lies CLAUDE.md, 02_STATUS.md, 04_LEARNINGS.md.
+
+**Auftrag:** Zwei UX-Verbesserungen im Budgetangebot-Frontend (OPTIMIERUNG.md U1 + U2).
+
+**Feature 1: Step-Navigation (U1)**
+- Im `frontend/src/pages/BudgetDetail.jsx` gibt es einen Stepper oben
+- Aktuell: Nur schrittweise vor/zurueck
+- NEU: Klick auf einen Schritt-Indikator springt direkt dorthin
+- Einschraenkung: Man kann nur zu Schritten springen die bereits besucht wurden
+
+**Feature 2: Freitext-Hash (U2)**
+- Problem: Bei Navigation zurueck + vorwaerts wird der GPT-Call erneut ausgeloest
+- NEU: Freitext-Hash speichern (z.B. einfacher String-Vergleich oder MD5)
+- Wenn Freitext unveraendert: Bestehende Positionen beibehalten, KEINEN GPT-Call
+- Wenn Freitext geaendert: Neu berechnen (wie bisher)
+- Spart GPT-Kosten und Zeit (~5-10 Sek pro Call)
+
+**Dateien:**
+- `frontend/src/pages/BudgetDetail.jsx` - Stepper + Hash-Logik
+
+### Dokumentation
+1. MASTER_LOG [B-065] schreiben + Index
+2. 02_STATUS.md aktualisieren
 3. Abschlussbericht
 
 ---

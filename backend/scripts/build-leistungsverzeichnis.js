@@ -73,8 +73,10 @@ async function supabaseRequest(endpoint, method = 'GET', body = null, headers = 
 
 const KATEGORIE_PATTERNS = [
     { kategorie: 'haustuer', patterns: [/haustuer|haustür|HT\b/i] },
-    { kategorie: 'hst', patterns: [/HST|hebeschiebe/i] },
-    { kategorie: 'psk', patterns: [/PSK|parallel.*schiebe/i] },
+    // P019: HST und PSK als fenster-Kategorie behandeln (vorher eigene Kategorien)
+    // Sie haben Oeffnungsart HST/PSK und werden darueber im LV-Matching differenziert
+    { kategorie: 'fenster', patterns: [/HST|hebeschiebe/i] },
+    { kategorie: 'fenster', patterns: [/PSK|parallel.*schiebe/i] },
     { kategorie: 'festfeld', patterns: [/festfeld|festverglasu|FIX/i] },
     { kategorie: 'balkontuer', patterns: [/balkontuer|balkontür|BT\b/i] },
     { kategorie: 'tuer', patterns: [/tuer|tür|nebeneingangstür/i] },

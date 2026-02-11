@@ -79,11 +79,14 @@ Eigene Bestandswerte aufbauen (Budget → Angebot → Auftrag → Outcome), um W
 | Insektenschutz | Pro Fenster (optional) |
 | Plissee | Pro Fenster (optional) |
 
-### 2.7 Montage-Block
-Separat ausweisen:
-- Montage (pro Element)
-- Demontage Alt (pro Element)
-- Entsorgung Alt (pauschal oder pro Element)
+### 2.7 Montage-Block (V2, ab P018)
+Als EINE separate Endposition ausweisen (nicht pro Element):
+- **Arbeitsstunden** (58,82 EUR/Std netto, degressiv nach Projektgroesse):
+  - 1-2 Fenster: 6.0 Std/Fenster, 3-4: 5.5, 5+: 5.3
+  - Inkludiert Demontage + Montage + Beiputz
+- **Entsorgung** (degressiv nach lfm Umfang = 2*B + 2*H):
+  - bis 2.0 lfm: 13,70 EUR/lfm → ab 4.0 lfm: 7,61 EUR/lfm
+- **Montagematerial** (flat pro lfm): Altbau 3,25 / Neubau 3,50 EUR/lfm, HST +100 EUR
 
 ### 2.8 Ausgabe
 - **Intern:** Netto-Werte

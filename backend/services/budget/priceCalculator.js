@@ -1,20 +1,21 @@
 /**
- * Price Calculator Service
+ * Price Calculator Service V2.0.0
  *
  * Berechnet Budgetpreise fuer:
  * - Fenster/Tueren (qm-basiert nach System)
  * - Zubehoer (Rollladen, Raffstore, AFB, IFB, etc.)
- * - Montage-Block (Montage, Demontage, Entsorgung)
+ * - Montage-Block V2 (stundenbasiert + lfm-basiert)
  *
  * Erstellt: 2026-02-04
- * Log-Referenz: [LOG-006]
+ * Aktualisiert: 2026-02-11 (P018: Montage-Kalkulation V2)
+ * Log-Referenz: [LOG-006], [B-059]
  *
  * HINWEIS: Alle Preise sind Schaetzwerte fuer Budgetangebote.
  * Bei Unsicherheit wird der hoehere Preis gewaehlt (sicherer).
  */
 
 // ============================================================================
-// PREISKONFIGURATION V1.0.0
+// PREISKONFIGURATION V2.0.0
 // ============================================================================
 
 /**
@@ -104,23 +105,41 @@ const ACCESSORY_PRICES = {
 };
 
 /**
- * Montage-Block Preise
- * Quelle: 01_SPEC.md Kapitel 2.7
+ * Montage-Block Preise V2.0.0
+ * Quelle: P018 - Rechnungsdaten + WPS-Screenshots
+ *
+ * Inkludiert: Demontage + Montage + Beiputz (alles in Arbeitsstunden)
  */
 const WORK_PRICES = {
-    montage: {
-        price_per_element: 80,  // EUR pro Element
-        description: 'Montage Neufenster'
+    // Stundensatz netto
+    hourly_rate: 58.82,
+
+    // Degressiver Stundenansatz pro Fenster nach Projektgroesse
+    hours_per_element: [
+        { max_elements: 2,  hours: 6.0 },
+        { max_elements: 4,  hours: 5.5 },
+        { max_elements: 9,  hours: 5.3 },
+        { max_elements: Infinity, hours: 5.3 }
+    ],
+
+    // Entsorgung degressiv nach lfm Umfang (2*B + 2*H pro Element)
+    entsorgung_per_lfm: [
+        { max_lfm: 2.0, price: 13.70 },
+        { max_lfm: 2.5, price: 11.42 },
+        { max_lfm: 3.0, price:  9.90 },
+        { max_lfm: 3.5, price:  8.76 },
+        { max_lfm: 4.0, price:  7.80 },
+        { max_lfm: Infinity, price: 7.61 }
+    ],
+
+    // Montagematerial flat pro lfm Umfang
+    material_per_lfm: {
+        altbau: 3.25,   // EUR/lfm (Default)
+        neubau: 3.50    // EUR/lfm
     },
-    demontage: {
-        price_per_element: 40,  // EUR pro Element
-        description: 'Demontage Altfenster'
-    },
-    entsorgung: {
-        price_per_element: 25,  // EUR pro Element
-        price_pauschal: 150,    // Alternative Pauschale
-        description: 'Entsorgung Altmaterial'
-    }
+
+    // HST-Aufpreis Material
+    hst_material_surcharge: 100.00
 };
 
 /**
@@ -131,7 +150,7 @@ const VAT_RATE = 19.00;
 /**
  * Modell-Version
  */
-const MODEL_VERSION = 'v1.0.0';
+const MODEL_VERSION = 'v2.0.0';
 
 // ============================================================================
 // BERECHNUNGSFUNKTIONEN
@@ -323,56 +342,167 @@ function calculateAccessoryPrice(accessories, item = {}) {
 }
 
 /**
- * Berechnet den Montage-Block
+ * Ermittelt den degressiven Stundensatz pro Element basierend auf Gesamtanzahl
  *
- * @param {Object} workConfig - { montage: bool, demontage: bool, entsorgung: 'element'|'pauschal'|false }
- * @param {number} elementCount - Anzahl der Elemente
- * @returns {Object} - { total, breakdown, assumptions }
+ * @param {number} totalElements - Gesamtanzahl Elemente im Projekt
+ * @returns {number} - Stunden pro Element
  */
-function calculateWorkPrice(workConfig, elementCount = 1) {
-    const { montage = true, demontage = true, entsorgung = 'element' } = workConfig || {};
+function getHoursPerElement(totalElements) {
+    for (const tier of WORK_PRICES.hours_per_element) {
+        if (totalElements <= tier.max_elements) {
+            return tier.hours;
+        }
+    }
+    // Fallback: letzter Tier
+    return WORK_PRICES.hours_per_element[WORK_PRICES.hours_per_element.length - 1].hours;
+}
+
+/**
+ * Ermittelt den degressiven Entsorgungspreis pro lfm basierend auf Element-Umfang
+ *
+ * @param {number} lfm - Umfang eines Elements in laufenden Metern
+ * @returns {number} - EUR pro lfm
+ */
+function getEntsorgungPerLfm(lfm) {
+    for (const tier of WORK_PRICES.entsorgung_per_lfm) {
+        if (lfm <= tier.max_lfm) {
+            return tier.price;
+        }
+    }
+    // Fallback: letzter Tier
+    return WORK_PRICES.entsorgung_per_lfm[WORK_PRICES.entsorgung_per_lfm.length - 1].price;
+}
+
+/**
+ * Berechnet den Umfang eines Elements in laufenden Metern
+ *
+ * @param {number} width_mm - Breite in mm
+ * @param {number} height_mm - Hoehe in mm
+ * @returns {number} - Umfang in lfm (= 2*B + 2*H in Metern)
+ */
+function calculateLfm(width_mm, height_mm) {
+    const width_m = (width_mm || 1000) / 1000;
+    const height_m = (height_mm || 1200) / 1000;
+    return round2(2 * width_m + 2 * height_m);
+}
+
+/**
+ * Berechnet den Montage-Block V2 (stundenbasiert + lfm-basiert)
+ *
+ * Inkludiert in Arbeitsstunden: Demontage + Montage + Beiputz
+ * Separat: Entsorgung (nach lfm) + Montagematerial (nach lfm)
+ *
+ * @param {Object} workConfig - { montage: bool, entsorgung: bool, bautyp: 'altbau'|'neubau' }
+ * @param {Array} items - Array von Items mit { width_mm, height_mm, qty, element_type }
+ * @returns {Object} - { total, breakdown, details, assumptions }
+ */
+function calculateWorkPrice(workConfig, items = []) {
+    const {
+        montage = true,
+        entsorgung = true,
+        bautyp = 'altbau'
+    } = workConfig || {};
 
     let total = 0;
     const breakdown = {};
     const assumptions = [];
+    const details = {};
 
-    // Montage
-    if (montage) {
-        const price = WORK_PRICES.montage.price_per_element * elementCount;
-        breakdown.montage = round2(price);
-        total += price;
+    // Gesamtanzahl Elemente berechnen
+    const elementCount = items.reduce((sum, item) => sum + (item.qty || 1), 0);
+
+    // --- Arbeitsstunden (Montage + Demontage + Beiputz) ---
+    if (montage && elementCount > 0) {
+        const hoursPerElement = getHoursPerElement(elementCount);
+        const totalHours = round2(hoursPerElement * elementCount);
+        const hourlyRate = WORK_PRICES.hourly_rate;
+        const montagePrice = round2(totalHours * hourlyRate);
+
+        breakdown.montage = montagePrice;
+        details.montage = {
+            stunden_pro_element: hoursPerElement,
+            gesamt_stunden: totalHours,
+            stundensatz: hourlyRate,
+            element_count: elementCount
+        };
+        total += montagePrice;
+        assumptions.push(`Montage: ${totalHours} Std x ${hourlyRate.toFixed(2)} EUR/Std (${hoursPerElement} Std/Element bei ${elementCount} Elementen)`);
     }
 
-    // Demontage
-    if (demontage) {
-        const price = WORK_PRICES.demontage.price_per_element * elementCount;
-        breakdown.demontage = round2(price);
-        total += price;
+    // --- Entsorgung (degressiv nach lfm pro Element) ---
+    if (entsorgung && items.length > 0) {
+        let entsorgungTotal = 0;
+        let entsorgungLfmTotal = 0;
+        const entsorgungDetails = [];
+
+        for (const item of items) {
+            const qty = item.qty || 1;
+            const lfm = calculateLfm(item.width_mm, item.height_mm);
+            const pricePerLfm = getEntsorgungPerLfm(lfm);
+            const itemEntsorgung = round2(lfm * pricePerLfm * qty);
+
+            entsorgungTotal += itemEntsorgung;
+            entsorgungLfmTotal += lfm * qty;
+            entsorgungDetails.push({
+                lfm,
+                price_per_lfm: pricePerLfm,
+                qty,
+                subtotal: itemEntsorgung
+            });
+        }
+
+        breakdown.entsorgung = round2(entsorgungTotal);
+        details.entsorgung = {
+            gesamt_lfm: round2(entsorgungLfmTotal),
+            positionen: entsorgungDetails
+        };
+        total += entsorgungTotal;
+        assumptions.push(`Entsorgung: ${round2(entsorgungLfmTotal)} lfm gesamt (degressiv nach Elementgroesse)`);
     }
 
-    // Entsorgung
-    if (entsorgung) {
-        let price;
-        if (entsorgung === 'pauschal') {
-            price = WORK_PRICES.entsorgung.price_pauschal;
-            assumptions.push('Entsorgung: Pauschale gewaehlt');
-        } else {
-            // Default: pro Element
-            price = WORK_PRICES.entsorgung.price_per_element * elementCount;
-            // Wenn pro Element teurer als pauschal, nehme pauschal (sicherer)
-            if (price > WORK_PRICES.entsorgung.price_pauschal) {
-                price = WORK_PRICES.entsorgung.price_pauschal;
-                assumptions.push('Entsorgung: Pauschale guenstiger, automatisch gewaehlt');
+    // --- Montagematerial (flat pro lfm) ---
+    if (montage && items.length > 0) {
+        let materialTotal = 0;
+        let materialLfmTotal = 0;
+        const materialRate = WORK_PRICES.material_per_lfm[bautyp] || WORK_PRICES.material_per_lfm.altbau;
+        let hstSurchargeTotal = 0;
+
+        for (const item of items) {
+            const qty = item.qty || 1;
+            const lfm = calculateLfm(item.width_mm, item.height_mm);
+            const itemMaterial = round2(lfm * materialRate * qty);
+            materialTotal += itemMaterial;
+            materialLfmTotal += lfm * qty;
+
+            // HST-Aufpreis
+            if (item.element_type === 'hst') {
+                hstSurchargeTotal += WORK_PRICES.hst_material_surcharge * qty;
             }
         }
-        breakdown.entsorgung = round2(price);
-        total += price;
+
+        materialTotal = round2(materialTotal + hstSurchargeTotal);
+        breakdown.material = materialTotal;
+        details.material = {
+            gesamt_lfm: round2(materialLfmTotal),
+            rate_per_lfm: materialRate,
+            bautyp,
+            hst_aufpreis: hstSurchargeTotal
+        };
+        total += materialTotal;
+
+        let materialHint = `Montagematerial ${bautyp}: ${round2(materialLfmTotal)} lfm x ${materialRate.toFixed(2)} EUR/lfm`;
+        if (hstSurchargeTotal > 0) {
+            materialHint += ` + ${hstSurchargeTotal.toFixed(2)} EUR HST-Aufpreis`;
+        }
+        assumptions.push(materialHint);
     }
 
     return {
         total: round2(total),
         breakdown,
-        assumptions
+        details,
+        assumptions,
+        element_count: elementCount
     };
 }
 
@@ -477,9 +607,9 @@ function calculateBudget(budgetCase, options = {}) {
         });
     }
 
-    // Montage-Block berechnen
-    const elementCount = items.reduce((sum, item) => sum + (item.qty || 1), 0);
-    const workResult = calculateWorkPrice(workConfig, elementCount);
+    // Montage-Block berechnen (V2: Items statt elementCount)
+    const workResult = calculateWorkPrice(workConfig, items);
+    const elementCount = workResult.element_count;
     const montage_total = workResult.total;
     allAssumptions.push(...workResult.assumptions);
 
@@ -511,6 +641,7 @@ function calculateBudget(budgetCase, options = {}) {
         },
         item_details: itemDetails,
         work_breakdown: workResult.breakdown,
+        work_details: workResult.details,
         assumptions_json: {
             assumptions: allAssumptions,
             element_count: elementCount,
@@ -550,10 +681,13 @@ function quickCalculate(params) {
     // Zubehoer
     const accessoryResult = calculateAccessoryPrice(accessories, item);
 
-    // Montage (optional)
+    // Montage (optional) - V2: Items-Array uebergeben
     let workResult = { total: 0, breakdown: {} };
     if (includeWork) {
-        workResult = calculateWorkPrice({ montage: true, demontage: true, entsorgung: 'element' }, qty);
+        workResult = calculateWorkPrice(
+            { montage: true, entsorgung: true, bautyp: 'altbau' },
+            [{ width_mm, height_mm, qty, element_type: params.element_type || 'fenster' }]
+        );
     }
 
     const net_total = round2(windowResult.price + accessoryResult.total + workResult.total);
@@ -630,6 +764,9 @@ module.exports = {
     roundTo50,
     normalizeColor,
     getPriceConfig,
+    calculateLfm,
+    getHoursPerElement,
+    getEntsorgungPerLfm,
 
     // Konstanten (fuer Tests/Debugging)
     SYSTEM_PRICES,

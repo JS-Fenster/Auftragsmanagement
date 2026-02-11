@@ -2,9 +2,9 @@
 export const AUFTRAG_STATUS = {
   OFFEN: { label: 'Offen', color: '#3B82F6', bg: '#EFF6FF', text: '#1E40AF' },
   IN_BEARBEITUNG: { label: 'In Bearbeitung', color: '#F59E0B', bg: '#FFFBEB', text: '#92400E' },
-  TERMIN_RESERVIERT: { label: 'Termin reserviert', color: '#8B5CF6', bg: '#F5F3FF', text: '#5B21B6' },
+  TERMIN_RESERVIERT: { label: 'Termin reserviert', color: '#F59E0B', bg: '#FFFBEB', text: '#92400E' },
   TERMIN_FIX: { label: 'Termin fix', color: '#10B981', bg: '#ECFDF5', text: '#065F46' },
-  NICHT_BESTAETIGT: { label: 'Nicht bestätigt', color: '#EF4444', bg: '#FEF2F2', text: '#991B1B' },
+  NICHT_BESTAETIGT: { label: 'Nicht bestätigt', color: '#F97316', bg: '#FFF7ED', text: '#9A3412' },
   ERLEDIGT: { label: 'Erledigt', color: '#6B7280', bg: '#F3F4F6', text: '#374151' },
   NO_SHOW: { label: 'No-Show', color: '#DC2626', bg: '#FEF2F2', text: '#991B1B' },
   ARCHIVIERT: { label: 'Archiviert', color: '#9CA3AF', bg: '#F9FAFB', text: '#6B7280' },

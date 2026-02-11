@@ -1,12 +1,29 @@
 // =============================================================================
 // Budget-KI - GPT-5.2 Function Calling fuer Budgetangebote
-// Version: 1.0.0 - 2026-02-05
+// Version: 1.3.0 - 2026-02-11
 // =============================================================================
 // Empfaengt Freitext-Beschreibung von Fenstern/Tueren und nutzt GPT-5.2
 // mit Function Calling (tools) um:
 // 1. Text in strukturierte Budget-Positionen zu parsen
 // 2. Aehnliche historische Positionen in Supabase zu suchen
 // 3. Budget-Schaetzung zu berechnen
+// =============================================================================
+// CHANGELOG v1.3.0:
+// - Fix 1: Verglasung-Format Normalisierung (3fach->3-fach, 2fach->2-fach)
+// - Fix 2: HST/PSK als fenster-Kategorie behandeln (kategorie-Mapping)
+// =============================================================================
+// CHANGELOG v1.2.0:
+// - Fix 1: Fallback-Stufen 3+4 entfernt (kat+gk, nur kat) - schadet Median
+// - Fix 2: DK->DKR+DKL Mapping (oeffnungsart IN statt EQ)
+// - Fix 3: Rollladen Smart-Hybrid (Filter nur bei hat_rollladen=true)
+// - Kein Match nach Stufe 2 -> return null + Hinweis auf berechne_fensterpreis
+// =============================================================================
+// CHANGELOG v1.1.0:
+// - Neues Tool: suche_lv_granular (Weighted Average Matching)
+// - 3-Stufen-Matching: exact -> relaxed -> fallback
+// - FIX->festfeld Kategorie-Mapping
+// - Rollladen-Aufpreis im Matching
+// - SYSTEM_PROMPT erweitert mit Regeln fuer granulare Suche
 // =============================================================================
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -80,7 +97,7 @@ const OVERSIZED_WIDTH_THRESHOLD = 1800;
 const OVERSIZED_HEIGHT_THRESHOLD = 2400;
 
 const MAX_TOOL_ROUNDS = 5;
-const GPT_TIMEOUT_MS = 55000; // GPT-5.2 Reasoning braucht laenger
+const GPT_TIMEOUT_MS = 55000;
 
 // =============================================================================
 // HELPER FUNCTIONS
@@ -94,13 +111,10 @@ function roundTo50(value: number): number {
   return Math.round(value / 50) * 50;
 }
 
-/**
- * Normalisiert eine Farbbezeichnung
- */
 function normalizeColor(color: string | null | undefined): string {
   if (!color) return "weiss";
   const c = color.toLowerCase().trim();
-  if (/wei[sß]|white/i.test(c)) return "weiss";
+  if (/wei[s\u00df]|white/i.test(c)) return "weiss";
   if (/anthrazit|anthracite|ral\s*7016/i.test(c)) return "anthrazit";
   if (/golden.*oak|eiche|golden/i.test(c)) return "golden_oak";
   if (/nussbaum|walnut|nuss/i.test(c)) return "nussbaum";
@@ -108,9 +122,6 @@ function normalizeColor(color: string | null | undefined): string {
   return "weiss";
 }
 
-/**
- * Normalisiert die Farbkombination fuer Aufschlag-Lookup
- */
 function normalizeColorKey(colorInside: string | null, colorOutside: string | null): string {
   const inside = normalizeColor(colorInside);
   const outside = normalizeColor(colorOutside);
@@ -127,12 +138,25 @@ function normalizeColorKey(colorInside: string | null, colorOutside: string | nu
   return "DEFAULT_COLOR";
 }
 
+/**
+ * v1.3.0: Normalisiert das Verglasung-Format.
+ * Stellt sicher, dass immer '2-fach' oder '3-fach' (MIT Bindestrich) verwendet wird.
+ * GPT sendet manchmal '2fach' oder '3fach' ohne Bindestrich.
+ */
+function normalizeVerglasung(verglasung: string | null | undefined): string | null {
+  if (!verglasung) return null;
+  const v = verglasung.trim().toLowerCase();
+  if (/^3[- ]?fach$/i.test(v)) return "3-fach";
+  if (/^2[- ]?fach$/i.test(v)) return "2-fach";
+  return verglasung; // Unbekanntes Format durchreichen
+}
+
 // =============================================================================
 // TOOL IMPLEMENTATIONS
 // =============================================================================
 
 /**
- * Tool 1: suche_leistungsverzeichnis - Sucht im Leistungsverzeichnis
+ * Tool 1: suche_leistungsverzeichnis - Text-basierte LV-Suche (Fallback)
  */
 async function sucheLeistungsverzeichnis(args: {
   kategorie: string;
@@ -181,7 +205,6 @@ async function holePreishistorie(args: {
 }): Promise<unknown> {
   const { kategorie, breite_mm, hoehe_mm } = args;
 
-  // Toleranz: +/- 15% fuer Dimensionssuche
   const breiteTol = breite_mm * 0.15;
   const hoeheTol = hoehe_mm * 0.15;
 
@@ -225,7 +248,6 @@ async function holePreishistorie(args: {
       };
     }
 
-    // Statistik berechnen
     const preise = data
       .map((d) => d.einzel_preis)
       .filter((p): p is number => typeof p === "number" && p > 0);
@@ -272,24 +294,19 @@ function berechneFensterpreis(args: {
     farbe_aussen = "weiss",
   } = args;
 
-  // Flaeche in qm
   const area_sqm = (breite_mm * hoehe_mm) / 1_000_000;
 
-  // System-Basispreis
   const systemKey = (system || "DEFAULT").toUpperCase();
   const base_per_sqm = SYSTEM_PRICES[systemKey] ?? SYSTEM_PRICES.DEFAULT;
 
-  // Basispreis
   let unit_price = area_sqm * base_per_sqm;
 
-  // Mindestpreis
   if (unit_price < MIN_WINDOW_PRICE) {
     unit_price = MIN_WINDOW_PRICE;
   }
 
   const aufschlaege: string[] = [];
 
-  // Farb-Aufschlag
   const colorKey = normalizeColorKey(farbe_innen, farbe_aussen);
   const colorSurcharge = COLOR_SURCHARGES[colorKey] ?? COLOR_SURCHARGES.DEFAULT_COLOR;
   if (colorSurcharge > 0) {
@@ -297,7 +314,6 @@ function berechneFensterpreis(args: {
     aufschlaege.push(`Farbaufschlag ${colorKey}: +${Math.round(colorSurcharge * 100)}%`);
   }
 
-  // Sondermass-Aufschlag
   const isOversized = breite_mm > OVERSIZED_WIDTH_THRESHOLD || hoehe_mm > OVERSIZED_HEIGHT_THRESHOLD;
   if (isOversized) {
     unit_price *= 1 + OVERSIZED_SURCHARGE;
@@ -314,6 +330,255 @@ function berechneFensterpreis(args: {
   };
 }
 
+/**
+ * Tool 4: suche_lv_granular - Strukturierte LV-Suche mit Weighted Average
+ *
+ * v1.3.0 - Verglasung-Normalisierung + HST/PSK als fenster:
+ *   - verglasung wird normalisiert: '3fach'->'3-fach', '2fach'->'2-fach'
+ *   - kategorie 'hst'/'psk' wird auf 'fenster' gemappt (zusaetzlich gesucht)
+ *
+ * v1.2.0 - 2-Stufen-Matching (Fallback-Stufen 3+4 entfernt):
+ *   1. Exact: kategorie + oeffnungsart + groessen_klasse + verglasung + hat_rollladen (nur wenn true)
+ *   2. Relaxed: kategorie + oeffnungsart + groessen_klasse (ohne verglasung/rollladen)
+ *   Kein Match -> return null + Hinweis auf berechne_fensterpreis
+ *
+ * DK-Mapping: oeffnungsart="DK" sucht gegen IN ('DK', 'DKR', 'DKL')
+ * FIX-Mapping: oeffnungsart=FIX sucht auch in kategorie=festfeld
+ * RL Smart-Hybrid: hat_rollladen Filter nur bei hat_rollladen=true
+ * Weighted Average: SUM(avg_preis * sample_count) / SUM(sample_count)
+ */
+async function sucheLvGranular(args: {
+  kategorie: string;
+  oeffnungsart?: string;
+  groessen_klasse?: string;
+  verglasung?: string;
+  hat_rollladen?: boolean;
+  ist_kombi?: boolean;
+}): Promise<unknown> {
+  const { kategorie: rawKategorie, oeffnungsart, groessen_klasse, hat_rollladen, ist_kombi } = args;
+
+  // v1.3.0: Verglasung-Format normalisieren (3fach -> 3-fach, 2fach -> 2-fach)
+  const verglasung = normalizeVerglasung(args.verglasung);
+
+  // v1.3.0: HST/PSK Kategorie-Mapping - auf fenster mappen
+  let kategorie = rawKategorie;
+  if (kategorie === "hst" || kategorie === "psk") {
+    console.log(`[TOOL] suche_lv_granular: Kategorie '${kategorie}' -> 'fenster' (P019 Mapping)`);
+    kategorie = "fenster";
+  }
+
+  console.log(`[TOOL] suche_lv_granular: kat=${kategorie}, oeffnung=${oeffnungsart}, groesse=${groessen_klasse}, verglasung=${verglasung}, rollladen=${hat_rollladen}, kombi=${ist_kombi}`);
+
+  try {
+    // FIX-Mapping: Wenn oeffnungsart=FIX, suche AUCH in kategorie=festfeld
+    const kategorien: string[] = [kategorie];
+    if (oeffnungsart === "FIX" && kategorie !== "festfeld") {
+      kategorien.push("festfeld");
+    }
+    if (kategorie === "festfeld" && !kategorien.includes("fenster")) {
+      kategorien.push("fenster");
+    }
+
+    // =========================================================================
+    // Helper: OA-Filter anwenden (DK-Mapping)
+    // Wenn oeffnungsart="DK", suche gegen IN ('DK', 'DKR', 'DKL')
+    // =========================================================================
+    function applyOaFilter(query: any, oa: string): any {
+      if (oa === "DK") {
+        return query.in("oeffnungsart", ["DK", "DKR", "DKL"]);
+      }
+      return query.eq("oeffnungsart", oa);
+    }
+
+    // =========================================================================
+    // Stufe 1: Exact Match
+    // =========================================================================
+    let matchedEntries: any[] = [];
+    let matchQuality = "exact";
+
+    if (oeffnungsart && groessen_klasse) {
+      let query = supabase
+        .from("leistungsverzeichnis")
+        .select("*")
+        .in("kategorie", kategorien)
+        .eq("groessen_klasse", groessen_klasse);
+
+      // DK-Mapping: DK -> IN ('DK', 'DKR', 'DKL')
+      query = applyOaFilter(query, oeffnungsart);
+
+      if (verglasung) {
+        query = query.eq("verglasung", verglasung);
+      }
+      // RL Smart-Hybrid: Filter NUR bei hat_rollladen=true
+      if (hat_rollladen === true) {
+        query = query.eq("hat_rollladen", true);
+      }
+      if (typeof ist_kombi === "boolean") {
+        query = query.eq("ist_kombi", ist_kombi);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error("[TOOL] suche_lv_granular exact Fehler:", error.message);
+      } else {
+        matchedEntries = data || [];
+      }
+
+      console.log(`[TOOL] Exact match: ${matchedEntries.length} Treffer`);
+    }
+
+    // =========================================================================
+    // Stufe 2: Relaxed Match (falls <3 Treffer)
+    // kategorie + oeffnungsart + groessen_klasse (ohne verglasung/rollladen)
+    // =========================================================================
+    if (matchedEntries.length < 3 && oeffnungsart && groessen_klasse) {
+      matchQuality = "relaxed";
+
+      let query = supabase
+        .from("leistungsverzeichnis")
+        .select("*")
+        .in("kategorie", kategorien)
+        .eq("groessen_klasse", groessen_klasse);
+
+      // DK-Mapping: DK -> IN ('DK', 'DKR', 'DKL')
+      query = applyOaFilter(query, oeffnungsart);
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error("[TOOL] suche_lv_granular relaxed Fehler:", error.message);
+      } else {
+        matchedEntries = data || [];
+      }
+
+      console.log(`[TOOL] Relaxed match: ${matchedEntries.length} Treffer`);
+    }
+
+    // =========================================================================
+    // KEIN weiterer Fallback! (Stufen 3+4 entfernt in v1.2.0)
+    // Bei 0 Treffern nach Stufe 2: return no_match mit Hinweis
+    // =========================================================================
+    if (matchedEntries.length === 0) {
+      console.log(`[TOOL] suche_lv_granular: Kein Match nach Stufe 2. Kein Fallback (v1.2.0).`);
+
+      return {
+        weighted_avg_preis: null,
+        median_preis: null,
+        min_preis: null,
+        max_preis: null,
+        total_samples: 0,
+        match_count: 0,
+        match_quality: "no_match",
+        entries: [],
+        hinweis: "Kein passender LV-Eintrag gefunden. Nutze berechne_fensterpreis als Fallback.",
+        suchparameter: {
+          kategorie,
+          kategorien_gesucht: kategorien,
+          oeffnungsart: oeffnungsart || null,
+          groessen_klasse: groessen_klasse || null,
+          verglasung: verglasung || null,
+          hat_rollladen: hat_rollladen ?? null,
+          ist_kombi: ist_kombi ?? null,
+        },
+      };
+    }
+
+    // =========================================================================
+    // Weighted Average berechnen
+    // =========================================================================
+    const validEntries = matchedEntries.filter(
+      (e: any) => typeof e.avg_preis === "number" && e.avg_preis > 0 &&
+                   typeof e.sample_count === "number" && e.sample_count > 0
+    );
+
+    let weightedAvgPreis = 0;
+    let totalSamples = 0;
+    let minPreis = Infinity;
+    let maxPreis = 0;
+    const preisValues: number[] = [];
+
+    for (const entry of validEntries) {
+      weightedAvgPreis += entry.avg_preis * entry.sample_count;
+      totalSamples += entry.sample_count;
+
+      if (entry.min_preis !== null && entry.min_preis !== undefined && entry.min_preis < minPreis) {
+        minPreis = entry.min_preis;
+      }
+      if (entry.max_preis !== null && entry.max_preis !== undefined && entry.max_preis > maxPreis) {
+        maxPreis = entry.max_preis;
+      }
+
+      preisValues.push(entry.avg_preis);
+    }
+
+    if (totalSamples > 0) {
+      weightedAvgPreis = round2(weightedAvgPreis / totalSamples);
+    }
+
+    // Median berechnen
+    let medianPreis = 0;
+    if (preisValues.length > 0) {
+      const sorted = [...preisValues].sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      medianPreis = sorted.length % 2 !== 0
+        ? round2(sorted[mid])
+        : round2((sorted[mid - 1] + sorted[mid]) / 2);
+    }
+
+    // Ergebnis-Entries (max 15 fuer Token-Effizienz)
+    const resultEntries = validEntries.slice(0, 15).map((e: any) => ({
+      bezeichnung: e.bezeichnung,
+      kategorie: e.kategorie,
+      oeffnungsart: e.oeffnungsart,
+      groessen_klasse: e.groessen_klasse,
+      verglasung: e.verglasung,
+      hat_rollladen: e.hat_rollladen,
+      ist_kombi: e.ist_kombi,
+      avg_preis: e.avg_preis,
+      sample_count: e.sample_count,
+      flaeche_qm: e.flaeche_qm,
+    }));
+
+    const result = {
+      weighted_avg_preis: weightedAvgPreis,
+      median_preis: medianPreis,
+      min_preis: minPreis === Infinity ? 0 : round2(minPreis),
+      max_preis: round2(maxPreis),
+      total_samples: totalSamples,
+      match_count: validEntries.length,
+      match_quality: matchQuality,
+      entries: resultEntries,
+      suchparameter: {
+        kategorie,
+        kategorien_gesucht: kategorien,
+        oeffnungsart: oeffnungsart || null,
+        groessen_klasse: groessen_klasse || null,
+        verglasung: verglasung || null,
+        hat_rollladen: hat_rollladen ?? null,
+        ist_kombi: ist_kombi ?? null,
+      },
+    };
+
+    console.log(`[TOOL] suche_lv_granular Ergebnis: ${matchQuality}, weighted_avg=${weightedAvgPreis}, samples=${totalSamples}, matches=${validEntries.length}`);
+
+    return result;
+  } catch (err) {
+    console.error("[TOOL] suche_lv_granular Exception:", err);
+    return {
+      error: String(err),
+      weighted_avg_preis: 0,
+      median_preis: 0,
+      min_preis: 0,
+      max_preis: 0,
+      total_samples: 0,
+      match_count: 0,
+      match_quality: "error",
+      entries: [],
+    };
+  }
+}
+
 // =============================================================================
 // OPENAI TOOLS DEFINITION
 // =============================================================================
@@ -322,10 +587,60 @@ const OPENAI_TOOLS = [
   {
     type: "function" as const,
     function: {
+      name: "suche_lv_granular",
+      description:
+        "Sucht im Leistungsverzeichnis mit strukturierten Filtern. " +
+        "Nutze dies BEVORZUGT fuer Fenster, Tueren und Elemente mit bekannter " +
+        "Oeffnungsart und Groesse. Liefert gewichteten Durchschnittspreis " +
+        "basierend auf historischen Rechnungs- und Angebotsdaten. " +
+        "Bei match_quality='no_match' nutze berechne_fensterpreis als Fallback. " +
+        "HST und PSK werden automatisch als fenster-Kategorie behandelt.",
+      parameters: {
+        type: "object",
+        properties: {
+          kategorie: {
+            type: "string",
+            enum: ["fenster", "haustuer", "hst", "psk", "festfeld", "balkontuer",
+                   "tuer", "rollladen", "raffstore", "insektenschutz", "fensterbank",
+                   "montage", "entsorgung"],
+            description: "Produkt-Kategorie. HST und PSK werden intern als fenster behandelt.",
+          },
+          oeffnungsart: {
+            type: "string",
+            enum: ["DK", "DKR", "DKL", "Stulp", "FIX", "HST", "PSK", "D", "K"],
+            description: "Oeffnungsart des Elements. Bei DK wird automatisch auch DKR und DKL gesucht.",
+          },
+          groessen_klasse: {
+            type: "string",
+            enum: ["XS", "S", "M", "L1", "L2", "XL"],
+            description: "Groessenklasse: XS(<0.3qm), S(0.3-0.7), M(0.7-1.3), L1(1.3-1.8), L2(1.8-2.5), XL(>2.5)",
+          },
+          verglasung: {
+            type: "string",
+            enum: ["2-fach", "3-fach"],
+            description: "Verglasungstyp (mit Bindestrich: 2-fach oder 3-fach)",
+          },
+          hat_rollladen: {
+            type: "boolean",
+            description: "Element hat Rollladen-Fuehrungsschiene (Aufpreis!). NUR bei true setzen - bei false weglassen.",
+          },
+          ist_kombi: {
+            type: "boolean",
+            description: "Kombielement (mehrere Felder in einem Rahmen)",
+          },
+        },
+        required: ["kategorie"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
       name: "suche_leistungsverzeichnis",
       description:
-        "Durchsucht das Leistungsverzeichnis (Servicekatalog) nach passenden Positionen. " +
-        "Nutze dies um Standardpreise und Bezeichnungen fuer Fenster, Tueren und Zubehoer zu finden.",
+        "Durchsucht das Leistungsverzeichnis per Textsuche nach passenden Positionen. " +
+        "Nutze dies als FALLBACK fuer Sonderpositionen, Zubehoer oder wenn suche_lv_granular " +
+        "keine Treffer liefert.",
       parameters: {
         type: "object",
         properties: {
@@ -381,7 +696,7 @@ const OPENAI_TOOLS = [
       description:
         "Berechnet den Fensterpreis nach der internen Kalkulationsformel: " +
         "Flaeche(qm) * System-Preis * Farbaufschlag * Sondermassaufschlag. " +
-        "Nutze dies als Fallback wenn keine historischen Preise vorhanden sind, " +
+        "Nutze dies als Fallback wenn suche_lv_granular match_quality='no_match' liefert, " +
         "oder um die historischen Preise zu validieren.",
       parameters: {
         type: "object",
@@ -425,16 +740,31 @@ Analysiere die Freitext-Beschreibung des Kunden und erstelle ein strukturiertes 
 ABLAUF:
 1. Parse den Text: Erkenne Raeume, Fenstertypen, Masse, Zubehoer
 2. Nutze die Tools um Preise zu ermitteln:
-   - suche_leistungsverzeichnis: Finde passende Katalog-Positionen
+   - suche_lv_granular: BEVORZUGT fuer alle Fenster/Tueren/Elemente (strukturierte Suche)
+   - Falls suche_lv_granular match_quality="no_match" liefert: berechne_fensterpreis nutzen
+   - suche_leistungsverzeichnis: Nur fuer Sonderpositionen (Textsuche)
    - hole_preishistorie: Pruefe historische Preise fuer aehnliche Masse
-   - berechne_fensterpreis: Berechne Preis nach Formel (Fallback/Validierung)
 3. Erstelle das Budget mit allen Positionen
+
+REGELN FUER PREISSUCHE:
+- BEVORZUGE suche_lv_granular fuer alle Fenster/Tueren/Elemente
+- Berechne die Groessenklasse aus den Massen: Flaeche = Breite*Hoehe/1000000 qm
+  XS: <0.3qm, S: 0.3-0.7, M: 0.7-1.3, L1: 1.3-1.8, L2: 1.8-2.5, XL: >2.5
+- Nutze den weighted_avg_preis als Referenzpreis
+- Rollladen: Setze hat_rollladen NUR bei true (bei false/unbekannt WEGLASSEN)
+- Bei match_quality="no_match": Sofort berechne_fensterpreis als Fallback nutzen
+- Bei Kombielementen (z.B. F/DKR): ist_kombi=true setzen
+- Bei FIX-Verglasung: oeffnungsart="FIX" setzen (sucht automatisch auch in festfeld)
+- DK (ohne Richtung): Wird automatisch gegen DK+DKR+DKL gesucht
+- HST: kategorie="fenster", oeffnungsart="HST" (wird automatisch gemappt)
+- PSK: kategorie="fenster", oeffnungsart="PSK" (wird automatisch gemappt)
+- Verglasung IMMER mit Bindestrich: "3-fach" oder "2-fach"
 
 REGELN FUER MASSE:
 - Masse IMMER in mm interpretieren/ausgeben
-- "1230x1480" → Breite=1230, Hoehe=1480 (schon mm)
-- "123x148" → ACHTUNG: koennte cm sein → Breite=1230, Hoehe=1480
-- "1.23x1.48" oder "1,23x1,48" → Meter → Breite=1230, Hoehe=1480
+- "1230x1480" -> Breite=1230, Hoehe=1480 (schon mm)
+- "123x148" -> ACHTUNG: koennte cm sein -> Breite=1230, Hoehe=1480
+- "1.23x1.48" oder "1,23x1,48" -> Meter -> Breite=1230, Hoehe=1480
 - Fenster sind typischerweise 400-3500mm breit und 400-3000mm hoch
 
 REGELN FUER KONTEXT:
@@ -445,12 +775,12 @@ REGELN FUER KONTEXT:
 - Material Default: Kunststoff
 
 REGELN FUER ZUBEHOER:
-- "RL" oder "Rollo" oder "Rollladen" → rollladen
-- "Raff" oder "Raffstore" → raffstore
-- "Motor" oder "elektrisch" oder "E" → elektrisch
-- "AFB" oder "Aussen-Fensterbank" → afb
-- "IFB" oder "Innen-Fensterbank" → ifb
-- "IS" oder "Insektenschutz" → insektenschutz
+- "RL" oder "Rollo" oder "Rollladen" -> rollladen
+- "Raff" oder "Raffstore" -> raffstore
+- "Motor" oder "elektrisch" oder "E" -> elektrisch
+- "AFB" oder "Aussen-Fensterbank" -> afb
+- "IFB" oder "Innen-Fensterbank" -> ifb
+- "IS" oder "Insektenschutz" -> insektenschutz
 
 ZUBEHOER-PREISE (als Referenz):
 - Rollladen: 180 EUR/m Breite (min. 120 EUR)
@@ -469,11 +799,11 @@ MONTAGE-PREISE:
 MWST: 19%
 
 REGELN FUER TYP:
-- "HT" oder "Haustuer" → typ: "haustuer"
-- "HST" oder "Hebeschiebetuer" → typ: "hst"
-- "PSK" → typ: "psk"
-- "Festfeld" oder "FIX" → typ: "festfeld"
-- Sonst → typ: "fenster"
+- "HT" oder "Haustuer" -> typ: "haustuer"
+- "HST" oder "Hebeschiebetuer" -> typ: "hst"
+- "PSK" -> typ: "psk"
+- "Festfeld" oder "FIX" -> typ: "festfeld"
+- Sonst -> typ: "fenster"
 
 CONFIDENCE:
 - high: Alle Daten eindeutig vorhanden
@@ -538,6 +868,17 @@ async function executeToolCall(
   let result: unknown;
 
   switch (name) {
+    case "suche_lv_granular":
+      result = await sucheLvGranular(args as {
+        kategorie: string;
+        oeffnungsart?: string;
+        groessen_klasse?: string;
+        verglasung?: string;
+        hat_rollladen?: boolean;
+        ist_kombi?: boolean;
+      });
+      break;
+
     case "suche_leistungsverzeichnis":
       result = await sucheLeistungsverzeichnis(args as {
         kategorie: string;
@@ -586,10 +927,6 @@ interface ChatMessage {
   tool_call_id?: string;
 }
 
-/**
- * Ruft GPT-5.2 auf und fuehrt den Tool-Loop aus.
- * Maximal MAX_TOOL_ROUNDS Runden um Endlosschleifen zu verhindern.
- */
 async function runGptToolLoop(userText: string, systemOverride?: string): Promise<{
   result: unknown;
   tool_calls_count: number;
@@ -605,7 +942,6 @@ async function runGptToolLoop(userText: string, systemOverride?: string): Promis
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
     console.log(`[GPT] Round ${round + 1}/${MAX_TOOL_ROUNDS}`);
 
-    // GPT-Call mit Timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), GPT_TIMEOUT_MS);
 
@@ -649,11 +985,8 @@ async function runGptToolLoop(userText: string, systemOverride?: string): Promis
     }
 
     const assistantMessage = choice.message;
-
-    // Assistenten-Nachricht zum Verlauf hinzufuegen
     messages.push(assistantMessage);
 
-    // Pruefen ob Tool-Calls vorhanden sind
     if (
       choice.finish_reason === "tool_calls" ||
       (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0)
@@ -663,7 +996,6 @@ async function runGptToolLoop(userText: string, systemOverride?: string): Promis
 
       console.log(`[GPT] ${toolCalls.length} Tool-Call(s) in Runde ${round + 1}`);
 
-      // Alle Tool-Calls ausfuehren
       for (const toolCall of toolCalls) {
         const fnName = toolCall.function.name;
         let fnArgs: Record<string, unknown>;
@@ -677,7 +1009,6 @@ async function runGptToolLoop(userText: string, systemOverride?: string): Promis
 
         const toolResult = await executeToolCall(fnName, fnArgs);
 
-        // Tool-Ergebnis zum Verlauf hinzufuegen
         messages.push({
           role: "tool",
           content: toolResult,
@@ -685,11 +1016,9 @@ async function runGptToolLoop(userText: string, systemOverride?: string): Promis
         });
       }
 
-      // Naechste Runde - GPT bekommt die Tool-Ergebnisse
       continue;
     }
 
-    // GPT hat eine finale Antwort gegeben (kein Tool-Call mehr)
     console.log(`[GPT] Finale Antwort in Runde ${round + 1}, ${totalToolCalls} Tool-Calls gesamt`);
 
     let parsedResult: unknown;
@@ -697,7 +1026,6 @@ async function runGptToolLoop(userText: string, systemOverride?: string): Promis
       parsedResult = JSON.parse(assistantMessage.content || "{}");
     } catch {
       console.error("[GPT] Antwort ist kein valides JSON, versuche Extraktion...");
-      // Versuche JSON aus der Antwort zu extrahieren
       const jsonMatch = (assistantMessage.content || "").match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         try {
@@ -762,10 +1090,6 @@ interface BudgetResult {
   fehlende_infos: string[];
 }
 
-/**
- * Validiert und vervollstaendigt das GPT-Ergebnis.
- * Stellt sicher, dass alle Zahlen korrekt berechnet sind.
- */
 function enrichBudgetResult(
   raw: Record<string, unknown>,
   optionen: { montage: boolean; demontage: boolean; system?: string }
@@ -780,19 +1104,15 @@ function enrichBudgetResult(
     material: "Kunststoff",
   };
 
-  // System-Override aus Optionen
   if (optionen.system) {
     kontext.system = optionen.system;
   }
 
-  // Positionen validieren und Summen neu berechnen
   let positionenNetto = 0;
   let totalElements = 0;
 
   for (const pos of positionen) {
-    // Sicherheits-Validierung der Preise
     if (typeof pos.einzel_preis !== "number" || pos.einzel_preis <= 0) {
-      // Preis nachberechnen falls GPT keinen geliefert hat
       const calc = berechneFensterpreis({
         breite_mm: pos.breite_mm,
         hoehe_mm: pos.hoehe_mm,
@@ -805,7 +1125,6 @@ function enrichBudgetResult(
 
     pos.gesamt_preis = round2(pos.einzel_preis * (pos.menge || 1));
 
-    // Zubehoer-Preise summieren
     let zubehoerTotal = 0;
     if (Array.isArray(pos.zubehoer)) {
       for (const zub of pos.zubehoer) {
@@ -819,7 +1138,6 @@ function enrichBudgetResult(
     totalElements += pos.menge || 1;
   }
 
-  // Montage berechnen
   const montageKosten = optionen.montage
     ? WORK_PRICES.montage.price_per_element * totalElements
     : 0;
@@ -832,13 +1150,11 @@ function enrichBudgetResult(
 
   const montageGesamt = montageKosten + demontageKosten + entsorgungKosten;
 
-  // Zusammenfassung
   const netto = round2(positionenNetto + montageGesamt);
   const mwst = round2(netto * VAT_RATE / 100);
   const brutto = round2(netto + mwst);
   const bruttoGerundet = roundTo50(brutto);
 
-  // Spanne: +/- 15% auf gerundeten Brutto
   const spanneVon = roundTo50(bruttoGerundet * 0.85);
   const spanneBis = roundTo50(bruttoGerundet * 1.15);
 
@@ -874,7 +1190,6 @@ async function saveBudgetToSupabase(
   rawText: string
 ): Promise<string | null> {
   try {
-    // 1. budget_cases erstellen
     const { data: caseData, error: caseError } = await supabase
       .from("budget_cases")
       .insert({
@@ -895,7 +1210,6 @@ async function saveBudgetToSupabase(
     const caseId = caseData.id;
     console.log(`[SAVE] Budget-Case erstellt: ${caseId}`);
 
-    // 2. budget_profile erstellen
     const { error: profileError } = await supabase
       .from("budget_profile")
       .insert({
@@ -914,7 +1228,6 @@ async function saveBudgetToSupabase(
       console.error("[SAVE] Fehler bei budget_profile:", profileError.message);
     }
 
-    // 3. budget_items erstellen
     for (const pos of budgetResult.positionen) {
       const { data: itemData, error: itemError } = await supabase
         .from("budget_items")
@@ -937,7 +1250,6 @@ async function saveBudgetToSupabase(
         continue;
       }
 
-      // Accessories aus Zubehoer-Array ableiten
       if (itemData && Array.isArray(pos.zubehoer) && pos.zubehoer.length > 0) {
         const hasRollladen = pos.zubehoer.some((z) => z.typ === "rollladen");
         const hasRaffstore = pos.zubehoer.some((z) => z.typ === "raffstore");
@@ -967,7 +1279,6 @@ async function saveBudgetToSupabase(
       }
     }
 
-    // 4. budget_results speichern
     const { error: resultError } = await supabase
       .from("budget_results")
       .insert({
@@ -984,14 +1295,13 @@ async function saveBudgetToSupabase(
           kontext: budgetResult.kontext,
           montage: budgetResult.montage,
         },
-        model_version: "budget-ki-v1.0.0",
+        model_version: "budget-ki-v1.3.0",
       });
 
     if (resultError) {
       console.error("[SAVE] Fehler bei budget_results:", resultError.message);
     }
 
-    // 5. budget_inputs speichern (Referenz zum Freitext)
     const { error: inputError } = await supabase
       .from("budget_inputs")
       .insert({
@@ -1021,26 +1331,28 @@ async function saveBudgetToSupabase(
 // =============================================================================
 
 Deno.serve(async (req: Request) => {
-  // ============================================================================
-  // CORS Preflight
-  // ============================================================================
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: CORS_HEADERS });
   }
 
-  // ============================================================================
-  // Health Check
-  // ============================================================================
   if (req.method === "GET") {
     return new Response(
       JSON.stringify({
         service: "budget-ki",
-        version: "1.0.0",
+        version: "1.3.0",
         status: "ready",
         model: "gpt-5.2",
         tools: OPENAI_TOOLS.map((t) => t.function.name),
         max_tool_rounds: MAX_TOOL_ROUNDS,
         timeout_ms: GPT_TIMEOUT_MS,
+        matching: {
+          stufen: ["exact (kat+oa+gk+verglasung+rl_smart)", "relaxed (kat+oa+gk)"],
+          fallback: "no_match -> berechne_fensterpreis",
+          dk_mapping: "DK -> IN (DK, DKR, DKL)",
+          rl_smart: "Filter nur bei hat_rollladen=true",
+          hst_psk: "HST/PSK -> fenster (v1.3.0)",
+          verglasung: "Normalisierung: 3fach->3-fach, 2fach->2-fach (v1.3.0)",
+        },
         configured: {
           openai: !!OPENAI_API_KEY,
           supabase: !!(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY),
@@ -1050,9 +1362,6 @@ Deno.serve(async (req: Request) => {
     );
   }
 
-  // ============================================================================
-  // POST - Budget berechnen
-  // ============================================================================
   if (req.method !== "POST") {
     return new Response(
       JSON.stringify({ success: false, error: "Method not allowed" }),
@@ -1063,7 +1372,6 @@ Deno.serve(async (req: Request) => {
   const startTime = Date.now();
 
   try {
-    // Request Body parsen
     const body = await req.json();
     const { text, kunde, optionen } = body as {
       text: string;
@@ -1075,7 +1383,6 @@ Deno.serve(async (req: Request) => {
       };
     };
 
-    // Validierung
     if (!text || typeof text !== "string" || text.trim().length === 0) {
       return new Response(
         JSON.stringify({
@@ -1088,14 +1395,12 @@ Deno.serve(async (req: Request) => {
 
     console.log(`[BUDGET-KI] Start: ${text.length} Zeichen, Kunde: ${kunde?.name || "unbekannt"}`);
 
-    // Optionen mit Defaults
     const effectiveOptionen = {
       montage: optionen?.montage ?? true,
       demontage: optionen?.demontage ?? true,
       system: optionen?.system,
     };
 
-    // User-Text fuer GPT aufbereiten
     let userPrompt = text;
     if (kunde?.name) {
       userPrompt = `Kunde: ${kunde.name}\n\n${text}`;
@@ -1107,26 +1412,22 @@ Deno.serve(async (req: Request) => {
       userPrompt += "\n\nHinweis: Keine Montage gewuenscht.";
     }
 
-    // GPT Tool-Loop ausfuehren
     const gptResult = await runGptToolLoop(userPrompt);
 
     console.log(
       `[BUDGET-KI] GPT fertig: ${gptResult.rounds} Runde(n), ${gptResult.tool_calls_count} Tool-Call(s)`
     );
 
-    // Ergebnis anreichern und validieren
     const enrichedResult = enrichBudgetResult(
       gptResult.result as Record<string, unknown>,
       effectiveOptionen
     );
 
-    // In Supabase speichern
     let budgetCaseId: string | null = null;
     try {
       budgetCaseId = await saveBudgetToSupabase(enrichedResult, kunde || null, text);
     } catch (saveError) {
       console.error("[BUDGET-KI] Speichern fehlgeschlagen:", saveError);
-      // Weiter - Ergebnis trotzdem zurueckgeben
     }
 
     const processingTimeMs = Date.now() - startTime;

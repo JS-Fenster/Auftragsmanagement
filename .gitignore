@@ -28,7 +28,6 @@ Thumbs.db
 
 # Build
 dist/
-frontend/dist/
 
 # Claude Code
 .claude/

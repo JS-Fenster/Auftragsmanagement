@@ -72,6 +72,8 @@
 | [B-063] | 2026-02-11 | BUDGET | PL | P022: categories.ts Duplikat-Fix (lokal OK, Deploy ausstehend) |
 | [B-064] | 2026-02-11 | BUDGET | PROG | P023: V2 Edge Functions lokal gesichert (budget-ki v1.0.0->v1.3.0) |
 | [B-065] | 2026-02-11 | BUDGET | PROG | P024: Step-Navigation + Freitext-Hash (U1 + U2 UX-Verbesserungen) |
+| [B-066] | 2026-02-11 | BUDGET | PL | Hotfix: Frontend→Dashboard Port + frontend/ geloescht + budget-dokument v1.1.0 deployed |
+| [B-067] | 2026-02-11 | BUDGET | PROG | Kunden-Autocomplete + Suchmodal im Budgetangebot (Kontakte-DB) |
 | [B-001] | 2026-02-03 | BUDGET | PL | System-Initialisierung |
 | [B-002] | 2026-02-03 | BUDGET | PL | 3-Agenten-Analyse abgeschlossen |
 | [B-003] | 2026-02-03 | BUDGET | PROG | Supabase Migration: 11 Tabellen angelegt |
@@ -4893,6 +4895,96 @@ Auftrag P024 - Zwei UX-Verbesserungen aus OPTIMIERUNG.md (U1 + U2) in BudgetDeta
 ### Naechster Schritt
 - Tester: UI manuell testen (Stepper-Klick, Zurueck/Vorwaerts, Freitext-Hash)
 - Weitere UX-Verbesserungen (U3-U5) bei Bedarf
+
+---
+
+## [B-066] Projektleiter: Hotfix - Frontend→Dashboard Port + budget-dokument v1.1.0
+**Datum:** 2026-02-11 23:30
+**Workflow:** BUDGET
+
+### Kontext
+Beim manuellen Testen der P018-P024 Features stellte sich heraus, dass ALLE UI-Aenderungen
+in der FALSCHEN Datei (`frontend/src/pages/BudgetDetail.jsx`) implementiert wurden. Der User
+nutzt ausschliesslich `dashboard/src/pages/Budgetangebot.jsx` (localhost:3001).
+
+### Durchgefuehrt
+
+**1. Feature-Port frontend/ → dashboard/**
+- Alle P018-P024 Features nach `dashboard/src/pages/Budgetangebot.jsx` portiert:
+  - StepIndicator: klickbar mit maxVisitedStep + visuellen Zustaenden
+  - Freitext-Hash (lastParsedTextRef): GPT-Call-Skip bei unveraendertem Text
+  - Netto/Brutto Toggle mit formatPreis()/toDisplayValue() Helpern
+  - FIRMA_INFO Konstante + Firmendaten in Zusammenfassung
+  - Montage V2 Details (Arbeitsstunden, Entsorgung lfm, Montagematerial)
+  - Preisspanne +/-15% von Brutto
+
+**2. Frontend-App komplett geloescht**
+- `frontend/` Verzeichnis geloescht (~143 MB, 13.321 Dateien)
+- CLAUDE.md, SETUP_ANLEITUNG.md, .gitignore, workflows/CLAUDE.md aktualisiert
+- Alle Referenzen auf "Frontend" → "Dashboard" geaendert
+
+**3. UI-Bugfixes**
+- Unicode-Escapes: `\u00b1` und `\u2013` als `{'\u00b1'}` in JSX
+- Preisspanne: Von +/-15% Netto auf +/-15% Brutto (gerundet auf 50 EUR)
+- "Gerundeter Richtwert" aus budget-dokument HTML entfernt
+
+**4. budget-dokument v1.1.0 deployed**
+- Firmendaten korrigiert: Regensburger Strasse 59, 92224 Amberg (vorher Fake-Adresse)
+- Telefon: 09621/76 35 33, Fax: 09621/78 32 59
+- Preisspanne-Validierung: +/-15% von Brutto statt Netto
+- Deploy erfolgreich als Version 4 auf Supabase
+
+### Ergebnis
+- Dashboard ist jetzt die EINZIGE React-App
+- budget-dokument v1.1.0 LIVE mit korrekten Firmendaten
+- Alle P018-P024 Features im Dashboard verfuegbar
+
+### Naechster Schritt
+- User: Reload + Test der deployten Aenderungen
+- Haustuer-Matching als naechsten grossen Hebel angehen
+
+---
+
+## [B-067] Programmierer: Kunden-Autocomplete + Suchmodal im Budgetangebot
+**Datum:** 2026-02-11 24:00
+**Workflow:** BUDGET
+
+### Kontext
+Feature-Request: Bestehende Kunden aus der kontakte-Tabelle im Budgetangebot uebernehmen koennen.
+Variante C (Autocomplete + Modal) aus Plan umgesetzt.
+
+### Durchgefuehrt
+
+**1. Neue searchKontakte()-Funktion**
+- 3 parallele Supabase-Queries (kontakte, kontakt_personen, kontakt_details)
+- Merge nach kontakt_id, fehlende nachladen
+- Rueckgabe: display_name, firma, ort, telefon, email pro Kontakt
+
+**2. Autocomplete im Namensfeld**
+- Debounced Suche (400ms) ab 2 Zeichen
+- Dropdown mit Name, Firma, Ort, Telefon
+- Klick auf Vorschlag befuellt Name, Telefon, E-Mail automatisch
+- "Kunde verknuepft" Badge bei Auswahl
+- X-Button zum Aufheben der Verknuepfung
+
+**3. Kunden-Suchmodal (KundenSuchModal-Komponente)**
+- Users-Icon Button neben Namensfeld
+- Modal mit Suchfeld + Ergebnistabelle (Name, Firma, Ort, Telefon, E-Mail)
+- Escape/Click-Outside schliesst Modal
+- Max 50 Ergebnisse
+
+**4. kontakt_id im API-Flow**
+- selectedKontaktId wird an budget-ki und budget-dokument mitgeschickt
+- handleReset setzt alle Kunden-States zurueck
+
+### Ergebnis
+- Build OK (vite build erfolgreich)
+- Einzige geaenderte Datei: `dashboard/src/pages/Budgetangebot.jsx`
+- Keine Breaking Changes
+
+### Naechster Schritt
+- Manueller Test im Browser (Autocomplete + Modal)
+- Optional: kontakt_id in Edge Functions verarbeiten (budget_cases.kontakt_id setzen)
 
 ---
 

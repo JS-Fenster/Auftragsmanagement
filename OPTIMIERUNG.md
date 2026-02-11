@@ -14,11 +14,11 @@ Das **erp-system-vite** wird als deprecated markiert. Alle fehlenden Features so
 
 | Bereich | ERP-System | Auftragsmanagement | Delta |
 |---------|------------|-------------------|-------|
-| Frontend-Seiten | 9 | 12 | -3 (aber andere Features) |
-| Backend-APIs | 0 (Frontend-only) | 25+ Endpunkte | ✅ AM besser |
-| Edge Functions | 0 | 10 | ✅ AM besser |
-| SQL Migrations | 0 | 6 | ✅ AM besser |
-| RLS Policies | 0 | Ja | ✅ AM besser |
+| Frontend-Seiten | 9 | 7 (Dashboard) + 12 (Legacy Frontend) | Dashboard ist Primary |
+| Backend-APIs | 0 (Frontend-only) | 25+ Endpunkte | AM besser |
+| Edge Functions | 0 | 10 aktiv + 1 deaktiviert | AM besser |
+| SQL Migrations | 0 | 6+ | AM besser |
+| RLS Policies | 0 | Ja | AM besser |
 
 ---
 
@@ -39,7 +39,7 @@ Das **erp-system-vite** wird als deprecated markiert. Alle fehlenden Features so
 - Portal-URL-Integration fuer direkten Zugriff
 
 **Umsetzungsvorschlag:**
-- Neue Seite `frontend/src/pages/Lieferanten.jsx`
+- Neue Seite `dashboard/src/pages/Lieferanten.jsx`
 - Daten aus `erp_lieferanten` (bereits vorhanden via Sync)
 - Route `/lieferanten` in App.jsx
 
@@ -62,7 +62,7 @@ Das **erp-system-vite** wird als deprecated markiert. Alle fehlenden Features so
 - Audit Log Integration
 
 **Umsetzungsvorschlag:**
-- Neue Seite `frontend/src/pages/Bestellungen.jsx`
+- Neue Seite `dashboard/src/pages/Bestellungen.jsx`
 - Daten aus `erp_bestellungen` (bereits vorhanden via Sync)
 - Neuer API-Endpunkt `/api/bestellungen` im Backend
 
@@ -91,7 +91,7 @@ Das **erp-system-vite** wird als deprecated markiert. Alle fehlenden Features so
 
 **Umsetzungsvorschlag:**
 - Package: `@fullcalendar/react` + Plugins
-- Neue Seite `frontend/src/pages/Kalender.jsx`
+- Neue Seite `dashboard/src/pages/Kalender.jsx`
 - Neue Tabelle `appointments` in Supabase
 - Integration mit `auftrag_status.montage_geplant`
 
@@ -117,7 +117,7 @@ Das **erp-system-vite** wird als deprecated markiert. Alle fehlenden Features so
 
 **Status Auftragsmanagement:**
 - `erp_angebote` und `erp_rechnungen` sind bereits als Cache vorhanden
-- Dashboard hat eine einfache Dokumente-Seite
+- Dashboard Dokumente-Seite (Two-Panel mit Preview, Filter, Email-Meta/Body/Anhaenge-Anzeige, PDF/Bild-Vorschau)
 - Fehlt: Detailbearbeitung, Positionsverwaltung, PDF-Export
 
 **Umsetzungsvorschlag:**
@@ -350,24 +350,20 @@ erp-system-vite/
 
 | App | Pfad | React | Vite | Port | Seiten |
 |-----|------|-------|------|------|--------|
-| Dashboard (NEU) | `dashboard/` | 19 | 7 | 3000 | 6 |
-| Frontend (ALT) | `frontend/` | 18 | 5 | 3000 | 12 |
+| Dashboard | `dashboard/` | 19 | 7 | 3000 | 6 |
 
-**Problem:**
-- Beide auf Port 3000 → koennen nicht gleichzeitig laufen
-- Duplizierte Seiten: Auftraege.jsx, Kunden.jsx
-- Frontend hat Reparaturen.jsx (94 KB Monster-Datei!)
+~~Frontend (ALT) wurde geloescht (2026-02-11). Dashboard ist die einzige UI.~~
 
-**TODO:**
-- [ ] Entscheiden: Dashboard ODER Frontend als Primary
-- [ ] Port-Konflikt loesen (z.B. Frontend auf 3002)
-- [ ] Reparaturen.jsx aufteilen (>90KB ist zu gross)
+**ERLEDIGT:**
+- [x] ~~Entscheiden: Dashboard ODER Frontend als Primary~~ → Dashboard
+- [x] ~~Port-Konflikt loesen~~ → Frontend geloescht
+- [ ] Reparaturen-Seite im Dashboard ergaenzen (fehlte im alten Frontend: 94 KB Monster-Datei)
 
 #### 6.1.3 Status-Systeme inkompatibel 🟡
 
 | System | Ort | Zustaende |
 |--------|-----|-----------|
-| WORKFLOW_STATUS | `frontend/src/lib/supabase.js` | 12 (angebot, auftrag, etc.) |
+| WORKFLOW_STATUS | ~~`frontend/src/lib/supabase.js`~~ (geloescht) | 12 (angebot, auftrag, etc.) |
 | AUFTRAG_STATUS | `dashboard/src/lib/constants.js` | 8 (OFFEN, IN_BEARBEITUNG, etc.) |
 
 **TODO:**
@@ -401,9 +397,9 @@ Nur Abschnitt 9 (Projekt-Kontext) unterscheidet sich.
 
 | Variable | Orte | Problem |
 |----------|------|---------|
-| SUPABASE_URL | backend/.env, frontend/.env, dashboard/.env, sync/.env | 4x gleicher Wert |
+| SUPABASE_URL | backend/.env, dashboard/.env, sync/.env | 3x gleicher Wert |
 | SUPABASE_KEY | backend/.env, sync/.env | 2x Service Key |
-| VITE_SUPABASE_ANON_KEY | frontend/.env, dashboard/.env | Enthaelt SERVICE_KEY statt ANON_KEY! |
+| VITE_SUPABASE_ANON_KEY | dashboard/.env | Enthaelt SERVICE_KEY statt ANON_KEY! |
 
 **TODO:**
 - [ ] Zentrale .env im Root erstellen
@@ -522,20 +518,23 @@ EMPFOHLEN:
 ### Workflows
 | Workflow | Dateien | Status |
 |----------|---------|--------|
-| `workflows/budgetangebote/` | 7 | V2 deployed |
-| `workflows/reparaturen/` | 11 | Step 3 fertig |
+| `workflows/budgetangebote/` | 7 | V2 deployed, alle Backtest-Ziele erreicht |
+| `workflows/reparaturen/` | 11 | Step 3+ (Dashboard komplett, Email-Pipeline aktiv) |
 
-### Edge Functions (10 aktiv)
+### Edge Functions (aktiv)
 | Function | Version | Zweck |
 |----------|---------|-------|
-| process-document | v38 | OCR + Kategorisierung |
-| email-webhook | v24 | Microsoft Graph Webhook |
-| process-email | v28 | E-Mail verarbeiten |
-| admin-review | v20 | Review-UI |
-| reparatur-api | v9 (2.0.1) | Reparatur CRUD |
-| budget-ki | aktiv | Budget-Berechnung |
+| process-document | v33 (GPT-5 mini) | OCR + Kategorisierung |
+| email-webhook | aktiv | Microsoft Graph Webhook |
+| process-email | v4.3.0 (Deploy 37) | E-Mail verarbeiten (21 Kategorien) |
+| admin-review | aktiv | Review-UI |
+| reparatur-api | v2.3.0 (Deploy 12) | Reparatur CRUD + Einsatzort |
+| reparatur-aging | v2.0.0 (Deploy 3) | Aging-Berechnung |
+| telegram-bot | v3.3.0 (Deploy 10) | Telegram-Integration |
+| renew-subscriptions | v1.2 (Deploy 13) | Graph-Subscription Renewal |
+| budget-ki | aktiv | Budget-Berechnung (LV-Matching) |
 | budget-dokument | aktiv | Budget-Dokumente |
-| + 3 weitere | - | Utility Functions |
+| recategorize-batch | DEAKTIVIERT (v6 Stub) | HTTP 410 Gone |
 
 ---
 
@@ -543,112 +542,10 @@ EMPFOHLEN:
 
 ---
 
-## 9. Workflow-Logs Konsolidierung ✅ ERLEDIGT
+## 9. Workflow-Logs Konsolidierung ✅ ERLEDIGT (2026-02-06)
 
-> **Status:** Umgesetzt am 2026-02-06
-
-### 9.1 Neue Struktur
-
-```
-workflows/
-├── MASTER_LOG.md              ← 77 Eintraege (R-001 bis R-039 + B-001 bis B-038)
-├── budgetangebote/
-│   ├── CLAUDE.md              ← Vollstaendig, verweist auf ../MASTER_LOG.md
-│   ├── 03_LOG_ARCHIVED.md     ← Alte Version
-│   └── 04_LEARNINGS.md        ← Nutzt [B-XXX] IDs
-└── reparaturen/
-    ├── CLAUDE.md              ← Vollstaendig, verweist auf ../MASTER_LOG.md
-    ├── 03_LOG_ARCHIVED.md     ← Alte Version
-    └── 04_LEARNINGS.md        ← Nutzt [R-XXX] IDs
-```
-
-### 9.2 Entscheidungen
-
-| Thema | Entscheidung | Grund |
-|-------|--------------|-------|
-| CLAUDE.md | Bleibt vollstaendig pro Workflow | Claude liest nur 1 Datei - einfacher |
-| LOG | Zentralisiert in MASTER_LOG.md | Ein Ort zum Suchen, uebergreifende Aenderungen sichtbar |
-| INDEX | Ohne Zeilenangaben | Suche per `## [R-XXX]` ist robuster |
-| LEARNINGS | Bleiben lokal pro Workflow | Workflow-spezifische Erkenntnisse |
-
-### 9.3 Urspruengliche Analyse (historisch)
-
-| Datei | Budgetangebote | Reparaturen | Problem |
-|-------|----------------|-------------|---------|
-| `03_LOG.md` | 2663 Zeilen, 38 Eintraege | 2301 Zeilen, 39 Eintraege | Jetzt in MASTER_LOG.md |
-| `04_LEARNINGS.md` | 72 Zeilen, 35 Learnings | 53 Zeilen, 23 Learnings | Bleiben lokal |
-| `CLAUDE.md` | 442 Zeilen | 454 Zeilen | Bleiben vollstaendig (95% identisch ist OK) |
-
-### 9.2 Ueberschneidende Learnings (sollten zentralisiert werden)
-
-Diese Erkenntnisse gelten fuer ALLE Workflows:
-
-| Thema | Budget | Reparatur | Zentral? |
-|-------|--------|-----------|----------|
-| Index-Pflege kritisch | L1 | L1 | ✅ Ja |
-| Preflight/Postflight-Checks | implizit | L2, L3 | ✅ Ja |
-| Background-Subagenten kein MCP | implizit | L6 | ✅ Ja |
-| Zeit nicht das knappe Gut, sequentiell OK | implizit | L7 | ✅ Ja |
-| 5 Nachtmodus-Mechanismen kumulativ | implizit | L10-L13, L15 | ✅ Ja |
-| MCP-Ausfaelle dokumentieren | - | L18 | ✅ Ja |
-| RLS ohne Policies = unsichtbare Daten | - | L19, L21 | ✅ Ja |
-| API-Keys in app_config synchron halten | L17 | L23 | ✅ Ja |
-
-### 9.3 Workflow-spezifische Learnings (bleiben lokal)
-
-**Budgetangebote (NICHT zentralisieren):**
-- L2-L3: W4A Daten nicht replizieren, Angebot→Auftrag
-- L5-L13: Textpositionen, Mass-Formate, Backtest-Ziele
-- L14-L27: Header-Keywords, EK→VK Aufschlag, Artikel-Tabellen
-- L28-L35: GPT-Extraktion, Prefer Headers, PostgREST Upsert
-- D1-D4: Architektur-Entscheidungen (GPT statt Regex, etc.)
-
-**Reparaturen (NICHT zentralisieren):**
-- L4-L5: Kommunikation ueber Markdown, 300-Zeilen-Checkpoints
-- L14-L17: Nachtmodus-Test, Stop-Hook, Luecken-Strategien
-- L20, L22: ERP-Daten View-Schicht, Storage Signed URLs
-
-### 9.4 Vorgeschlagene Struktur
-
-```
-workflows/
-├── _SHARED/                              ← NEU
-│   ├── WORKFLOW_CLAUDE_BASE.md           ← Gemeinsame 400 Zeilen
-│   ├── SYSTEM_LEARNINGS.md               ← Uebergreifende Erkenntnisse (~15 Eintraege)
-│   └── TEMPLATES/
-│       ├── LOG_ENTRY.md
-│       ├── CHECKPOINT.md
-│       └── ABSCHLUSSBERICHT.md
-├── budgetangebote/
-│   ├── CLAUDE.md                         ← Nur noch ~50 Zeilen (Projekt-Kontext)
-│   ├── 04_LEARNINGS.md                   ← Nur Budget-spezifische (~25 Eintraege)
-│   └── ...
-└── reparaturen/
-    ├── CLAUDE.md                         ← Nur noch ~50 Zeilen (Projekt-Kontext)
-    ├── 04_LEARNINGS.md                   ← Nur Reparatur-spezifische (~15 Eintraege)
-    └── ...
-```
-
-### 9.5 Vorteile der Konsolidierung
-
-| Vorteil | Beschreibung |
-|---------|--------------|
-| **Konsistenz** | Alle Workflows nutzen gleiche System-Regeln |
-| **Wartbarkeit** | Aenderungen an CLAUDE.md nur an 1 Stelle |
-| **Keine Doppelarbeit** | Learning einmal dokumentieren, ueberall nutzen |
-| **Bessere Uebersicht** | Weniger Zeilen pro Workflow-Ordner |
-| **Rollback-Sicherheit** | Logs bleiben workflow-spezifisch |
-
-### 9.6 Umsetzungs-TODOs
-
-| # | Aufgabe | Aufwand |
-|---|---------|---------|
-| T4.1 | `workflows/_SHARED/` Ordner erstellen | 5 Min |
-| T4.2 | `WORKFLOW_CLAUDE_BASE.md` extrahieren (Abschnitte 1-8, 10-11) | 30 Min |
-| T4.3 | `SYSTEM_LEARNINGS.md` mit uebergreifenden Erkenntnissen erstellen | 45 Min |
-| T4.4 | Budgetangebote CLAUDE.md auf Kontext reduzieren | 15 Min |
-| T4.5 | Reparaturen CLAUDE.md auf Kontext reduzieren | 15 Min |
-| T4.6 | Beide 04_LEARNINGS.md bereinigen (System-Learnings entfernen) | 30 Min |
+> MASTER_LOG.md zentralisiert, CLAUDE.md bleibt vollstaendig pro Workflow, Learnings bleiben lokal.
+> _SHARED-Ordner verworfen - einfacher wenn alles in einer Datei bleibt.
 
 ---
 
@@ -680,22 +577,9 @@ workflows/
 | T3.3 | Frontend/Dashboard Entscheidung | 6.1.2 |
 | T3.4 | TypeScript Migration evaluieren | 3 |
 
-### Prioritaet 4 - Workflow-Konsolidierung ✅ ERLEDIGT
+### Prioritaet 4 - Workflow-Konsolidierung ✅ ERLEDIGT (2026-02-06)
 
-| # | Aufgabe | Status |
-|---|---------|--------|
-| T4.1 | ~~_SHARED Ordner erstellen~~ | ❌ Verworfen - CLAUDE.md bleibt vollstaendig pro Workflow |
-| T4.2 | ~~WORKFLOW_CLAUDE_BASE.md extrahieren~~ | ❌ Verworfen - einfacher wenn alles in einer Datei |
-| T4.3 | MASTER_LOG.md erstellen | ✅ ERLEDIGT 2026-02-06 |
-| T4.4 | CLAUDE.md auf MASTER_LOG.md umstellen | ✅ ERLEDIGT 2026-02-06 |
-| T4.5 | 04_LEARNINGS.md IDs anpassen | ✅ ERLEDIGT 2026-02-06 |
-| T4.6 | Alte 03_LOG.md archivieren | ✅ ERLEDIGT 2026-02-06 |
-
-**Entscheidung:** CLAUDE.md bleibt vollstaendig pro Workflow (besser fuer Claude), nur der LOG wurde zentralisiert.
-
----
-
-*Aktualisiert: 2026-02-06 - Workflow-Logs Konsolidierung hinzugefuegt*
+> Siehe Section 9. MASTER_LOG zentralisiert, CLAUDE.md bleibt vollstaendig pro Workflow.
 
 ---
 
@@ -713,11 +597,10 @@ workflows/
 
 ---
 
-#### V1 (VOLLSTAENDIG VORHANDEN - frontend/)
+#### V1 (GELOESCHT - war in frontend/, jetzt nur dashboard/)
 
-**Frontend-Seiten:**
-- `frontend/src/pages/Budgetangebot.jsx` (504 Zeilen) - Listenseite
-- `frontend/src/pages/BudgetDetail.jsx` (1012 Zeilen) - Detailseite
+**Dashboard-Seite:**
+- `dashboard/src/pages/Budgetangebot.jsx` - Komplett-Workflow (Eingabe→Positionen→Zusammenfassung→Vorschau)
 
 **V1 Features (alle funktional):**
 
@@ -795,61 +678,30 @@ ACCESSORY_PRICES = {
 
 ---
 
-#### V2 (LOKAL NICHT VORHANDEN!)
+#### V2 (LOKAL VORHANDEN + DEPLOYED)
 
-**Laut 02_STATUS.md sind deployed:**
-- `budget-ki` Edge Function (ACTIVE in Supabase)
-- `budget-dokument` Edge Function (ACTIVE in Supabase)
-- Dashboard mit 4-Schritt-Wizard (E2E getestet)
+**Edge Functions (lokal + deployed):**
+- `supabase/functions/budget-ki/index.ts` - LV-Matching mit GPT Function Calling
+- `supabase/functions/budget-dokument/index.ts` - Budget-Dokument Generierung
 
-**PROBLEM: Lokaler Code FEHLT!**
+**Frontend:**
+- ~~V2 Frontend (frontend/) geloescht~~ - alle Features nach Dashboard portiert (2026-02-11)
+- Dashboard (`dashboard/src/pages/Budgetangebot.jsx`) ist die einzige Budget-UI
 
-```
-supabase/functions/
-├── budget-ki/        ← NICHT VORHANDEN
-├── budget-dokument/  ← NICHT VORHANDEN
-└── test-budget-extraction/  ← Nur Test-Funktion (6045 Zeilen)
-
-dashboard/src/pages/
-├── Uebersicht.jsx    ← Keine Budget-Seite!
-├── Auftraege.jsx
-├── Dokumente.jsx
-├── Kunden.jsx
-├── Emails.jsx
-└── Einstellungen.jsx
-```
-
-**Schlussfolgerung:**
-Marco hat V2 wahrscheinlich direkt in Supabase Cloud erstellt, ohne den Code lokal zu committen. Der Dashboard-Code fuer den 4-Schritt-Wizard existiert ebenfalls nicht lokal.
+**Backtest-Ergebnisse (P017, 2026-02-10):**
+- Median-Abweichung: 9.6% (Ziel <15%)
+- Trefferquote <=20%: 75.2% (Ziel >70%)
+- Ausreisser >50%: 7.5% (Ziel <10%)
+- Coverage: 98.7% (Ziel >90%)
 
 ---
 
-#### Handlungsoptionen
+#### Status
 
-**Option A: V2 Code von Marco holen**
-- [ ] Marco fragen: Wo liegt der V2-Code?
-- [ ] Edge Functions aus Supabase Dashboard exportieren
-- [ ] Dashboard-Wizard Code anfordern
-- [ ] Lokal committen
+V2 ist aktiv und deployed. V1 (Backend-Services) existiert parallel in `backend/services/budget/`.
+Beide Systeme nutzen unterschiedliche Ansaetze: V1 = regelbasiert (priceCalculator.js), V2 = LV-basiert (budget-ki + Leistungsverzeichnis mit 364 Clustern).
 
-**Option B: V1 nutzen und erweitern**
-- V1 ist vollstaendig und funktional
-- Backend-Kalkulation funktioniert
-- Frontend hat alle Features
-- Nur noch Backend starten und testen
-
-**Option C: V1 Features in Dashboard integrieren**
-- Dashboard hat kein Budget-Modul
-- V1 Features als neue Seite in Dashboard einbauen
-- Bestehende Services wiederverwenden
-
----
-
-#### Empfehlung
-
-1. **Sofort:** V1 im `frontend/` testen (Backend + Frontend starten)
-2. **Dann:** Mit Marco klaeren wo V2-Code liegt
-3. **Langfristig:** Code-Basis vereinheitlichen (eine Version)
+**Offene Entscheidung:** V1 Backend-Services deprecaten oder als Fallback behalten?
 
 ---
 
@@ -1312,87 +1164,11 @@ Anruf: Tochter Mueller (0171-xxxx)
 
 ---
 
-### 11.5 Kategorisierungs-Optimierung (Dokumente + E-Mails) 🟢
+### 11.5 Kategorisierungs-Optimierung (Dokumente + E-Mails) ✅ ABGESCHLOSSEN (2026-02-10)
 
-| Attribut | Wert |
-|----------|------|
-| **Prioritaet** | HOCH |
-| **Bereich** | E-Mail-Pipeline, Dokument-Pipeline |
-| **Herkunft** | PLAN.md PRIO 1 (aufgeloest) |
-| **Notiert** | 2026-02-02 |
-| **Stand** | 2026-02-10: ALLE 534 Emails kategorisiert, Sonstiges 87%→11%, Batch deaktiviert |
-
-#### Problem (urspruenglich)
-
-Die KI-Kategorisierung hatte massives Verbesserungspotenzial:
-- **14%** der Dokumente landen als "Sonstiges_Dokument"
-- **97.5%** der E-Mails landen als "Sonstiges"
-
-#### Umgesetzt: E-Mail-Prompt v4.2.1 (2026-02-09)
-
-**process-email Edge Function** v4.1.1 → v4.2.1 (Deploy 36):
-- Komplett ueberarbeiteter GPT-5 Nano System-Prompt
-- Few-Shot-Beispiele fuer ALLE Kategorien (nicht nur Kundenanfrage)
-- Absender-Muster-Erkennung (partnerinfo@, marketing@, news@ = Newsletter)
-- Bekannte Lieferanten-Domains als Hint (weru.de, unilux.de, becker-antriebe.com)
-- Neue Kategorie **Nachverfolgung** (Status-Nachfragen, loest KEINEN neuen Auftrag aus)
-- Personalvermittler = Newsletter_Werbung, nicht Bewerbung
-- Kleinanzeigen = Sonstiges, nicht Lead_Anfrage
-- Inhalt vor Betreff priorisieren ("Re: Beauftragung" kann Statusfrage sein)
-- Coaching-Absagen = Intern, nicht Terminanfrage
-- "Sonstiges" als explizit letzte Option betont
-
-#### Nachkategorisierung aller Emails (2026-02-10)
-
-468 aeltere Emails (kategorisiert_von: process-email-gpt) per recategorize-batch v5
-nachkategorisiert (parallele Verarbeitung, 5 GPT-Calls gleichzeitig, 9 Batch-Runs).
-
-**Gesamtergebnis (534 Emails):**
-
-| Kategorie | Anzahl | % |
-|-----------|--------|---|
-| Newsletter_Werbung | 197 | 36.9% |
-| Lieferstatus_Update | 59 | 11.0% |
-| Sonstiges | 59 | 11.0% |
-| Intern | 42 | 7.9% |
-| Rechnung_Eingang | 33 | 6.2% |
-| Angebot_Anforderung | 25 | 4.7% |
-| Nachverfolgung | 24 | 4.5% |
-| Bestellbestaetigung | 20 | 3.7% |
-| Terminanfrage | 17 | 3.2% |
-| Kundenanfrage | 16 | 3.0% |
-| Lead_Anfrage | 15 | 2.8% |
-| + 6 weitere | 27 | 5.1% |
-
-**17 von 20 Kategorien aktiv genutzt.** Nicht genutzt: BAFA_Foerderung, Versicherung_Schaden, Rechnung_Gesendet.
-
-**Qualitaets-Audit:**
-- Newsletter Stichprobe 15/15 korrekt
-- Anfrage-Kategorien ueberwiegend korrekt
-- Geschaetzte Genauigkeit: ~90%
-- Bekanntes Problem: Kleinanzeigen "Fiat Punto" 4 von 9 falsch als Lead_Anfrage
-
-#### Cleanup (2026-02-10)
-
-- [x] recategorize-batch deaktiviert (v6 Stub, verify_jwt:true, HTTP 410 Gone)
-
-#### Dokument-Kategorisierung optimiert (2026-02-10)
-
-**process-document v33** deployed:
-- GPT-5.2 → GPT-5 mini (Kosten: $0.03→$0.002/Doc, -93%)
-- Heuristik komplett entfernt (war Hauptursache fuer Fehlklassifizierungen)
-- canonicalizeKategorie() fuer Typo-Korrektur
-- 500-Docs-Backtest: 235 geaendert (47%), Stichproben korrekt
-
-**Bulk-Re-Kategorisierung** aller 308 Scanner-Docs:
-- 126 geaendert (40.9%), 120 in DB applied
-- Top: 15x ER→Lieferschein, 13x AB→Lieferschein, 12x Sonstiges→Bild, 10x ER→Montageauftrag
-- Stichproben-Verifikation: Alle korrekt
-
-#### Offen
-
-- [x] ~~Dokument-Kategorisierung optimiert~~ ERLEDIGT (process-document v33 + Bulk-Rekat)
-- [ ] Evaluierung nach 1 Woche Echtbetrieb (geplant ~16.02.2026)
+> **Ergebnis:** Sonstiges 97%→11% (Emails), process-document v33 (GPT-5 mini, -93% Kosten), 534 Emails + 308 Docs nachkategorisiert, recategorize-batch deaktiviert, ~90% Genauigkeit.
+>
+> **Offen:** Evaluierung nach 1 Woche Echtbetrieb (geplant ~16.02.2026)
 
 ---
 
@@ -1445,107 +1221,14 @@ Scanner-Problem wurde am 28.01.2026 behoben, alte Dateien liegen in `\\appserver
 
 ---
 
-### 11.8 Budgetangebot: Preisoptimierung + Daten-Erweiterung 📋
+### 11.8 Budgetangebot: Preisoptimierung + Daten-Erweiterung ✅ ZIELE ERREICHT (2026-02-10)
 
-| Attribut | Wert |
-|----------|------|
-| **Prioritaet** | HOCH |
-| **Bereich** | budget-ki Edge Function, Leistungsverzeichnis |
-| **Notiert** | 2026-02-10 |
-| **Stand** | Sprint P012-P017 ABGESCHLOSSEN - ALLE 4 ZIELE ERREICHT! |
-
----
-
-#### Aktueller Stand (2026-02-10, nach P017)
-
-| Metrik | Start (P005) | P011 v1.2.0 | **P017 (aktuell)** | Ziel | Status |
-|--------|-------------|-------------|---------------------|------|--------|
-| Median-Abweichung | 30.9% | 18.6% | **9.6%** | <15% | ERREICHT |
-| Trefferquote <=20% | 37.1% | 52.8% | **75.2%** | >70% | ERREICHT |
-| Ausreisser >50% | 26.3% | 8.9% | **7.5%** | <10% | ERREICHT |
-| Coverage | 72% | 91.8% | **98.7%** | >90% | ERREICHT |
-
-**Durchbruch:** LV-Kompression (P016: 7.483 → 364 Cluster, avg 77.7 Samples).
-
----
-
-#### Erkenntnis: Kundenrabatte in den Daten
-
-**27% der Rechnungspositionen haben einen Kundenrabatt** (568 von ~2.100 Positionen).
-
-| Feld | Bedeutung | Im LV genutzt? |
-|------|-----------|-----------------|
-| `einz_preis` | Listenpreis OHNE Kundenrabatt | **JA** (korrekt) |
-| `ges_preis` | Effektiv-Preis MIT Kundenrabatt | NEIN |
-
-Typische Kundenrabatte: 5%, 10%, 13%, 15%, 20%, 30%
-
-**Entscheidung:** `einz_preis` bleibt die Preisbasis fuer das Budgetangebot.
-Begruendung: Das Budgetangebot zeigt den Standardpreis. Kundenrabatte werden
-individuell verhandelt und erst im echten Angebot/Auftrag angewendet.
-
-**Konsequenz fuer Backtest:** Ein Teil der gemessenen 18.6% Median-Abweichung
-entsteht dadurch, dass der Backtest gegen `einz_preis` der Rechnung vergleicht,
-aber bei 27% der Positionen der Kunde weniger bezahlt hat. Der "echte" Median
-(ohne rabattierte Positionen) liegt geschaetzt bei ~15-16%.
-
-**Spaetere Erweiterung:** Rabattpflege im Angebots-Editor moeglich.
-Umsetzung: Einfache Multiplikation (Summe × (1 - Rabatt%)).
-
----
-
-#### WERU-Rabattkonditionen JS Fenster (Referenz)
-
-**Grundrabatte (ab 01.03.2023, dauerhaft):**
-
-| Rabattgruppe | Rabatt |
-|---|---|
-| Kunststofffenster | 58% |
-| Aluminiumfenster | 35% |
-| Sichtschutz | 40% |
-| Haustüren | 40% |
-| Zubehör | 25% |
-
-**Objektrabatte (Sonderkondition ab 5 Fluegel):**
-
-| System | 2024 | 2025-2026 |
-|--------|------|-----------|
-| Premium (CALIDO, Castello, IMPREO, AFINO) | 67,5% | 70% |
-| ALEGRA | 65,5% | 68% |
-| AMENTA (neu 2026) | - | 46% |
-| ATRIS (neu 2026) | - | 41% |
-| Zubehoer | ~30% | 30% |
-
-BLP (Bruttolistenpreise) sind stabil seit mind. 2024, keine Preisanpassung gefunden.
-EK-Differenz 2024 vs 2025: ca. 7-8% (32,5% → 30% vom BLP).
-
----
-
-#### Naechste Optimierungshebel (priorisiert)
-
-| # | Hebel | Erwarteter Impact | Aufwand |
-|---|-------|-------------------|---------|
-| 1 | **2024er Positionen aus W4A nachsynchen** | +~20.000 Pos., dichteres LV, neue Matches | 2-4 Std |
-| 2 | **LV-Daten ergaenzen:** festfeld-Kombis + balkontuer-Stulp + HST | +35 Matches, Coverage ~100% | 2-3 Std |
-| 3 | **"sonstiges"-Regex verbessern** | 18 Pos. mit 51.6% Median eliminieren | 1-2 Std |
-| 4 | **Relaxed-Match-Qualitaet** analysieren | 30 Pos. mit 44% Median | 2 Std |
-| 5 | **WERU-Listenpreise als Fallback** | Ungematchte Pos. kalkulierbar | 4-6 Std |
-
----
-
-#### Daten-Bestand Supabase (2026-02-10, nach P014 Sync)
-
-| Tabelle | Gesamt | Zeitraum |
-|---------|--------|----------|
-| erp_rechnungen | ~1.100 | ab 2023 |
-| erp_angebote | ~1.179 | ab 2023 |
-| erp_rechnungs_positionen | **12.145** | ab 2023 |
-| erp_angebots_positionen | **29.430** | ab 2023 |
-| leistungsverzeichnis | **364 Cluster** | aggregiert (P016 komprimiert) |
-
-**P014 Sync:** 2023-2024 Daten nachgeladen. Rechnungspositionen 3.315→12.145, Angebotspositionen 6.772→29.430.
-
----
+> **Ergebnis (P017):** Median 9.6% (<15%), Treffer 75.2% (>70%), Ausreisser 7.5% (<10%), Coverage 98.7% (>90%).
+> **Durchbruch:** LV-Kompression 7.483→364 Cluster. Daten: 12.145 Rechnungs- + 29.430 Angebotspositionen (ab 2023).
+> **Kundenrabatte:** 27% der Positionen rabattiert, einz_preis bleibt Preisbasis.
+> **WERU-Rabatte:** Kunststoff 58%, Alu 35%, Objektrabatt 70% (Premium), BLP stabil seit 2024.
+>
+> **Offene Hebel:** haustuer-Matching (544 Pos., 32.7% Median), HST/Raffstore LV ergaenzen (25 unmatched).
 
 ---
 
@@ -1581,7 +1264,7 @@ EK-Differenz 2024 vs 2025: ca. 7-8% (32,5% → 30% vom BLP).
 **Gewuenscht:** Klick auf einen Schritt-Indikator oben springt direkt dorthin, unabhaengig vom aktuellen Schritt.
 
 **Technischer Kontext:**
-- Frontend: `frontend/src/pages/BudgetDetail.jsx` (1012 Zeilen)
+- Dashboard: `dashboard/src/pages/Budgetangebot.jsx` (komplett-Workflow)
 - Aktuell Single-Page mit collapsible Sections
 - Stepper-Navigation muss auf beliebigen Schritt-Wechsel umgebaut werden
 
@@ -1704,4 +1387,108 @@ Montage/Demontage/Entsorgung werden per Default einbezogen und als separate Posi
 
 ---
 
-*Aktualisiert: 2026-02-10 - Budgetangebot UI/UX-Optimierungen (11.9) hinzugefuegt*
+### 11.10 Kontakt-Detail: Interaktive Summary-Cards 📋
+
+| Attribut | Wert |
+|----------|------|
+| **Prioritaet** | Mittel |
+| **Bereich** | Frontend (Kunden.jsx - KontaktDetailModal) |
+| **Notiert** | 2026-02-11 |
+| **Stand** | Dokumentiert, noch nicht umgesetzt |
+
+**Anforderung:** Alle Summary-Cards im Kontakt-Detail-Modal sollen klickbar/interaktiv sein. Ein Klick auf eine Card oeffnet eine gefilterte Ansicht der zugehoerigen Daten fuer diesen einen Kunden.
+
+| Card | Klick-Aktion |
+|------|-------------|
+| **Projekte** | Zeigt alle Projekte dieses Kunden (gefiltert) |
+| **Angebotswert** | Zeigt alle Angebote dieses Kunden mit Betraegen |
+| **Rechnungen** | Zeigt alle Rechnungen dieses Kunden |
+| **Offene Rechnungen** | Zeigt NUR die offenen Rechnungen (Faellig/Ueberfaellig) |
+
+**Moegliche Umsetzung:**
+- Klick scrollt zur jeweiligen ExpandableSection und oeffnet sie
+- Oder: Klick oeffnet eine eigene Filteransicht/Modal
+- Offene Rechnungen koennte direkt die Rechnungs-Section oeffnen mit Filter auf "offen"
+
+**Aufwand:** 2-4 Stunden
+
+---
+
+### 11.11 Hardcoded Werte zentralisieren / externalisieren 📋
+
+| Attribut | Wert |
+|----------|------|
+| **Prioritaet** | HOCH |
+| **Bereich** | Dashboard, Edge Functions, Backend |
+| **Notiert** | 2026-02-11 |
+| **Stand** | Dokumentiert, noch nicht umgesetzt |
+
+---
+
+#### Problem
+
+Ueberall im Code sind Werte fest eingetragen (Firmendaten, Steuersaetze, Montage-Preise, etc.). Bei Aenderungen muss man an vielen Stellen suchen und manuell anpassen - fehleranfaellig und wartungsintensiv.
+
+---
+
+#### Bekannte Hardcoded-Stellen
+
+| Wert | Datei(en) | Was |
+|------|-----------|-----|
+| **Firmendaten** (Name, Adresse, Tel, Fax, Email) | `dashboard/src/pages/Budgetangebot.jsx` (FIRMA_INFO), `supabase/functions/budget-dokument/index.ts` (4x) | Firma, Strasse, PLZ, Tel, Fax, Email, Web, GF |
+| **MwSt-Satz** (0.19) | `dashboard/src/pages/Budgetangebot.jsx` (MWST_SATZ), `budget-dokument/index.ts` | Steuersatz 19% |
+| **Montage-Preise** | `backend/services/budget/priceCalculator.js` (WORK_PRICES), `budget-ki/index.ts` | 80/40/25 EUR pro Element |
+| **Zubehoer-Preise** | `backend/services/budget/priceCalculator.js` (ACCESSORY_PRICES) | Rollladen 180/m, Raffstore 280/m, etc. |
+| **System-Preise** | `backend/services/budget/priceCalculator.js` (SYSTEM_PRICES) | CASTELLO 400, CALIDO 420, IMPREO 520 EUR/qm |
+| **Preisspanne** (±15%) | `dashboard/src/pages/Budgetangebot.jsx`, `budget-dokument/index.ts` | Toleranz fuer Budgetschaetzung |
+| **Rundung** (auf 50 EUR) | `dashboard/src/pages/Budgetangebot.jsx`, `budget-dokument/index.ts` | Rundungsgranularitaet |
+| **Dokument-Kategorien** | `dashboard/src/lib/constants.js` (DOKUMENT_KATEGORIEN) | 41 Kategorien hardcoded statt aus API |
+| **Status-Werte** | `dashboard/src/lib/constants.js` (AUFTRAG_STATUS) | 8 Status-Werte |
+
+---
+
+#### Loesung: Zentrale Konfigurations-Tabelle
+
+**Option A: Supabase-Tabelle `app_config`**
+
+```sql
+CREATE TABLE app_config (
+    key TEXT PRIMARY KEY,
+    value JSONB NOT NULL,
+    beschreibung TEXT,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Beispiel-Eintraege:
+INSERT INTO app_config VALUES
+('firma', '{"name":"J.S. Fenster & Tueren GmbH","strasse":"Regensburger Strasse 59","plz":"92224","ort":"Amberg","tel":"09621 / 76 35 33","fax":"09621 / 78 32 59","email":"info@js-fenster.de","web":"www.js-fenster.de","gf":["Andreas Stolarczyk","Jaroslaw Stolarczyk"]}', 'Firmenstammdaten'),
+('mwst_satz', '0.19', 'Aktueller MwSt-Satz'),
+('budget_preisspanne', '0.15', 'Toleranz +/- fuer Budgetschaetzung'),
+('budget_rundung', '50', 'Rundungsgranularitaet in EUR');
+```
+
+**Option B: `.env` / Umgebungsvariablen**
+- Einfacher, aber nur fuer Backend/Edge Functions
+- Frontend braeuchte VITE_-Prefix oder API-Call
+
+**Empfehlung:** Option A (Supabase-Tabelle) - aenderbar ueber Dashboard ohne Deployment.
+
+---
+
+#### TODO
+
+| # | Aufgabe | Aufwand | Abhaengigkeit |
+|---|---------|---------|---------------|
+| 1 | Codebase durchsuchen: ALLE hardcoded Werte identifizieren | 1-2 Std | - |
+| 2 | `app_config` Tabelle anlegen + Seed-Daten | 30 Min | - |
+| 3 | API-Endpunkt `/api/config` oder Edge Function fuer Config-Abruf | 1 Std | #2 |
+| 4 | Dashboard: Config beim Start laden, in Context/Store halten | 1-2 Std | #3 |
+| 5 | Edge Functions: Config aus Supabase lesen statt hardcoded | 2-3 Std | #2 |
+| 6 | Backend: priceCalculator.js auf Config umstellen | 1-2 Std | #3 |
+| 7 | Admin-UI: Einstellungen-Seite zum Bearbeiten der Config | 3-4 Std | #3 |
+
+**Gesamt: ca. 10-15 Stunden**
+
+---
+
+*Aktualisiert: 2026-02-11 - Hardcoded-Werte Zentralisierung notiert*

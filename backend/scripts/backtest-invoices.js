@@ -704,17 +704,30 @@ function calculateBudgetPrice(analysis) {
         });
     }
 
-    // LOG-025: Montage-Block inkl. Regiestunden
-    // Regiestunden werden jetzt auch als Montage gewertet
+    // LOG-025 / P018: Montage-Block V2 (stundenbasiert + lfm)
     const hasMontage = analysis.work.some(w => w.work_type === 'montage');
     const hasRegie = analysis.work.some(w => w.is_regie);
+    const hasEntsorgung = analysis.work.some(w => w.work_type === 'entsorgung');
+
+    // Items-Array fuer V2 calculateWorkPrice aufbauen
+    const workItems = analysis.elements.map(elem => ({
+        width_mm: elem.dimensions?.width_mm || 1000,
+        height_mm: elem.dimensions?.height_mm || 1200,
+        qty: elem.qty || 1,
+        element_type: elem.element_type || 'fenster'
+    }));
+    // Fallback: mindestens 1 Standard-Element
+    if (workItems.length === 0) {
+        workItems.push({ width_mm: 1000, height_mm: 1200, qty: elementCount || 1, element_type: 'fenster' });
+    }
+
     const workResult = calculateWorkPrice(
         {
-            montage: hasMontage || hasRegie,  // Regie = Montage
-            demontage: analysis.work.some(w => w.work_type === 'demontage'),
-            entsorgung: analysis.work.some(w => w.work_type === 'entsorgung') ? 'element' : false
+            montage: hasMontage || hasRegie,
+            entsorgung: hasEntsorgung,
+            bautyp: 'altbau'
         },
-        elementCount || 1
+        workItems
     );
 
     montageTotal = workResult.total;

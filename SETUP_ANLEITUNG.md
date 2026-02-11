@@ -43,19 +43,19 @@ npm start
 
 ---
 
-## 3. Frontend starten
+## 3. Dashboard starten
 
 ### CMD-Fenster 2 öffnen:
 
 ```cmd
-cd frontend
+cd dashboard
 
 npm install
 
 npm run dev
 ```
 
-✅ Frontend sollte jetzt laufen auf http://localhost:3000
+✅ Dashboard sollte jetzt laufen auf http://localhost:3000
 
 ---
 
@@ -76,7 +76,7 @@ npm run dev
 
 ### "EADDRINUSE: Port already in use"
 → Port 3001 oder 3000 bereits belegt
-→ Lösung: Ports in .env (Backend) oder vite.config.js (Frontend) ändern
+→ Lösung: Ports in .env (Backend) oder vite.config.js (Dashboard) ändern
 
 ### "Module not found"
 → npm install nochmal ausführen

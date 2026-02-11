@@ -46,16 +46,18 @@ Jeder Agent MUSS sich am Anfang seiner Arbeit identifizieren:
 
 ### ../MASTER_LOG.md (Zentrales Arbeitslog)
 - **Pfad:** `../MASTER_LOG.md` (eine Ebene hoeher im workflows/ Ordner)
-- **Lesen:** Alle
-- **Schreiben:** Alle (chronologisch, JEDE Aktion dokumentieren)
+- **Lesen:** NUR INDEX (erste 80 Zeilen)! NIEMALS das ganze File lesen!
+- **Schreiben:** Alle (neue Eintraege AM ENDE anfuegen)
 - **ID-Format:** `[B-XXX]` fuer Budget-Eintraege (z.B. [B-039], [B-040])
-- **Suchen:** `Grep: ## [B-XXX]` um Eintrag zu finden
-- **Zweck:** Vollstaendige Historie ALLER Workflows
+- **Suchen:** `Grep: ## [B-XXX]` um einzelnen Eintrag zu finden
+- **Zweck:** Vollstaendige Historie ALLER Workflows (REPAIR + BUDGET)
 
 **WICHTIG fuer MASTER_LOG.md:**
+- **LESE-REGEL:** `Read MASTER_LOG.md limit=80` → Nur INDEX lesen, NICHT scrollen!
 - Nutze `[B-XXX]` Prefix fuer diesen Workflow (naechste freie ID im INDEX)
 - INDEX am Anfang aktualisieren (ohne Zeilenangaben!)
 - Fuege `**Workflow:** BUDGET` in jeden neuen Eintrag ein
+- Neue Eintraege immer AM ENDE der Datei anfuegen
 
 ### 04_LEARNINGS.md (Erkenntnisse)
 - **Lesen:** Alle (ALWAYS-ON - bei jedem Start lesen!)
@@ -70,6 +72,12 @@ Jeder Agent MUSS sich am Anfang seiner Arbeit identifizieren:
 - **Schreiben:** NUR Projektleiter
 - **Indexiert:** Ja
 - **Zweck:** Alle erteilten Auftraege fuer spaetere Referenz
+
+### ../BACKLOG.md (Feature-Backlog)
+- **Pfad:** `../BACKLOG.md` (eine Ebene hoeher im workflows/ Ordner)
+- **Lesen:** Projektleiter (bei Planung neuer Auftraege)
+- **Schreiben:** NUR Projektleiter
+- **Zweck:** Offene Features/Optimierungen. Erledigte Items werden geloescht.
 
 ---
 
@@ -282,7 +290,7 @@ Langfristig: Eigene Bestandswerte aufbauen, um Work4All zu ersetzen.
 
 ### Tech-Stack
 - Backend: Node.js + Express (Port 3001)
-- Frontend: React + Vite (Port 3000)
+- Dashboard: React + Vite (Port 3000)
 - DB: Supabase (PostgreSQL) + Work4All MSSQL (read-only via Proxy)
 
 ---

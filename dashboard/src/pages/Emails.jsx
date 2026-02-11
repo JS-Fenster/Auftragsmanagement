@@ -9,22 +9,18 @@ const PAGE_SIZE = 50
 
 const STATUS_COLORS = {
   done: { dot: 'bg-green-500', text: 'text-green-700' },
-  queued: { dot: 'bg-yellow-400', text: 'text-yellow-700' },
+  queued: { dot: 'bg-gray-400', text: 'text-gray-600' },
   processing: { dot: 'bg-blue-400', text: 'text-blue-700' },
-  pending_ocr: { dot: 'bg-orange-400', text: 'text-orange-700' },
+  pending_ocr: { dot: 'bg-amber-400', text: 'text-amber-700' },
   error: { dot: 'bg-red-500', text: 'text-red-700' },
 }
 
 const KATEGORIE_COLORS = [
   'bg-blue-100 text-blue-800',
   'bg-green-100 text-green-800',
-  'bg-purple-100 text-purple-800',
   'bg-amber-100 text-amber-800',
-  'bg-rose-100 text-rose-800',
-  'bg-cyan-100 text-cyan-800',
-  'bg-indigo-100 text-indigo-800',
-  'bg-teal-100 text-teal-800',
-  'bg-orange-100 text-orange-800',
+  'bg-red-100 text-red-800',
+  'bg-gray-200 text-gray-800',
 ]
 
 function kategorieColor(kat) {
