@@ -22,7 +22,7 @@ Auftragsmanagement/
 │   ├── routes/             # API-Endpunkte
 │   ├── server.js           # Express Server
 │   └── .env.example        # Umgebungsvariablen Template
-├── frontend/               # React + Vite + Tailwind
+├── dashboard/              # React + Vite + Tailwind (Haupt-UI)
 │   ├── src/
 │   │   ├── pages/          # Seiten-Komponenten
 │   │   ├── App.jsx         # Haupt-App mit Routing
@@ -42,7 +42,7 @@ Auftragsmanagement/
 | Bereich | Technologie |
 |---------|-------------|
 | **Backend** | Node.js, Express, mssql |
-| **Frontend** | React 18, Vite, Tailwind CSS |
+| **Dashboard** | React 18, Vite, Tailwind CSS |
 | **Datenbank** | SQL Server (Work4all ERP) |
 | **Auth** | (geplant) JWT/Session-basiert |
 
@@ -57,8 +57,8 @@ npm install
 cp .env.example .env  # Dann Credentials eintragen
 npm start             # Port 3001
 
-# Frontend
-cd frontend
+# Dashboard
+cd dashboard
 npm install
 npm run dev           # Port 3000
 ```
@@ -106,4 +106,21 @@ Siehe `docs/Auftragsmanagement_Projektplan.md` fuer Details.
 |------|------|
 | **Projekt-URL** | `https://rsmjgdujlpnydbsfuiek.supabase.co` |
 | **Zweck** | ERP-Cache + eigene Workflow-Daten |
+
+---
+
+## Geschuetzte Edge Functions
+
+> **KRITISCH:** Diese Edge Functions sind produktiv und duerfen NUR mit expliziter Freigabe von Andreas geaendert/deployed werden.
+
+| Function | Version | Schutzgrund |
+|----------|---------|-------------|
+| `process-document` | v34 (Deploy 52) | Kategorisierung laeuft stabil (36 Kategorien, GPT-5 mini) |
+
+**Regeln:**
+1. KEINE Aenderungen am Kategorisierungs-Prompt (`prompts.ts`) ohne vorherigen Backtest
+2. KEINE Aenderungen am GPT-Modell oder Response-Format ohne vorherigen Backtest
+3. KEIN Deploy ohne explizite Freigabe von Andreas
+4. Bei Bedarf: Erst auf Supabase Branch testen
+5. Golden Backup liegt in `supabase/functions/process-document/_golden-v34/`
 
