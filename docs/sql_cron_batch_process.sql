@@ -22,19 +22,23 @@ SELECT * FROM pg_extension WHERE extname = 'pg_net';
 SELECT * FROM cron.job;
 
 -- 6. Cron-Job einrichten: batch-process-pending alle 15 Minuten
--- WICHTIG: INTERNAL_API_KEY muss hier eingesetzt werden!
--- Den Key findest du in den Supabase Edge Function Secrets.
+-- WICHTIG: Authorization-Header mit anon key ist PFLICHT (Supabase Gateway)
+-- x-api-key kommt aus get_app_config() (gleich wie renew-subscriptions)
+-- BEREITS AKTIV seit 2026-02-12 (Job ID 4)
 SELECT cron.schedule(
   'batch-process-pending',
   '*/15 * * * *',
-  $$SELECT net.http_post(
+  $$
+  SELECT net.http_post(
     url := 'https://rsmjgdujlpnydbsfuiek.supabase.co/functions/v1/batch-process-pending',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
-      'x-api-key', '<INTERNAL_API_KEY_HIER_EINSETZEN>'
+      'Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzbWpnZHVqbHBueWRic2Z1aWVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3NjY0NTcsImV4cCI6MjA4MTM0MjQ1N30.da6ZwbEfqhqdsZlKYNUGP7uvu8A7qwlVLBI0IK4uQfc',
+      'x-api-key', get_app_config('INTERNAL_API_KEY')
     ),
     body := '{"limit": 10}'::jsonb
-  )$$
+  ) AS request_id;
+  $$
 );
 
 -- 7. Job verifizieren

@@ -50,13 +50,31 @@ Siehe `docs/sql_cron_batch_process.sql` fuer SQL-Befehle.
 3. pg_cron pruefen/aktivieren (Fix 3 — SQL im Supabase Dashboard)
 4. 6 stuck Docs reprocessen (einmalig batch-process-pending aufrufen)
 
+## Ergebnis (deployed + verifiziert 2026-02-12)
+
+Alle 3 Fixes erfolgreich angewendet:
+
+| Schritt | Status | Details |
+|---------|--------|---------|
+| Deploy process-email v4.1.0 | OK | Supabase Functions deployed |
+| Deploy batch-process-pending v1.1.0 | OK | Supabase Functions deployed |
+| pg_cron Job | OK | Job ID 4, `*/15 * * * *`, mit Auth-Header |
+| 6 stuck Docs reprocessen | OK | Alle 6/6 erfolgreich verarbeitet |
+
+Ergebnis der 6 stuck Dokumente:
+
+| Dokument | Neue Kategorie | OCR |
+|----------|---------------|-----|
+| eVB_GVGJVKJ (44061970) | Sonstiges_Dokument | ja |
+| EmailAttachment001 (71719f69) | Auftragsbestaetigung | ja |
+| 617321_Gesamtsummenblatt (5b0a4d2e) | Sonstiges_Dokument | nein (Excel) |
+| EmailAttachment001 (3a0a0a05) | Auftragsbestaetigung | ja |
+| EmailAttachment001 (7fa127da) | Auftragsbestaetigung | ja |
+| EmailAttachment001 (71a3257e) | Auftragsbestaetigung | ja |
+
+**Hinweis:** pg_cron braucht `Authorization: Bearer <anon_key>` Header — ohne kommt 401
+"Missing authorization header" vom Supabase Gateway. Siehe `sql_cron_batch_process.sql`.
+
 ## Rollback
 
 Git revert moeglich — Aenderungen sind additiv (Wrapper um bestehenden fetch).
-
-## Test
-
-Nach Deploy eine Test-Email mit PDF-Anhang senden. Pruefen:
-- Anhang wird als eigenes Document erstellt
-- `processing_status` geht von `pending_ocr` auf `done`
-- Bei Fehler: Status wird auf `processing_failed` gesetzt (nicht stuck als `pending_ocr`)
