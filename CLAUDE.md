@@ -113,9 +113,11 @@ Siehe `docs/Auftragsmanagement_Projektplan.md` fuer Details.
 
 > **KRITISCH:** Diese Edge Functions sind produktiv und duerfen NUR mit expliziter Freigabe von Andreas geaendert/deployed werden.
 
-| Function | Version | Schutzgrund |
-|----------|---------|-------------|
-| `process-document` | v34 (Deploy 52) | Kategorisierung laeuft stabil (36 Kategorien, GPT-5 mini) |
+| Function | Version | Status | Schutzgrund |
+|----------|---------|--------|-------------|
+| `process-document` | v34 (Deploy 52) | STABIL | Kategorisierung laeuft stabil (36 Kategorien, GPT-5 mini) |
+| `process-email` | v4.1.0 | STABIL | GPT-Kategorisierung + Anhang-Pipeline mit fetchWithRetry (2026-02-12) |
+| `batch-process-pending` | v1.1.0 | STABIL | Safety-Net fuer stuck pending_ocr Docs, fetchWithRetry (2026-02-12) |
 
 **Regeln:**
 1. KEINE Aenderungen am Kategorisierungs-Prompt (`prompts.ts`) ohne vorherigen Backtest
@@ -123,4 +125,17 @@ Siehe `docs/Auftragsmanagement_Projektplan.md` fuer Details.
 3. KEIN Deploy ohne explizite Freigabe von Andreas
 4. Bei Bedarf: Erst auf Supabase Branch testen
 5. Stabiler Stand gesichert als Git Tag: `process-document-v34-stable`
+
+---
+
+## pg_cron Jobs (aktiv seit 2026-02-12)
+
+| Job | Schedule | Function |
+|-----|----------|----------|
+| `batch-process-pending` | `*/15 * * * *` | Verarbeitet stuck pending_ocr Dokumente |
+| `renew-email-subscriptions` | `0 6,18 * * *` | Microsoft Graph Subscription Renewal |
+| `renew-email-subscriptions-safety` | `0 0,12 * * *` | Safety-Net fuer Subscription Renewal |
+
+> **WICHTIG:** Alle pg_cron Jobs brauchen `Authorization: Bearer <anon_key>` + `timeout_milliseconds := 30000`.
+> Referenz-SQL: `docs/sql_cron_batch_process.sql`
 
