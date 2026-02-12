@@ -490,98 +490,133 @@ function StepEingabe({
           {showKundenInfo ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </button>
         {showKundenInfo && (
-          <div className="px-6 pb-6 pt-0 grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {/* Kundenname mit Autocomplete */}
-            <div className="relative">
-              <label className="block text-xs text-gray-500 mb-1">Kundenname</label>
-              <div className="flex gap-1">
-                <div className="relative flex-1">
-                  <input
-                    type="text"
-                    className={`w-full border border-gray-300 rounded-lg py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${selectedKontaktId ? 'pl-3 pr-8 bg-green-50 border-green-300' : 'px-3'}`}
-                    placeholder="Name eingeben oder suchen..."
-                    value={selectedKontaktId ? kundenInfo.name : kundenSuche}
-                    onChange={e => {
-                      if (selectedKontaktId) {
-                        onKundeReset()
-                        setKundenSuche(e.target.value)
-                      } else {
-                        setKundenSuche(e.target.value)
-                      }
-                      onKundenSearch(e.target.value)
-                    }}
-                  />
-                  {selectedKontaktId && (
-                    <button
-                      onClick={onKundeReset}
-                      className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full bg-gray-200 text-gray-600 hover:bg-red-100 hover:text-red-600 transition-colors"
-                      title="Kundenauswahl aufheben"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
-                  {kundenLoading && !selectedKontaktId && (
-                    <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
-                  )}
+          <div className="px-6 pb-6 pt-0 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Kundenname mit Autocomplete */}
+              <div className="relative">
+                <label className="block text-xs text-gray-500 mb-1">Kundenname</label>
+                <div className="flex gap-1">
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      className={`w-full border border-gray-300 rounded-lg py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${selectedKontaktId ? 'pl-3 pr-8 bg-green-50 border-green-300' : 'px-3'}`}
+                      placeholder="Name eingeben oder suchen..."
+                      value={selectedKontaktId ? kundenInfo.name : kundenSuche}
+                      onChange={e => {
+                        if (selectedKontaktId) {
+                          onKundeReset()
+                          setKundenSuche(e.target.value)
+                        } else {
+                          setKundenSuche(e.target.value)
+                        }
+                        onKundenSearch(e.target.value)
+                      }}
+                    />
+                    {selectedKontaktId && (
+                      <button
+                        onClick={onKundeReset}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full bg-gray-200 text-gray-600 hover:bg-red-100 hover:text-red-600 transition-colors"
+                        title="Kundenauswahl aufheben"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                    {kundenLoading && !selectedKontaktId && (
+                      <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
+                    )}
 
-                  {/* Autocomplete Dropdown */}
-                  {kundenVorschlaege.length > 0 && !selectedKontaktId && (
-                    <div className="absolute z-30 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                      {kundenVorschlaege.map(v => (
-                        <button
-                          key={v.kontakt_id}
-                          className="w-full text-left px-3 py-2 hover:bg-blue-50 transition-colors border-b border-gray-50 last:border-0"
-                          onClick={() => onKundeSelect(v)}
-                        >
-                          <div className="text-sm font-medium text-gray-900">
-                            {v.display_name || v.firma}
-                          </div>
-                          <div className="text-xs text-gray-500 flex gap-2">
-                            {v.firma && v.display_name !== v.firma && <span>{v.firma}</span>}
-                            {v.ort && <span>{v.ort}</span>}
-                            {v.telefon && <span>{v.telefon}</span>}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                    {/* Autocomplete Dropdown */}
+                    {kundenVorschlaege.length > 0 && !selectedKontaktId && (
+                      <div className="absolute z-30 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        {kundenVorschlaege.map(v => (
+                          <button
+                            key={v.kontakt_id}
+                            className="w-full text-left px-3 py-2 hover:bg-blue-50 transition-colors border-b border-gray-50 last:border-0"
+                            onClick={() => onKundeSelect(v)}
+                          >
+                            <div className="text-sm font-medium text-gray-900">
+                              {v.display_name || v.firma}
+                            </div>
+                            <div className="text-xs text-gray-500 flex gap-2">
+                              {v.firma && v.display_name !== v.firma && <span>{v.firma}</span>}
+                              {v.ort && <span>{v.ort}</span>}
+                              {v.telefon && <span>{v.telefon}</span>}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {/* Alle Kunden Button */}
+                  <button
+                    type="button"
+                    className="px-2.5 py-2 border border-gray-300 rounded-lg text-gray-500 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 transition-colors shrink-0"
+                    onClick={() => setShowKundenModal(true)}
+                    title="Alle Kunden durchsuchen"
+                  >
+                    <Users className="w-4 h-4" />
+                  </button>
                 </div>
-                {/* Alle Kunden Button */}
-                <button
-                  type="button"
-                  className="px-2.5 py-2 border border-gray-300 rounded-lg text-gray-500 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 transition-colors shrink-0"
-                  onClick={() => setShowKundenModal(true)}
-                  title="Alle Kunden durchsuchen"
-                >
-                  <Users className="w-4 h-4" />
-                </button>
+                {selectedKontaktId && (
+                  <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3" />
+                    Kunde verknuepft
+                  </p>
+                )}
               </div>
-              {selectedKontaktId && (
-                <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
-                  <CheckCircle className="w-3 h-3" />
-                  Kunde verknuepft
-                </p>
-              )}
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Telefon</label>
+                <input
+                  type="tel"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="0171 1234567"
+                  value={kundenInfo.telefon}
+                  onChange={e => setKundenInfo({ ...kundenInfo, telefon: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">E-Mail</label>
+                <input
+                  type="email"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="max@beispiel.de"
+                  value={kundenInfo.email}
+                  onChange={e => setKundenInfo({ ...kundenInfo, email: e.target.value })}
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Telefon</label>
-              <input
-                type="tel"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="0171 1234567"
-                value={kundenInfo.telefon}
-                onChange={e => setKundenInfo({ ...kundenInfo, telefon: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">E-Mail</label>
-              <input
-                type="email"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="max@beispiel.de"
-                value={kundenInfo.email}
-                onChange={e => setKundenInfo({ ...kundenInfo, email: e.target.value })}
-              />
+            {/* Adresszeile */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Strasse</label>
+                <input
+                  type="text"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Musterstrasse 1"
+                  value={kundenInfo.strasse}
+                  onChange={e => setKundenInfo({ ...kundenInfo, strasse: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">PLZ</label>
+                <input
+                  type="text"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="92224"
+                  value={kundenInfo.plz}
+                  onChange={e => setKundenInfo({ ...kundenInfo, plz: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Ort</label>
+                <input
+                  type="text"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Amberg"
+                  value={kundenInfo.ort}
+                  onChange={e => setKundenInfo({ ...kundenInfo, ort: e.target.value })}
+                />
+              </div>
             </div>
           </div>
         )}
@@ -1210,7 +1245,7 @@ export default function Budgetangebot() {
 
   // Step 1: Input
   const [inputText, setInputText] = useState('')
-  const [kundenInfo, setKundenInfo] = useState({ name: '', telefon: '', email: '' })
+  const [kundenInfo, setKundenInfo] = useState({ name: '', telefon: '', email: '', strasse: '', plz: '', ort: '' })
   const [showKundenInfo, setShowKundenInfo] = useState(false)
   const [selectedSystem, setSelectedSystem] = useState('')
   const [montageOptions, setMontageOptions] = useState({ montage: true, demontage: true, entsorgung: true })
@@ -1267,7 +1302,14 @@ export default function Budgetangebot() {
 
   const handleKundeSelect = useCallback((kunde) => {
     const name = kunde.display_name || kunde.firma || ''
-    setKundenInfo({ name, telefon: kunde.telefon || '', email: kunde.email || '' })
+    setKundenInfo({
+      name,
+      telefon: kunde.telefon || '',
+      email: kunde.email || '',
+      strasse: kunde.strasse || '',
+      plz: kunde.plz || '',
+      ort: kunde.ort || '',
+    })
     setSelectedKontaktId(kunde.kontakt_id)
     setKundenSuche(name)
     setKundenVorschlaege([])
@@ -1277,7 +1319,7 @@ export default function Budgetangebot() {
     setSelectedKontaktId(null)
     setKundenSuche('')
     setKundenVorschlaege([])
-    setKundenInfo({ name: '', telefon: '', email: '' })
+    setKundenInfo({ name: '', telefon: '', email: '', strasse: '', plz: '', ort: '' })
   }, [])
 
   // ── Submit to AI ───────────────────────────────────────
@@ -1377,6 +1419,9 @@ export default function Budgetangebot() {
         name: kundenInfo.name || undefined,
         telefon: kundenInfo.telefon || undefined,
         email: kundenInfo.email || undefined,
+        strasse: kundenInfo.strasse || undefined,
+        plz: kundenInfo.plz || undefined,
+        ort: kundenInfo.ort || undefined,
       }
 
       // Clean positions for API (remove _id)
@@ -1422,7 +1467,7 @@ export default function Budgetangebot() {
     lastParsedTextRef.current = null
     setShowNetto(false)
     setInputText('')
-    setKundenInfo({ name: '', telefon: '', email: '' })
+    setKundenInfo({ name: '', telefon: '', email: '', strasse: '', plz: '', ort: '' })
     setShowKundenInfo(false)
     setSelectedSystem('')
     setMontageOptions({ montage: true, demontage: true, entsorgung: true })
