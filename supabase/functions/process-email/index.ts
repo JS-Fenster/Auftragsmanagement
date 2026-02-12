@@ -1,8 +1,13 @@
 // =============================================================================
 // Process Email - GPT Categorization + Attachment Handling
-// Version: 4.0.0 - 2026-01-22
+// Version: 4.1.0 - 2026-02-12
 // =============================================================================
 // Wird von email-webhook aufgerufen nachdem E-Mail in DB gespeichert wurde.
+//
+// v4.1.0 Changes:
+// - FIX: fetchWithRetry() fuer process-document Aufrufe (55s Timeout, 2 Retries, Backoff)
+// - FIX: Bei endgueltigem Fehler → processing_status='processing_failed' statt stuck 'pending_ocr'
+// - NEW: markAttachmentFailed() Helper fuer explizites Fehler-Tracking
 //
 // v4.0.0 Changes:
 // - FIX: GPT reasoning.effort auf "medium" (war "none" - fuehrte zu schlechten Ergebnissen)
@@ -732,7 +737,8 @@ async function processAttachment(
         console.warn("[INTERNAL] INTERNAL_API_KEY not set - process-document call will fail");
       }
 
-      const processResponse = await fetch(processUrl, {
+      // v4.1: fetchWithRetry mit Timeout und Retries statt einfachem fetch
+      const processResponse = await fetchWithRetry(processUrl, {
         method: "POST",
         headers,
         body: formData,
@@ -745,9 +751,19 @@ async function processAttachment(
       } else {
         const errorText = await processResponse.text();
         console.warn(`[ATTACH] process-document returned ${processResponse.status}: ${errorText.substring(0, 200)}`);
+        // v4.1: Mark as processing_failed so it doesn't stay stuck as pending_ocr
+        await markAttachmentFailed(
+          attachmentDocId,
+          `process-document HTTP ${processResponse.status}: ${errorText.substring(0, 200)}`
+        );
       }
     } catch (error) {
-      console.error(`[ATTACH] process-document call failed: ${error}`);
+      console.error(`[ATTACH] process-document call failed after retries: ${error}`);
+      // v4.1: Mark as processing_failed on final error
+      await markAttachmentFailed(
+        attachmentDocId,
+        `process-document call failed: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   } else if (!attachmentDocId) {
     console.warn(`[ATTACH] Skipping process-document - no document_id available`);
@@ -793,6 +809,69 @@ function sanitizeFileName(fileName: string): string {
     .replace(/Ü/g, "Ue")
     .replace(/ß/g, "ss")
     .replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
+// =============================================================================
+// v4.1: Retry + Timeout for internal function calls
+// =============================================================================
+
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries = 2,
+  timeoutMs = 55000
+): Promise<Response> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timer);
+      if (response.ok || attempt === maxRetries) return response;
+      // Retry on 5xx server errors only
+      if (response.status < 500) return response;
+      console.warn(`[ATTACH] Attempt ${attempt + 1}/${maxRetries + 1} failed: HTTP ${response.status}`);
+    } catch (err: unknown) {
+      clearTimeout(timer);
+      const errMsg = err instanceof Error ? err.message : String(err);
+      if (attempt === maxRetries) throw err;
+      console.warn(`[ATTACH] Attempt ${attempt + 1}/${maxRetries + 1} error: ${errMsg}`);
+    }
+    // Exponential backoff: 1s, 2s, 3s...
+    await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+  }
+  throw new Error("fetchWithRetry: all retries exhausted");
+}
+
+// v4.1: Mark attachment document as failed (not stuck as pending_ocr forever)
+async function markAttachmentFailed(
+  attachmentDocId: string,
+  errorMessage: string
+): Promise<void> {
+  try {
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/documents?id=eq.${attachmentDocId}`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          apikey: SUPABASE_SERVICE_ROLE_KEY!,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          processing_status: "processing_failed",
+          processing_last_error: errorMessage,
+        }),
+      }
+    );
+    if (response.ok) {
+      console.log(`[ATTACH] Marked doc ${attachmentDocId} as processing_failed`);
+    } else {
+      console.error(`[ATTACH] Failed to mark doc ${attachmentDocId} as failed: ${response.status}`);
+    }
+  } catch (err) {
+    console.error(`[ATTACH] Error marking doc ${attachmentDocId} as failed: ${err}`);
+  }
 }
 
 // =============================================================================
@@ -909,7 +988,7 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         service: "process-email",
-        version: "4.0.0",
+        version: "4.1.0",
         status: "ready",
         configured: {
           azure: !!(AZURE_TENANT_ID && AZURE_CLIENT_ID && AZURE_CLIENT_SECRET),

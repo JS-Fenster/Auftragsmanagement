@@ -1,9 +1,13 @@
 // =============================================================================
 // Batch Process Pending - Verarbeitet alle pending_ocr Dokumente
-// Version: 1.0.0 - 2026-01-29
+// Version: 1.1.0 - 2026-02-12
 // =============================================================================
 // Findet alle Dokumente mit processing_status='pending_ocr' und ruft
 // process-document fuer jedes auf.
+//
+// v1.1.0 Changes:
+// - FIX: fetchWithRetry() fuer process-document (55s Timeout, 1 Retry)
+// - Designed as safety-net via pg_cron (alle 15 Min)
 //
 // Usage:
 //   POST /functions/v1/batch-process-pending
@@ -72,6 +76,36 @@ function getMimeType(fileName: string): string {
 }
 
 // =============================================================================
+// v1.1: Retry + Timeout for process-document calls
+// =============================================================================
+
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries = 1,
+  timeoutMs = 55000
+): Promise<Response> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timer);
+      if (response.ok || attempt === maxRetries) return response;
+      if (response.status < 500) return response;
+      console.warn(`[BATCH] Retry ${attempt + 1}/${maxRetries + 1}: HTTP ${response.status}`);
+    } catch (err: unknown) {
+      clearTimeout(timer);
+      const errMsg = err instanceof Error ? err.message : String(err);
+      if (attempt === maxRetries) throw err;
+      console.warn(`[BATCH] Retry ${attempt + 1}/${maxRetries + 1}: ${errMsg}`);
+    }
+    await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+  }
+  throw new Error("fetchWithRetry: all retries exhausted");
+}
+
+// =============================================================================
 // Process a single document
 // =============================================================================
 
@@ -132,7 +166,8 @@ async function processDocument(
     console.log(`[BATCH] Calling process-document for ${documentId}`);
 
     const processUrl = `${SUPABASE_URL}/functions/v1/process-document`;
-    const response = await fetch(processUrl, {
+    // v1.1: fetchWithRetry mit Timeout (55s) und 1 Retry
+    const response = await fetchWithRetry(processUrl, {
       method: "POST",
       headers: {
         "x-api-key": INTERNAL_API_KEY!,
@@ -202,7 +237,7 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         service: "batch-process-pending",
-        version: "1.0.0",
+        version: "1.1.0",
         status: "ready",
         pending_count: count || 0,
         configured: {
