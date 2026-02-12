@@ -72,9 +72,25 @@ Ergebnis der 6 stuck Dokumente:
 | EmailAttachment001 (7fa127da) | Auftragsbestaetigung | ja |
 | EmailAttachment001 (71a3257e) | Auftragsbestaetigung | ja |
 
-**Hinweis:** pg_cron braucht `Authorization: Bearer <anon_key>` Header — ohne kommt 401
-"Missing authorization header" vom Supabase Gateway. Siehe `sql_cron_batch_process.sql`.
+### Fix 4: pg_cron Jobs — Auth-Header + Timeout (Bonus-Fix)
+
+**Problem gefunden bei Verifizierung:** Alle pg_cron Jobs (auch renew-subscriptions) hatten:
+1. Keinen `Authorization: Bearer <anon_key>` Header → 401 vom Supabase Gateway
+2. Default pg_net Timeout von 5s → Edge Function Cold Starts (3-5s) fuehren zu Timeouts
+
+**Loesung:** Alle 3 Cron-Jobs neu erstellt mit:
+- `Authorization: Bearer <anon_key>` Header (Supabase Gateway)
+- `timeout_milliseconds := 30000` (30s statt 5s Default)
+
+| Job | Schedule | Status |
+|-----|----------|--------|
+| renew-email-subscriptions | `0 6,18 * * *` | OK (Job ID 5) |
+| renew-email-subscriptions-safety | `0 0,12 * * *` | OK (Job ID 6) |
+| batch-process-pending | `*/15 * * * *` | OK (Job ID 7) |
+
+**Verifiziert:** 13:30 UTC → HTTP 200, kein Timeout mehr.
 
 ## Rollback
 
 Git revert moeglich — Aenderungen sind additiv (Wrapper um bestehenden fetch).
+pg_cron Jobs koennen via `cron.unschedule('jobname')` entfernt werden.
