@@ -1,0 +1,17 @@
+{
+  "name": "rag-demo",
+  "version": "1.0.0",
+  "description": "RAG Demo - Dokumenten-Explorer mit Chat-Agent",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4",
+    "cors": "^2",
+    "dotenv": "^16",
+    "@supabase/supabase-js": "^2",
+    "openai": "^4"
+  }
+}
