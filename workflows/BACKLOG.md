@@ -12,7 +12,7 @@
 | ID | Prio | Bereich | Kurzbeschreibung |
 |----|------|---------|------------------|
 | B-001 | HOCH | Budget | Haustuer-Matching (544 Pos., 32.7% Median) |
-| B-002 | HOCH | Budget | UI/UX-Optimierungen (7 TODOs: U1-U7) |
+| B-002 | HOCH | Budget | UI/UX-Optimierungen (2 TODOs: U3-U4) |
 | B-003 | NIEDRIG | Budget | Teilrechnung: Eingabe-Optionen (Prozent/Fix) |
 | B-004 | NIEDRIG | Budget | Margin-Approval-System (Genehmigung bei niedrigen Margen) |
 | B-005 | MITTEL | Budget | Kundendaten: Weitere Felder (Adresse, Anrede, Projekt) |
@@ -58,21 +58,16 @@ Groesster offener Hebel im Budgetangebot-Backtest. 544 Positionen mit 32.7% Medi
 ---
 
 ## [B-002] Budget UI/UX-Optimierungen
-**Prio:** HOCH | **Aufwand:** 10-17 Std
+**Prio:** HOCH | **Aufwand:** 2.5-3.5 Std
 
-7 Einzel-TODOs fuer Budgetangebot-Oberflaeche:
+2 verbleibende TODOs fuer Budgetangebot-Oberflaeche:
 
 | # | Aufgabe | Aufwand |
 |---|---------|---------|
-| U1 | Step-Navigation: Direktes Springen zwischen Steps | 2-3 Std |
-| U2 | Freitext-Hash: Nur bei Aenderung neu berechnen | 1-2 Std |
 | U3 | GPT-Output: Positionstext-Formatierung standardisieren | 2-3 Std |
 | U4 | Vorschau: JS Fenster Firmendaten eintragen | 30 Min |
-| U5 | Montage: Eigene Kalkulationsregeln einbauen | 2-4 Std |
-| U6 | Preisspanne: Berechnung korrigieren (±15% auf Brutto) | 1-2 Std |
-| U7 | Netto/Brutto: Anzeige klaeren (B2B vs B2C) | 1-2 Std |
 
-**Abhaengigkeiten:** U4 braucht Firmendaten von Andreas, U5 braucht Montage-Regeln, U7 braucht Entscheidung.
+**Abhaengigkeiten:** U4 braucht Firmendaten von Andreas.
 
 ---
 
