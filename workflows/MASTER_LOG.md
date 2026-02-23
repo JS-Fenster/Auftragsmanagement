@@ -135,6 +135,30 @@
 
 ---
 
+## CHECKPOINTS
+
+| # | Datum | Zeilen | Kurzfassung |
+|---|-------|--------|-------------|
+| CP-01 | 2026-01-26 | 140-459 | System-Setup, SPEC v1.0, Nachtmodus, Subagenten |
+| CP-02 | 2026-01-26 | 460-758 | Nachtmodus-Tests ERFOLGREICH, SPEC v1.2 |
+| CP-03 | 2026-01-29 | 759-1071 | Backend MVP: DB + API + Status-Transitions (15/15 Tests) |
+| CP-04 | 2026-01-29 | 1072-1359 | Frontend MVP: Liste, Modals, Zeitfenster, Termin-Endpoint |
+| CP-05 | 2026-01-30 | 1360-1648 | Step 1 MVP FEATURE-KOMPLETT, API v1.5.0 (10 Endpoints) |
+| CP-06 | 2026-02-09 | 1649-1968 | Browser-Tests PASS, Dashboard 6 Seiten, Einsatzort + Bundle |
+| CP-07 | 2026-02-05 | 1969-2250 | Budget-Workflow gestartet, 11 Tabellen, UI-Tests 7/7 |
+| CP-08 | 2026-02-04 | 2251-2551 | GPT-5.2 Extraktion, Edge Function Audit, Backtest 50 Rechnungen |
+| CP-09 | 2026-02-05 | 2552-2838 | GPT-DURCHBRUCH, Budget V2 deployed, 10.087 Positionen sync |
+| CP-10 | 2026-02-09 | 2839-3161 | LV granular (11 Spalten), Stulp-Fix, Kombi-Erkennung |
+| CP-11 | 2026-02-10 | 3162-3465 | Weighted Average, Ausreisser <10% ERREICHT, Email-Kategorisierung |
+| CP-12 | 2026-02-10 | 3466-3758 | budget-ki v1.2.0, 2/4 Ziele erreicht, Sprint P012-P016 |
+| CP-13 | 2026-02-10 | 3759-4069 | Sonderformen, W4A 2023+2024 Sync, LV 7.483 |
+| CP-14 | 2026-02-11 | 4070-4386 | ALLE 4 ZIELE ERREICHT (9.6% Median), LV-Kompression |
+| CP-15 | 2026-02-11 | 4387-4649 | Montage V2, HST/PSK, Firmendaten, Kontakt-Management M1 |
+| CP-16 | 2026-02-11 | 4650-4945 | Kontakt-Sprint KOMPLETT, P022-P024, Golden Backup v34 |
+| CP-17 | 2026-02-12 | (final) | Gesamtzusammenfassung REPAIR + BUDGET |
+
+---
+
 ## ═══ LOG START ═══
 
 ---
@@ -458,6 +482,26 @@ Priorisierung der Automatisierungen festlegen und ersten Meilenstein definieren.
 
 ---
 
+## ═══ CHECKPOINT 2026-01-26 ═══
+
+**Gesamtstand:** Drei-Agenten-System aufgesetzt (REPAIR). SPEC v1.0 fertig, Nachtmodus dokumentiert, Subagenten-Architektur entschieden. Kategorisierungs-Backtest (KATEG) abgeschlossen.
+
+**Abgeschlossen seit letztem Checkpoint:**
+- [K-002] classify-backtest v2.0.1 + Bulk-Re-Kategorisierung 308 Docs
+- [K-001] Email-Kategorisierung v32+v33 + 500-Docs-Backtest
+- [B-052] P012 Sonderformen + sonstiges-Fix im Build-Script
+- [R-001] System-Setup und Initialisierung
+- [R-002] System-Verbesserungen v1.1 + Dokumentation
+- [R-003] Subagenten-Architektur v1.2
+- [R-004] SYSTEM_DOKUMENTATION v1.1
+- [R-005] Autonomer Nachtmodus v1.3/v1.2
+- [R-006] SPEC v1.0 - Reparatur-Workflow vollstaendig spezifiziert
+
+**Offen:** SPEC v1.1 Ergaenzungen, Nachtmodus-Tests, Meilenstein-Planung
+
+**Zeilen seit letztem Checkpoint:** 140-459
+
+
 ## [R-007] Projektleiter: SPEC v1.1 - Ergaenzungen aus 06_REPARATUR.md
 **Datum:** 2026-01-26 19:45
 **Workflow:** REPAIR
@@ -756,6 +800,24 @@ Auswertung des End-to-End Nachtmodus-Tests. Pruefung ob alle Stopp-Situationen a
 4. **Echter Nachtlauf:** Mit realer Nacht-Aufgabe testen
 
 ---
+
+## ═══ CHECKPOINT 2026-01-26 ═══
+
+**Gesamtstand:** Nachtmodus zweifach getestet (Einzel + End-to-End) - ERFOLGREICH. SPEC v1.2 mit 2 Outcomes (SV1). 8 autonome Entscheidungen dokumentiert. 6 Luecken im Nachtmodus identifiziert.
+
+**Abgeschlossen seit letztem Checkpoint:**
+- [R-007] SPEC v1.1 - Ergaenzungen aus 06_REPARATUR.md
+- [R-008] Nachtmodus-Test gestartet
+- [R-009] Mermaid-Diagramm erstellt (P001-PROG)
+- [R-010] Nachtmodus-Test abgeschlossen - ERFOLGREICH
+- [R-011] End-to-End Nachtmodus-Test gestartet
+- [R-012] P002-PROG: Alle 3 Meilensteine abgeschlossen
+- [R-013] End-to-End Test AUSWERTUNG
+
+**Offen:** Meilenstein 1 definieren, CLAUDE.md mit Strategien A-F erweitern
+
+**Zeilen seit letztem Checkpoint:** 460-758
+
 
 ## [R-014] Projektleiter: P002-PL - SPEC v1.2 Workflow-Klarstellung
 **Datum:** 2026-01-26 21:30
@@ -1070,6 +1132,23 @@ Meilenstein 2c (Aging-Flag setzen) starten.
 
 ---
 
+## ═══ CHECKPOINT 2026-01-29 ═══
+
+**Gesamtstand:** Step 1 MVP Backend laeuft: DB-Tabelle reparatur_auftraege (27 Spalten), Edge Function reparatur-api v1.1.0 (5 Endpoints), PATCH Status-Transitions. Alle API-Tests bestanden (15/15).
+
+**Abgeschlossen seit letztem Checkpoint:**
+- [R-014] SPEC v1.2 Workflow-Klarstellung (2 Outcomes SV1)
+- [R-015] P003-PROG: Tabelle reparatur_auftraege erstellt
+- [R-016] P004-PROG: Edge Function reparatur-api deployed
+- [R-017] T001-TEST: API-Verifizierung (6/6 Tests PASS)
+- [R-018] P005-PROG: PATCH Status-Transitions Endpoint
+- [R-019] T002-TEST: Status-Transitions Verifizierung (9/9 PASS)
+
+**Offen:** Aging-Flag, Zeitfenster-System, Frontend-Komponenten
+
+**Zeilen seit letztem Checkpoint:** 759-1071
+
+
 ## [R-020] Programmierer: P006-PROG - Edge Function reparatur-aging deployed
 **Datum:** 2026-01-29 17:25
 **Workflow:** REPAIR
@@ -1357,6 +1436,25 @@ Feature vollstaendig implementiert. Bereich erscheint nur bei erlaubten Status.
 Browser-Test via Chrome (T004-TEST) oder weitere UI-Optimierungen.
 
 ---
+
+## ═══ CHECKPOINT 2026-01-29 ═══
+
+**Gesamtstand:** Step 1 MVP Frontend grundlegend fertig: Reparaturen-Liste, Neukunden-Formular, Auftrags-Detail-Modal, Zeitfenster-System, Termin-Endpoint. reparatur-api v1.2.0, reparatur-aging deployed.
+
+**Abgeschlossen seit letztem Checkpoint:**
+- [R-020] P006-PROG: Edge Function reparatur-aging deployed
+- [R-021] P007-PROG: Frontend Reparatur-Auftrags-Liste
+- [R-022] T003-TEST: Frontend Build + Code-Review PASS
+- [R-023] Frontend .env Datei erstellt
+- [R-024] P008-PROG: Neukunden-Formular Modal erstellt
+- [R-025] P009-PROG: Auftrags-Detail Modal erstellt
+- [R-026] P010-PROG: Zeitfenster-System + Termin-Endpoint
+- [R-027] P011-PROG: Termin-Setzen Feature im Detail-Modal
+
+**Offen:** Chrome MCP Bug blockiert Browser-Tests, Bestandskunden-Feature fehlt
+
+**Zeilen seit letztem Checkpoint:** 1072-1359
+
 
 ## [R-028] Projektleiter: Chrome MCP Bug dokumentiert - Browser-Tests blockiert
 **Datum:** 2026-01-30 08:00
@@ -1646,6 +1744,26 @@ Auftrag T011-TEST: API-Tests fuer die neu implementierten Endpoints mit curl.
 Browser-Tests wenn Chrome MCP wieder funktioniert.
 
 ---
+
+## ═══ CHECKPOINT 2026-01-30 ═══
+
+**Gesamtstand:** Step 1 MVP FEATURE-KOMPLETT (R-035). Bestandskunden, Outcome SV1, Termin SV2, Mannstaerke implementiert. reparatur-api v1.5.0 (10 Endpoints). Alle API-Tests bestanden (10/10).
+
+**Abgeschlossen seit letztem Checkpoint:**
+- [R-028] Chrome MCP Bug dokumentiert
+- [R-029] SPEC v1.4 - Neue Edge Functions dokumentiert
+- [R-030] P013-PROG: Bestandskunden-Feature (API + Frontend)
+- [R-031] P013 Review + Planung P014
+- [R-032] P014-PROG: Outcome SV1 + Termin SV2 Feature
+- [R-033] P014 Review + Planung P015
+- [R-034] P015-PROG: Mannstaerke-Feature
+- [R-035] Step 1 MVP FEATURE-KOMPLETT + Git Commit
+- [R-036] T011-TEST: API-Tests neue Endpoints (10/10 PASS)
+
+**Offen:** Browser-Tests ausstehend (Chrome MCP defekt)
+
+**Zeilen seit letztem Checkpoint:** 1360-1648
+
 
 ## [R-037] Tester: T012-TEST - Alle Browser-Tests (T004-T010) BESTANDEN
 **Datum:** 2026-01-31 09:30
@@ -1967,6 +2085,24 @@ Tester (T017-TEST) soll Bundle-Groesse und Frontend-Build verifizieren.
 
 ---
 
+## ═══ CHECKPOINT 2026-02-09 ═══
+
+**Gesamtstand:** Step 1 MVP vollstaendig getestet (alle 7 Browser-Tests PASS). Neues Dashboard mit 6 Seiten gebaut. renew-subscriptions 401-Fix verifiziert. Einsatzort-Feld + Bundle-Optimierung implementiert.
+
+**Abgeschlossen seit letztem Checkpoint:**
+- [R-037] T012-TEST: Alle Browser-Tests (T004-T010) BESTANDEN
+- [R-038] Neues Dashboard komplett gebaut + ERP-Integration
+- [R-039] renew-subscriptions 401-Fix verifiziert
+- [R-040] P016-PROG: View v_auftraege + PATCH Update + Auftraege.jsx
+- [R-041] T016-TEST: P016 Verifizierung (5/5 BESTANDEN)
+- [R-042] P017-PROG: Einsatzort-Feld (DB + API + Frontend)
+- [R-043] P018-PROG: Bundle-Optimierung (manualChunks)
+
+**Offen:** Budget-Workflow starten, T017 Gesamttest
+
+**Zeilen seit letztem Checkpoint:** 1649-1968
+
+
 ## [B-001] Projektleiter: System-Initialisierung
 **Datum:** 2026-02-03 14:00
 **Workflow:** BUDGET
@@ -2248,6 +2384,27 @@ Funktionale UI-Tests fuer das Budgetangebot-Modul mit Chrome MCP.
 Element-Hinzufuegen und Kalkulation testen.
 
 ---
+
+## ═══ CHECKPOINT 2026-02-05 ═══
+
+**Gesamtstand:** Budget-Workflow gestartet (B-001 bis B-010). 3-Agenten-Analyse, Supabase Migration (11 Tabellen), Bridge-Proxy, Parser-Services, Preismodell, Backend API, Frontend Modul - alles implementiert. UI-Tests 7/7 PASS.
+
+**Abgeschlossen seit letztem Checkpoint:**
+- [B-001] System-Initialisierung
+- [B-002] 3-Agenten-Analyse abgeschlossen
+- [B-003] Supabase Migration: 11 Tabellen
+- [B-004] Bridge-Proxy Endpunkte implementiert
+- [B-005] Parser-Services (N1)
+- [B-006] Preismodell + Kalkulation (N2)
+- [B-007] Backend API-Endpunkte (N3)
+- [B-008] Frontend Budgetangebot-Modul (N4)
+- [B-009] Code-Validierung + Syntax-Checks (N5)
+- [B-010] Funktionale UI-Tests mit Chrome MCP (7/7 PASS)
+
+**Offen:** Vollstaendige Funktionstests, Edge Function Refactoring
+
+**Zeilen seit letztem Checkpoint:** 1969-2250
+
 
 ## [B-011] Tester: Vollstaendige Funktionstests Budgetangebot-Modul
 **Datum:** 2026-02-04 12:05
@@ -2550,6 +2707,29 @@ Filter-Logik integrieren, Default-Masse.
 
 ---
 
+## ═══ CHECKPOINT 2026-02-04 ═══
+
+**Gesamtstand:** Budget-System funktional (23/24 Tests). Edge Function Refactoring (process-document v29-v31). GPT-5.2 Budget-Extraktion integriert. 19 Edge Functions auditiert (4 geloescht). Erster Backtest: 50 Rechnungen, nur 19% Trefferquote - Masse-Erkennung als Hauptproblem.
+
+**Abgeschlossen seit letztem Checkpoint:**
+- [B-011] Vollstaendige Funktionstests (23/24 PASS)
+- [B-012] Edge Function Refactoring beschlossen
+- [B-013] Edge Function Refactoring abgeschlossen
+- [B-014] Budget-Item-Extraktion implementiert
+- [B-015] GPT-5.2 Budget-Extraktion integriert
+- [B-016] Edge Function Audit (19 geprueft, 4 geloescht)
+- [B-017] renew-subscriptions 401-Fix
+- [B-018] Commit & Push (145c4f2)
+- [B-019] Backtest-Vorbereitung, W4A-Analyse
+- [B-020] Cloudflare Tunnel Dokumentation
+- [B-021] Backtest mit W4A Rechnungen (50 St., 19% Treffer)
+- [B-022] Positions-Klassifikations-Analyse (nur 0.3% mit Massen!)
+
+**Offen:** Preisspannen-Analyse, Parser-Fixes, GPT-Durchbruch
+
+**Zeilen seit letztem Checkpoint:** 2251-2551
+
+
 ## [B-023] Programmierer: Preisspannen-Analyse EK->VK
 **Datum:** 2026-02-04 09:30
 **Workflow:** BUDGET
@@ -2836,6 +3016,28 @@ System laeuft End-to-End.
 Sync-Scripts auf Server automatisieren.
 
 ---
+
+## ═══ CHECKPOINT 2026-02-05 ═══
+
+**Gesamtstand:** GPT-5.2 DURCHBRUCH: Regex ersetzt durch GPT-Extraktion (Abweichung -0% bis -6% statt -46% bis +4356%). Budgetangebot V2 komplett deployed. 10.087 Positionen + 2.903 LV-Eintraege synchronisiert. E2E Dashboard-Test PASS.
+
+**Abgeschlossen seit letztem Checkpoint:**
+- [B-023] Preisspannen-Analyse EK->VK (Median 75%)
+- [B-024] Header-Fenster-Muster Analyse
+- [B-025] Backtest-Fixes und neue Erkenntnisse
+- [B-026] Artikel-Tabelle Analyse (0% Masse gepflegt!)
+- [B-027] Parser-Fix W4A Mass-Format (+723% mehr Masse)
+- [B-028] GPT-5.2 Extraktion statt Regex - DURCHBRUCH
+- [B-029] Batch-GPT-Backtest (96% bei +-20%)
+- [B-030] process-backtest-batch deployed
+- [B-031] sync-positions-to-supabase.js erstellt
+- [B-032] Session-Zusammenfassung + Commit
+- [B-033] Budgetangebot V2 komplett deployed
+
+**Offen:** Sync-Scripts auf Server, Prefer Header Bugs fixen
+
+**Zeilen seit letztem Checkpoint:** 2552-2838
+
 
 ## [B-034] Programmierer: Prefer Header Bugs gefixt (2 Stueck)
 **Datum:** 2026-02-05 16:30
@@ -3160,6 +3362,26 @@ Erwartung: Median <15%, Trefferquote >70% durch Stulp-Fix + Kombi + L-Split.
 
 ---
 
+## ═══ CHECKPOINT 2026-02-09 ═══
+
+**Gesamtstand:** LV granular erweitert (11 Spalten, 2.903 Eintraege). Backtest P005: Median 19.2%, Treffer 52.2%. Stulp-Fix + Kombi-Erkennung + L-Split implementiert (P006). Re-Backtest P007: Median 18.7%, Coverage 97.6%.
+
+**Abgeschlossen seit letztem Checkpoint:**
+- [B-034] Prefer Header Bugs gefixt
+- [B-035] Dashboard Field Normalization Fix
+- [B-036] budget-dokument Validation flexibilisiert
+- [B-037] Sync komplett: 10.087 Positionen + 2.903 LV-Eintraege
+- [B-038] E2E Dashboard-Test (4 Steps PASS)
+- [B-039] LV granular erweitern - Planung
+- [B-040] P004: LV-Migration + Build-Script V2
+- [B-041] P005: Backtest LV-Preise vs. Rechnungen (Median 19.2%)
+- [B-042] P006: Stulp-Fix + Kombi-Erkennung + L-Split + Lagerware
+
+**Offen:** Re-Backtest nach Fixes, Weighted Average Matching in Edge Function
+
+**Zeilen seit letztem Checkpoint:** 2839-3161
+
+
 ## [B-043] Tester: P007 Re-Backtest nach Fixes + Verbesserungsanalyse
 **Datum:** 2026-02-09
 **Workflow:** BUDGET
@@ -3464,6 +3686,25 @@ Neue Emails werden automatisch via v4.3.0 kategorisiert. Bei eBay-Start: selbe K
 
 ---
 
+## ═══ CHECKPOINT 2026-02-10 ═══
+
+**Gesamtstand:** Quick-Win Sprint P008+P009: budget-ki v1.1.0 mit Weighted Average. Ausreisser-Ziel <10% ERSTMALS ERREICHT (8.8%). Email-Nachkategorisierung (468 Emails) + Marktplatz_Anfrage Kategorie. R-044 Gesamttest 5/5 PASS.
+
+**Abgeschlossen seit letztem Checkpoint:**
+- [B-043] P007: Re-Backtest (Median 18.7%, Coverage 97.6%)
+- [B-044] Optimierungs-Sprint abgeschlossen
+- [R-044] T017-TEST: Gesamttest 5/5 BESTANDEN
+- [R-045] Email-Nachkategorisierung 468 Emails
+- [R-046] Neue Kategorie Marktplatz_Anfrage (v4.3.0)
+- [B-045] P008: budget-ki v1.1.0 (suche_lv_granular + Weighted Average)
+- [B-046] P009: Re-Backtest (Median 17.9%, Ausreisser 8.8%)
+- [B-047] Quick-Win Sprint P008+P009 abgeschlossen
+
+**Offen:** Fallback-Logik entschaerfen, DK-Mapping, RL Smart-Hybrid
+
+**Zeilen seit letztem Checkpoint:** 3162-3465
+
+
 ## [R-047] PROG: Dokument-Vorschau Fix + Email-Body/Meta/Anhaenge Anzeige
 **Datum:** 2026-02-11 12:00
 **Workflow:** REPAIR
@@ -3756,6 +3997,21 @@ P011 (Tester): Re-Backtest mit angepasster Matching-Logik. Erwartung:
 - Ausreisser: <10% (durch RL Smart-Hybrid)
 
 ---
+
+## ═══ CHECKPOINT 2026-02-10 ═══
+
+**Gesamtstand:** budget-ki v1.2.0 deployed: Fallback entschaerft, DK-Mapping, RL Smart-Hybrid. Ausreisser 8.9% (Ziel <10% ERREICHT), Coverage 91.8% (>90% ERREICHT). Sprint P012-P016 Planung: Sonderformen + erweiterte Datenbasis.
+
+**Abgeschlossen seit letztem Checkpoint:**
+- [B-048] P010: budget-ki v1.2.0 - Fallback + DK-Mapping + RL Smart-Hybrid
+- [B-049] P011: Re-Backtest v1.2.0 (Median 18.6%, Coverage 91.8%)
+- [B-050] Quick-Win Sprint P010+P011 abgeschlossen (2/4 Ziele erreicht)
+- [B-051] Sprint P012-P016 Planung
+
+**Offen:** P012 Sonderformen, P014 W4A 2024 Sync, LV-Kompression
+
+**Zeilen seit letztem Checkpoint:** 3466-3758
+
 
 ## [B-049] Tester: Re-Backtest v1.2.0 - Fallback-Fix + DK-Mapping + RL Smart-Hybrid
 **Datum:** 2026-02-10
@@ -4067,6 +4323,21 @@ Die CLIMAPLUS-Position wird jetzt korrekt als "glas" kategorisiert.
 4. Lagerware-Erkennung im Backtest (Positionen mit "Lager" im Text filtern)
 
 ---
+
+## ═══ CHECKPOINT 2026-02-10 ═══
+
+**Gesamtstand:** P012 Sonderformen-Fix: form_typ Spalte, KM/KL/KR als Fenster, Glas-Kategorie. P013 Re-Backtest: Ausreisser 6.5% (bester Wert!), Median 18.3%. W4A 2023+2024 Sync: RPos 3.315->12.145, LV 2.892->7.483.
+
+**Abgeschlossen seit letztem Checkpoint:**
+- [B-052] P012: Sonderformen + sonstiges-Fix (2892 LV)
+- [B-053] P013: Re-Backtest (Median 18.3%, Ausreisser 6.5%)
+- [B-054] P014: W4A 2023+2024 Sync (RPos 12.145, APos 29.430, LV 7.483)
+- [B-055] P015: Re-Backtest nach erweitertem Datensatz (WAVG Regression, Data-Leakage entdeckt)
+
+**Offen:** LV-Kompression als Loesung fuer WAVG-Regression
+
+**Zeilen seit letztem Checkpoint:** 3759-4069
+
 
 ## [B-054] Programmierer: W4A 2023+2024 Sync + LV Rebuild
 **Datum:** 2026-02-10
@@ -4385,6 +4656,20 @@ Prompts P018-P024 in 05_PROMPTS.md geschrieben. Erster Auftrag: P018 (Montage-Ka
 
 ---
 
+## ═══ CHECKPOINT 2026-02-11 ═══
+
+**Gesamtstand:** ALLE 4 BACKTEST-ZIELE ERREICHT (fenster+balkontuer): Median 9.6%, Treffer 75.2%, Ausreisser 7.5%, Coverage 98.7%. LV-Kompression war der Durchbruch (7.483->364 Cluster). Sprint P018-P024 geplant: Montage V2, HST/PSK, Firmendaten.
+
+**Abgeschlossen seit letztem Checkpoint:**
+- [B-056] P016: LV-Kompression (7.483->364, avg 77.7 Samples/Cluster)
+- [B-057] P017: Re-Backtest (Median 9.6% fen+bt, ALLE ZIELE ERREICHT!)
+- [B-058] Sprint P018-P024 Planung: Montage-Kalkulation + UI/UX
+
+**Offen:** P018-P024 implementieren, haustuer-Matching separat behandeln
+
+**Zeilen seit letztem Checkpoint:** 4070-4386
+
+
 ## [B-059] Programmierer: Montage-Kalkulation V2 (stundenbasiert + lfm)
 **Datum:** 2026-02-11 14:00
 **Workflow:** BUDGET
@@ -4647,6 +4932,23 @@ Brutto-Breakdowns zu liefern. Nicht blockierend fuer P022+.
 P022 (categories.ts Duplikat fix) oder Bug aus P020 fixen
 
 ---
+
+## ═══ CHECKPOINT 2026-02-11 ═══
+
+**Gesamtstand:** Sprint P018-P021: Montage V2 (stundenbasiert + lfm), Verglasung-Format fix, HST/PSK als Fenster, Firmendaten + Netto/Brutto Toggle. Alle Tests PASS, Backtest-Ziele weiterhin erreicht. Kontakt-Management M1 gestartet.
+
+**Abgeschlossen seit letztem Checkpoint:**
+- [B-059] P018: Montage-Kalkulation V2
+- [B-060] P019: Verglasung-Format fix + HST/PSK als Fenster (budget-ki v1.3.0)
+- [B-061] P020: Firmendaten + Preisspanne fix + Netto/Brutto Toggle
+- [B-062] P021: Re-Backtest + UI-Verifikation (4/4 BESTANDEN)
+- [R-048] Kontakt-Management Sprint gestartet
+- [R-049] M1 DB-Tabellen + Trigger + Import (8.687 Kontakte)
+
+**Offen:** P022-P024, Kontakt-Management M2-M4
+
+**Zeilen seit letztem Checkpoint:** 4387-4649
+
 
 ## [R-050] PROG: M2 Dashboard UI - Kunden.jsx umgebaut auf kontakte
 **Datum:** 2026-02-11
@@ -4943,6 +5245,26 @@ nutzt ausschliesslich `dashboard/src/pages/Budgetangebot.jsx` (localhost:3001).
 - Haustuer-Matching als naechsten grossen Hebel angehen
 
 ---
+
+## ═══ CHECKPOINT 2026-02-11 ═══
+
+**Gesamtstand:** Kontakt-Management Sprint KOMPLETT (M1-M4): 9.291 Kontakte, 663 Lieferanten, E-Mail-Matching, Kunden.jsx umgebaut. Budget: P022-P024 + Hotfix frontend->dashboard Port. Kunden-Autocomplete + Suchmodal. process-document abgesichert (Golden Backup v34).
+
+**Abgeschlossen seit letztem Checkpoint:**
+- [R-050] M2 Dashboard UI: Kunden.jsx umgebaut (593->1215 Zeilen)
+- [R-051] M3 E-Mail-Matching (27/562 gematcht)
+- [R-052] M4 Lieferanten-Import (663) + auftraege.kontakt_id
+- [R-053] Kontakt-Management Sprint ABGESCHLOSSEN
+- [R-054] P019-PROG: process-document absichern (Golden Backup v34)
+- [B-063] P022: categories.ts Duplikat-Fix (lokal OK, Deploy ausstehend)
+- [B-064] P023: V2 Edge Functions lokal gesichert
+- [B-065] P024: Step-Navigation + Freitext-Hash (U1 + U2)
+- [B-066] Hotfix: Frontend->Dashboard Port + budget-dokument v1.1.0
+
+**Offen:** Kunden-Autocomplete testen, haustuer-Matching, categories.ts Deploy
+
+**Zeilen seit letztem Checkpoint:** 4946-4988
+
 
 ## [B-067] Programmierer: Kunden-Autocomplete + Suchmodal im Budgetangebot
 **Datum:** 2026-02-11 24:00
