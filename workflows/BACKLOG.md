@@ -17,7 +17,6 @@
 | B-004 | NIEDRIG | Budget | Margin-Approval-System (Genehmigung bei niedrigen Margen) |
 | B-005 | MITTEL | Budget | Kundendaten: Weitere Felder (Adresse, Anrede, Projekt) |
 | B-006 | MITTEL | Budget | Positions-Struktur: Texte + Aussehen ueberarbeiten |
-| B-007 | HOCH | Budget | BUG: Zusatzleistungen nicht im Angebot trotz Auswahl |
 | B-008 | HOCH | Budget | Angebote speichern + Verlauf/Wiederanzeige im Dashboard |
 | R-001 | NIEDRIG | Repair | Reparatur-System (repairs + Tabellen) |
 | R-002 | NIEDRIG | Repair | Reparaturen-Seite im Dashboard (nach Frontend-Loesch.) |
@@ -38,6 +37,9 @@
 | G-015 | NIEDRIG | System | Workflow CLAUDE.md Duplikat aufloesen (Template) |
 | G-016 | NIEDRIG | Frontend | Kunden: Besteuerung (Steuertyp, Freistellung) |
 | G-017 | MITTEL | Dashboard | Angebotserstellung anhand einer Ausschreibung |
+| G-018 | MITTEL | E-Mail | Dokument-Namensformatierung pro Kunde (beim Rechnungsversand) |
+| G-019 | MITTEL | Kontakte | Mehrere E-Mail-Adressen pro Kunde (Rechnungs-E-Mail etc.) |
+| G-020 | MITTEL | Kontakte | Kunden-Bestellnummer/Projektnummer (Pflichtfeld-Hinweis) |
 
 ---
 
@@ -112,7 +114,7 @@ Nach Loeschung des alten Frontends fehlt die Reparaturen-Seite im Dashboard. Das
 Firmendaten, MwSt (0.19), Montage-Preise (80/40/25 EUR), Zubehoer-Preise, System-Preise, Preisspanne (15%), Rundung (50 EUR) etc. sind ueberall im Code verstreut.
 
 **Betroffene Dateien:**
-- `dashboard/src/pages/Budgetangebot.jsx` (FIRMA_INFO, MWST_SATZ)
+- `dashboard/src/pages/budgetangebot/constants.js` (FIRMA_INFO, MWST_SATZ)
 - `dashboard/src/lib/constants.js` (DOKUMENT_KATEGORIEN, AUFTRAG_STATUS)
 - `backend/services/budget/priceCalculator.js` (WORK_PRICES, ACCESSORY_PRICES, SYSTEM_PRICES)
 - `supabase/functions/budget-dokument/index.ts` (Firmendaten 4x)
@@ -292,7 +294,7 @@ Der Kundendaten-Bereich im Budgetangebot zeigt aktuell nur: Kundenname, Telefon,
 - Projektname / Bauvorhaben
 - Anmerkungen / Notizen
 
-**Datei:** `dashboard/src/pages/Budgetangebot.jsx` (Kundendaten-Section)
+**Datei:** `dashboard/src/pages/budgetangebot/StepEingabe.jsx`
 **Datenquelle:** Aus Kontakte-System (`kontakte` + `kontakt_personen` + `kontakt_details`) bei Kundenverknuepfung automatisch befuellen.
 
 ---
@@ -307,22 +309,10 @@ Die Positionstabelle im Budgetangebot braucht optische und inhaltliche Ueberarbe
 - Spaltenbreiten optimieren (BEZEICHNUNG braucht mehr Platz)
 - Einheitliche Schreibweise: "3-fach" vs "3fach", "DKL" vs "Dreh-Kipp Links"
 
-**Datei:** `dashboard/src/pages/Budgetangebot.jsx` (Positionen-Tabelle)
+**Datei:** `dashboard/src/pages/budgetangebot/StepPositionen.jsx`
 **Zusammenhang:** Teilweise ueberschneidung mit B-002 U3 (GPT-Output Formatierung).
 
 ---
-
-## [B-007] BUG: Zusatzleistungen nicht im Angebot
-**Prio:** HOCH | **Aufwand:** 1-3 Std
-
-Montage, Demontage und Entsorgung koennen als Zusatzleistungen ausgewaehlt werden (Checkboxen), aber die ausgewaehlten Leistungen erscheinen NICHT im fertigen Angebot/Budgetvorschlag.
-
-**Erwartetes Verhalten:** Wenn Zusatzleistungen ausgewaehlt sind, sollen sie:
-1. Als eigene Positionen oder Zusammenfassung im Angebot erscheinen
-2. In die Gesamtsumme eingerechnet werden
-3. Im PDF/Vorschau sichtbar sein
-
-**Datei:** `dashboard/src/pages/Budgetangebot.jsx` + evtl. `budget-ki/index.ts` oder `priceCalculator.js`
 
 ---
 
@@ -366,3 +356,63 @@ Neues Feature fuer das gesamte Dashboard: Ein Ausschreibungs-Dokument (PDF/Scan)
 
 **Abhaengigkeiten:** Nutzt bestehende OCR-Pipeline (process-document) + Budgetangebot-Logik (budget-ki).
 **Datei:** Neue Seite oder Integration in bestehende Budgetangebot.jsx.
+
+---
+
+## [G-018] Dokument-Namensformatierung pro Kunde (E-Mail-Versand)
+**Prio:** MITTEL | **Aufwand:** 2-4 Std | **Abhaengigkeit:** E-Mail-Versand von Rechnungen (noch nicht implementiert)
+
+Beim E-Mail-Versand von Rechnungen und Anhaengen muessen Dokumente bei bestimmten Kunden eine spezielle Dateinamen-Formatierung haben (z.B. Rechnungsnummer_Kundenname_Datum.pdf o.ae.).
+
+**Anforderungen:**
+- Pro Kunde konfigurierbar, welches Namensformat fuer Dokument-Anhaenge gilt
+- Platzhalter-System (z.B. `{rechnungsnr}`, `{kunde}`, `{datum}`, `{dokumenttyp}`)
+- Default-Format fuer Kunden ohne spezielle Anforderung
+- Einstellbar ueber Kunden-Detailansicht oder Einstellungen
+
+**DB:** Neues Feld `dokument_namensformat` in `kontakte` oder eigene Konfigurationstabelle.
+
+---
+
+## [G-019] Mehrere E-Mail-Adressen pro Kunde
+**Prio:** MITTEL | **Aufwand:** 2-3 Std
+
+Im Kundenstamm sollen mehrere verschiedene E-Mail-Adressen hinterlegt werden koennen, jeweils mit Zweck/Typ:
+
+**E-Mail-Typen (Beispiele):**
+- Rechnungs-E-Mail (fuer Rechnungsversand)
+- Bestell-E-Mail (fuer Auftragsbestaetigungen)
+- Allgemeine E-Mail (Hauptkontakt)
+- Buchhaltungs-E-Mail
+- Technische E-Mail (fuer Montage-Koordination)
+
+**Anforderungen:**
+- Mehrere E-Mail-Adressen pro Kontakt mit Typ-Zuordnung
+- Beim Versand automatisch die richtige Adresse je nach Dokumenttyp vorschlagen
+- Eine Adresse als "Standard" markierbar
+
+**DB:** Erweiterung von `kontakt_details` (hat bereits `typ`-Feld fuer email/telefon etc.) oder eigene Zuordnungstabelle `kontakt_email_typen`.
+**UI:** Kunden-Detailansicht erweitern (KontaktDetailModal).
+
+---
+
+## [G-020] Kunden-Bestellnummer / Projektnummer (Pflichtfeld-Hinweis)
+**Prio:** MITTEL | **Aufwand:** 3-5 Std
+
+Manche Kunden verlangen, dass ihre eigene Bestellnummer oder Projektnummer auf allen Dokumenten (Angebote, Auftragsbestaetigungen, Rechnungen) erscheint.
+
+**Anforderungen:**
+- Im Kundenstamm aktivierbar: "Kunde erfordert Bestellnummer/Projektnummer"
+- Wenn aktiviert: Bei jedem neuen Vorgang (Angebot, Auftrag, Rechnung) wird geprueft ob das Feld befuellt ist
+- Falls leer: Deutlicher Warnhinweis/Pflichtfeld-Markierung, bevor Vorgang gespeichert/versendet wird
+- Mehrere Nummern pro Kunde moeglich (verschiedene Projekte)
+- Nummer erscheint auf allen zugehoerigen Dokumenten (PDF, E-Mail-Betreff etc.)
+
+**DB:**
+- Neues Feld `erfordert_bestellnummer` (BOOLEAN, Default: false) in `kontakte`
+- Neues Feld `kunden_bestellnummer` / `kunden_projektnummer` in Vorgangstabellen (auftraege, budgetangebote, rechnungen)
+
+**UI:**
+- Kunden-Detailansicht: Toggle "Bestellnummer erforderlich" + ggf. Standard-Projektnummer
+- Vorgangs-Erstellung: Eingabefeld mit Pflichthinweis wenn aktiviert
+- Warnung/Blockierung beim Speichern/Versenden wenn Feld leer und Pflicht aktiv

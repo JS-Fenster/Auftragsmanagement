@@ -1,7 +1,12 @@
 // =============================================================================
 // Process Document - OCR + GPT Kategorisierung
-// Version: 34 - 2026-02-11 (Validation: GPT-Antwort Pflichtfelder pruefen)
+// Version: 36 - 2026-02-23 (NEU: Fahrzeugdokument + Personalunterlagen = 38 Kategorien)
 // =============================================================================
+// Aenderungen v35:
+// - FIX: Storage-Pfad nutzt jetzt canonicalizeKategorie() BEVOR Upload
+//   → verhindert falsche Ordner wie "Brief_von_Kunde", "12. Eingangslieferschein"
+// - GPT-Prompt verbessert fuer Aufmassblatt/Eingangslieferschein/Auftragsbestaetigung
+//
 // Aenderungen v34:
 // - FIX: GPT-Antwort wird jetzt auf Pflichtfelder validiert (kategorie, extraktions_qualitaet)
 // - FIX: json_object Format erzwingt kein Schema - fehlende Felder fuehrten zu undefined
@@ -107,7 +112,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { SYSTEM_PROMPT } from "./prompts.ts";
-// v32: applyHeuristicRules entfernt (Heuristik deaktiviert)
 import { canonicalizeKategorie } from "../_shared/categories.ts";
 import {
   calculateHash,
@@ -276,7 +280,7 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         service: "process-document",
-        version: "34.0.0",
+        version: "36.0.0",
         status: "ready",
         configured: {
           mistral: !!MISTRAL_API_KEY,
@@ -644,7 +648,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // v32: Nur noch GPT-5 mini Klassifizierung (Heuristik deaktiviert)
-    const kategorisiertVon = "gpt";
+    let kategorisiertVon = "gpt";
 
     // Categorize + Extract with GPT-5 mini
     const extractedData = await categorizeAndExtract(extractedText, file.name);
@@ -678,10 +682,11 @@ Deno.serve(async (req: Request) => {
         }
       }
 
-      // Upload file to Storage
+      // Upload file to Storage - v35: canonicalize kategorie for storage path
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
       const safeFileName = sanitizeFileName(uploadFileName);
-      const storagePath = `${extractedData.kategorie}/${timestamp}_${safeFileName}`;
+      const storageKategorie = canonicalizeKategorie(extractedData.kategorie) || extractedData.kategorie;
+      const storagePath = `${storageKategorie}/${timestamp}_${safeFileName}`;
 
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from("documents")
@@ -733,7 +738,7 @@ Deno.serve(async (req: Request) => {
         processing_status: "done",
         processed_at: new Date().toISOString(),
         kategorisiert_am: new Date().toISOString(),
-        kategorisiert_von: kategorisiertVon === "rule" ? "rule" : "process-document-gpt",
+        kategorisiert_von: "process-document-gpt",
       };
 
       const { error: updateError } = await supabase
@@ -1045,7 +1050,7 @@ function buildDatabaseRecord(
     processing_status: "done",
     processed_at: now,
     kategorisiert_am: now,
-    kategorisiert_von: kategorisiertVon === "rule" ? "rule" : "process-document-gpt",
+    kategorisiert_von: "process-document-gpt",
     // v20: Unterschrift-Felder
     empfang_unterschrift: extracted.empfang_unterschrift,
     unterschrift: extracted.unterschrift,

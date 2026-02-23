@@ -1,7 +1,15 @@
 // =============================================================================
 // Shared Category Definitions, Canonicalization, and Heuristic Rules
-// Version: 2.4.0 - 2026-01-22
+// Version: 2.5.0 - 2026-02-23
 // =============================================================================
+// Aenderungen v2.5.0:
+// - NEU: Kategorie "Fahrzeugdokument" (Fahrzeugschein, TÜV, Reparaturprotokoll, Stapler)
+// - NEU: Kategorie "Personalunterlagen" (Stundennachweis, AU, Lohnabrechnung)
+// - 36 -> 38 Kategorien
+//
+// Aenderungen v2.4.2:
+// - FIX: canonicalizeKategorie() strippt jetzt Nummern-Prefixe ("12. Eingangslieferschein" -> "Eingangslieferschein")
+//
 // Aenderungen v2.4.0:
 // - NEU: Kategorie "Kassenbeleg" (Tankquittungen, Baumarkt-Bons, Barbelege)
 // - NEU: Heuristik-Regel Kassenbeleg (priority 82)
@@ -42,6 +50,7 @@ export const VALID_DOKUMENT_KATEGORIEN = [
   "Brief_von_Finanzamt",
   "Eingangslieferschein",
   "Eingangsrechnung",
+  "Fahrzeugdokument",       // v2.5.0: Fahrzeugschein, TÜV, Reparatur, Stapler-Prüfung
   "Email_Anhang",
   "Email_Ausgehend",
   "Email_Eingehend",
@@ -58,6 +67,7 @@ export const VALID_DOKUMENT_KATEGORIEN = [
   "Montageauftrag",
   "Notiz",
   "Office_Dokument",
+  "Personalunterlagen",     // v2.5.0: Stundennachweis, AU, Lohnabrechnung
   "Preisanfrage",
   "Produktdatenblatt",
   "Reiseunterlagen",       // v2.1.0: Hotel, Flug, Bahn, Mietwagen, Buchungen
@@ -562,14 +572,21 @@ export function applyHeuristicRules(
 export function canonicalizeKategorie(kategorie: string | null | undefined): string | null {
   if (!kategorie) return null;
 
+  // v2.4.1: Strip numbered prefixes from GPT output (e.g. "12. Eingangslieferschein" -> "Eingangslieferschein")
+  let cleaned = kategorie.replace(/^\d+\.\s*/, "");
+
   // Check if there's an alias mapping
-  const canonical = KATEGORIE_ALIASES[kategorie];
+  const canonical = KATEGORIE_ALIASES[cleaned];
   if (canonical) {
     console.log(`[CATEGORIES] Mapped alias: "${kategorie}" -> "${canonical}"`);
     return canonical;
   }
 
-  return kategorie;
+  if (cleaned !== kategorie) {
+    console.log(`[CATEGORIES] Stripped prefix: "${kategorie}" -> "${cleaned}"`);
+  }
+
+  return cleaned;
 }
 
 /**

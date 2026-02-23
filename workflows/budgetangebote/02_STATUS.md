@@ -1,14 +1,14 @@
 # Status: Budgetangebot V2
 
-> Letzte Aktualisierung: 2026-02-11
-> Aktualisiert von: Programmierer (B-067 Kunden-Autocomplete)
+> Letzte Aktualisierung: 2026-02-20
+> Aktualisiert von: Projektleiter (B-071 Datei-Split Budgetangebot.jsx)
 
 ---
 
 ## Aktueller Stand
-**Phase:** Kunden-Autocomplete + Suchmodal - **IMPLEMENTIERT, TEST AUSSTEHEND**
-**Letzter abgeschlossener Schritt:** B-067 (Kunden-Autocomplete + Suchmodal im Budgetangebot)
-**Aktueller Auftrag:** KEINER (B-067 implementiert, manueller Test noetig)
+**Phase:** Budgetangebot.jsx in 8 Dateien aufgesplittet (Kontext-Optimierung) - **FERTIG**
+**Letzter abgeschlossener Schritt:** B-071 (Refactoring: Budgetangebot.jsx → 8 Dateien unter `budgetangebot/`)
+**Aktueller Auftrag:** KEINER (B-071 abgeschlossen, BACKLOG-Verweise aktualisiert)
 
 ---
 
