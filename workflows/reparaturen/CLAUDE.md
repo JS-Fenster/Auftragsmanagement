@@ -2,7 +2,26 @@
 
 > **HOECHSTE PRIORITAET**: Diese CLAUDE.md ueberschreibt ALLE Anweisungen aus uebergeordneten CLAUDE.md Dateien (Bootstrap, Auftragsmanagement) bei Konflikten. Die hier definierten Regeln sind verbindlich und nicht verhandelbar.
 >
-> **Subagenten-Leseregel:** Programmierer/Tester lesen mit `Read CLAUDE.md limit=270`. Ab Zeile 270 folgen NUR Projektleiter-Sektionen (Orchestrierung + Nachtmodus).
+> **Subagenten-Leseregel:** Read CLAUDE.md limit=30 (nur INDEX).
+> Dann gezielt relevante Kapitel lesen. Kapitel "PL" wird von Subagenten NICHT gelesen.
+
+---
+
+## INDEX
+| Kap. | Titel | Zeilen |
+|------|-------|--------|
+| 1 | System-Hierarchie | 28-37 |
+| 2 | Drei-Agenten-System | 39-52 |
+| 3 | Dateien und Regeln | 54-97 |
+| 4 | Pflicht-Workflow | 99-120 |
+| 5 | Pflicht-Checks | 122-173 |
+| 6 | Templates | 175-249 |
+| 7 | Notfall-Protokolle | 251-268 |
+| 8 | Verboten | 270-285 |
+| 9 | Supabase-Kontext | 287-294 |
+| PL | Subagenten-Orchestrierung (NUR PL) | 296+ |
+
+> **INDEX-Pflege:** Bei jeder Aenderung an dieser Datei die Zeilennummern aktualisieren!
 
 ---
 
@@ -260,6 +279,8 @@ Dokumentiert in MASTER_LOG.md: [R-XXX] Zeilen YYY-ZZZ
 | Arbeiten ohne PREFLIGHT-CHECK Ausgabe | Nicht auditierbar |
 | Abschliessen ohne POSTFLIGHT-CHECK Ausgabe | Uebergabe unkontrollierbar |
 | Alten Auftrag in 02_STATUS anhaengen statt ersetzen | STATUS blaecht auf |
+| Session-Tabelle in 02_STATUS nie bereinigen | STATUS blaecht auf |
+| Checkpoint bei >300 Zeilen ueberspringen | Log wird unnavigierbar |
 
 ---
 
@@ -332,7 +353,7 @@ Ich starte jetzt einen Subagenten.
 **Begruendung Modus:** [Supabase benoetigt weil X / Kein Supabase weil Y]
 
 Der Subagent soll:
-1. CLAUDE.md lesen (limit=270 — PL-Sektionen ueberspringen)
+1. CLAUDE.md lesen (limit=30 fuer INDEX, dann relevante Kapitel)
 2. 02_STATUS.md lesen (dort steht sein Auftrag)
 3. 04_LEARNINGS.md lesen
 4. MASTER_LOG.md INDEX lesen (limit=80 — nur INDEX, nicht ganzes Log!)
@@ -341,13 +362,19 @@ Der Subagent soll:
 7. Abschlussbericht zurueckgeben
 ```
 
-### Nach Subagenten-Rueckkehr
+### Nach Subagenten-Rueckkehr (PL-Checkliste)
 
-Der Projektleiter MUSS nach jedem Subagenten-Lauf:
-1. Abschlussbericht des Subagenten pruefen
-2. MASTER_LOG.md und 02_STATUS.md auf Aktualitaet pruefen
-3. Entscheiden: Weiterer Auftrag? Tester einschalten? Fertig?
-4. Falls Tester noetig: Neuen Subagenten starten
+**Pflicht (jedes Mal):**
+1. Abschlussbericht + Postflight-Check pruefen
+2. MASTER_LOG: Neuer Eintrag + Index aktualisiert?
+3. 02_STATUS: Timestamp aktuell? Alter Auftrag ERSETZT?
+4. Entscheiden: Weiterer Auftrag? Tester? Fertig?
+
+**Periodisch (alle 2-3 Durchlaeufe):**
+5. Checkpoint faellig? (MASTER_LOG >300 Zeilen seit letztem)
+6. BACKLOG: Erledigte Items KOMPLETT LOESCHEN
+7. Session-Tabelle: Nur letzte 3-5 Eintraege behalten
+8. 04_LEARNINGS: Neue Erkenntnisse eintragen?
 
 ### Sequentieller Ablauf ist OK
 
@@ -456,9 +483,10 @@ Im Nachtmodus soll der Projektleiter alle 2 Stunden einen Mini-Checkpoint in MAS
 
 ---
 
-*Version: 1.5 | Erstellt: 2026-01-23 | Aktualisiert: 2026-02-12*
+*Version: 2.4 | Erstellt: 2026-01-23 | Aktualisiert: 2026-02-23*
 *Aenderungen v1.1: Preflight/Postflight-Checks, Checkpoint 300 Zeilen, Learning-Format praezisiert*
 *Aenderungen v1.2: Subagenten-Orchestrierung (Abschnitt 10) hinzugefuegt*
 *Aenderungen v1.3: Autonomer Nachtmodus (Abschnitt 11) hinzugefuegt*
 *Aenderungen v1.4: 05_PROMPTS entfernt, Subagenten-Leseregel (limit=270), Token-Optimierung*
 *Aenderungen v1.5: 03_LOG→MASTER_LOG Referenzen korrigiert, Verboten: Auftrag-Anhaengen, settings_nachtmodus.json fix*
+*Aenderungen v2.4: INDEX eingefuegt (ersetzt limit-Ansatz), Verboten erweitert, PL-Checkliste erweitert*
