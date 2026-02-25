@@ -233,8 +233,16 @@ async function getReviewQueue(params: ReviewQueueParams) {
   if (until) {
     query = query.lte("created_at", until);
   }
-  if (status && status !== "all") {
+  if (status === "error") {
+    // Show only documents with processing errors (ghost files, OCR failures, etc.)
+    query = query.eq("processing_status", "error");
+  } else if (status && status !== "all") {
     query = query.eq("review_status", status);
+    // Hide error documents from normal review queues
+    query = query.neq("processing_status", "error");
+  } else if (status === "all") {
+    // "all" still excludes errors unless explicitly selected
+    query = query.neq("processing_status", "error");
   }
   if (kategorie) {
     query = query.eq("kategorie", kategorie);

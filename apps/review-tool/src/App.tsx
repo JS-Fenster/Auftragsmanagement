@@ -378,6 +378,7 @@ function App() {
                 <option value="pending">Ausstehend</option>
                 <option value="approved">Bestaetigt</option>
                 <option value="corrected">Korrigiert</option>
+                <option value="error">Fehler</option>
                 <option value="all">Alle</option>
               </select>
             </div>
