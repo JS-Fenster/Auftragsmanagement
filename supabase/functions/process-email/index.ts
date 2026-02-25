@@ -110,26 +110,30 @@ const INLINE_ATTACHMENT_SIGNATURES = [
   "signature", "logo", "banner", "cid:", "outlook"
 ];
 
-// Categories
+// Categories - synchronized with _shared/categories.ts v3.0.0
 const VALID_CATEGORIES = [
-  "Bewerbung",
-  "Lead_Anfrage",
+  "Anforderung_Unterlagen",
+  "Angebot_Anforderung",
+  "Antwort_oder_Weiterleitung",
+  "Auftragserteilung",
+  "Automatische_Benachrichtigung",
   "BAFA_Foerderung",
-  "Versicherung_Schaden",
+  "Bestellbestaetigung",
+  "Bewerbung",
+  "Intern",
+  "Kundenanfrage",
+  "Lead_Anfrage",
   "Lieferstatus_Update",
+  "Marktplatz_Anfrage",
+  "Nachverfolgung",
+  "Newsletter_Werbung",
   "Rechnung_Eingang",
   "Rechnung_Gesendet",
-  "Auftragserteilung",
-  "Bestellbestaetigung",
-  "Angebot_Anforderung",
   "Reklamation",
   "Serviceanfrage",
-  "Anforderung_Unterlagen",
-  "Terminanfrage",
-  "Kundenanfrage",
-  "Newsletter_Werbung",
-  "Antwort_oder_Weiterleitung",
   "Sonstiges",
+  "Terminanfrage",
+  "Versicherung_Schaden",
 ];
 
 // =============================================================================
