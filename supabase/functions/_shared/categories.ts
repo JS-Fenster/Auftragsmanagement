@@ -1,39 +1,31 @@
 // =============================================================================
 // Shared Category Definitions, Canonicalization, and Heuristic Rules
-// Version: 2.6.0 - 2026-02-25
+// Version: 3.0.0 - 2026-02-25
 // =============================================================================
+// Aenderungen v3.0.0 (Kategorien-Rename G-021 bis G-028):
+// - RENAMED: Eingehend/Ausgehend-Schema statt Kunden/Lieferanten-Prefix
+//   Kundenanfrage -> Anfrage_Eingehend
+//   Preisanfrage -> Anfrage_Ausgehend
+//   Angebot -> Angebot_Ausgehend / Angebot_Eingehend (Split)
+//   Lieferantenangebot -> Angebot_Eingehend
+//   Auftragsbestaetigung -> Auftragsbestaetigung_Eingehend / _Ausgehend (Split)
+//   Bestellung -> Bestellung_Ausgehend
+//   Kundenbestellung -> Bestellung_Eingehend
+//   Eingangslieferschein -> Lieferschein_Eingehend
+//   Kundenlieferschein -> Lieferschein_Ausgehend
+//   Eingangsrechnung -> Rechnung_Eingehend
+//   Ausgangsrechnung -> Rechnung_Ausgehend
+//   Zahlungserinnerung -> Mahnung (merged)
+// - REMOVED: Email_Anhang, Email_Eingehend, Email_Ausgehend (Pseudo-Kategorien)
+// - NEU: Steuer_Bescheid, Freistellungsbescheinigung, Buchhaltungsunterlagen
+// - NEU: Retoure_Eingehend, Retoure_Ausgehend
+// - Email: +4 neue (Automatische_Benachrichtigung, Intern, Marktplatz_Anfrage, Nachverfolgung)
+// - Alle alten Namen als KATEGORIE_ALIASES fuer Rueckwaertskompatibilitaet
+// - 40 -> 45 Dokument-Kategorien, 18 -> 22 Email-Kategorien
+//
 // Aenderungen v2.6.0:
 // - NEU: Kategorie "Anleitung" (Bedienungsanleitung, Montageanleitung, Programmieranleitung)
 // - NEU: Kategorie "Spam" (Fax-Spam, Werbe-Faxe, unerwuenschte Dokumente)
-// - 38 -> 40 Kategorien
-//
-// Aenderungen v2.5.0:
-// - NEU: Kategorie "Fahrzeugdokument" (Fahrzeugschein, TÜV, Reparaturprotokoll, Stapler)
-// - NEU: Kategorie "Personalunterlagen" (Stundennachweis, AU, Lohnabrechnung)
-// - 36 -> 38 Kategorien
-//
-// Aenderungen v2.4.2:
-// - FIX: canonicalizeKategorie() strippt jetzt Nummern-Prefixe ("12. Eingangslieferschein" -> "Eingangslieferschein")
-//
-// Aenderungen v2.4.0:
-// - NEU: Kategorie "Kassenbeleg" (Tankquittungen, Baumarkt-Bons, Barbelege)
-// - NEU: Heuristik-Regel Kassenbeleg (priority 82)
-//
-// Aenderungen v2.3.0:
-// - NEU: Kategorie "Bauplan" (Grundriss, Schnitt, Ansicht, Lageplan, Architekt)
-// - NEU: Kategorie "Zeichnung" (technische Zeichnungen, CAD)
-// - NEU: Heuristik-Regel Bauplan (priority 88)
-//
-// Aenderungen v2.2.0:
-// - NEU: Kategorie "Zahlungsavis" (Belastungsanzeige, Lastschrift, Sammelabbuchung)
-// - NEU: Heuristik-Regel Zahlungsavis (priority 78)
-//
-// Aenderungen v2.1.0:
-// - NEU: Kategorie "Reiseunterlagen" (Hotel, Flug, Bahn, Mietwagen)
-// - NEU: Kategorie "Kundenbestellung" (PO vom Kunden an uns)
-// - NEU: Heuristik-Regel Reiseunterlagen (priority 70)
-// - NEU: Heuristik-Regel Kundenbestellung (priority 95)
-// - VERBESSERT: Bestellung-Regel auf ausgehende Dokumente eingeschraenkt
 // =============================================================================
 
 // =============================================================================
@@ -42,51 +34,53 @@
 
 export const VALID_DOKUMENT_KATEGORIEN = [
   "Abnahmeprotokoll",
-  "Angebot",
-  "Anleitung",              // v2.6.0: Bedienungs-, Montage-, Programmieranleitungen
+  "Anfrage_Ausgehend",          // v3.0: was Preisanfrage
+  "Anfrage_Eingehend",          // v3.0: was Kundenanfrage
+  "Angebot_Ausgehend",          // v3.0: was Angebot (unser Angebot an Kunden)
+  "Angebot_Eingehend",          // v3.0: was Lieferantenangebot
+  "Anleitung",                  // v2.6.0: Bedienungs-, Montage-, Programmieranleitungen
   "Aufmassblatt",
-  "Auftragsbestaetigung",
+  "Auftragsbestaetigung_Ausgehend",  // v3.0: Split von Auftragsbestaetigung
+  "Auftragsbestaetigung_Eingehend",  // v3.0: Split von Auftragsbestaetigung
   "Audio",
-  "Ausgangsrechnung",
-  "Bauplan",               // v2.3.0: Grundriss, Schnitt, Ansicht, Lageplan, Architekt
-  "Bestellung",
+  "Bauplan",                    // v2.3.0: Grundriss, Schnitt, Ansicht, Lageplan, Architekt
+  "Bestellung_Ausgehend",       // v3.0: was Bestellung (von uns an Lieferanten)
+  "Bestellung_Eingehend",       // v3.0: was Kundenbestellung (PO vom Kunden an uns)
   "Bild",
   "Brief_ausgehend",
   "Brief_eingehend",
   "Brief_von_Finanzamt",
-  "Eingangslieferschein",
-  "Eingangsrechnung",
-  "Fahrzeugdokument",       // v2.5.0: Fahrzeugschein, TÜV, Reparatur, Stapler-Prüfung
-  "Email_Anhang",
-  "Email_Ausgehend",
-  "Email_Eingehend",
+  "Buchhaltungsunterlagen",     // v3.0: NEU
+  "Fahrzeugdokument",           // v2.5.0: Fahrzeugschein, TUeV, Reparatur, Stapler-Pruefung
   "Finanzierung",
   "Formular",
+  "Freistellungsbescheinigung", // v3.0: NEU
   "Gutschrift",
-  "Kassenbeleg",            // v2.4.0: Tankquittungen, Baumarkt-Bons, Barbelege
-  "Kundenanfrage",
-  "Kundenbestellung",      // v2.1.0: PO vom Kunden an uns (eingehend)
-  "Kundenlieferschein",
+  "Kassenbeleg",                // v2.4.0: Tankquittungen, Baumarkt-Bons, Barbelege
   "Leasing",
-  "Lieferantenangebot",
-  "Mahnung",
+  "Lieferschein_Ausgehend",     // v3.0: was Kundenlieferschein
+  "Lieferschein_Eingehend",     // v3.0: was Eingangslieferschein
+  "Mahnung",                    // v3.0: merged mit Zahlungserinnerung
   "Montageauftrag",
   "Notiz",
   "Office_Dokument",
-  "Personalunterlagen",     // v2.5.0: Stundennachweis, AU, Lohnabrechnung
-  "Preisanfrage",
+  "Personalunterlagen",         // v2.5.0: Stundennachweis, AU, Lohnabrechnung
   "Produktdatenblatt",
-  "Reiseunterlagen",       // v2.1.0: Hotel, Flug, Bahn, Mietwagen, Buchungen
+  "Rechnung_Ausgehend",         // v3.0: was Ausgangsrechnung
+  "Rechnung_Eingehend",         // v3.0: was Eingangsrechnung
+  "Reiseunterlagen",            // v2.1.0: Hotel, Flug, Bahn, Mietwagen, Buchungen
   "Reklamation",
+  "Retoure_Ausgehend",          // v3.0: NEU
+  "Retoure_Eingehend",          // v3.0: NEU
   "Serviceauftrag",
   "Skizze",
   "Sonstiges_Dokument",
-  "Spam",                   // v2.6.0: Fax-Spam, Werbe-Faxe, unerwuenschte Dokumente
+  "Spam",                       // v2.6.0: Fax-Spam, Werbe-Faxe, unerwuenschte Dokumente
+  "Steuer_Bescheid",            // v3.0: NEU
   "Vertrag",
   "Video",
-  "Zahlungsavis",          // v2.2.0: Belastungsanzeige, Lastschrift, Sammelabbuchung
-  "Zahlungserinnerung",
-  "Zeichnung",             // v2.3.0: Technische Zeichnungen, CAD-Zeichnungen
+  "Zahlungsavis",               // v2.2.0: Belastungsanzeige, Lastschrift, Sammelabbuchung
+  "Zeichnung",                  // v2.3.0: Technische Zeichnungen, CAD-Zeichnungen
 ];
 
 // =============================================================================
@@ -98,12 +92,16 @@ export const VALID_EMAIL_KATEGORIEN = [
   "Angebot_Anforderung",
   "Antwort_oder_Weiterleitung",
   "Auftragserteilung",
+  "Automatische_Benachrichtigung",  // v3.0: NEU - System-Notifications, Auto-Replies
   "BAFA_Foerderung",
   "Bestellbestaetigung",
   "Bewerbung",
+  "Intern",                         // v3.0: NEU - Interne Kommunikation
   "Kundenanfrage",
   "Lead_Anfrage",
   "Lieferstatus_Update",
+  "Marktplatz_Anfrage",             // v3.0: NEU - MyHammer, Check24, etc.
+  "Nachverfolgung",                 // v3.0: NEU - Follow-up Emails
   "Newsletter_Werbung",
   "Rechnung_Eingang",
   "Rechnung_Gesendet",
@@ -119,32 +117,40 @@ export const VALID_EMAIL_KATEGORIEN = [
 // =============================================================================
 
 const KATEGORIE_ALIASES: Record<string, string> = {
-  // Angebotsanfrage -> Kundenanfrage
-  "Angebotsanfrage": "Kundenanfrage",
+  // === v3.0 Renames: Eingehend/Ausgehend-Schema ===
+  "Kundenanfrage": "Anfrage_Eingehend",
+  "Preisanfrage": "Anfrage_Ausgehend",
+  "Angebot": "Angebot_Ausgehend",          // Default: unser Angebot
+  "Lieferantenangebot": "Angebot_Eingehend",
+  "Auftragsbestaetigung": "Auftragsbestaetigung_Eingehend",  // Default: vom Lieferanten
+  "Bestellung": "Bestellung_Ausgehend",
+  "Kundenbestellung": "Bestellung_Eingehend",
+  "Eingangslieferschein": "Lieferschein_Eingehend",
+  "Kundenlieferschein": "Lieferschein_Ausgehend",
+  "Eingangsrechnung": "Rechnung_Eingehend",
+  "Ausgangsrechnung": "Rechnung_Ausgehend",
+  "Zahlungserinnerung": "Mahnung",
 
-  // Brief_* -> Brief_eingehend / Brief_ausgehend
+  // === v3.0 Removed Pseudo-Categories ===
+  "Email_Anhang": "Sonstiges_Dokument",
+  "Email_Eingehend": "Sonstiges_Dokument",
+  "Email_Ausgehend": "Sonstiges_Dokument",
+
+  // === Legacy Aliases (pre-v3.0) ===
+  "Angebotsanfrage": "Anfrage_Eingehend",
   "Brief_von_Kunde": "Brief_eingehend",
   "Brief_von_Amt": "Brief_eingehend",
   "Brief_an_Kunde": "Brief_ausgehend",
-
-  // Archiv -> Sonstiges_Dokument
   "Archiv": "Sonstiges_Dokument",
-
-  // Produktdatenblatt Synonyme
   "Produktbeschreibung": "Produktdatenblatt",
   "Datenblatt": "Produktdatenblatt",
   "Produktblatt": "Produktdatenblatt",
+  "Order confirmation": "Auftragsbestaetigung_Eingehend",
+  "Bestellbestaetigung": "Auftragsbestaetigung_Eingehend",
 
-  // Auftragsbestaetigung Synonyme
-  "Order confirmation": "Auftragsbestaetigung",
-  "Bestellbestaetigung": "Auftragsbestaetigung",
-
-  // GPT-5 mini Typo-Korrekturen (Backtest 500 Docs, 3x aufgetreten)
+  // GPT-5 mini Typo-Korrekturen
   "Brief_eingend": "Brief_eingehend",
   "Brief_eingang": "Brief_eingehend",
-
-  // v2.1.0: "Purchase order" und "PO" entfernt - kann Bestellung ODER Kundenbestellung sein
-  // Heuristik entscheidet basierend auf Kontext (wer ist Absender/Empfaenger)
 };
 
 // =============================================================================
@@ -158,9 +164,9 @@ interface HeuristicRule {
 }
 
 const HEURISTIC_RULES: HeuristicRule[] = [
-  // Auftragsbestaetigung (priority 100 - wins over Bestellung/Kundenbestellung)
+  // Auftragsbestaetigung_Eingehend (priority 100 - wins over Bestellung/Kundenbestellung)
   {
-    kategorie: "Auftragsbestaetigung",
+    kategorie: "Auftragsbestaetigung_Eingehend",
     keywords: [
       "auftragsbestätigung",
       "auftragsbestaetigung",
@@ -178,10 +184,9 @@ const HEURISTIC_RULES: HeuristicRule[] = [
     priority: 100,
   },
 
-  // v2.1.0: Kundenbestellung (priority 95) - PO vom Kunden an uns
-  // Erkennt eingehende Bestellungen wo J.S. Fenster als Lieferant adressiert ist
+  // Bestellung_Eingehend (priority 95) - PO vom Kunden an uns
   {
-    kategorie: "Kundenbestellung",
+    kategorie: "Bestellung_Eingehend",
     keywords: [
       "bitte auf lieferschein und rechnung angeben",
       "bitte auf lieferschein angeben",
@@ -191,7 +196,7 @@ const HEURISTIC_RULES: HeuristicRule[] = [
       "an: j.s. fenster",
       "an: js fenster",
       "ihre bestellnummer",
-      "unsere bestellnummer", // aus Kundensicht
+      "unsere bestellnummer",
       "bestellung an j.s.",
       "bestellung an js",
       "purchase order an",
@@ -202,10 +207,9 @@ const HEURISTIC_RULES: HeuristicRule[] = [
     priority: 95,
   },
 
-  // Bestellung (priority 90) - von uns an Lieferanten (ausgehend)
-  // v2.1.0: Keywords angepasst fuer ausgehende Bestellungen
+  // Bestellung_Ausgehend (priority 90) - von uns an Lieferanten
   {
-    kategorie: "Bestellung",
+    kategorie: "Bestellung_Ausgehend",
     keywords: [
       "wir bestellen",
       "hiermit bestellen wir",
@@ -213,7 +217,7 @@ const HEURISTIC_RULES: HeuristicRule[] = [
       "bestellung von j.s. fenster",
       "bestellung von js fenster",
       "j.s. fenster bestellt",
-      "lieferanschrift:", // wir geben Lieferadresse an
+      "lieferanschrift:",
       "bestellposition",
       "bestellwert",
       "bestellnummer",
@@ -222,8 +226,7 @@ const HEURISTIC_RULES: HeuristicRule[] = [
     priority: 90,
   },
 
-  // v2.3.0: Bauplan (priority 88) - Architektenplaene, Grundrisse, Schnitte
-  // Gewinnt gegen Skizze wenn Bauplan-spezifische Keywords vorhanden
+  // Bauplan (priority 88)
   {
     kategorie: "Bauplan",
     keywords: [
@@ -252,26 +255,6 @@ const HEURISTIC_RULES: HeuristicRule[] = [
       "kataster",
     ],
     priority: 88,
-  },
-
-  // Produktdatenblatt (priority 80)
-  {
-    kategorie: "Produktdatenblatt",
-    keywords: [
-      "datenblatt",
-      "technische daten",
-      "produktdaten",
-      "produktbeschreibung",
-      "artikelnummer",
-      "ean",
-      "merkmale",
-      "abbildung ähnlich",
-      "abbildung aehnlich",
-      "technische spezifikation",
-      "produktspezifikation",
-      "materialangaben",
-    ],
-    priority: 80,
   },
 
   // Finanzierung (priority 85)
@@ -312,52 +295,6 @@ const HEURISTIC_RULES: HeuristicRule[] = [
     priority: 85,
   },
 
-  // Lieferantenangebot (priority 70)
-  {
-    kategorie: "Lieferantenangebot",
-    keywords: [
-      "unser angebot",
-      "wir bieten ihnen",
-      "angebotsnummer",
-      "gültig bis",
-      "gueltig bis",
-      "angebotspreis",
-      "freibleibend",
-    ],
-    priority: 70,
-  },
-
-  // Eingangsrechnung (priority 75)
-  {
-    kategorie: "Eingangsrechnung",
-    keywords: [
-      "rechnung",
-      "rechnungsnummer",
-      "rechnungsdatum",
-      "zahlbar bis",
-      "zahlungsziel",
-      "nettobetrag",
-      "mwst",
-      "ust-id",
-    ],
-    priority: 75,
-  },
-
-  // Gutschrift (priority 80 - wins over Eingangsrechnung)
-  {
-    kategorie: "Gutschrift",
-    keywords: [
-      "gutschrift",
-      "stornorechnung",
-      "korrekturrechnung",
-      "rückerstattung",
-      "rueckerstattung",
-      "haben wir gutgeschrieben",
-      "schreiben wir gut",
-    ],
-    priority: 80,
-  },
-
   // Mahnung (priority 85)
   {
     kategorie: "Mahnung",
@@ -373,8 +310,148 @@ const HEURISTIC_RULES: HeuristicRule[] = [
     priority: 85,
   },
 
-  // v2.1.0: Reiseunterlagen (priority 70)
-  // Hotel, Flug, Bahn, Mietwagen, Buchungsbestaetigungen
+  // Kassenbeleg (priority 82)
+  {
+    kategorie: "Kassenbeleg",
+    keywords: [
+      "kassenbon",
+      "kassenbeleg",
+      "kassenquittung",
+      "quittung",
+      "bar bezahlt",
+      "barzahlung",
+      "tankquittung",
+      "tankstelle",
+      "baumarkt",
+      "hornbach",
+      "obi",
+      "toom",
+      "hagebau",
+      "globus",
+      "bewirtungsbeleg",
+      "bewirtung",
+      "ec-zahlung",
+      "kartenzahlung",
+      "trinkgeld",
+      "kasse:",
+      "bon-nr",
+      "tse-signatur",
+    ],
+    priority: 82,
+  },
+
+  // Produktdatenblatt (priority 80)
+  {
+    kategorie: "Produktdatenblatt",
+    keywords: [
+      "datenblatt",
+      "technische daten",
+      "produktdaten",
+      "produktbeschreibung",
+      "artikelnummer",
+      "ean",
+      "merkmale",
+      "abbildung ähnlich",
+      "abbildung aehnlich",
+      "technische spezifikation",
+      "produktspezifikation",
+      "materialangaben",
+    ],
+    priority: 80,
+  },
+
+  // Gutschrift (priority 80 - wins over Rechnung_Eingehend)
+  {
+    kategorie: "Gutschrift",
+    keywords: [
+      "gutschrift",
+      "stornorechnung",
+      "korrekturrechnung",
+      "rückerstattung",
+      "rueckerstattung",
+      "haben wir gutgeschrieben",
+      "schreiben wir gut",
+    ],
+    priority: 80,
+  },
+
+  // Zahlungsavis (priority 78)
+  {
+    kategorie: "Zahlungsavis",
+    keywords: [
+      "belastungsanzeige",
+      "zahlungsavis",
+      "zahlungsavis nr",
+      "lastschrift",
+      "lastschrifteinzug",
+      "sepa-lastschrift",
+      "sammelabbuchung",
+      "sammellastschrift",
+      "zahlungslauf",
+      "abbuchung erfolgt",
+      "wir haben abgebucht",
+      "belastet ihr konto",
+      "kontobelastung",
+      "einzug vom",
+      "abbuchungsauftrag",
+    ],
+    priority: 78,
+  },
+
+  // Rechnung_Eingehend (priority 75)
+  {
+    kategorie: "Rechnung_Eingehend",
+    keywords: [
+      "rechnung",
+      "rechnungsnummer",
+      "rechnungsdatum",
+      "zahlbar bis",
+      "zahlungsziel",
+      "nettobetrag",
+      "mwst",
+      "ust-id",
+    ],
+    priority: 75,
+  },
+
+  // Zeichnung (priority 72)
+  {
+    kategorie: "Zeichnung",
+    keywords: [
+      "technische zeichnung",
+      "detailzeichnung",
+      "cad",
+      "autocad",
+      "dwg",
+      "dxf",
+      "konstruktionszeichnung",
+      "fertigungszeichnung",
+      "explosionszeichnung",
+      "stückliste",
+      "stueckliste",
+      "bemaßung",
+      "bemassung",
+      "iso-ansicht",
+    ],
+    priority: 72,
+  },
+
+  // Angebot_Eingehend (priority 70) - Lieferantenangebot
+  {
+    kategorie: "Angebot_Eingehend",
+    keywords: [
+      "unser angebot",
+      "wir bieten ihnen",
+      "angebotsnummer",
+      "gültig bis",
+      "gueltig bis",
+      "angebotspreis",
+      "freibleibend",
+    ],
+    priority: 70,
+  },
+
+  // Reiseunterlagen (priority 70)
   {
     kategorie: "Reiseunterlagen",
     keywords: [
@@ -412,86 +489,6 @@ const HEURISTIC_RULES: HeuristicRule[] = [
       "doppelzimmer",
     ],
     priority: 70,
-  },
-
-  // v2.4.0: Kassenbeleg (priority 82)
-  // Tankquittungen, Baumarkt-Bons, Material-Belege, Bewirtung (alles was bar bezahlt wird)
-  // Priority ueber Eingangsrechnung (75) und Gutschrift (80)
-  {
-    kategorie: "Kassenbeleg",
-    keywords: [
-      "kassenbon",
-      "kassenbeleg",
-      "kassenquittung",
-      "quittung",
-      "bar bezahlt",
-      "barzahlung",
-      "tankquittung",
-      "tankstelle",
-      "baumarkt",
-      "hornbach",
-      "obi",
-      "toom",
-      "hagebau",
-      "globus",
-      "bewirtungsbeleg",
-      "bewirtung",
-      "ec-zahlung",
-      "kartenzahlung",
-      "trinkgeld",
-      "kasse:",
-      "bon-nr",
-      "tse-signatur",
-    ],
-    priority: 82,
-  },
-
-  // v2.2.0: Zahlungsavis (priority 78)
-  // Belastungsanzeige, Lastschrift, Sammelabbuchung (Info ueber ausgefuehrte Zahlung)
-  // Priority knapp ueber Eingangsrechnung (75), aber unter Gutschrift (80)
-  {
-    kategorie: "Zahlungsavis",
-    keywords: [
-      "belastungsanzeige",
-      "zahlungsavis",
-      "zahlungsavis nr",
-      "lastschrift",
-      "lastschrifteinzug",
-      "sepa-lastschrift",
-      "sammelabbuchung",
-      "sammellastschrift",
-      "zahlungslauf",
-      "abbuchung erfolgt",
-      "wir haben abgebucht",
-      "belastet ihr konto",
-      "kontobelastung",
-      "einzug vom",
-      "abbuchungsauftrag",
-    ],
-    priority: 78,
-  },
-
-  // v2.3.0: Zeichnung (priority 72)
-  // Technische Zeichnungen, CAD - niedriger als Bauplan (88)
-  {
-    kategorie: "Zeichnung",
-    keywords: [
-      "technische zeichnung",
-      "detailzeichnung",
-      "cad",
-      "autocad",
-      "dwg",
-      "dxf",
-      "konstruktionszeichnung",
-      "fertigungszeichnung",
-      "explosionszeichnung",
-      "stückliste",
-      "stueckliste",
-      "bemaßung",
-      "bemassung",
-      "iso-ansicht",
-    ],
-    priority: 72,
   },
 ];
 

@@ -30,7 +30,8 @@ function App() {
   const [filterStatus, setFilterStatus] = useState<string>('pending');
   const [filterOnlySuspect, setFilterOnlySuspect] = useState(false);
   const [filterEmailKategorie, setFilterEmailKategorie] = useState<string>('');
-  const [filterKategorie, setFilterKategorie] = useState<string>(''); // Dokument-Kategorie filter
+  const [filterKategorie, setFilterKategorie] = useState<string>(''); // Dokument-Kategorie filter (GPT)
+  const [filterKategorieManual, setFilterKategorieManual] = useState<string>(''); // Korrigierte Kategorie filter
   const [filterMaxConfidence, setFilterMaxConfidence] = useState<number>(100);
 
   // Batch Selection State
@@ -129,13 +130,16 @@ function App() {
         kategorie: filterKategorie || undefined,
         limit: 100,
       });
-      // Client-side confidence filter
+      // Client-side filters
       let items = result.items;
       if (filterMaxConfidence < 100) {
         items = items.filter(doc =>
           doc.email_kategorie_confidence === null ||
           doc.email_kategorie_confidence * 100 <= filterMaxConfidence
         );
+      }
+      if (filterKategorieManual) {
+        items = items.filter(doc => doc.kategorie_manual === filterKategorieManual);
       }
       setDocuments(items);
       setBatchSelectedIds(new Set()); // Clear batch selection on reload
@@ -144,7 +148,7 @@ function App() {
     } finally {
       setLoadingQueue(false);
     }
-  }, [api, filterStatus, filterOnlySuspect, filterEmailKategorie, filterKategorie, filterMaxConfidence]);
+  }, [api, filterStatus, filterOnlySuspect, filterEmailKategorie, filterKategorie, filterKategorieManual, filterMaxConfidence]);
 
   // Initial load when connected
   useEffect(() => {
@@ -160,7 +164,7 @@ function App() {
     if (isConnected && api) {
       loadQueue();
     }
-  }, [filterStatus, filterOnlySuspect, filterEmailKategorie, filterKategorie, filterMaxConfidence, isConnected, api, loadQueue]);
+  }, [filterStatus, filterOnlySuspect, filterEmailKategorie, filterKategorie, filterKategorieManual, filterMaxConfidence, isConnected, api, loadQueue]);
 
   // Handle document update
   const handleDocumentUpdate = () => {
@@ -398,10 +402,24 @@ function App() {
             </div>
 
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Dok.-Kategorie</label>
+              <label className="block text-xs text-gray-500 mb-1">Dok.-Kategorie (GPT)</label>
               <select
                 value={filterKategorie}
                 onChange={(e) => setFilterKategorie(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              >
+                <option value="">Alle</option>
+                {categories?.dokument_kategorien.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Dok.-Kat. (korrigiert)</label>
+              <select
+                value={filterKategorieManual}
+                onChange={(e) => setFilterKategorieManual(e.target.value)}
                 className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
               >
                 <option value="">Alle</option>

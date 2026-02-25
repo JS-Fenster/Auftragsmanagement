@@ -134,6 +134,8 @@
 | [K-002] | 2026-02-10 | KATEG | PROG | classify-backtest v2.0.1 + Bulk-Re-Kategorisierung 308 Docs (126 geaendert, 120 applied) |
 | [K-007] | 2026-02-25 | KATEG | PROG | Storage-Migration: email-attachments flach (269 Dateien, 184 Unterordner aufgeloest) + process-email angepasst |
 | [K-008] | 2026-02-25 | KATEG | PROG | Dashboard: kategorie_manual als Haupt-Kategorie (Dokumente + Emails) |
+| [K-009] | 2026-02-25 | KATEG | PROG | Komplett-Reklassifizierung 2818 Docs (GPT-5 mini, v2.6.0 40 Kategorien) + Storage-Reorganisation 694 Dateien |
+| [K-010] | 2026-02-25 | KATEG | PROG | Email-Kategorien erweitert (18→21), process-email v4.2.0 (Import-Fix + verify_jwt Fix), classify-email-backtest v1 |
 
 ---
 
@@ -5420,6 +5422,138 @@ Auftrag P019: process-document Edge Function absichern (3 Massnahmen). Die Kateg
 - categories.ts Deploy ausstehend (B-063)
 - Supabase Auth Integration
 - Automatischer Server-Sync (Cron)
+
+---
+
+## [K-009] Programmierer: Komplett-Reklassifizierung + Storage-Reorganisation
+**Datum:** 2026-02-25 14:00-16:00
+**Workflow:** KATEG
+
+### Kontext
+Alle Dokumente in der DB hatten veraltete Kategorisierungen (alter Prompt, 36 statt 40 Kategorien).
+Andreas hat eine Komplett-Reklassifizierung aller Dokumente beauftragt (inkl. Emails), mit anschliessender
+Verschiebung der Storage-Dateien in die korrekten Kategorie-Ordner.
+
+### Durchgefuehrt
+
+#### 1. classify-backtest v2.2.0 deployed (Version 11)
+- Email-Support (email_body_text + email_betreff als Fallback fuer OCR)
+- 40 Kategorien (v2.6.0: + Anleitung, Spam)
+- Import aus _shared/categories.ts
+
+#### 2. Batch-Reklassifizierung (2 Runden)
+**Runde 1:** 2216 Docs in 5 parallelen Chunks (je ~444 IDs)
+- Ergebnisse: 325 Kategorie-Aenderungen, 74 uebersprungen, 12 Batch-Fehler (502/504)
+- CHECK-Constraint `documents_kategorie_check` um Anleitung + Spam erweitert (Migration)
+
+**Runde 2 (Retry):** 884 verbleibende Docs in 3 Chunks (je ~295 IDs)
+- Ergebnisse: 18 weitere Aenderungen, 76 uebersprungen, 0 Fehler
+- 5 Docs mit fehlender file_hash konnten nicht updated werden (Constraint `documents_non_email_requires_file_hash`)
+
+**Gesamt-Ergebnis Reklassifizierung:**
+| Metrik | Wert |
+|--------|------|
+| Total Docs in DB | 2818 |
+| Durch Backtest reklassifiziert | 1476 (Kategorie geaendert) |
+| Durch Backtest bestaetigt | ~846 (gleiche Kategorie, kein Update noetig) |
+| Manuell korrigiert (uebersprungen) | 260 |
+| Status error (uebersprungen) | 236 |
+| Nicht updatebar (file_hash fehlt) | 5 |
+
+#### 3. move-document Edge Function v1.1.0 deployed
+- Neue Edge Function zum Verschieben von Storage-Dateien in Kategorie-Ordner
+- Copy-then-verify-then-delete Pattern (Ghost-File-Prevention)
+- Auto-Modus: findet Docs wo Storage-Ordner != Kategorie
+- v1.1.0: Paginierte DB-Abfrage (statt limit(1000))
+
+#### 4. Storage-Reorganisation
+| Runde | Dateien verschoben | Fehler |
+|-------|-------------------|--------|
+| Runde 1 | 354 | 0 |
+| Runde 2 | 333 | 0 |
+| Finale | 7 | 0 |
+| **Gesamt** | **694** | **0** |
+
+**Ergebnis: 0 Storage-Mismatches, alle Dateien in korrekten Kategorie-Ordnern.**
+
+#### 5. Kategorie-Verteilung (Top 15 nach Reklassifizierung)
+| Kategorie | Anzahl |
+|-----------|--------|
+| Brief_eingehend | 594 |
+| Montageauftrag | 334 |
+| Auftragsbestaetigung | 218 |
+| Eingangslieferschein | 210 |
+| Aufmassblatt | 139 |
+| Eingangsrechnung | 97 |
+| Kundenanfrage | 95 |
+| Email_Anhang | 79 |
+| Bild | 67 |
+| Angebot | 63 |
+| Email_Eingehend | 56 |
+| Sonstiges_Dokument | 56 |
+| Brief_ausgehend | 51 |
+| Spam | 48 |
+| Notiz | 47 |
+
+### Neue/Geaenderte Dateien
+- `supabase/functions/move-document/index.ts` (Edge Function v1.1.0)
+- `scripts/batch-move.sh` (Batch-Wrapper fuer move-document)
+- `scripts/batch-reclassify.sh` (Batch-Wrapper fuer classify-backtest)
+- Migration: `add_anleitung_spam_to_kategorie_check`
+
+### Offene Punkte
+- 5 Docs ohne file_hash konnten nicht reklassifiziert werden (Constraint-Verletzung)
+- Andreas reviewed Ergebnisse im Review-Tool
+
+---
+
+## [K-010] Programmierer: Email-Kategorien erweitert + process-email Fix
+**Datum:** 2026-02-25 16:30
+**Workflow:** KATEG
+
+### Kontext
+Analyse aus Branch `review/categories-merge-analyse` zeigte: 3 Email-Kategorien (Intern, Nachverfolgung,
+Marktplatz_Anfrage) existierten in der DB (89 Eintraege), waren aber nicht mehr in der Kategorie-Liste.
+Zusaetzlich hatte process-email hardcoded Kategorien statt Import und den verify_jwt Bug.
+
+### Durchgefuehrt
+
+#### 1. _shared/categories.ts v2.7.0
+- 3 neue Email-Kategorien zu VALID_EMAIL_KATEGORIEN (18 → 21):
+  - `Intern` - Interne Kommunikation
+  - `Marktplatz_Anfrage` - eBay/Kleinanzeigen (MUSS neuen Auftrag triggern)
+  - `Nachverfolgung` - Follow-Up Emails (KEIN neuer Auftrag)
+
+#### 2. process-email v4.2.0 (Version 42)
+- Import aus `_shared/categories.ts` statt hardcoded VALID_CATEGORIES
+- GPT-Prompt um Beschreibungen der neuen Kategorien erweitert
+- **verify_jwt: false** (Bug gefixt! War seit 12.02. auf true)
+
+#### 3. classify-email-backtest v1.0.0 (NEU)
+- Neue Edge Function zur Re-Klassifizierung von email_kategorie
+- GPT-5.2, reasoning.effort: "medium", json_schema Response
+- 419 "Sonstiges"-Emails geprueft → alle 419 bestaetigt als genuinely Sonstiges
+- 6 Emails ohne Body-Text uebersprungen
+
+#### 4. classify-backtest v2.2.0 → Version 12
+- Aktualisiert mit categories.ts v2.7.0
+
+### Ergebnis Email-Kategorien (nach Update)
+| Kategorie | Anzahl |
+|-----------|--------|
+| Sonstiges | 419 |
+| Newsletter_Werbung | 221 |
+| Lieferstatus_Update | 66 |
+| **Intern (NEU)** | **48** |
+| Rechnung_Eingang | 33 |
+| **Nachverfolgung (NEU)** | **25** |
+| Angebot_Anforderung | 25 |
+| **Marktplatz_Anfrage (NEU)** | **16** |
+| Kundenanfrage | 16 |
+| + 9 weitere | ... |
+
+### Aufgeraeumt
+- Branch `review/categories-merge-analyse` geloescht (remote)
 
 ---
 
