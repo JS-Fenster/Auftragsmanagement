@@ -162,7 +162,7 @@ export default function Emails() {
       if (data?.email_hat_anhaenge) {
         const { data: att } = await supabase
           .from('documents')
-          .select('id, betreff, kategorie, dokument_url, processing_status')
+          .select('id, betreff, kategorie, kategorie_manual, dokument_url, processing_status')
           .eq('bezug_email_id', selectedId)
         setAttachments(att || [])
       } else {
@@ -446,9 +446,9 @@ export default function Emails() {
                           <div className="min-w-0 flex-1">
                             <div className="text-sm text-gray-800 truncate">{att.betreff || 'Unbenannt'}</div>
                           </div>
-                          {att.kategorie && (
-                            <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${kategorieColor(att.kategorie)}`}>
-                              {att.kategorie.replace(/_/g, ' ')}
+                          {(att.kategorie_manual || att.kategorie) && (
+                            <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${kategorieColor(att.kategorie_manual || att.kategorie)}`}>
+                              {(att.kategorie_manual || att.kategorie).replace(/_/g, ' ')}
                             </span>
                           )}
                           <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_COLORS[att.processing_status]?.dot || 'bg-gray-300'}`} />

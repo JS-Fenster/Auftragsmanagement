@@ -96,7 +96,7 @@ export default function Dokumente() {
     try {
       let query = supabase
         .from('documents')
-        .select('id, kategorie, betreff, email_betreff, aussteller_firma, created_at, processing_status, source, dokument_url, email_von_email, email_von_name', { count: 'exact' })
+        .select('id, kategorie, kategorie_manual, betreff, email_betreff, aussteller_firma, created_at, processing_status, source, dokument_url, email_von_email, email_von_name', { count: 'exact' })
         .order('created_at', { ascending: false })
         .range(currentOffset, currentOffset + PAGE_SIZE - 1)
 
@@ -104,7 +104,7 @@ export default function Dokumente() {
         const s = `%${debouncedSearch}%`
         query = query.or(`betreff.ilike.${s},email_betreff.ilike.${s},aussteller_firma.ilike.${s},inhalt_zusammenfassung.ilike.${s}`)
       }
-      if (kategorie) query = query.eq('kategorie', kategorie)
+      if (kategorie) query = query.or(`kategorie_manual.eq.${kategorie},and(kategorie_manual.is.null,kategorie.eq.${kategorie})`)
       if (quelle) query = query.eq('source', quelle)
       if (status) query = query.eq('processing_status', status)
       if (zeitraum) {
@@ -326,7 +326,8 @@ export default function Dokumente() {
             <>
               {documents.map(doc => {
                 const selected = doc.id === selectedId
-                const badge = getBadgeStyle(doc.kategorie)
+                const effKategorie = doc.kategorie_manual || doc.kategorie
+                const badge = getBadgeStyle(effKategorie)
                 const title = doc.betreff || doc.email_betreff || 'Ohne Titel'
                 const subtitle = doc.aussteller_firma || doc.email_von_name || doc.email_von_email || doc.source || ''
                 const statusColor = STATUS_DOT[doc.processing_status] || '#9CA3AF'
@@ -342,12 +343,12 @@ export default function Dokumente() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          {doc.kategorie && (
+                          {effKategorie && (
                             <span
                               className="inline-block rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap"
                               style={{ backgroundColor: badge.bg, color: badge.text }}
                             >
-                              {doc.kategorie.replace(/_/g, ' ')}
+                              {effKategorie.replace(/_/g, ' ')}
                             </span>
                           )}
                           <span
@@ -403,15 +404,15 @@ export default function Dokumente() {
             {/* Header */}
             <div>
               <div className="flex items-center gap-2 mb-2">
-                {selectedDoc.kategorie && (
+                {(selectedDoc.kategorie_manual || selectedDoc.kategorie) && (
                   <span
                     className="inline-block rounded-full px-2.5 py-0.5 text-xs font-medium"
                     style={{
-                      backgroundColor: getBadgeStyle(selectedDoc.kategorie).bg,
-                      color: getBadgeStyle(selectedDoc.kategorie).text,
+                      backgroundColor: getBadgeStyle(selectedDoc.kategorie_manual || selectedDoc.kategorie).bg,
+                      color: getBadgeStyle(selectedDoc.kategorie_manual || selectedDoc.kategorie).text,
                     }}
                   >
-                    {selectedDoc.kategorie.replace(/_/g, ' ')}
+                    {(selectedDoc.kategorie_manual || selectedDoc.kategorie).replace(/_/g, ' ')}
                   </span>
                 )}
                 <span className="text-xs text-gray-400">

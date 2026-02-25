@@ -133,6 +133,7 @@
 | [K-001] | 2026-02-10 | KATEG | PL | Email-Kategorisierung: process-document v32+v33, 500-Docs-Backtest, Typo-Fix |
 | [K-002] | 2026-02-10 | KATEG | PROG | classify-backtest v2.0.1 + Bulk-Re-Kategorisierung 308 Docs (126 geaendert, 120 applied) |
 | [K-007] | 2026-02-25 | KATEG | PROG | Storage-Migration: email-attachments flach (269 Dateien, 184 Unterordner aufgeloest) + process-email angepasst |
+| [K-008] | 2026-02-25 | KATEG | PROG | Dashboard: kategorie_manual als Haupt-Kategorie (Dokumente + Emails) |
 
 ---
 
@@ -161,6 +162,30 @@
 ---
 
 ## ═══ LOG START ═══
+
+---
+
+## [K-008] Programmierer: Dashboard kategorie_manual als Haupt-Kategorie
+**Datum:** 2026-02-25 02:00
+**Workflow:** KATEG
+
+### Kontext
+Im Review-Tool kann Andreas Dokument-Kategorien manuell korrigieren. Die Korrektur landet in `kategorie_manual`, aber das Dashboard (Dokumente, Emails) zeigte nur `kategorie` (KI-Original). Damit korrigierte Kategorien ueberall sichtbar sind, muss `kategorie_manual ?? kategorie` als effektive Kategorie verwendet werden.
+
+### Durchgefuehrt
+1. **Dokumente.jsx** (4 Stellen):
+   - SELECT-Query um `kategorie_manual` erweitert (Z99)
+   - Kategorie-Filter: `or(kategorie_manual.eq.X, and(kategorie_manual.is.null, kategorie.eq.X))` (Z107)
+   - Listenansicht: `effKategorie = doc.kategorie_manual || doc.kategorie` fuer Badge (Z329-351)
+   - Detail-Panel: gleiche Fallback-Logik (Z407-415)
+2. **Emails.jsx** (2 Stellen):
+   - Anhang-SELECT um `kategorie_manual` erweitert (Z165)
+   - Anhang-Badge: `att.kategorie_manual || att.kategorie` (Z449-451)
+
+### Ergebnis
+- Manuell korrigierte Kategorien werden ueberall im Dashboard angezeigt
+- Kategorie-Filter beruecksichtigt manuelle Korrekturen korrekt
+- `kategorie` (KI-Original) bleibt als Lernspalte fuer Prompt-Optimierung erhalten
 
 ---
 

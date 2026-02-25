@@ -33,7 +33,7 @@ export const ZEITFENSTER = {
 }
 
 export const DOKUMENT_KATEGORIEN = [
-  'Angebot', 'Aufmassblatt', 'Auftragsbestaetigung', 'Ausgangsrechnung',
+  'Angebot', 'Anleitung', 'Aufmassblatt', 'Auftragsbestaetigung', 'Ausgangsrechnung',
   'Bauplan', 'Bestellung', 'Bild', 'Brief_ausgehend', 'Brief_eingehend',
   'Brief_von_Finanzamt', 'Eingangslieferschein', 'Eingangsrechnung',
   'Email_Anhang', 'Email_Eingehend', 'Finanzierung', 'Formular',

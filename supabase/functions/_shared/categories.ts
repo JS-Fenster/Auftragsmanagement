@@ -1,7 +1,11 @@
 // =============================================================================
 // Shared Category Definitions, Canonicalization, and Heuristic Rules
-// Version: 2.5.0 - 2026-02-23
+// Version: 2.6.0 - 2026-02-25
 // =============================================================================
+// Aenderungen v2.6.0:
+// - NEU: Kategorie "Anleitung" (Bedienungsanleitung, Montageanleitung, Programmieranleitung)
+// - 38 -> 39 Kategorien
+//
 // Aenderungen v2.5.0:
 // - NEU: Kategorie "Fahrzeugdokument" (Fahrzeugschein, TÜV, Reparaturprotokoll, Stapler)
 // - NEU: Kategorie "Personalunterlagen" (Stundennachweis, AU, Lohnabrechnung)
@@ -38,6 +42,7 @@
 export const VALID_DOKUMENT_KATEGORIEN = [
   "Abnahmeprotokoll",
   "Angebot",
+  "Anleitung",              // v2.6.0: Bedienungs-, Montage-, Programmieranleitungen
   "Aufmassblatt",
   "Auftragsbestaetigung",
   "Audio",
