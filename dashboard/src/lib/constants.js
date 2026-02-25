@@ -40,7 +40,7 @@ export const DOKUMENT_KATEGORIEN = [
   'Gutschrift', 'Kundenlieferschein', 'Leasing', 'Lieferschein',
   'Mahnung', 'Montageauftrag', 'Notiz', 'Preisanfrage', 'Produktdatenblatt',
   'Quittung', 'Rapport', 'Reiseunterlagen', 'Reklamation', 'Serviceauftrag',
-  'Skizze', 'Sonstiges_Dokument', 'Stundenzettel', 'Technische_Zeichnung',
+  'Skizze', 'Sonstiges_Dokument', 'Spam', 'Stundenzettel', 'Technische_Zeichnung',
   'Versicherung', 'Vertrag', 'Werkstattauftrag', 'Zahlungsavis',
   'Zahlungserinnerung', 'Zeichnung', 'Zertifikat'
 ]

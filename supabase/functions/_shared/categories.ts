@@ -4,7 +4,8 @@
 // =============================================================================
 // Aenderungen v2.6.0:
 // - NEU: Kategorie "Anleitung" (Bedienungsanleitung, Montageanleitung, Programmieranleitung)
-// - 38 -> 39 Kategorien
+// - NEU: Kategorie "Spam" (Fax-Spam, Werbe-Faxe, unerwuenschte Dokumente)
+// - 38 -> 40 Kategorien
 //
 // Aenderungen v2.5.0:
 // - NEU: Kategorie "Fahrzeugdokument" (Fahrzeugschein, TÜV, Reparaturprotokoll, Stapler)
@@ -80,6 +81,7 @@ export const VALID_DOKUMENT_KATEGORIEN = [
   "Serviceauftrag",
   "Skizze",
   "Sonstiges_Dokument",
+  "Spam",                   // v2.6.0: Fax-Spam, Werbe-Faxe, unerwuenschte Dokumente
   "Vertrag",
   "Video",
   "Zahlungsavis",          // v2.2.0: Belastungsanzeige, Lastschrift, Sammelabbuchung
