@@ -1,7 +1,16 @@
 // =============================================================================
 // Process Document - OCR + GPT Kategorisierung
-// Version: 36 - 2026-02-23 (NEU: Fahrzeugdokument + Personalunterlagen = 38 Kategorien)
+// Version: 37 - 2026-02-23 (Prompt-Fixes: eBay Packzettel, Arbeitsvertraege)
 // =============================================================================
+// Aenderungen v37:
+// - Prompt v2.3.0: eBay Packzettel OHNE Preise → Eingangslieferschein
+// - Prompt v2.3.0: Arbeitsvertraege/Aenderungsvertraege → Personalunterlagen (nicht Vertrag)
+// - Prompt v2.3.0: AU-Bescheinigungen → Personalunterlagen (nicht Brief_eingehend)
+// - 2 neue Few-Shot-Beispiele (17: eBay Packzettel, 18: Aenderungsvertrag)
+//
+// Aenderungen v36:
+// - NEU: Kategorie Fahrzeugdokument + Personalunterlagen (38 Kategorien)
+//
 // Aenderungen v35:
 // - FIX: Storage-Pfad nutzt jetzt canonicalizeKategorie() BEVOR Upload
 //   → verhindert falsche Ordner wie "Brief_von_Kunde", "12. Eingangslieferschein"
@@ -280,7 +289,7 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         service: "process-document",
-        version: "36.0.0",
+        version: "37.0.0",
         status: "ready",
         configured: {
           mistral: !!MISTRAL_API_KEY,

@@ -663,7 +663,8 @@ async function processAttachment(
   );
 
   const safeFileName = sanitizeFileName(attachment.name);
-  const storagePath = `email-attachments/${documentId}/${safeFileName}`;
+  const timestamp = new Date().toISOString().replace(/:/g, '-').replace('.', '-').slice(0, -1);
+  const storagePath = `email-attachments/${timestamp}Z_${safeFileName}`;
 
   // v2.7: Log upload attempt
   console.log(`[ATTACH]   upload target: ${storagePath}`);

@@ -1,11 +1,13 @@
 // =============================================================================
 // Classify Backtest - Re-Klassifizierung mit optionalem DB-Update
-// Version: 2.0.1 - 2026-02-10
+// Version: 2.1.0 - 2026-02-23
 // =============================================================================
 // Liest Dokumente aus der DB, sendet den OCR-Text an GPT-5 mini mit dem
 // SYSTEM_PROMPT aus process-document/prompts.ts und vergleicht die neue
 // Kategorie mit der bestehenden.
 //
+// v2.1.0: KATEGORIE_ENUM auf 38 Kategorien aktualisiert (+ Fahrzeugdokument, Personalunterlagen)
+//         Import KATEGORIE_ENUM direkt aus categories.ts statt hardcoded
 // NEU v2.0: apply=true schreibt die neue Kategorie in die DB zurueck.
 //
 // Usage:
@@ -22,7 +24,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { SYSTEM_PROMPT } from "../process-document/prompts.ts";
-import { canonicalizeKategorie } from "../process-document/categories.ts";
+import { canonicalizeKategorie, VALID_DOKUMENT_KATEGORIEN } from "../_shared/categories.ts";
 
 // =============================================================================
 // Environment
@@ -42,44 +44,8 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 const MAX_DOCS_PER_CALL = 50;
 const GPT_MODEL = "gpt-5-mini";
 
-const KATEGORIE_ENUM = [
-  "Abnahmeprotokoll",
-  "Angebot",
-  "Aufmassblatt",
-  "Auftragsbestaetigung",
-  "Ausgangsrechnung",
-  "Bauplan",
-  "Bestellung",
-  "Bild",
-  "Brief_ausgehend",
-  "Brief_eingehend",
-  "Brief_von_Finanzamt",
-  "Eingangslieferschein",
-  "Eingangsrechnung",
-  "Finanzierung",
-  "Formular",
-  "Gutschrift",
-  "Kassenbeleg",
-  "Kundenanfrage",
-  "Kundenbestellung",
-  "Kundenlieferschein",
-  "Leasing",
-  "Lieferantenangebot",
-  "Mahnung",
-  "Montageauftrag",
-  "Notiz",
-  "Preisanfrage",
-  "Produktdatenblatt",
-  "Reiseunterlagen",
-  "Reklamation",
-  "Serviceauftrag",
-  "Skizze",
-  "Sonstiges_Dokument",
-  "Vertrag",
-  "Zahlungsavis",
-  "Zahlungserinnerung",
-  "Zeichnung",
-] as const;
+// Nutze die zentrale Kategorie-Liste aus _shared/categories.ts (38 Kategorien)
+const KATEGORIE_ENUM = VALID_DOKUMENT_KATEGORIEN;
 
 // Minimales JSON-Schema: nur Kategorie extrahieren (spart Tokens)
 const CLASSIFICATION_SCHEMA = {
@@ -199,7 +165,7 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         service: "classify-backtest",
-        version: "2.0.1",
+        version: "2.1.0",
         status: "ready",
         model: GPT_MODEL,
         max_docs_per_call: MAX_DOCS_PER_CALL,

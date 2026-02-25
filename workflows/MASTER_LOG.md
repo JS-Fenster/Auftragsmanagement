@@ -132,6 +132,7 @@
 | [B-057] | 2026-02-10 | BUDGET | TEST | P017: Re-Backtest nach LV-Kompression (Median 9.6% fen+bt, ALLE ZIELE ERREICHT!) |
 | [K-001] | 2026-02-10 | KATEG | PL | Email-Kategorisierung: process-document v32+v33, 500-Docs-Backtest, Typo-Fix |
 | [K-002] | 2026-02-10 | KATEG | PROG | classify-backtest v2.0.1 + Bulk-Re-Kategorisierung 308 Docs (126 geaendert, 120 applied) |
+| [K-007] | 2026-02-25 | KATEG | PROG | Storage-Migration: email-attachments flach (269 Dateien, 184 Unterordner aufgeloest) + process-email angepasst |
 
 ---
 
@@ -160,6 +161,34 @@
 ---
 
 ## ═══ LOG START ═══
+
+---
+
+## [K-007] Programmierer: Storage-Migration email-attachments flach + process-email Update
+**Datum:** 2026-02-25 01:00
+**Workflow:** KATEG
+
+### Kontext
+Email-Anhänge wurden in Supabase Storage unter `email-attachments/<email-uuid>/<dateiname>` gespeichert.
+Die UUID-Unterordner sind redundant, da `bezug_email_id` in der `documents`-Tabelle die Zuordnung bereits abbildet.
+Zudem erschweren die Unterordner das manuelle Durchsuchen im Storage-Browser.
+
+### Durchgefuehrt
+1. **Migration-Script** `backend/scripts/flatten-email-attachments.js` erstellt
+   - 269 Dateien aus 184 UUID-Unterordnern verschoben
+   - Neues Format: `email-attachments/<timestamp>_<dateiname>` (wie Scan-Docs)
+   - 12 Kollisionen mit Doc-ID-Suffix aufgeloest
+   - `dokument_url` in `documents`-Tabelle aktualisiert
+   - `email_anhaenge_meta` auf 184 Parent-Emails aktualisiert
+2. **process-email Edge Function** angepasst (Zeile 666)
+   - Alt: `email-attachments/${documentId}/${safeFileName}`
+   - Neu: `email-attachments/${timestamp}Z_${safeFileName}`
+   - Deploy via CLI: `supabase functions deploy process-email`
+
+### Ergebnis
+- Storage-Struktur vereinheitlicht (flach wie alle anderen Buckets)
+- Zukunftige Email-Anhaenge werden automatisch flach gespeichert
+- Bestehende Referenzen (dokument_url, email_anhaenge_meta) aktualisiert
 
 ---
 

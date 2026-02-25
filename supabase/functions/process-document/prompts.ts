@@ -1,7 +1,13 @@
 // =============================================================================
 // Process Document - System Prompt fuer Dokument-Kategorisierung + Extraktion
-// Version: 2.2.0 - 2026-02-23
+// Version: 2.3.0 - 2026-02-23
 // =============================================================================
+// Aenderungen v2.3.0:
+// - FIX: eBay Packzettel OHNE Preise → Eingangslieferschein (nicht Eingangsrechnung)
+// - FIX: Arbeitsvertraege/Aenderungsvertraege → Personalunterlagen (nicht Vertrag)
+// - FIX: AU-Bescheinigungen → Personalunterlagen (nicht Brief_eingehend)
+// - Neue Few-Shot-Beispiele 17 + 18
+//
 // Aenderungen v2.2.0:
 // - NEU: Kategorie Fahrzeugdokument (Fahrzeugschein, TÜV, Reparatur, Stapler)
 // - NEU: Kategorie Personalunterlagen (Stundennachweis, AU, Lohnabrechnung)
@@ -109,7 +115,9 @@ Ausgehende Korrespondenz von J.S. Fenster an Kunden, Lieferanten, Behoerden oder
 Eingehende Korrespondenz an J.S. Fenster von Kunden, Lieferanten, Behoerden (ausser Finanzamt), Versicherungen, Verbaenden oder sonstigen.
 - Typische Merkmale: Adressiert an J.S. Fenster, allgemeiner Briefcharakter
 - INKLUSIVE: Lieferzeiten-Rundschreiben von Lieferanten, Informationsschreiben, Werbepost, Newsletter in Papierform, Mitteilungen von Verbaenden, Initiativbewerbungen
-- INKLUSIVE: SIM-Karten-Unterlagen, KFZ-Versicherungskarten, AU-Bescheinigungen und aehnliche Unterlagen die in keine speziellere Kategorie passen
+- INKLUSIVE: SIM-Karten-Unterlagen und aehnliche Unterlagen die in keine speziellere Kategorie passen
+- NICHT: Fahrzeugdokument (Fahrzeugscheine, KFZ-Versicherungskarten → Fahrzeugdokument)
+- NICHT: Personalunterlagen (AU-Bescheinigungen, Arbeitsvertraege → Personalunterlagen)
 - NICHT: Brief_von_Finanzamt (Finanzamt hat eigene Kategorie)
 - NICHT: Kundenanfrage (die fragt spezifisch nach einem Angebot/Preis)
 
@@ -269,6 +277,7 @@ Unterschriebene Vertraege, Vereinbarungen, AGB-Akzeptanz, rechtlich bindende Dok
 - NICHT: Formular (blanko, nicht bindend)
 - NICHT: Angebot (noch nicht angenommen)
 - NICHT: Lieferantenangebot (Vorvertragliche Pflichtinfo von Telekom etc. ist Vertrag!)
+- NICHT: Personalunterlagen (Arbeitsvertraege und Aenderungsvertraege → Personalunterlagen!)
 
 ## 36. Zahlungsavis
 Belastungsanzeige, Lastschriftinfo, Sammelabbuchung. Information ueber eine BEREITS AUSGEFUEHRTE Zahlung/Abbuchung.
@@ -320,7 +329,8 @@ Technische Zeichnungen, CAD-Zeichnungen, Detailzeichnungen (digital erstellt).
 ## Online-Rechnungen (eBay, Amazon etc.)
 - eBay-Rechnungen, auch wenn sie "Packzettel" heissen, sind Eingangsrechnungen sofern: Rechnungsnummer, Preise, MwSt vorhanden
 - Amazon-Business-Rechnungen → Eingangsrechnung
-- Entscheidend: Hat das Dokument eine Rechnungsnummer und weist Betraege mit MwSt aus?
+- ACHTUNG: eBay/Online-"Packzettel" OHNE Preise, OHNE MwSt und OHNE Rechnungsnummer → Eingangslieferschein! Nur wenn Preise und MwSt vorhanden → Eingangsrechnung.
+- Entscheidend: Hat das Dokument eine Rechnungsnummer und weist Betraege mit MwSt aus? Ja → Eingangsrechnung. Nein → Eingangslieferschein.
 
 ## Fremdsprachige Dokumente (Polnisch, Englisch, etc.)
 - Polnische Lieferscheine ("Dowod dostawy", "Wydanie z magazynu", "WZ") → Eingangslieferschein
@@ -334,8 +344,9 @@ Technische Zeichnungen, CAD-Zeichnungen, Detailzeichnungen (digital erstellt).
 - Vorvertragliche Pflichtinformationen (§312d BGB) → Vertrag (NICHT Lieferantenangebot!)
 - Internet-/Glasfaser-Vertraege, Business-Anschluesse → Vertrag
 - SIM-Karten-Unterlagen, PIN-Briefe → Brief_eingehend
-- KFZ-Versicherungskarten → Brief_eingehend (oder Vertrag wenn Vertragscharakter)
-- AU-Bescheinigungen (Arbeitsunfaehigkeit) → Brief_eingehend
+- KFZ-Versicherungskarten → Fahrzeugdokument (oder Brief_eingehend wenn kein konkreter Fahrzeugbezug)
+- AU-Bescheinigungen (Arbeitsunfaehigkeit) → Personalunterlagen
+- Arbeitsvertraege, Aenderungsvertraege, Stundennachweise → Personalunterlagen (NICHT Vertrag!)
 - Bewerbungen/Initiativbewerbungen → Brief_eingehend
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -442,6 +453,18 @@ OCR-Text (Ausschnitt): "... Steinau GmbH ... Lieferschein ... Nr. 12345 ... Meng
 FALSCH: Sonstiges_Dokument (mit extraktions_qualitaet: niedrig)
 RICHTIG: Eingangslieferschein
 GRUND: "Lieferschein" ist klar erkennbar. Auch bei schlechter OCR-Qualitaet die Kategorie anhand des Keywords waehlen.
+
+## Beispiel 17: eBay Packzettel OHNE Preise
+OCR-Text (Ausschnitt): "eBay ... Packzettel ... Bestellnummer: 23-98765-43210 ... Bosch Professional Stichsaege GST 18V ... Menge: 1 ... Versand an: J.S. Fenster & Tueren"
+FALSCH: Eingangsrechnung
+RICHTIG: Eingangslieferschein
+GRUND: Obwohl es von eBay kommt, hat dieses Dokument KEINE Preise, KEINE MwSt und KEINE Rechnungsnummer. Es ist ein reiner Packzettel/Lieferschein. Nur wenn Preise und MwSt vorhanden → Eingangsrechnung.
+
+## Beispiel 18: Aenderungsvertrag Mitarbeiter
+OCR-Text (Ausschnitt): "Änderungsvertrag zum Arbeitsvertrag vom 01.03.2022 ... Herr Max Mustermann ... vereinbaren folgende Änderungen: ... Arbeitszeit ab 01.04.2026: 35 Stunden/Woche ... Unterschrift Arbeitgeber ... Unterschrift Arbeitnehmer"
+FALSCH: Vertrag
+RICHTIG: Personalunterlagen
+GRUND: Arbeitsvertraege und Aenderungsvertraege betreffen Personal/Mitarbeiter und gehoeren zu Personalunterlagen, nicht zur allgemeinen Kategorie Vertrag.
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # OCR-QUALITAET UND SONDERFAELLE
