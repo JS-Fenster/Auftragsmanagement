@@ -5607,3 +5607,18 @@ Dokumente nach KI-Aenderungen zur erneuten Pruefung zu markieren. Ausserdem war 
 ---
 
 ## ═══ NAECHSTER EINTRAG HIER ═══
+### [K-012] Review-Tool Performance-Optimierung (2026-02-26)
+**Status:** ABGESCHLOSSEN
+**Commits:** f5b1a59, 5506b50, b27491d, aee6103, afd470e
+
+**Aenderungen:**
+- PDF Blob-Download statt Signed URL direkt an react-pdf
+- Debounce 300ms + AbortController fuer Filter-Wechsel
+- Optimistischer Update nach Bestaetigen (kein Queue-Reload)
+- API Request-Deduplication (stats/categories/queue/preview)
+- KI-Review Filter Fix (Kategorie-Filter funktioniert mit KI-Review)
+- Ghost-Files: Storage-Error-Body lesen statt nur HTTP-Status
+
+---
+
+## ═══ NAECHSTER EINTRAG HIER ═══
