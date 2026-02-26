@@ -59,7 +59,10 @@ function PrimaryFilePreview({
         if (cancelled) return;
         // Download blob for instant react-pdf rendering
         const response = await fetch(result.signed_url);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        if (!response.ok) {
+          const errBody = await response.text().catch(() => '');
+          throw new Error(errBody || `HTTP ${response.status}`);
+        }
         if (cancelled) return;
         const blob = await response.blob();
         blobUrl = URL.createObjectURL(blob);
