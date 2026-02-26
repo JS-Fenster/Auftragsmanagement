@@ -115,10 +115,11 @@ export class AdminReviewApi {
     this.baseUrl = `${SUPABASE_URL}/functions/v1/admin-review`;
   }
 
-  private async fetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+  private async fetch<T>(path: string, options: RequestInit = {}, signal?: AbortSignal): Promise<T> {
     const url = `${this.baseUrl}${path}`;
     const response = await fetch(url, {
       ...options,
+      signal,
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
@@ -168,7 +169,7 @@ export class AdminReviewApi {
     offset?: number;
     since?: string;
     until?: string;
-  } = {}): Promise<QueueResponse> {
+  } = {}, signal?: AbortSignal): Promise<QueueResponse> {
     const searchParams = new URLSearchParams();
     if (params.status) searchParams.set('status', params.status);
     if (params.only_suspect) searchParams.set('only_suspect', '1');
@@ -181,7 +182,7 @@ export class AdminReviewApi {
     if (params.until) searchParams.set('until', params.until);
 
     const query = searchParams.toString();
-    return this.fetch(query ? `?${query}` : '');
+    return this.fetch(query ? `?${query}` : '', {}, signal);
   }
 
   // Update label

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { AdminReviewApi, ReviewDocument, ReviewStats, Categories } from './lib/api';
 import { PrefetchMode } from './lib/previewCache';
 import { usePreviewPrefetch } from './hooks/usePreviewPrefetch';
@@ -117,8 +117,8 @@ function App() {
     }
   }, [api]);
 
-  // Load queue
-  const loadQueue = useCallback(async () => {
+  // Load queue (accepts AbortSignal to cancel in-flight requests on filter change)
+  const loadQueue = useCallback(async (signal?: AbortSignal) => {
     if (!api) return;
     try {
       setLoadingQueue(true);
@@ -129,7 +129,7 @@ function App() {
         kategorie: filterKategorie || undefined,
         ki_review: filterStatus === 'ki_review' ? true : undefined,
         limit: 100,
-      });
+      }, signal);
       // Client-side filters
       let items = result.items;
       if (filterMaxConfidence < 100) {
@@ -144,6 +144,7 @@ function App() {
       setDocuments(items);
       setBatchSelectedIds(new Set()); // Clear batch selection on reload
     } catch (err) {
+      if ((err as Error).name === 'AbortError') return; // Silently ignore aborted requests
       console.error('Failed to load queue:', err);
     } finally {
       setLoadingQueue(false);
@@ -158,13 +159,21 @@ function App() {
     }
   }, [isConnected, api, loadStats, loadCategories]);
 
-  // Load queue on connect and when filters change (debounced 300ms)
+  // Load queue on connect and when filters change (debounced 300ms, aborts previous request)
+  const queueAbortRef = useRef<AbortController | null>(null);
   useEffect(() => {
     if (!isConnected || !api) return;
     const timer = setTimeout(() => {
-      loadQueue();
+      // Abort previous in-flight request
+      queueAbortRef.current?.abort();
+      const controller = new AbortController();
+      queueAbortRef.current = controller;
+      loadQueue(controller.signal);
     }, 300);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      queueAbortRef.current?.abort();
+    };
   }, [isConnected, api, loadQueue]);
 
   // Handle document update (optimistic: remove from local list, only refresh stats)
