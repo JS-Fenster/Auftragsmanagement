@@ -47,19 +47,32 @@ function PrimaryFilePreview({
       return;
     }
 
-    async function fetchUrl() {
+    let revoke: string | null = null;
+
+    async function fetchBlob() {
       try {
         setLoading(true);
         setError(null);
+        // 1. Get signed URL from API
         const result = await api.getPreviewUrl(storagePath);
-        setSignedUrl(result.signed_url);
+        // 2. Download blob ourselves (instead of letting react-pdf fetch it)
+        const response = await fetch(result.signed_url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        revoke = objectUrl;
+        setSignedUrl(objectUrl);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load preview');
       } finally {
         setLoading(false);
       }
     }
-    fetchUrl();
+    fetchBlob();
+
+    return () => {
+      if (revoke) URL.revokeObjectURL(revoke);
+    };
   }, [storagePath, api, cachedUrl]);
 
   if (loading) {

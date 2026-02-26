@@ -205,64 +205,26 @@ async function getReviewQueue(params: ReviewQueueParams) {
   if (until) {
     query = query.lte("created_at", until);
   }
-  if (status === "error") {
-    // Show only documents with processing errors (ghost files, OCR failures, etc.)
+  // KI-Review: only filter by ki_review_notiz, skip status filter
+  if (ki_review) {
+    query = query.not("ki_review_notiz", "is", null);
+  } else if (status === "error") {
     query = query.eq("processing_status", "error");
   } else if (status && status !== "all") {
     query = query.eq("review_status", status);
-    // Hide error documents from normal review queues
     query = query.neq("processing_status", "error");
   } else if (status === "all") {
-    // "all" still excludes errors unless explicitly selected
     query = query.neq("processing_status", "error");
   }
+
+  // Category filters (work with all modes including KI-Review)
   if (kategorie) {
     query = query.eq("kategorie", kategorie);
-    query = query.neq("source", "email"); // Emails haben eigene Kategorien
+    query = query.neq("source", "email");
   }
   if (email_kategorie) {
     query = query.eq("email_kategorie", email_kategorie);
-    query = query.eq("source", "email"); // Nur Emails bei Email-Filter
-  }
-
-  // KI-Review filter: show all documents with ki_review_notiz set (ignores status filter)
-  if (ki_review) {
-    // Override: re-create query without status filter
-    query = supabase
-      .from("documents")
-      .select(`
-        id,
-        created_at,
-        updated_at,
-        kategorie,
-        kategorie_manual,
-        email_kategorie,
-        email_kategorie_confidence,
-        email_kategorie_manual,
-        email_betreff,
-        email_von_email,
-        email_von_name,
-        email_postfach,
-        email_hat_anhaenge,
-        email_anhaenge_count,
-        email_anhaenge_meta,
-        email_body_text,
-        inhalt_zusammenfassung,
-        processing_status,
-        processing_last_error,
-        review_status,
-        reviewed_at,
-        reviewed_by,
-        dokument_url,
-        source,
-        unterschrift_erforderlich,
-        empfang_unterschrift,
-        unterschrift,
-        ki_review_notiz
-      `)
-      .not("ki_review_notiz", "is", null)
-      .order("created_at", { ascending: false })
-      .range(offset, offset + limit - 1);
+    query = query.eq("source", "email");
   }
 
   // Suspect filter: Sonstiges, low confidence, or errors

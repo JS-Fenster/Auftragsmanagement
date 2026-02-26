@@ -158,18 +158,23 @@ function App() {
     }
   }, [isConnected, api, loadStats, loadCategories]);
 
-  // Load queue on connect and when filters change
+  // Load queue on connect and when filters change (debounced 300ms)
   useEffect(() => {
-    if (isConnected && api) {
+    if (!isConnected || !api) return;
+    const timer = setTimeout(() => {
       loadQueue();
-    }
+    }, 300);
+    return () => clearTimeout(timer);
   }, [isConnected, api, loadQueue]);
 
-  // Handle document update
-  const handleDocumentUpdate = () => {
+  // Handle document update (optimistic: remove from local list, only refresh stats)
+  const handleDocumentUpdate = useCallback(() => {
     loadStats();
-    loadQueue();
-  };
+    // Remove the reviewed doc from the local list (it changes status, so it no longer matches the filter)
+    if (selectedDocument) {
+      setDocuments(prev => prev.filter(d => d.id !== selectedDocument.id));
+    }
+  }, [loadStats, selectedDocument]);
 
   // Handle next document (auto-advance after save)
   const handleNextDocument = useCallback(() => {

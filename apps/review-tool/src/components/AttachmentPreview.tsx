@@ -22,20 +22,38 @@ export function AttachmentPreview({ attachment, api }: AttachmentPreviewProps) {
   const isImage = attachment.contentType.startsWith('image/');
 
   useEffect(() => {
-    async function fetchUrl() {
+    let revoke: string | null = null;
+
+    async function fetchBlob() {
       try {
         setLoading(true);
         setError(null);
+        // 1. Get signed URL from API
         const result = await api.getPreviewUrl(attachment.storagePath);
-        setSignedUrl(result.signed_url);
+        // 2. Download blob ourselves for instant react-pdf rendering
+        const isPdfOrImage = isPdf || isImage;
+        if (isPdfOrImage) {
+          const response = await fetch(result.signed_url);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const blob = await response.blob();
+          const objectUrl = URL.createObjectURL(blob);
+          revoke = objectUrl;
+          setSignedUrl(objectUrl);
+        } else {
+          setSignedUrl(result.signed_url);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load preview');
       } finally {
         setLoading(false);
       }
     }
-    fetchUrl();
-  }, [attachment.storagePath, api]);
+    fetchBlob();
+
+    return () => {
+      if (revoke) URL.revokeObjectURL(revoke);
+    };
+  }, [attachment.storagePath, api, isPdf, isImage]);
 
   if (loading) {
     return (
