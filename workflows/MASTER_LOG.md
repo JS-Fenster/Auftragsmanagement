@@ -137,6 +137,8 @@
 | [K-009] | 2026-02-25 | KATEG | PROG | Komplett-Reklassifizierung 2818 Docs (GPT-5 mini, v2.6.0 40 Kategorien) + Storage-Reorganisation 694 Dateien |
 | [K-010] | 2026-02-25 | KATEG | PROG | Email-Kategorien erweitert (18→21), process-email v4.2.0 (Import-Fix + verify_jwt Fix), classify-email-backtest v1 |
 | [K-011] | 2026-02-26 | KATEG | PROG | KI-Review Notiz-System + Regeln-Cleanup (Review Tool v0.7.0, admin-review v1.9.0) |
+| [K-012] | 2026-02-26 | KATEG | PROG | Review-Tool Performance (PDF Blob-Download, Debounce, Request-Dedup, Optimistic Updates) |
+| [K-013] | 2026-02-26 | KATEG | PROG | G-030: Mahnung → Mahnung_Eingehend/Ausgehend (6 Docs, process-document v3.1.0) |
 
 ---
 
@@ -5618,6 +5620,24 @@ Dokumente nach KI-Aenderungen zur erneuten Pruefung zu markieren. Ausserdem war 
 - API Request-Deduplication (stats/categories/queue/preview)
 - KI-Review Filter Fix (Kategorie-Filter funktioniert mit KI-Review)
 - Ghost-Files: Storage-Error-Body lesen statt nur HTTP-Status
+
+---
+
+### [K-013] G-030: Mahnung Split Eingehend/Ausgehend (2026-02-26)
+**Status:** ABGESCHLOSSEN
+**Commit:** bd5fe5f
+
+**Aenderungen:**
+- DB: Mahnung → Mahnung_Eingehend (6 Docs), Mahnung_Ausgehend neu angelegt
+- Storage: Dateien von Mahnung/ nach Mahnung_Eingehend/ verschoben
+- CHECK Constraint aktualisiert (49 Kategorien)
+- ki_review_notiz gesetzt auf alle 6 betroffenen Docs
+- categories.ts v3.1: Array + Alias + Heuristic Rules
+- prompts.ts v3.1.0: Eingehend/Ausgehend Beschreibungen
+- schema.ts: Enum aktualisiert
+- constants.js: Frontend-Kategorien aktualisiert
+- process-document deployed
+- Backlog bereinigt: G-023/G-024/G-025/G-026/G-027/G-028/G-030 geloescht
 
 ---
 

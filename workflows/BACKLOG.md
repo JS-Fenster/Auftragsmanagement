@@ -42,14 +42,7 @@
 | G-020 | MITTEL | Kontakte | Kunden-Bestellnummer/Projektnummer (Pflichtfeld-Hinweis) |
 | G-021 | MITTEL | E-Mail | Dok-Kategorie bei Emails entfernen (nur email_kategorie nutzen) |
 | G-022 | MITTEL | Kategorien | Angebot pruefen: Kunden- vs. Lieferantenangebote trennen |
-| G-023 | MITTEL | Kategorien | AB aufsplitten: Auftragsbestaetigung vs. Auftragsbestaetigung_Ausgehend |
-| G-024 | MITTEL | Kategorien | Steuer/Buchhaltung: Neue Dok-Kategorien (Bescheid, Freistellung, Buchhaltung) |
-| G-025 | NIEDRIG | Kategorien | Zahlungserinnerung + Mahnung zusammenlegen |
-| G-030 | MITTEL | Kategorien | Mahnung → Mahnung_Eingehend/Ausgehend (JS Fenster verschickt Mahnungen) |
 | G-031 | MITTEL | Kategorien | Kategorien-Bereinigung: Zu allgemeine Kategorien aufspalten (nach Review) |
-| G-026 | MITTEL | E-Mail | Automatische_Benachrichtigung als neue Email-Kategorie |
-| G-027 | HOCH | Kategorien | Grosses Rename: Dok-Kategorien auf [Typ]_[Richtung] vereinheitlichen |
-| G-028 | NIEDRIG | Kategorien | Retoure_Ausgehend / Retoure_Eingehend als neue Dok-Kategorien |
 | G-029 | MITTEL | Budget | Ud-Wert Rechner (EN ISO 10077-1) fuer Tueren |
 
 ---
@@ -459,121 +452,8 @@ Kategorie "Angebot" (65 Docs) enthaelt vermutlich sowohl eigene Angebote an Kund
 
 ---
 
-## [G-023] Auftragsbestaetigung aufsplitten (Eingehend/Ausgehend)
-**Prio:** MITTEL | **Aufwand:** 3-4 Std
-
-Kategorie "Auftragsbestaetigung" (222 Docs) enthaelt beide Richtungen gemischt:
-
-**Eingehend (von Lieferanten):**
-- Lieferant sendet AB → wir pruefen → Freigabe/Korrektur zurueck
-- Bleibt: **Auftragsbestaetigung**
-
-**Ausgehend (von uns an Kunden):**
-- Kunde erhaelt AB → gibt Freigabe
-- Kunde schickt Bestellung → wir senden AB zur Kenntnisnahme
-- Neue Kategorie: **Auftragsbestaetigung_Ausgehend**
-
-**Freigabe/Korrektur:** Kein neues Dokument! Ist dieselbe AB mit Unterschrift/Stempel.
-→ Kategorie bleibt "Auftragsbestaetigung", Status aendert sich (eingegangen → freigegeben).
-→ Verknuepfung mit G-010 (Status-Systeme vereinheitlichen).
-
-**TODO:**
-1. Neue Kategorie "Auftragsbestaetigung_Ausgehend" anlegen
-2. 222 Docs pruefen und ausgehende umkategorisieren
-3. Prompt anpassen: Erkennung ueber Absender (JS Fenster = ausgehend)
-4. Status-Flow fuer AB definieren: eingegangen → in_pruefung → freigegeben / korrektur_angefordert
-
 ---
 
-## [G-024] Steuer/Buchhaltung: Neue Dokument-Kategorien
-**Prio:** MITTEL | **Aufwand:** 2-3 Std
-
-Bisherige Kategorie "Brief_von_Finanzamt" (5 Docs) ist zu ungenau. Aufsplitten in granulare Kategorien fuer spaetere Workflow-Erkennung:
-
-**Neue Kategorien:**
-- **Steuer_Bescheid** — Steuernachzahlungen, Vorauszahlungen, Festsetzungen vom Finanzamt
-- **Freistellungsbescheinigung** — Braucht Ablaufdatum-Tracking (gueltig_bis Feld)
-- **Buchhaltungsunterlagen** — Bilanz, BWA, Kontoauszuege, Steuerberater-Unterlagen
-
-**TODO:**
-1. "Brief_von_Finanzamt" (5 Docs) in neue Kategorien aufteilen
-2. Prompt anpassen
-3. Ggf. spaeter: Ablaufdatum-Warnung fuer Freistellungsbescheinigungen
-
----
-
-## [G-025] Zahlungserinnerung + Mahnung zusammenlegen
-**Prio:** NIEDRIG | **Aufwand:** 30 Min
-
-Zahlungserinnerung (4) und Mahnung (1) haben identischen Workflow (Zahlung einfordern). Zusammenlegen zu **Mahnung** (5 Docs).
-
----
-
-## [G-026] Automatische_Benachrichtigung als neue Email-Kategorie
-**Prio:** MITTEL | **Aufwand:** 1-2 Std
-
-Neue Email-Kategorie fuer automatisch generierte System-Emails:
-- Online-Shop Benachrichtigungen (Bearbeitung dauert laenger, Versandbestaetigung)
-- Supabase/System-Alerts
-- Auto-Replies, Out-of-Office
-- NICHT DHL-Tracking (bleibt bei Lieferstatus_Update)
-
-Verhindert, dass diese Mails im "Sonstiges"-Sammeltopf landen (aktuell 422 Sonstiges = 44%).
-
----
-
-## [G-027] Grosses Rename: Dok-Kategorien auf [Typ]_[Richtung] vereinheitlichen
-**Prio:** HOCH | **Aufwand:** 4-6 Std | **Umfasst:** G-022, G-023
-
-**Entscheidung (2026-02-25):** Alle richtungsabhaengigen Dok-Kategorien werden auf Schema `[Dokumenttyp]_[Richtung]` umbenannt. Frontend-Anzeigename kann davon abweichen.
-
-**Rename-Map:**
-
-| Alt | Neu | Anzahl |
-|-----|-----|--------|
-| Kundenanfrage | Anfrage_Eingehend | 96 |
-| Preisanfrage | Anfrage_Ausgehend | 10 |
-| Angebot | Angebot_Ausgehend | 65 (pruefen!) |
-| Lieferantenangebot | Angebot_Eingehend | 21 |
-| Kundenbestellung | Bestellung_Eingehend | 16 |
-| Bestellung | Bestellung_Ausgehend | 12 |
-| Auftragsbestaetigung | Auftragsbestaetigung_Eingehend | 222 (split!) |
-| (neu) | Auftragsbestaetigung_Ausgehend | aus 222 |
-| Eingangslieferschein | Lieferschein_Eingehend | 256 |
-| Kundenlieferschein | Lieferschein_Ausgehend | 12 |
-| Eingangsrechnung | Rechnung_Eingehend | 103 |
-| Ausgangsrechnung | Rechnung_Ausgehend | 20 |
-
-**Betroffene Docs:** ~830 (plus AB-Split)
-
-**TODO:**
-1. Neue Kategorien in CHECK constraint + _shared/categories.ts anlegen
-2. Rename per SQL UPDATE (batch)
-3. Storage-Ordner verschieben (move-document Edge Function)
-4. Prompt (process-document) anpassen
-5. Dashboard-Filter + constants.js anpassen
-6. G-022: Bei Rename "Angebot" pruefen ob Lieferantenangebote drin stecken
-7. G-023: Bei Rename "Auftragsbestaetigung" in Eingehend/Ausgehend splitten
-
-**Freigabe-Workflow AB (kein neues Dokument):**
-Unterschriebene/gestempelte AB bleibt in gleicher Kategorie, nur Status aendert sich (→ G-010).
-
----
-
-## [G-028] Retoure_Ausgehend / Retoure_Eingehend als neue Dok-Kategorien
-**Prio:** NIEDRIG | **Aufwand:** 1-2 Std
-
-Neue Kategorien fuer Retouren-Dokumente:
-- **Retoure_Ausgehend** — Wir schicken Ware an Lieferant zurueck (Reklamation, Falschlieferung, Ueberschuss)
-- **Retoure_Eingehend** — Kunde schickt Ware an uns zurueck (aktuell sehr selten)
-
-**Dokumente die darunter fallen:** Retoure-Labels, Ruecksendescheine, Retourenbegleitscheine
-
-**Workflow-Potenzial (spaeter, regelbasiert):**
-- Retoure_Ausgehend → Status "Retoure offen" → Gutschrift-Eingang erwarten → Erinnerung nach 14 Tagen
-- Klassifizierung durch LLM, Workflow-Trigger durch deterministische Regeln (kein GPT-Call)
-
-**Hinweis:** Erst anlegen wenn erster Workflow gebaut wird. Aktuell zu wenige Docs.
 
 ---
 
@@ -602,21 +482,6 @@ Normgerechter Ud-Wert-Rechner nach EN ISO 10077-1:2017 ins Auftragsmanagement ei
 **Erweiterbar auf:** Uw-Berechnung fuer Fenster (gleiche Formel, Glas statt Paneel).
 
 ---
-
-## [G-030] Mahnung → Mahnung_Eingehend / Mahnung_Ausgehend
-**Prio:** MITTEL | **Aufwand:** 1-2 Std
-
-JS Fenster verschickt auch Mahnungen an Kunden (kommen noch nicht durch den Scanner). Aktuell existiert nur "Mahnung" (6 Docs, alle eingehend).
-
-**TODO:**
-1. Rename: Mahnung → Mahnung_Eingehend (6 bestehende Docs)
-2. Neue Kategorie: Mahnung_Ausgehend anlegen
-3. DB: CHECK Constraint, Storage-Ordner verschieben
-4. Edge Functions: categories.ts, prompts.ts, process-email
-5. Frontend: constants.js, Review-Tool
-6. ki_review_notiz setzen auf betroffene Docs (Andreas prueft)
-
-**Gleicher Ablauf wie G-021 bis G-028.**
 
 ---
 
