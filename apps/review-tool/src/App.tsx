@@ -5,7 +5,7 @@ import { usePreviewPrefetch } from './hooks/usePreviewPrefetch';
 import { StatsPanel } from './components/StatsPanel';
 import { ReviewQueue } from './components/ReviewQueue';
 import { DetailPanel } from './components/DetailPanel';
-import { RulesPanel } from './components/RulesPanel';
+
 
 function App() {
   // API Key State
@@ -41,7 +41,6 @@ function App() {
   const [batchKategorie, setBatchKategorie] = useState<string>('');
 
   // Rules Panel State
-  const [showRulesPanel, setShowRulesPanel] = useState(false);
 
   // Prefetch Settings State
   const [prefetchMode, setPrefetchMode] = useState<PrefetchMode>(() => {
@@ -124,10 +123,11 @@ function App() {
     try {
       setLoadingQueue(true);
       const result = await api.getQueue({
-        status: filterStatus,
+        status: filterStatus === 'ki_review' ? 'all' : filterStatus,
         only_suspect: filterOnlySuspect,
         email_kategorie: filterEmailKategorie || undefined,
         kategorie: filterKategorie || undefined,
+        ki_review: filterStatus === 'ki_review' ? true : undefined,
         limit: 100,
       });
       // Client-side filters
@@ -150,21 +150,20 @@ function App() {
     }
   }, [api, filterStatus, filterOnlySuspect, filterEmailKategorie, filterKategorie, filterKategorieManual, filterMaxConfidence]);
 
-  // Initial load when connected
+  // Initial load when connected (stats + categories only once)
   useEffect(() => {
     if (isConnected && api) {
       loadStats();
       loadCategories();
-      loadQueue();
     }
-  }, [isConnected, api, loadStats, loadCategories, loadQueue]);
+  }, [isConnected, api, loadStats, loadCategories]);
 
-  // Reload queue when filters change
+  // Load queue on connect and when filters change
   useEffect(() => {
     if (isConnected && api) {
       loadQueue();
     }
-  }, [filterStatus, filterOnlySuspect, filterEmailKategorie, filterKategorie, filterKategorieManual, filterMaxConfidence, isConnected, api, loadQueue]);
+  }, [isConnected, api, loadQueue]);
 
   // Handle document update
   const handleDocumentUpdate = () => {
@@ -345,16 +344,6 @@ function App() {
               )}
             </div>
             <button
-              onClick={() => setShowRulesPanel(true)}
-              className="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 flex items-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              Regeln
-            </button>
-            <button
               onClick={handleDisconnect}
               className="text-sm text-gray-600 hover:text-gray-900"
             >
@@ -380,6 +369,7 @@ function App() {
                 className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
               >
                 <option value="pending">Ausstehend</option>
+                <option value="ki_review">KI-Review</option>
                 <option value="approved">Bestaetigt</option>
                 <option value="corrected">Korrigiert</option>
                 <option value="error">Fehler</option>
@@ -581,16 +571,9 @@ function App() {
 
       {/* Footer */}
       <footer className="max-w-7xl mx-auto px-4 py-4 text-center text-xs text-gray-400">
-        Review Tool v0.6.0 | Preview Prefetch + Cache
+        Review Tool v0.7.0 | KI-Review Notizen
       </footer>
 
-      {/* Rules Panel Modal */}
-      {showRulesPanel && api && (
-        <RulesPanel
-          api={api}
-          onClose={() => setShowRulesPanel(false)}
-        />
-      )}
     </div>
   );
 }

@@ -136,6 +136,7 @@
 | [K-008] | 2026-02-25 | KATEG | PROG | Dashboard: kategorie_manual als Haupt-Kategorie (Dokumente + Emails) |
 | [K-009] | 2026-02-25 | KATEG | PROG | Komplett-Reklassifizierung 2818 Docs (GPT-5 mini, v2.6.0 40 Kategorien) + Storage-Reorganisation 694 Dateien |
 | [K-010] | 2026-02-25 | KATEG | PROG | Email-Kategorien erweitert (18→21), process-email v4.2.0 (Import-Fix + verify_jwt Fix), classify-email-backtest v1 |
+| [K-011] | 2026-02-26 | KATEG | PROG | KI-Review Notiz-System + Regeln-Cleanup (Review Tool v0.7.0, admin-review v1.9.0) |
 
 ---
 
@@ -5554,6 +5555,54 @@ Zusaetzlich hatte process-email hardcoded Kategorien statt Import und den verify
 
 ### Aufgeraeumt
 - Branch `review/categories-merge-analyse` geloescht (remote)
+
+---
+
+## [K-011] Programmierer: KI-Review Notiz-System + Regeln-Cleanup
+**Datum:** 2026-02-26
+**Workflow:** KATEG
+
+### Kontext
+Nach K-010 (Email-Reklassifizierung 423 Emails) fehlte ein Mechanismus, um manuell reviewte
+Dokumente nach KI-Aenderungen zur erneuten Pruefung zu markieren. Ausserdem war das Regeln-System
+(Clusters/Rules/Settings) im Review Tool toter Code: 0 Rules, 61 Clusters die nie zu Rules wurden.
+
+### Durchgefuehrt
+
+#### 1. DB-Migration: ki_review_notiz
+- `ALTER TABLE documents ADD COLUMN ki_review_notiz TEXT DEFAULT NULL`
+- Partial Index `idx_documents_ki_review` auf `ki_review_notiz IS NOT NULL`
+- Zweck: KI-Tools (reclassify-emails, process-document) setzen Notiz, Review Tool zeigt sie
+
+#### 2. admin-review v1.9.0
+- `ki_review_notiz` in Queue-SELECT aufgenommen
+- Neuer Filter: `GET /admin-review?ki_review=true` → zeigt alle Docs mit Notiz (status-unabhaengig)
+- Auto-Clearing: `POST /:id/label` setzt `ki_review_notiz = null` nach Review
+
+#### 3. Review Tool v0.7.0
+- Status-Dropdown: neuer Wert "KI-Review" (filtert nach ki_review_notiz IS NOT NULL)
+- ReviewQueue: Gelbe Notiz-Zeile unter Betreff wenn ki_review_notiz vorhanden
+- api.ts: `ki_review_notiz` in ReviewDocument, `ki_review` Parameter in getQueue()
+
+#### 4. Regeln-System aus Frontend entfernt (-1011 Zeilen)
+- `RulesPanel.tsx` geloescht (787 Zeilen)
+- "Regeln" Button + Modal aus App.tsx entfernt
+- 6 Interfaces + 9 API-Methoden aus api.ts entfernt (Rules, Clusters, Settings)
+- Backend-Endpoints + DB-Tabellen NICHT geloescht (Learning Loop laeuft weiter)
+- Confidence-Slider bleibt (funktioniert korrekt client-seitig)
+
+### Betroffene Dateien
+| Datei | Aenderung |
+|-------|-----------|
+| `supabase/functions/admin-review/index.ts` | v1.9.0: ki_review Filter + Notiz-Clearing |
+| `apps/review-tool/src/App.tsx` | KI-Review Filter, Regeln entfernt |
+| `apps/review-tool/src/components/ReviewQueue.tsx` | Notiz-Anzeige (amber badge) |
+| `apps/review-tool/src/lib/api.ts` | ki_review_notiz Type + Parameter, Rules-Code entfernt |
+| `apps/review-tool/src/components/RulesPanel.tsx` | GELOESCHT |
+
+### Naechste Schritte
+- admin-review Edge Function deployen (v1.9.0)
+- reclassify-emails / process-document erweitern: ki_review_notiz setzen bei Aenderungen
 
 ---
 

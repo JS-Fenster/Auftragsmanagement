@@ -1,10 +1,12 @@
 // =============================================================================
-// Admin Review API - Review Queue, Labeling, Preview, Rules, Learning Loop
-// Version: 1.8.0 - 2026-01-21
+// Admin Review API - Review Queue, Labeling, Preview, Stats, Categories
+// Version: 2.0.0 - 2026-02-26
 // =============================================================================
-// Aenderungen v1.8.0:
-// - FIX: Learning Loop Fehler jetzt sichtbar im Response (learning_status/learning_error)
-// - FIX: Besseres Logging mit doc_id und rpc-name
+// Aenderungen v2.0.0:
+// - NEU: ki_review_notiz Spalte in Queue-Select + Filter + Auto-Clearing
+// - ENTFERNT: Learning Loop (Fingerprint, Features, Clusters, Rules, Settings, Backfill)
+// - ENTFERNT: Endpoints: clusters, rules, settings, backfill, rule-suggestions
+// - BEREINIGT: ~500 Zeilen toter Code entfernt
 //
 // Aenderungen v1.7.0:
 // - NEU: Kategorien Reiseunterlagen, Kundenbestellung, Zahlungsavis
@@ -27,18 +29,10 @@
 // =============================================================================
 // Endpoints:
 //   GET  /admin-review                  - Get review queue
-//   POST /admin-review/:id/label        - Update labels (approve/correct) + learning
+//   POST /admin-review/:id/label        - Update labels (approve/correct)
 //   GET  /admin-review/preview?path=... - Get signed URL for attachment
 //   GET  /admin-review/stats            - Get review statistics
 //   GET  /admin-review/categories       - Get valid categories
-//   GET  /admin-review/clusters         - Get evidence clusters for rule generation
-//   GET  /admin-review/settings         - Get rules settings
-//   POST /admin-review/settings         - Update rules settings
-//   GET  /admin-review/rules            - Get classification rules
-//   POST /admin-review/rules/:id/activate - Activate a draft rule
-//   POST /admin-review/rules/:id/disable  - Disable a rule
-//   POST /admin-review/rules/:id/pause    - Pause a rule
-//   POST /admin-review/backfill         - Backfill learning data for existing corrections
 // =============================================================================
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -100,30 +94,6 @@ const corsHeaders = {
 };
 
 // =============================================================================
-// Helper: Generate rule fingerprint
-// =============================================================================
-
-function generateFingerprint(doc: {
-  email_von_email?: string;
-  email_betreff?: string;
-  kategorie?: string;
-}): string | null {
-  if (!doc.email_von_email) return null;
-
-  const domain = doc.email_von_email.split("@")[1]?.toLowerCase() || "";
-  const subjectWords = (doc.email_betreff || "")
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, "")
-    .split(/\s+/)
-    .filter(w => w.length > 3)
-    .sort()
-    .slice(0, 5)
-    .join("_");
-
-  return `${domain}:${subjectWords}`;
-}
-
-// =============================================================================
 // Helper: Get content type from file extension
 // =============================================================================
 
@@ -175,6 +145,7 @@ interface ReviewQueueParams {
   only_suspect?: boolean;
   kategorie?: string;
   email_kategorie?: string;
+  ki_review?: boolean;
   limit?: number;
   offset?: number;
 }
@@ -187,6 +158,7 @@ async function getReviewQueue(params: ReviewQueueParams) {
     only_suspect = false,
     kategorie,
     email_kategorie,
+    ki_review,
     limit = 50,
     offset = 0,
   } = params;
@@ -218,10 +190,10 @@ async function getReviewQueue(params: ReviewQueueParams) {
       reviewed_by,
       dokument_url,
       source,
-      rule_fingerprint,
       unterschrift_erforderlich,
       empfang_unterschrift,
-      unterschrift
+      unterschrift,
+      ki_review_notiz
     `)
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
@@ -251,6 +223,46 @@ async function getReviewQueue(params: ReviewQueueParams) {
   if (email_kategorie) {
     query = query.eq("email_kategorie", email_kategorie);
     query = query.eq("source", "email"); // Nur Emails bei Email-Filter
+  }
+
+  // KI-Review filter: show all documents with ki_review_notiz set (ignores status filter)
+  if (ki_review) {
+    // Override: re-create query without status filter
+    query = supabase
+      .from("documents")
+      .select(`
+        id,
+        created_at,
+        updated_at,
+        kategorie,
+        kategorie_manual,
+        email_kategorie,
+        email_kategorie_confidence,
+        email_kategorie_manual,
+        email_betreff,
+        email_von_email,
+        email_von_name,
+        email_postfach,
+        email_hat_anhaenge,
+        email_anhaenge_count,
+        email_anhaenge_meta,
+        email_body_text,
+        inhalt_zusammenfassung,
+        processing_status,
+        processing_last_error,
+        review_status,
+        reviewed_at,
+        reviewed_by,
+        dokument_url,
+        source,
+        unterschrift_erforderlich,
+        empfang_unterschrift,
+        unterschrift,
+        ki_review_notiz
+      `)
+      .not("ki_review_notiz", "is", null)
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1);
   }
 
   // Suspect filter: Sonstiges, low confidence, or errors
@@ -327,6 +339,7 @@ async function updateLabel(documentId: string, body: LabelUpdateBody) {
     reviewed_at: new Date().toISOString(),
     reviewed_by: reviewed_by || "admin",
     review_status: action === "approve" ? "approved" : "corrected",
+    ki_review_notiz: null,  // Clear KI review note after manual review
   };
 
   // v1.4.0: Unterschrift-Felder (immer aktualisieren wenn angegeben, auch bei approve)
@@ -349,23 +362,6 @@ async function updateLabel(documentId: string, body: LabelUpdateBody) {
     }
   }
 
-  // First, get document to generate fingerprint
-  const { data: doc, error: fetchError } = await supabase
-    .from("documents")
-    .select("email_von_email, email_betreff, kategorie, email_kategorie")
-    .eq("id", documentId)
-    .single();
-
-  if (fetchError) {
-    throw new Error(`Document not found: ${documentId}`);
-  }
-
-  // Generate fingerprint for learning
-  const fingerprint = generateFingerprint(doc);
-  if (fingerprint) {
-    updateData.rule_fingerprint = fingerprint;
-  }
-
   // Update document
   const { data, error } = await supabase
     .from("documents")
@@ -378,88 +374,7 @@ async function updateLabel(documentId: string, body: LabelUpdateBody) {
     throw new Error(`Update failed: ${error.message}`);
   }
 
-  // =========================================================================
-  // Learning Loop: Extract features and add to evidence cluster
-  // =========================================================================
-  let clusterId: string | null = null;
-  let clusterStatus: string | null = null;
-  let learningStatus: "ok" | "skipped" | "failed" = "skipped";
-  let learningError: string | null = null;
-  let featuresExtracted = 0;
-
-  // Only process for corrections (not approvals of existing correct classifications)
-  if (action === "correct" && (kategorie_manual || email_kategorie_manual)) {
-    try {
-      // Step 1: Extract features from document
-      console.log(`[LEARNING] Starting feature extraction for doc=${documentId}`);
-      const { data: extractResult, error: extractError } = await supabase.rpc("extract_document_features", {
-        doc_id: documentId,
-      });
-
-      if (extractError) {
-        console.error(`[LEARNING] RPC extract_document_features FAILED for doc=${documentId}: ${extractError.message}`);
-        learningStatus = "failed";
-        learningError = `extract_document_features: ${extractError.message}`;
-      } else {
-        featuresExtracted = extractResult || 0;
-        console.log(`[LEARNING] Extracted ${featuresExtracted} features for doc=${documentId}`);
-
-        // Step 2: Add to evidence cluster
-        const targetEmailKat = email_kategorie_manual || null;
-        const targetKat = kategorie_manual || null;
-
-        console.log(`[LEARNING] Adding to cluster: doc=${documentId}, email_kat=${targetEmailKat}, kat=${targetKat}`);
-        const { data: clusterResult, error: clusterError } = await supabase.rpc("add_evidence_to_cluster", {
-          doc_id: documentId,
-          target_email_kat: targetEmailKat,
-          target_kat: targetKat,
-        });
-
-        if (clusterError) {
-          console.error(`[LEARNING] RPC add_evidence_to_cluster FAILED for doc=${documentId}: ${clusterError.message}`);
-          learningStatus = "failed";
-          learningError = `add_evidence_to_cluster: ${clusterError.message}`;
-        } else if (clusterResult) {
-          clusterId = clusterResult;
-          learningStatus = "ok";
-          console.log(`[LEARNING] SUCCESS: doc=${documentId} added to cluster=${clusterId}`);
-
-          // Check cluster status (if ready for rule generation)
-          const { data: cluster } = await supabase
-            .from("rule_evidence_clusters")
-            .select("status, evidence_count")
-            .eq("id", clusterId)
-            .single();
-
-          if (cluster) {
-            clusterStatus = cluster.status;
-            console.log(`[LEARNING] Cluster ${clusterId}: ${cluster.evidence_count} evidence, status=${cluster.status}`);
-          }
-        }
-      }
-    } catch (learningException) {
-      // Don't fail the main operation if learning fails
-      const errMsg = learningException instanceof Error ? learningException.message : String(learningException);
-      console.error(`[LEARNING] EXCEPTION in learning loop for doc=${documentId}: ${errMsg}`);
-      learningStatus = "failed";
-      learningError = `exception: ${errMsg}`;
-    }
-  }
-
-  return {
-    success: true,
-    document_id: documentId,
-    action,
-    review_status: updateData.review_status,
-    rule_fingerprint: fingerprint,
-    learning_status: learningStatus,
-    learning_error: learningError,
-    learning: clusterId ? {
-      cluster_id: clusterId,
-      cluster_status: clusterStatus,
-      features_extracted: featuresExtracted,
-    } : null,
-  };
+  return { success: true, document: data };
 }
 
 // =============================================================================
@@ -556,532 +471,6 @@ async function getReviewStats() {
 }
 
 // =============================================================================
-// GET /admin-review/rule-suggestions - Fingerprint-based suggestions
-// =============================================================================
-
-async function getRuleSuggestions() {
-  // Find fingerprints that have been manually confirmed >= 5 times
-  const { data, error } = await supabase
-    .from("documents")
-    .select("rule_fingerprint, email_kategorie_manual, kategorie_manual")
-    .not("rule_fingerprint", "is", null)
-    .in("review_status", ["approved", "corrected"]);
-
-  if (error) {
-    throw new Error(`Query failed: ${error.message}`);
-  }
-
-  // Group by fingerprint and count
-  const fingerprintCounts: Record<string, {
-    count: number;
-    email_kategorie: string | null;
-    kategorie: string | null;
-  }> = {};
-
-  for (const doc of data || []) {
-    const fp = doc.rule_fingerprint;
-    if (!fp) continue;
-
-    if (!fingerprintCounts[fp]) {
-      fingerprintCounts[fp] = {
-        count: 0,
-        email_kategorie: doc.email_kategorie_manual,
-        kategorie: doc.kategorie_manual,
-      };
-    }
-    fingerprintCounts[fp].count++;
-  }
-
-  // Filter to those with >= 5 confirmations
-  const suggestions = Object.entries(fingerprintCounts)
-    .filter(([_, v]) => v.count >= 5)
-    .map(([fingerprint, data]) => ({
-      fingerprint,
-      confirmed_count: data.count,
-      suggested_email_kategorie: data.email_kategorie,
-      suggested_kategorie: data.kategorie,
-    }))
-    .sort((a, b) => b.confirmed_count - a.confirmed_count);
-
-  return {
-    suggestions,
-    count: suggestions.length,
-    threshold: 5,
-  };
-}
-
-// =============================================================================
-// POST /admin-review/backfill - Backfill learning data for existing corrections
-// =============================================================================
-
-interface BackfillResult {
-  total_found: number;
-  processed: number;
-  succeeded: number;
-  failed: number;
-  errors: Array<{ document_id: string; error: string }>;
-  clusters_created: number;
-  top_clusters: Array<{ cluster_key: string; evidence_count: number }>;
-}
-
-async function runBackfill(limit = 500): Promise<BackfillResult> {
-  console.log(`[BACKFILL] Starting backfill with limit=${limit}`);
-
-  // Find all corrected documents that have manual categories set
-  const { data: docs, error: fetchError } = await supabase
-    .from("documents")
-    .select("id, kategorie_manual, email_kategorie_manual")
-    .or("kategorie_manual.not.is.null,email_kategorie_manual.not.is.null")
-    .in("review_status", ["corrected", "approved"])
-    .limit(limit);
-
-  if (fetchError) {
-    throw new Error(`Failed to fetch documents: ${fetchError.message}`);
-  }
-
-  const result: BackfillResult = {
-    total_found: docs?.length || 0,
-    processed: 0,
-    succeeded: 0,
-    failed: 0,
-    errors: [],
-    clusters_created: 0,
-    top_clusters: [],
-  };
-
-  console.log(`[BACKFILL] Found ${result.total_found} documents to process`);
-
-  // Process each document
-  for (const doc of docs || []) {
-    result.processed++;
-
-    try {
-      // Step 1: Extract features
-      const { error: extractError } = await supabase.rpc("extract_document_features", {
-        doc_id: doc.id,
-      });
-
-      if (extractError) {
-        result.failed++;
-        result.errors.push({
-          document_id: doc.id,
-          error: `extract_document_features: ${extractError.message}`,
-        });
-        continue;
-      }
-
-      // Step 2: Add to cluster
-      const { error: clusterError } = await supabase.rpc("add_evidence_to_cluster", {
-        doc_id: doc.id,
-        target_email_kat: doc.email_kategorie_manual,
-        target_kat: doc.kategorie_manual,
-      });
-
-      if (clusterError) {
-        result.failed++;
-        result.errors.push({
-          document_id: doc.id,
-          error: `add_evidence_to_cluster: ${clusterError.message}`,
-        });
-        continue;
-      }
-
-      result.succeeded++;
-
-      // Log progress every 10 documents
-      if (result.processed % 10 === 0) {
-        console.log(`[BACKFILL] Progress: ${result.processed}/${result.total_found} (${result.succeeded} ok, ${result.failed} failed)`);
-      }
-    } catch (err) {
-      result.failed++;
-      result.errors.push({
-        document_id: doc.id,
-        error: `exception: ${err instanceof Error ? err.message : String(err)}`,
-      });
-    }
-  }
-
-  // Get cluster stats
-  const { data: clusters } = await supabase
-    .from("rule_evidence_clusters")
-    .select("cluster_key, evidence_count")
-    .order("evidence_count", { ascending: false })
-    .limit(10);
-
-  result.top_clusters = clusters || [];
-  result.clusters_created = clusters?.length || 0;
-
-  console.log(`[BACKFILL] Complete: ${result.succeeded} succeeded, ${result.failed} failed, ${result.clusters_created} clusters`);
-
-  // Truncate errors array for response (keep first 20)
-  if (result.errors.length > 20) {
-    result.errors = result.errors.slice(0, 20);
-  }
-
-  return result;
-}
-
-// =============================================================================
-// GET /admin-review/clusters - Get Evidence Clusters
-// =============================================================================
-
-interface ClustersQueryParams {
-  status?: string; // pending|ready|rule_generated|all
-  limit?: number;
-  offset?: number;
-}
-
-async function getClusters(params: ClustersQueryParams) {
-  const { status = "all", limit = 50, offset = 0 } = params;
-
-  let query = supabase
-    .from("rule_evidence_clusters")
-    .select(`
-      id,
-      created_at,
-      updated_at,
-      cluster_key,
-      target_email_kategorie,
-      target_kategorie,
-      evidence_count,
-      evidence_document_ids,
-      status,
-      generated_rule_id
-    `)
-    .order("evidence_count", { ascending: false })
-    .range(offset, offset + limit - 1);
-
-  if (status && status !== "all") {
-    query = query.eq("status", status);
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    throw new Error(`Failed to load clusters: ${error.message}`);
-  }
-
-  // Get example documents for each cluster
-  const clusters = await Promise.all((data || []).map(async (cluster) => {
-    let examples: Array<{
-      id: string;
-      email_betreff: string | null;
-      email_von_email: string | null;
-      email_von_name: string | null;
-      dokument_url: string | null;
-      kategorie: string | null;
-      inhalt_zusammenfassung: string | null;
-    }> = [];
-
-    if (cluster.evidence_document_ids && cluster.evidence_document_ids.length > 0) {
-      const { data: exampleDocs } = await supabase
-        .from("documents")
-        .select("id, email_betreff, email_von_email, email_von_name, dokument_url, kategorie, inhalt_zusammenfassung")
-        .in("id", cluster.evidence_document_ids.slice(0, 5));
-      examples = exampleDocs || [];
-    }
-
-    return {
-      ...cluster,
-      examples,
-    };
-  }));
-
-  // Get counts by status
-  const { data: countData } = await supabase
-    .from("rule_evidence_clusters")
-    .select("status");
-
-  const counts = {
-    collecting: 0,
-    pending: 0,
-    ready: 0,
-    rule_generated: 0,
-  };
-  for (const row of countData || []) {
-    if (row.status in counts) {
-      counts[row.status as keyof typeof counts]++;
-    }
-  }
-
-  return {
-    clusters,
-    count: clusters.length,
-    offset,
-    limit,
-    counts,
-  };
-}
-
-// =============================================================================
-// GET /admin-review/settings - Get Rules Settings
-// =============================================================================
-
-async function getSettings() {
-  const { data, error } = await supabase
-    .from("app_config")
-    .select("key, value, description")
-    .in("key", [
-      "rules_activation_mode",
-      "rules_min_evidence",
-      "rules_min_backtest_matches",
-      "rules_min_precision"
-    ]);
-
-  if (error) {
-    throw new Error(`Failed to load settings: ${error.message}`);
-  }
-
-  // Convert to object
-  const settings: Record<string, string> = {};
-  for (const row of data || []) {
-    settings[row.key] = row.value;
-  }
-
-  return {
-    activation_mode: settings.rules_activation_mode || "manual",
-    thresholds: {
-      min_evidence: parseInt(settings.rules_min_evidence || "5"),
-      min_backtest_matches: parseInt(settings.rules_min_backtest_matches || "20"),
-      min_precision: parseFloat(settings.rules_min_precision || "0.95"),
-    },
-  };
-}
-
-// =============================================================================
-// POST /admin-review/settings - Update Rules Settings
-// =============================================================================
-
-interface SettingsUpdateBody {
-  activation_mode?: "manual" | "auto";
-  min_evidence?: number;
-  min_backtest_matches?: number;
-  min_precision?: number;
-}
-
-async function updateSettings(body: SettingsUpdateBody) {
-  const updates: Array<{ key: string; value: string }> = [];
-
-  if (body.activation_mode) {
-    if (!["manual", "auto"].includes(body.activation_mode)) {
-      throw new Error("Invalid activation_mode. Must be 'manual' or 'auto'");
-    }
-    updates.push({ key: "rules_activation_mode", value: body.activation_mode });
-  }
-  if (body.min_evidence !== undefined) {
-    if (body.min_evidence < 1 || body.min_evidence > 100) {
-      throw new Error("min_evidence must be between 1 and 100");
-    }
-    updates.push({ key: "rules_min_evidence", value: String(body.min_evidence) });
-  }
-  if (body.min_backtest_matches !== undefined) {
-    if (body.min_backtest_matches < 1 || body.min_backtest_matches > 1000) {
-      throw new Error("min_backtest_matches must be between 1 and 1000");
-    }
-    updates.push({ key: "rules_min_backtest_matches", value: String(body.min_backtest_matches) });
-  }
-  if (body.min_precision !== undefined) {
-    if (body.min_precision < 0.5 || body.min_precision > 1.0) {
-      throw new Error("min_precision must be between 0.5 and 1.0");
-    }
-    updates.push({ key: "rules_min_precision", value: String(body.min_precision) });
-  }
-
-  // Update each setting
-  for (const { key, value } of updates) {
-    const { error } = await supabase
-      .from("app_config")
-      .update({ value, updated_at: new Date().toISOString() })
-      .eq("key", key);
-
-    if (error) {
-      throw new Error(`Failed to update ${key}: ${error.message}`);
-    }
-  }
-
-  return { success: true, updated: updates.length };
-}
-
-// =============================================================================
-// GET /admin-review/rules - Get Classification Rules
-// =============================================================================
-
-interface RulesQueryParams {
-  status?: string; // draft|active|disabled|paused|all
-  limit?: number;
-  offset?: number;
-}
-
-async function getRules(params: RulesQueryParams) {
-  const { status = "all", limit = 50, offset = 0 } = params;
-
-  let query = supabase
-    .from("classification_rules")
-    .select(`
-      id,
-      created_at,
-      updated_at,
-      name,
-      description,
-      conditions,
-      target_email_kategorie,
-      target_kategorie,
-      status,
-      activated_by,
-      activated_at,
-      paused_reason,
-      evidence_count,
-      evidence_document_ids,
-      backtest_matches,
-      precision_estimate,
-      validation_metrics,
-      misfire_count,
-      last_misfire_at,
-      created_by
-    `)
-    .order("created_at", { ascending: false })
-    .range(offset, offset + limit - 1);
-
-  if (status && status !== "all") {
-    query = query.eq("status", status);
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    throw new Error(`Failed to load rules: ${error.message}`);
-  }
-
-  // Get example documents for each rule
-  const rules = await Promise.all((data || []).map(async (rule) => {
-    // Get up to 3 example documents
-    let examples: Array<{
-      id: string;
-      email_betreff: string | null;
-      email_von_email: string | null;
-    }> = [];
-
-    if (rule.evidence_document_ids && rule.evidence_document_ids.length > 0) {
-      const { data: exampleDocs } = await supabase
-        .from("documents")
-        .select("id, email_betreff, email_von_email")
-        .in("id", rule.evidence_document_ids.slice(0, 3));
-      examples = exampleDocs || [];
-    }
-
-    return {
-      ...rule,
-      examples,
-    };
-  }));
-
-  // Get counts by status
-  const { data: countData } = await supabase
-    .from("classification_rules")
-    .select("status");
-
-  const counts = {
-    draft: 0,
-    active: 0,
-    disabled: 0,
-    paused: 0,
-  };
-  for (const row of countData || []) {
-    if (row.status in counts) {
-      counts[row.status as keyof typeof counts]++;
-    }
-  }
-
-  return {
-    rules,
-    count: rules.length,
-    offset,
-    limit,
-    counts,
-  };
-}
-
-// =============================================================================
-// POST /admin-review/rules/:id/activate - Manually Activate a Rule
-// =============================================================================
-
-async function activateRule(ruleId: string) {
-  // Get current rule
-  const { data: rule, error: fetchError } = await supabase
-    .from("classification_rules")
-    .select("status, evidence_count")
-    .eq("id", ruleId)
-    .single();
-
-  if (fetchError || !rule) {
-    throw new Error(`Rule not found: ${ruleId}`);
-  }
-
-  if (rule.status === "active") {
-    throw new Error("Rule is already active");
-  }
-
-  // Update to active
-  const { error } = await supabase
-    .from("classification_rules")
-    .update({
-      status: "active",
-      activated_by: "manual",
-      activated_at: new Date().toISOString(),
-      paused_reason: null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", ruleId);
-
-  if (error) {
-    throw new Error(`Failed to activate rule: ${error.message}`);
-  }
-
-  return { success: true, rule_id: ruleId, new_status: "active" };
-}
-
-// =============================================================================
-// POST /admin-review/rules/:id/disable - Disable a Rule
-// =============================================================================
-
-async function disableRule(ruleId: string) {
-  const { error } = await supabase
-    .from("classification_rules")
-    .update({
-      status: "disabled",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", ruleId);
-
-  if (error) {
-    throw new Error(`Failed to disable rule: ${error.message}`);
-  }
-
-  return { success: true, rule_id: ruleId, new_status: "disabled" };
-}
-
-// =============================================================================
-// POST /admin-review/rules/:id/pause - Pause a Rule
-// =============================================================================
-
-async function pauseRule(ruleId: string, reason?: string) {
-  const { error } = await supabase
-    .from("classification_rules")
-    .update({
-      status: "paused",
-      paused_reason: reason || "Manually paused",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", ruleId);
-
-  if (error) {
-    throw new Error(`Failed to pause rule: ${error.message}`);
-  }
-
-  return { success: true, rule_id: ruleId, new_status: "paused" };
-}
-
-// =============================================================================
 // Main Handler
 // =============================================================================
 
@@ -1101,7 +490,7 @@ Deno.serve(async (req: Request) => {
       return new Response(
         JSON.stringify({
           service: "admin-review",
-          version: "1.8.0",
+          version: "2.0.0",
           status: "ready",
           configured: {
             supabase: !!(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY),
@@ -1157,105 +546,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Route: GET /admin-review/clusters
-    if (req.method === "GET" && pathParts[1] === "clusters") {
-      const params: ClustersQueryParams = {
-        status: url.searchParams.get("status") || "all",
-        limit: parseInt(url.searchParams.get("limit") || "50"),
-        offset: parseInt(url.searchParams.get("offset") || "0"),
-      };
-      const result = await getClusters(params);
-      return new Response(
-        JSON.stringify(result),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Route: GET /admin-review/rule-suggestions
-    if (req.method === "GET" && pathParts[1] === "rule-suggestions") {
-      const suggestions = await getRuleSuggestions();
-      return new Response(
-        JSON.stringify(suggestions),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Route: POST /admin-review/backfill - Backfill learning data for existing corrections
-    if (req.method === "POST" && pathParts[1] === "backfill") {
-      const body = await req.json().catch(() => ({}));
-      const limit = body.limit || 500;
-      console.log(`[BACKFILL] Received backfill request with limit=${limit}`);
-      const result = await runBackfill(limit);
-      return new Response(
-        JSON.stringify(result),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Route: GET /admin-review/settings
-    if (req.method === "GET" && pathParts[1] === "settings") {
-      const settings = await getSettings();
-      return new Response(
-        JSON.stringify(settings),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Route: POST /admin-review/settings
-    if (req.method === "POST" && pathParts[1] === "settings") {
-      const body: SettingsUpdateBody = await req.json();
-      const result = await updateSettings(body);
-      return new Response(
-        JSON.stringify(result),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Route: GET /admin-review/rules
-    if (req.method === "GET" && pathParts[1] === "rules" && pathParts.length === 2) {
-      const params: RulesQueryParams = {
-        status: url.searchParams.get("status") || "all",
-        limit: parseInt(url.searchParams.get("limit") || "50"),
-        offset: parseInt(url.searchParams.get("offset") || "0"),
-      };
-      const result = await getRules(params);
-      return new Response(
-        JSON.stringify(result),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Route: POST /admin-review/rules/:id/activate
-    if (req.method === "POST" && pathParts[1] === "rules" && pathParts[3] === "activate") {
-      const ruleId = pathParts[2];
-      const result = await activateRule(ruleId);
-      return new Response(
-        JSON.stringify(result),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Route: POST /admin-review/rules/:id/disable
-    if (req.method === "POST" && pathParts[1] === "rules" && pathParts[3] === "disable") {
-      const ruleId = pathParts[2];
-      const result = await disableRule(ruleId);
-      return new Response(
-        JSON.stringify(result),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Route: POST /admin-review/rules/:id/pause
-    if (req.method === "POST" && pathParts[1] === "rules" && pathParts[3] === "pause") {
-      const ruleId = pathParts[2];
-      const body = await req.json().catch(() => ({}));
-      const result = await pauseRule(ruleId, body.reason);
-      return new Response(
-        JSON.stringify(result),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     // Route: POST /admin-review/:id/label
     if (req.method === "POST" && pathParts[2] === "label") {
       const documentId = pathParts[1];
@@ -1288,6 +578,7 @@ Deno.serve(async (req: Request) => {
         only_suspect: url.searchParams.get("only_suspect") === "1",
         kategorie: url.searchParams.get("kategorie") || undefined,
         email_kategorie: url.searchParams.get("email_kategorie") || undefined,
+        ki_review: url.searchParams.get("ki_review") === "true",
         limit: parseInt(url.searchParams.get("limit") || "50"),
         offset: parseInt(url.searchParams.get("offset") || "0"),
       };

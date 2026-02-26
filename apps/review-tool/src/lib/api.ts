@@ -40,7 +40,7 @@ export interface ReviewDocument {
   reviewed_by: string | null;
   dokument_url: string | null;
   source: string | null;
-  rule_fingerprint: string | null;
+  ki_review_notiz: string | null;
   primary_file: PrimaryFile | null;
   // v1.4.0: Unterschrift-Felder
   unterschrift_erforderlich: boolean | null;
@@ -100,105 +100,6 @@ export interface PreviewResponse {
   signed_url: string;
   expires_in: number;
   path: string;
-}
-
-export interface RulesSettings {
-  activation_mode: 'manual' | 'auto';
-  thresholds: {
-    min_evidence: number;
-    min_backtest_matches: number;
-    min_precision: number;
-  };
-}
-
-export interface ClassificationRule {
-  id: string;
-  created_at: string;
-  updated_at: string;
-  name: string;
-  description: string | null;
-  conditions: Record<string, unknown>;
-  target_email_kategorie: string | null;
-  target_kategorie: string | null;
-  status: 'draft' | 'active' | 'disabled' | 'paused';
-  activated_by: 'manual' | 'auto' | null;
-  activated_at: string | null;
-  paused_reason: string | null;
-  evidence_count: number;
-  evidence_document_ids: string[];
-  backtest_matches: number;
-  precision_estimate: number;
-  validation_metrics: Record<string, unknown>;
-  misfire_count: number;
-  last_misfire_at: string | null;
-  created_by: string;
-  examples: Array<{
-    id: string;
-    email_betreff: string | null;
-    email_von_email: string | null;
-  }>;
-}
-
-export interface RulesResponse {
-  rules: ClassificationRule[];
-  count: number;
-  offset: number;
-  limit: number;
-  counts: {
-    draft: number;
-    active: number;
-    disabled: number;
-    paused: number;
-  };
-}
-
-export interface EvidenceCluster {
-  id: string;
-  created_at: string;
-  updated_at: string;
-  cluster_key: string;
-  target_email_kategorie: string | null;
-  target_kategorie: string | null;
-  evidence_count: number;
-  evidence_document_ids: string[];
-  status: 'collecting' | 'pending' | 'ready' | 'rule_generated';
-  generated_rule_id: string | null;
-  examples: Array<{
-    id: string;
-    email_betreff: string | null;
-    email_von_email: string | null;
-    email_von_name: string | null;
-    dokument_url: string | null;
-    kategorie: string | null;
-    inhalt_zusammenfassung: string | null;
-  }>;
-}
-
-export interface ClustersResponse {
-  clusters: EvidenceCluster[];
-  count: number;
-  offset: number;
-  limit: number;
-  counts: {
-    collecting: number;
-    pending: number;
-    ready: number;
-    rule_generated: number;
-  };
-}
-
-export interface GenerateRuleResponse {
-  success: boolean;
-  rule_id: string;
-  cluster_id: string;
-  backtest_results: {
-    total_matches: number;
-    correct_matches: number;
-    false_positives: number;
-    precision: number;
-    coverage: number;
-    time_window_days: number;
-  };
 }
 
 // =============================================================================
@@ -262,6 +163,7 @@ export class AdminReviewApi {
     only_suspect?: boolean;
     kategorie?: string;
     email_kategorie?: string;
+    ki_review?: boolean;
     limit?: number;
     offset?: number;
     since?: string;
@@ -272,6 +174,7 @@ export class AdminReviewApi {
     if (params.only_suspect) searchParams.set('only_suspect', '1');
     if (params.kategorie) searchParams.set('kategorie', params.kategorie);
     if (params.email_kategorie) searchParams.set('email_kategorie', params.email_kategorie);
+    if (params.ki_review) searchParams.set('ki_review', 'true');
     if (params.limit) searchParams.set('limit', String(params.limit));
     if (params.offset) searchParams.set('offset', String(params.offset));
     if (params.since) searchParams.set('since', params.since);
@@ -294,109 +197,6 @@ export class AdminReviewApi {
     return this.fetch(`/preview?path=${encodeURIComponent(path)}`);
   }
 
-  // Get rule suggestions
-  async getRuleSuggestions(): Promise<{
-    suggestions: Array<{
-      fingerprint: string;
-      confirmed_count: number;
-      suggested_email_kategorie: string | null;
-      suggested_kategorie: string | null;
-    }>;
-    count: number;
-  }> {
-    return this.fetch('/rule-suggestions');
-  }
-
-  // Get rules settings
-  async getSettings(): Promise<RulesSettings> {
-    return this.fetch('/settings');
-  }
-
-  // Update rules settings
-  async updateSettings(data: Partial<{
-    activation_mode: 'manual' | 'auto';
-    min_evidence: number;
-    min_backtest_matches: number;
-    min_precision: number;
-  }>): Promise<{ success: boolean; updated: number }> {
-    return this.fetch('/settings', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  // Get classification rules
-  async getRules(params: {
-    status?: string;
-    limit?: number;
-    offset?: number;
-  } = {}): Promise<RulesResponse> {
-    const searchParams = new URLSearchParams();
-    if (params.status) searchParams.set('status', params.status);
-    if (params.limit) searchParams.set('limit', String(params.limit));
-    if (params.offset) searchParams.set('offset', String(params.offset));
-
-    const query = searchParams.toString();
-    return this.fetch(query ? `/rules?${query}` : '/rules');
-  }
-
-  // Activate a rule
-  async activateRule(ruleId: string): Promise<{ success: boolean; rule_id: string; new_status: string }> {
-    return this.fetch(`/rules/${ruleId}/activate`, {
-      method: 'POST',
-    });
-  }
-
-  // Disable a rule
-  async disableRule(ruleId: string): Promise<{ success: boolean; rule_id: string; new_status: string }> {
-    return this.fetch(`/rules/${ruleId}/disable`, {
-      method: 'POST',
-    });
-  }
-
-  // Pause a rule
-  async pauseRule(ruleId: string, reason?: string): Promise<{ success: boolean; rule_id: string; new_status: string }> {
-    return this.fetch(`/rules/${ruleId}/pause`, {
-      method: 'POST',
-      body: JSON.stringify({ reason }),
-    });
-  }
-
-  // Get evidence clusters
-  async getClusters(params: {
-    status?: string;
-    limit?: number;
-    offset?: number;
-  } = {}): Promise<ClustersResponse> {
-    const searchParams = new URLSearchParams();
-    if (params.status) searchParams.set('status', params.status);
-    if (params.limit) searchParams.set('limit', String(params.limit));
-    if (params.offset) searchParams.set('offset', String(params.offset));
-
-    const query = searchParams.toString();
-    return this.fetch(query ? `/clusters?${query}` : '/clusters');
-  }
-
-  // Generate rule from cluster (calls rule-generator function)
-  async generateRule(clusterId: string): Promise<GenerateRuleResponse> {
-    const url = `${SUPABASE_URL}/functions/v1/rule-generator/generate`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-        'x-api-key': this.apiKey,
-      },
-      body: JSON.stringify({ cluster_id: clusterId }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: response.statusText }));
-      throw new Error(errorData.error || `HTTP ${response.status}`);
-    }
-
-    return response.json();
-  }
 }
 
 // =============================================================================

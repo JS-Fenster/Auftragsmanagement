@@ -258,8 +258,6 @@ function EmailSubscriptions() {
 // ---------------------------------------------------------------------------
 function SystemTab() {
   const [config, setConfig] = useState([])
-  const [rules, setRules] = useState([])
-  const [clusterCount, setClusterCount] = useState(null)
   const [loading, setLoading] = useState(true)
   const [editingKey, setEditingKey] = useState(null)
   const [editValue, setEditValue] = useState('')
@@ -267,14 +265,8 @@ function SystemTab() {
 
   useEffect(() => {
     ;(async () => {
-      const [configRes, rulesRes, clustersRes] = await Promise.all([
-        supabase.from('app_config').select('*'),
-        supabase.from('classification_rules').select('id, name, status, target_email_kategorie, target_kategorie, created_at'),
-        supabase.from('rule_evidence_clusters').select('*', { count: 'exact', head: true }),
-      ])
+      const configRes = await supabase.from('app_config').select('*')
       setConfig(configRes.data || [])
-      setRules(rulesRes.data || [])
-      setClusterCount(clustersRes.count ?? 0)
       setLoading(false)
     })()
   }, [])
@@ -290,16 +282,6 @@ function SystemTab() {
     setConfig(prev => prev.map(c => c.key === key ? { ...c, value: editValue } : c))
     setEditingKey(null)
     setSaving(false)
-  }
-
-  const statusBadge = (status) => {
-    const map = {
-      active: 'bg-green-100 text-green-700',
-      draft: 'bg-yellow-100 text-yellow-700',
-      disabled: 'bg-gray-100 text-gray-500',
-      paused: 'bg-orange-100 text-orange-700',
-    }
-    return map[status] || 'bg-gray-100 text-gray-500'
   }
 
   if (loading) return <div className="py-8 text-center text-gray-400">Laden…</div>
@@ -366,53 +348,6 @@ function SystemTab() {
         </div>
       </div>
 
-      {/* Classification Rules */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-800">Classification Rules</h3>
-          {clusterCount !== null && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-medium">
-              <Database size={13} />
-              {clusterCount} Evidence Clusters
-            </span>
-          )}
-        </div>
-        <p className="text-sm text-gray-500 mb-4">Regelaktivierung erfolgt über die admin-review Edge Function.</p>
-
-        <div className="bg-white rounded-lg border border-gray-200 overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Name</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Status</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">E-Mail Kategorie</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Kategorie</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Erstellt</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {rules.map((rule) => (
-                <tr key={rule.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-800">{rule.name}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${statusBadge(rule.status)}`}>
-                      {rule.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{rule.target_email_kategorie || '–'}</td>
-                  <td className="px-4 py-3 text-gray-600">{rule.target_kategorie || '–'}</td>
-                  <td className="px-4 py-3 text-xs text-gray-400">
-                    {rule.created_at ? format(new Date(rule.created_at), 'dd.MM.yyyy', { locale: de }) : '–'}
-                  </td>
-                </tr>
-              ))}
-              {rules.length === 0 && (
-                <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">Keine Rules vorhanden</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
     </div>
   )
 }
