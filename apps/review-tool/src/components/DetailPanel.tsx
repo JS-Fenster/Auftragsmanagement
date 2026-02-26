@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { ReviewDocument, Categories, formatDate, getConfidenceColor, AdminReviewApi } from '../lib/api';
+import { previewCache } from '../lib/previewCache';
 import { AttachmentList } from './AttachmentPreview';
 import 'react-pdf/dist/Page/TextLayer.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -47,33 +48,28 @@ function PrimaryFilePreview({
       return;
     }
 
-    let revoke: string | null = null;
+    let cancelled = false;
 
     async function fetchBlob() {
       try {
         setLoading(true);
         setError(null);
-        // 1. Get signed URL from API
-        const result = await api.getPreviewUrl(storagePath);
-        // 2. Download blob ourselves (instead of letting react-pdf fetch it)
-        const response = await fetch(result.signed_url);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const blob = await response.blob();
-        const objectUrl = URL.createObjectURL(blob);
-        revoke = objectUrl;
-        setSignedUrl(objectUrl);
+        // Use the deduplicated cache path (shares fetch with prefetch system)
+        const blobUrl = await previewCache.getOrFetchBlobUrl(storagePath, contentType, api);
+        if (cancelled) return;
+        setSignedUrl(blobUrl);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load preview');
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to load preview');
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
     fetchBlob();
 
-    return () => {
-      if (revoke) URL.revokeObjectURL(revoke);
-    };
-  }, [storagePath, api, cachedUrl]);
+    return () => { cancelled = true; };
+  }, [storagePath, api, cachedUrl, contentType]);
 
   if (loading) {
     return (

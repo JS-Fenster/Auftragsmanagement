@@ -109,6 +109,8 @@ export interface PreviewResponse {
 export class AdminReviewApi {
   private apiKey: string;
   private baseUrl: string;
+  // Request deduplication: same path → same promise (prevents StrictMode + prefetch double-fetches)
+  private pendingRequests = new Map<string, Promise<unknown>>();
 
   constructor(apiKey: string) {
     this.apiKey = apiKey;
@@ -148,14 +150,28 @@ export class AdminReviewApi {
     return this.fetch('?health=1');
   }
 
-  // Get categories
+  // Get categories (deduplicated)
   async getCategories(): Promise<Categories> {
-    return this.fetch('/categories');
+    const key = 'categories';
+    const pending = this.pendingRequests.get(key);
+    if (pending) return pending as Promise<Categories>;
+
+    const promise = this.fetch<Categories>('/categories')
+      .finally(() => this.pendingRequests.delete(key));
+    this.pendingRequests.set(key, promise);
+    return promise;
   }
 
-  // Get statistics
+  // Get statistics (deduplicated)
   async getStats(): Promise<ReviewStats> {
-    return this.fetch('/stats');
+    const key = 'stats';
+    const pending = this.pendingRequests.get(key);
+    if (pending) return pending as Promise<ReviewStats>;
+
+    const promise = this.fetch<ReviewStats>('/stats')
+      .finally(() => this.pendingRequests.delete(key));
+    this.pendingRequests.set(key, promise);
+    return promise;
   }
 
   // Get review queue
@@ -182,7 +198,19 @@ export class AdminReviewApi {
     if (params.until) searchParams.set('until', params.until);
 
     const query = searchParams.toString();
-    return this.fetch(query ? `?${query}` : '', {}, signal);
+    const fetchPath = query ? `?${query}` : '';
+    const key = `queue:${query}`;
+
+    // Don't deduplicate if signal provided (abortable requests need their own fetch)
+    if (signal) return this.fetch(fetchPath, {}, signal);
+
+    const pending = this.pendingRequests.get(key);
+    if (pending) return pending as Promise<QueueResponse>;
+
+    const promise = this.fetch<QueueResponse>(fetchPath)
+      .finally(() => this.pendingRequests.delete(key));
+    this.pendingRequests.set(key, promise);
+    return promise;
   }
 
   // Update label
@@ -193,9 +221,16 @@ export class AdminReviewApi {
     });
   }
 
-  // Get preview URL
+  // Get preview URL (deduplicated: concurrent requests for same path share one promise)
   async getPreviewUrl(path: string): Promise<PreviewResponse> {
-    return this.fetch(`/preview?path=${encodeURIComponent(path)}`);
+    const key = `preview:${path}`;
+    const pending = this.pendingRequests.get(key);
+    if (pending) return pending as Promise<PreviewResponse>;
+
+    const promise = this.fetch<PreviewResponse>(`/preview?path=${encodeURIComponent(path)}`)
+      .finally(() => this.pendingRequests.delete(key));
+    this.pendingRequests.set(key, promise);
+    return promise;
   }
 
 }

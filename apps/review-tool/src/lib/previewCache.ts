@@ -34,6 +34,8 @@ export class PreviewCache {
   private activeDownloads = 0;
   private downloadQueue: Array<() => Promise<void>> = [];
   private abortController: AbortController | null = null;
+  // Blob fetch deduplication: concurrent fetches for same path share one promise
+  private pendingBlobs = new Map<string, Promise<CachedPreview | null>>();
 
   constructor(maxSize = 30, concurrencyLimit = 2) {
     this.maxSize = maxSize;
@@ -197,6 +199,19 @@ export class PreviewCache {
     return { size: this.cache.size, maxSize: this.maxSize };
   }
 
+  /**
+   * Get or fetch a blob URL for a storage path (deduplicated).
+   * Used by DetailPanel to share the same fetch as prefetch.
+   */
+  async getOrFetchBlobUrl(
+    storagePath: string,
+    contentType: string,
+    api: AdminReviewApi
+  ): Promise<string | null> {
+    const result = await this.fetchAndCache(storagePath, contentType, api);
+    return result?.objectUrl || null;
+  }
+
   // ---------------------------------------------------------------------------
   // Private Methods
   // ---------------------------------------------------------------------------
@@ -207,8 +222,24 @@ export class PreviewCache {
     api: AdminReviewApi,
     signal?: AbortSignal
   ): Promise<CachedPreview | null> {
+    // Deduplicate: if a fetch for this path is already in-flight, return the same promise
+    const pending = this.pendingBlobs.get(storagePath);
+    if (pending) return pending;
+
+    const promise = this.doFetchAndCache(storagePath, contentType, api, signal)
+      .finally(() => this.pendingBlobs.delete(storagePath));
+    this.pendingBlobs.set(storagePath, promise);
+    return promise;
+  }
+
+  private async doFetchAndCache(
+    storagePath: string,
+    contentType: string,
+    api: AdminReviewApi,
+    signal?: AbortSignal
+  ): Promise<CachedPreview | null> {
     try {
-      // Get signed URL
+      // Get signed URL (deduplicated in API class)
       const { signed_url } = await api.getPreviewUrl(storagePath);
 
       // Fetch as blob

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { AttachmentMeta, formatFileSize, AdminReviewApi } from '../lib/api';
+import { previewCache } from '../lib/previewCache';
 import 'react-pdf/dist/Page/TextLayer.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 
@@ -22,38 +23,37 @@ export function AttachmentPreview({ attachment, api }: AttachmentPreviewProps) {
   const isImage = attachment.contentType.startsWith('image/');
 
   useEffect(() => {
-    let revoke: string | null = null;
+    let cancelled = false;
 
     async function fetchBlob() {
       try {
         setLoading(true);
         setError(null);
-        // 1. Get signed URL from API
-        const result = await api.getPreviewUrl(attachment.storagePath);
-        // 2. Download blob ourselves for instant react-pdf rendering
         const isPdfOrImage = isPdf || isImage;
         if (isPdfOrImage) {
-          const response = await fetch(result.signed_url);
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          const blob = await response.blob();
-          const objectUrl = URL.createObjectURL(blob);
-          revoke = objectUrl;
-          setSignedUrl(objectUrl);
+          // Use deduplicated cache path (shares fetch with prefetch system)
+          const blobUrl = await previewCache.getOrFetchBlobUrl(
+            attachment.storagePath, attachment.contentType, api
+          );
+          if (cancelled) return;
+          setSignedUrl(blobUrl);
         } else {
+          const result = await api.getPreviewUrl(attachment.storagePath);
+          if (cancelled) return;
           setSignedUrl(result.signed_url);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load preview');
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to load preview');
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
     fetchBlob();
 
-    return () => {
-      if (revoke) URL.revokeObjectURL(revoke);
-    };
-  }, [attachment.storagePath, api, isPdf, isImage]);
+    return () => { cancelled = true; };
+  }, [attachment.storagePath, attachment.contentType, api, isPdf, isImage]);
 
   if (loading) {
     return (
