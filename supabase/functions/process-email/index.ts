@@ -289,7 +289,7 @@ Antwort im JSON-Format:
 }`;
 
   try {
-    // v4.0: GPT-5.2 mit reasoning.effort: "medium" fuer bessere Ergebnisse
+    // v4.0: GPT-5.2 mit reasoning_effort: "medium" fuer bessere Ergebnisse
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -300,9 +300,8 @@ Antwort im JSON-Format:
         model: "gpt-5.2",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.3,
-        max_tokens: 400,  // Erhoeht fuer medium reasoning
-        // v4.0: reasoning.effort: "medium" statt "none" - bessere Kategorisierung
-        reasoning: { effort: "medium" },
+        max_completion_tokens: 400,
+        reasoning_effort: "medium",
       }),
     });
 

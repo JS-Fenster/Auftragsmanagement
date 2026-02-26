@@ -246,9 +246,11 @@ async function getReviewQueue(params: ReviewQueueParams) {
   }
   if (kategorie) {
     query = query.eq("kategorie", kategorie);
+    query = query.neq("source", "email"); // Emails haben eigene Kategorien
   }
   if (email_kategorie) {
     query = query.eq("email_kategorie", email_kategorie);
+    query = query.eq("source", "email"); // Nur Emails bei Email-Filter
   }
 
   // Suspect filter: Sonstiges, low confidence, or errors
