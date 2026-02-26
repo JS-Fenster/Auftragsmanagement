@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { ReviewDocument, Categories, formatDate, getConfidenceColor, AdminReviewApi } from '../lib/api';
-import { previewCache } from '../lib/previewCache';
 import { AttachmentList } from './AttachmentPreview';
 import 'react-pdf/dist/Page/TextLayer.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -49,14 +48,22 @@ function PrimaryFilePreview({
     }
 
     let cancelled = false;
+    let blobUrl: string | null = null;
 
     async function fetchBlob() {
       try {
         setLoading(true);
         setError(null);
-        // Use the deduplicated cache path (shares fetch with prefetch system)
-        const blobUrl = await previewCache.getOrFetchBlobUrl(storagePath, contentType, api);
+        // Get signed URL (deduplicated in API class)
+        const result = await api.getPreviewUrl(storagePath);
         if (cancelled) return;
+        // Download blob for instant react-pdf rendering
+        const response = await fetch(result.signed_url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        if (cancelled) return;
+        const blob = await response.blob();
+        blobUrl = URL.createObjectURL(blob);
+        if (cancelled) { URL.revokeObjectURL(blobUrl); blobUrl = null; return; }
         setSignedUrl(blobUrl);
       } catch (err) {
         if (!cancelled) {
@@ -68,8 +75,11 @@ function PrimaryFilePreview({
     }
     fetchBlob();
 
-    return () => { cancelled = true; };
-  }, [storagePath, api, cachedUrl, contentType]);
+    return () => {
+      cancelled = true;
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
+  }, [storagePath, api, cachedUrl]);
 
   if (loading) {
     return (
