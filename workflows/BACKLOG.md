@@ -45,6 +45,8 @@
 | G-023 | MITTEL | Kategorien | AB aufsplitten: Auftragsbestaetigung vs. Auftragsbestaetigung_Ausgehend |
 | G-024 | MITTEL | Kategorien | Steuer/Buchhaltung: Neue Dok-Kategorien (Bescheid, Freistellung, Buchhaltung) |
 | G-025 | NIEDRIG | Kategorien | Zahlungserinnerung + Mahnung zusammenlegen |
+| G-030 | MITTEL | Kategorien | Mahnung → Mahnung_Eingehend/Ausgehend (JS Fenster verschickt Mahnungen) |
+| G-031 | MITTEL | Kategorien | Kategorien-Bereinigung: Zu allgemeine Kategorien aufspalten (nach Review) |
 | G-026 | MITTEL | E-Mail | Automatische_Benachrichtigung als neue Email-Kategorie |
 | G-027 | HOCH | Kategorien | Grosses Rename: Dok-Kategorien auf [Typ]_[Richtung] vereinheitlichen |
 | G-028 | NIEDRIG | Kategorien | Retoure_Ausgehend / Retoure_Eingehend als neue Dok-Kategorien |
@@ -598,3 +600,34 @@ Normgerechter Ud-Wert-Rechner nach EN ISO 10077-1:2017 ins Auftragsmanagement ei
 **Voraussetzung:** Exakte Profilansichtsbreiten aus Wicona-Datenblaettern (statt rueckgerechnet) fuer normgenaue Ergebnisse.
 
 **Erweiterbar auf:** Uw-Berechnung fuer Fenster (gleiche Formel, Glas statt Paneel).
+
+---
+
+## [G-030] Mahnung → Mahnung_Eingehend / Mahnung_Ausgehend
+**Prio:** MITTEL | **Aufwand:** 1-2 Std
+
+JS Fenster verschickt auch Mahnungen an Kunden (kommen noch nicht durch den Scanner). Aktuell existiert nur "Mahnung" (6 Docs, alle eingehend).
+
+**TODO:**
+1. Rename: Mahnung → Mahnung_Eingehend (6 bestehende Docs)
+2. Neue Kategorie: Mahnung_Ausgehend anlegen
+3. DB: CHECK Constraint, Storage-Ordner verschieben
+4. Edge Functions: categories.ts, prompts.ts, process-email
+5. Frontend: constants.js, Review-Tool
+6. ki_review_notiz setzen auf betroffene Docs (Andreas prueft)
+
+**Gleicher Ablauf wie G-021 bis G-028.**
+
+---
+
+## [G-031] Kategorien-Bereinigung (nach Review-Durchlauf)
+**Prio:** MITTEL | **Aufwand:** 3-6 Std | **Abhaengigkeit:** Aktueller KI-Review muss abgeschlossen sein
+
+Nach dem Review-Durchlauf pruefen: Welche Kategorien sind zu allgemein und sollten in detailliertere aufgespalten werden? Beispiel: Mahnung → Mahnung_Eingehend/Ausgehend.
+
+**Kandidaten zum Pruefen:**
+- Alle Kategorien ohne _Eingehend/_Ausgehend Suffix
+- Kategorien mit hoher Fehlklassifizierungsrate
+- Kategorien mit >50 Docs die heterogene Inhalte haben
+
+**Voraussetzung:** Andreas schliesst den aktuellen KI-Review ab, damit die Datenbasis stimmt.

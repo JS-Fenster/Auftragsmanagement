@@ -1,7 +1,10 @@
 // =============================================================================
 // Process Document - System Prompt fuer Dokument-Kategorisierung + Extraktion
-// Version: 3.0.0 - 2026-02-25
+// Version: 3.1.0 - 2026-02-26
 // =============================================================================
+// Aenderungen v3.1.0:
+// - SPLIT: Mahnung → Mahnung_Eingehend / Mahnung_Ausgehend (G-030)
+//
 // Aenderungen v3.0.0:
 // - RENAME: Alle Kategorien auf Eingehend/Ausgehend-Schema umgestellt (G-021 bis G-028)
 //   Angebot → Angebot_Ausgehend, Auftragsbestaetigung → Auftragsbestaetigung_Eingehend,
@@ -232,10 +235,16 @@ Lieferschein von einem Lieferanten. Dokumentiert eingehende Ware bei J.S. Fenste
 - Kernfrage: Wird hier WARE GELIEFERT/VERSENDET? Dann ist es ein Lieferschein.
 - NICHT: Auftragsbestaetigung_Eingehend (die bestaetigt eine Bestellung, liefert aber noch nichts)
 
-## 28. Mahnung
-Zahlungserinnerungen und formelle Mahnungen. Von freundlich bis Inkasso.
+## 28. Mahnung_Eingehend
+Eingehende Zahlungserinnerungen und Mahnungen VON Lieferanten/Dienstleistern/Banken AN JS Fenster.
 - Typische Merkmale: "Zahlungserinnerung", "Mahnung", Mahnstufe, ggf. Mahngebuehr, Verweis auf unbezahlte Rechnung
 - INKLUSIVE: Freundliche Zahlungserinnerungen (ohne Gebuehren) UND formelle Mahnungen (1./2./3. Mahnung, Inkasso-Androhung)
+- Kernfrage: Wird JS Fenster zur Zahlung aufgefordert? Dann Mahnung_Eingehend.
+
+## 28b. Mahnung_Ausgehend
+Ausgehende Mahnungen VON JS Fenster AN Kunden.
+- Typische Merkmale: JS Fenster als Absender, "Zahlungserinnerung", Verweis auf eigene Rechnungsnummer
+- Kernfrage: Fordert JS Fenster einen Kunden zur Zahlung auf? Dann Mahnung_Ausgehend.
 
 ## 29. Montageauftrag
 Interner Auftrag oder Terminplan fuer Montage/Demontage-Arbeiten.
@@ -357,7 +366,7 @@ Belastungsanzeige, Lastschriftinfo, Sammelabbuchung. Information ueber eine BERE
 - Typische Merkmale: "Zahlungsavis", "Belastungsanzeige", "SEPA-Lastschrift", "wir haben abgebucht"
 - Kernfrage: Informiert dieses Dokument ueber eine BEREITS DURCHGEFUEHRTE Zahlung? Dann Zahlungsavis.
 - NICHT: Rechnung_Eingehend (Forderung/Rechnung, noch nicht bezahlt)
-- NICHT: Mahnung (Aufforderung ZU zahlen)
+- NICHT: Mahnung_Eingehend/Mahnung_Ausgehend (Aufforderung ZU zahlen)
 
 ## 48. Zeichnung
 Technische Zeichnungen, CAD-Zeichnungen, Detailzeichnungen (digital erstellt).

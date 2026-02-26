@@ -15,7 +15,8 @@
 //   Kundenlieferschein -> Lieferschein_Ausgehend
 //   Eingangsrechnung -> Rechnung_Eingehend
 //   Ausgangsrechnung -> Rechnung_Ausgehend
-//   Zahlungserinnerung -> Mahnung (merged)
+//   Zahlungserinnerung -> Mahnung_Eingehend (merged + split)
+// v3.1 (2026-02-26): Mahnung -> Mahnung_Eingehend / Mahnung_Ausgehend (G-030)
 // - REMOVED: Email_Anhang, Email_Eingehend, Email_Ausgehend (Pseudo-Kategorien)
 // - NEU: Steuer_Bescheid, Freistellungsbescheinigung, Buchhaltungsunterlagen
 // - NEU: Retoure_Eingehend, Retoure_Ausgehend
@@ -60,7 +61,8 @@ export const VALID_DOKUMENT_KATEGORIEN = [
   "Leasing",
   "Lieferschein_Ausgehend",     // v3.0: was Kundenlieferschein
   "Lieferschein_Eingehend",     // v3.0: was Eingangslieferschein
-  "Mahnung",                    // v3.0: merged mit Zahlungserinnerung
+  "Mahnung_Ausgehend",           // v3.1: Split Eingehend/Ausgehend
+  "Mahnung_Eingehend",           // v3.1: Split (was Mahnung, merged mit Zahlungserinnerung)
   "Montageauftrag",
   "Notiz",
   "Office_Dokument",
@@ -129,7 +131,8 @@ const KATEGORIE_ALIASES: Record<string, string> = {
   "Kundenlieferschein": "Lieferschein_Ausgehend",
   "Eingangsrechnung": "Rechnung_Eingehend",
   "Ausgangsrechnung": "Rechnung_Ausgehend",
-  "Zahlungserinnerung": "Mahnung",
+  "Zahlungserinnerung": "Mahnung_Eingehend",
+  "Mahnung": "Mahnung_Eingehend",          // v3.1: Split
 
   // === v3.0 Removed Pseudo-Categories ===
   "Email_Anhang": "Sonstiges_Dokument",
@@ -295,9 +298,9 @@ const HEURISTIC_RULES: HeuristicRule[] = [
     priority: 85,
   },
 
-  // Mahnung (priority 85)
+  // Mahnung_Eingehend (priority 85) - Default: eingehende Mahnungen
   {
-    kategorie: "Mahnung",
+    kategorie: "Mahnung_Eingehend",
     keywords: [
       "mahnung",
       "zahlungserinnerung",
