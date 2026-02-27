@@ -43,6 +43,7 @@
 | G-031 | MITTEL | Kategorien | Kategorien-Bereinigung: Zu allgemeine Kategorien aufspalten (nach Review) |
 | G-029 | MITTEL | Budget | Ud-Wert Rechner (EN ISO 10077-1) fuer Tueren |
 | G-032 | HOCH | E-Mail | Email-Versand-Architektur (eigene UI vs. Outlook, Entwurf/Fehlgeschlagen) |
+| G-033 | MITTEL | E-Mail | Globale Duplikat-Erkennung Email-Anhaenge (file_hash) |
 
 ---
 
@@ -513,3 +514,16 @@ Nach dem Review-Durchlauf pruefen: Welche Kategorien sind zu allgemein und sollt
 - Kategorien mit >50 Docs die heterogene Inhalte haben
 
 **Voraussetzung:** Andreas schliesst den aktuellen KI-Review ab, damit die Datenbasis stimmt.
+
+---
+
+## [G-033] Globale Duplikat-Erkennung Email-Anhaenge
+**Prio:** MITTEL | **Aufwand:** 2-4 Std
+
+Aktuell wird file_hash nur innerhalb einer Email geprueft. Wenn derselbe Anhang in einer Weiterleitung ("WG:") nochmal kommt, wird er als neues Dokument angelegt. Beispiel: Hauptwetter_26.pdf kam 2x mit identischem Hash.
+
+**Loesung:**
+- Beim Anlegen eines email_attachment: Globaler Check ob file_hash schon existiert
+- Wenn ja: Dokument als Duplikat markieren oder gar nicht erst anlegen
+- Optional: Referenz auf das Original-Dokument speichern
+- Betrifft: `process-email` bzw. Anhang-Pipeline
