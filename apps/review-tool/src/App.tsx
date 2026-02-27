@@ -36,7 +36,7 @@ function App() {
 
   // Batch Selection State
   const [batchSelectedIds, setBatchSelectedIds] = useState<Set<string>>(new Set());
-  const [batchConfirming, setBatchConfirming] = useState(false);
+  // batchConfirming removed - batch is now optimistic (instant UI update)
   const [batchEmailKategorie, setBatchEmailKategorie] = useState<string>('');
   const [batchKategorie, setBatchKategorie] = useState<string>('');
 
@@ -229,59 +229,51 @@ function App() {
     setBatchSelectedIds(new Set());
   };
 
-  // Batch confirm (approve or correct all selected)
-  const handleBatchConfirm = async () => {
+  // Batch confirm (optimistic: UI updates instantly, DB writes in background)
+  const handleBatchConfirm = () => {
     if (!api || batchSelectedIds.size === 0) return;
 
-    setBatchConfirming(true);
-    let successCount = 0;
-    let failCount = 0;
-
-    // Determine if this is a correction (categories set) or just approval
+    const ids = new Set(batchSelectedIds);
     const isCorrection = batchEmailKategorie || batchKategorie;
-    const action = isCorrection ? 'correct' : 'approve';
+    const action: 'approve' | 'correct' = isCorrection ? 'correct' : 'approve';
+    const savedEmailKat = batchEmailKategorie;
+    const savedKat = batchKategorie;
 
-    for (const id of batchSelectedIds) {
-      try {
-        const updateData: {
-          action: 'approve' | 'correct';
-          reviewed_by: string;
-          email_kategorie_manual?: string;
-          kategorie_manual?: string;
-        } = {
-          action,
-          reviewed_by: 'admin',
-        };
-
-        // Add category corrections if set
-        if (batchEmailKategorie) {
-          updateData.email_kategorie_manual = batchEmailKategorie;
-        }
-        if (batchKategorie) {
-          updateData.kategorie_manual = batchKategorie;
-        }
-
-        await api.updateLabel(id, updateData);
-        successCount++;
-      } catch (err) {
-        console.error(`Failed to ${action} ${id}:`, err);
-        failCount++;
-      }
-    }
-
-    setBatchConfirming(false);
+    // Optimistic: immediately remove from UI
+    setDocuments(prev => prev.filter(d => !ids.has(d.id)));
     setBatchSelectedIds(new Set());
-    // Reset batch category selections
     setBatchEmailKategorie('');
     setBatchKategorie('');
-    loadStats();
-    loadQueue();
-
-    // Show result
-    const actionText = isCorrection ? 'korrigiert' : 'bestaetigt';
-    if (failCount > 0) {
-      alert(`${successCount} ${actionText}, ${failCount} fehlgeschlagen`);
+    // If selected doc was in batch, clear it
+    if (selectedDocument && ids.has(selectedDocument.id)) {
+      setSelectedDocument(null);
     }
+
+    // Background: fire all API calls in parallel
+    const promises = Array.from(ids).map(id => {
+      const updateData: {
+        action: 'approve' | 'correct';
+        reviewed_by: string;
+        email_kategorie_manual?: string;
+        kategorie_manual?: string;
+      } = { action, reviewed_by: 'admin' };
+      if (savedEmailKat) updateData.email_kategorie_manual = savedEmailKat;
+      if (savedKat) updateData.kategorie_manual = savedKat;
+      return api.updateLabel(id, updateData).catch(err => {
+        console.error(`Failed to ${action} ${id}:`, err);
+        return { failed: true, id };
+      });
+    });
+
+    // When all done: refresh stats, report errors
+    Promise.all(promises).then(results => {
+      const failed = results.filter(r => r && typeof r === 'object' && 'failed' in r);
+      if (failed.length > 0) {
+        alert(`${ids.size - failed.length} OK, ${failed.length} fehlgeschlagen`);
+        loadQueue(); // Reload to show failed docs again
+      }
+      loadStats();
+    });
   };
 
   // Login Screen
@@ -503,30 +495,17 @@ function App() {
                     </select>
                   </div>
 
-                  {/* Batch Confirm Button */}
+                  {/* Batch Confirm Button (optimistic - instant) */}
                   <button
                     onClick={handleBatchConfirm}
-                    disabled={batchConfirming}
-                    className={`px-4 py-2 text-sm text-white rounded-lg disabled:opacity-50 flex items-center gap-2 ${
+                    className={`px-4 py-2 text-sm text-white rounded-lg flex items-center gap-2 ${
                       batchEmailKategorie || batchKategorie ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'
                     }`}
                   >
-                    {batchConfirming ? (
-                      <>
-                        <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        {batchEmailKategorie || batchKategorie ? 'Korrigieren...' : 'Bestaetigen...'}
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        {batchSelectedIds.size} {batchEmailKategorie || batchKategorie ? 'Korrigieren' : 'Bestaetigen'}
-                      </>
-                    )}
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    {batchSelectedIds.size} {batchEmailKategorie || batchKategorie ? 'Korrigieren' : 'Bestaetigen'}
                   </button>
                 </>
               )}
