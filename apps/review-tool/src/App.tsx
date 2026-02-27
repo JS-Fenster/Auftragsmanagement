@@ -403,6 +403,7 @@ function App() {
                 className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
               >
                 <option value="">Alle</option>
+                <option value="__no_emails__">(Keine E-Mails)</option>
                 <option value="__null__">(Leer)</option>
                 {categories?.email_kategorien.map(cat => (
                   <option key={cat} value={cat}>{cat}</option>

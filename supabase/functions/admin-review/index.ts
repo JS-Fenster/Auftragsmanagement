@@ -230,12 +230,15 @@ async function getReviewQueue(params: ReviewQueueParams) {
     }
   }
   if (email_kategorie) {
-    if (email_kategorie === "__null__") {
+    if (email_kategorie === "__no_emails__") {
+      query = query.neq("source", "email");
+    } else if (email_kategorie === "__null__") {
       query = query.is("email_kategorie", null);
+      query = query.eq("source", "email");
     } else {
       query = query.eq("email_kategorie", email_kategorie);
+      query = query.eq("source", "email");
     }
-    query = query.eq("source", "email");
   }
 
   // Suspect filter: Sonstiges, low confidence, or errors
