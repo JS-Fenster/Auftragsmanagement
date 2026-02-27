@@ -230,7 +230,11 @@ async function getReviewQueue(params: ReviewQueueParams) {
     }
   }
   if (email_kategorie) {
-    query = query.eq("email_kategorie", email_kategorie);
+    if (email_kategorie === "__null__") {
+      query = query.is("email_kategorie", null);
+    } else {
+      query = query.eq("email_kategorie", email_kategorie);
+    }
     query = query.eq("source", "email");
   }
 
