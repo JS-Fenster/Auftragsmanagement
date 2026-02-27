@@ -188,11 +188,9 @@ function PrimaryFilePreview({
 }
 
 export function DetailPanel({ document: doc, categories, api, onUpdate, onNextDocument, getCachedUrl }: DetailPanelProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedEmailKategorie, setSelectedEmailKategorie] = useState<string>('');
   const [selectedKategorie, setSelectedKategorie] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   // v1.4.0: Unterschrift-State
   const [unterschriftVorhanden, setUnterschriftVorhanden] = useState<boolean | null>(null);
   const [unterschriftText, setUnterschriftText] = useState<string>('');
@@ -214,47 +212,41 @@ export function DetailPanel({ document: doc, categories, api, onUpdate, onNextDo
   void (unterschriftVorhanden !== null || unterschriftText !== '');
   const isCorrection = hasKategorieChanges; // Unterschrift-Aenderungen erfordern keine "correction"
 
-  const handleSave = async () => {
-    try {
-      setIsSubmitting(true);
-      setError(null);
+  // Optimistic save: advance immediately, DB update in background
+  const handleSave = () => {
+    setError(null);
 
-      // Build request with optional unterschrift fields
-      const request: import('../lib/api').LabelUpdateRequest = {
-        action: isCorrection ? 'correct' : 'approve',
-        reviewed_by: 'admin',
-      };
+    // Build request with optional unterschrift fields
+    const request: import('../lib/api').LabelUpdateRequest = {
+      action: isCorrection ? 'correct' : 'approve',
+      reviewed_by: 'admin',
+    };
 
-      if (isCorrection) {
-        if (selectedEmailKategorie) request.email_kategorie_manual = selectedEmailKategorie;
-        if (selectedKategorie) request.kategorie_manual = selectedKategorie;
-      }
-
-      // v1.4.0: Unterschrift-Felder immer mitsenden wenn geaendert
-      if (unterschriftVorhanden !== null) {
-        request.empfang_unterschrift = unterschriftVorhanden;
-      }
-      if (unterschriftText !== '') {
-        request.unterschrift = unterschriftText || null;
-      }
-
-      await api.updateLabel(doc.id, request);
-      setSuccess(isCorrection ? 'Korrigiert!' : 'Bestaetigt!');
-
-      setSelectedEmailKategorie('');
-      setSelectedKategorie('');
-      setUnterschriftVorhanden(null);
-      setUnterschriftText('');
-      onUpdate();
-      setTimeout(() => {
-        setSuccess(null);
-        onNextDocument?.();
-      }, 500);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Fehler beim Speichern');
-    } finally {
-      setIsSubmitting(false);
+    if (isCorrection) {
+      if (selectedEmailKategorie) request.email_kategorie_manual = selectedEmailKategorie;
+      if (selectedKategorie) request.kategorie_manual = selectedKategorie;
     }
+
+    if (unterschriftVorhanden !== null) {
+      request.empfang_unterschrift = unterschriftVorhanden;
+    }
+    if (unterschriftText !== '') {
+      request.unterschrift = unterschriftText || null;
+    }
+
+    // Reset form + advance immediately
+    setSelectedEmailKategorie('');
+    setSelectedKategorie('');
+    setUnterschriftVorhanden(null);
+    setUnterschriftText('');
+    onUpdate();
+    onNextDocument?.();
+
+    // DB update in background
+    api.updateLabel(doc.id, request).catch(err => {
+      console.error('Label update failed:', err);
+      setError(err instanceof Error ? err.message : 'Fehler beim Speichern');
+    });
   };
 
   const currentEmailKategorie = doc.email_kategorie_manual || doc.email_kategorie;
@@ -490,50 +482,32 @@ export function DetailPanel({ document: doc, categories, api, onUpdate, onNextDo
             </div>
           </div>
 
-          {/* Error/Success Messages */}
+          {/* Error Message (shown if background save fails) */}
           {error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
               {error}
             </div>
           )}
-          {success && (
-            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-600">
-              {success}
-            </div>
-          )}
 
-          {/* Single Action Button - switches between Confirm/Correct */}
+          {/* Single Action Button - optimistic (instant) */}
           <button
             onClick={handleSave}
-            disabled={isSubmitting}
-            className={`w-full px-4 py-3 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors ${
+            className={`w-full px-4 py-3 text-white rounded-lg flex items-center justify-center gap-2 transition-colors ${
               isCorrection
                 ? 'bg-blue-600 hover:bg-blue-700'
                 : 'bg-green-600 hover:bg-green-700'
             }`}
           >
-            {isSubmitting ? (
-              <>
-                <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                {isCorrection ? 'Korrigieren...' : 'Bestaetigen...'}
-              </>
+            {isCorrection ? (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
             ) : (
-              <>
-                {isCorrection ? (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                ) : (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                )}
-                {isCorrection ? 'Korrigieren' : 'Bestaetigen'}
-              </>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
             )}
+            {isCorrection ? 'Korrigieren' : 'Bestaetigen'}
           </button>
         </div>
       </div>
