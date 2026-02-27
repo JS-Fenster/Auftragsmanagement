@@ -541,7 +541,13 @@ Aktuell wird file_hash nur innerhalb einer Email geprueft. Wenn derselbe Anhang 
 - Bereinigter Text wird in DB gespeichert (verbessert Suche, Embeddings, Klassifizierung)
 - Einbauen VOR der Klassifizierung in der bestehenden Pipeline
 
-**Schritt 2: Feinere Kategorien einfuehren**
+**Schritt 2: Strukturierte Datenextraktion (einmalig pro Dokument)**
+- LLM extrahiert beim Verarbeiten relevante Felder in die DB (JSON oder eigene Spalten)
+- Beispiele: Lieferant/Kunde, Betrag, Projektnummer, Laufzeit, Vertragsnummer
+- Danach: Suche/Filter/Workflows per SQL-Query, KEIN erneuter LLM-Aufruf noetig
+- Kostenmodell: Einmal Cent-Betraege fuer Extraktion, danach 0 Kosten fuer Queries
+
+**Schritt 3: Feinere Kategorien einfuehren**
 - `Anfrage_Eingehend` aufspalten: Reparaturanfrage, Reklamation, Preisanfrage, etc.
 - Mit bereinigtem OCR-Text kann GPT im selben Klassifizierungs-Schritt feiner unterscheiden
 - Neue Kategorien nach Bedarf - nicht alles auf einmal, sondern wo Fehlzuordnungen auffallen
