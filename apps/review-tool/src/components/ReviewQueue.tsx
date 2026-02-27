@@ -1,3 +1,4 @@
+import { useCallback, useRef, useEffect } from 'react';
 import { ReviewDocument, formatDate, getConfidenceColor, getStatusBadgeColor } from '../lib/api';
 
 interface ReviewQueueProps {
@@ -30,6 +31,41 @@ export function ReviewQueue({
   const hasBatchMode = !!onToggleSelect;
   const allSelected = items.length > 0 && items.every(doc => selectedIds.has(doc.id));
   const someSelected = items.some(doc => selectedIds.has(doc.id));
+  const tableRef = useRef<HTMLDivElement>(null);
+  const rowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map());
+
+  // Keyboard navigation: Arrow Up/Down to move between rows
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+    if (items.length === 0) return;
+
+    e.preventDefault(); // Prevent scroll
+
+    const currentIndex = selectedId ? items.findIndex(d => d.id === selectedId) : -1;
+    let nextIndex: number;
+
+    if (e.key === 'ArrowDown') {
+      nextIndex = currentIndex < items.length - 1 ? currentIndex + 1 : currentIndex;
+    } else {
+      nextIndex = currentIndex > 0 ? currentIndex - 1 : 0;
+    }
+
+    if (nextIndex !== currentIndex || currentIndex === -1) {
+      const nextDoc = items[nextIndex];
+      onSelect(nextDoc);
+      onHover?.(nextDoc.id);
+      // Scroll row into view
+      const row = rowRefs.current.get(nextDoc.id);
+      row?.scrollIntoView({ block: 'nearest' });
+    }
+  }, [items, selectedId, onSelect, onHover]);
+
+  // Auto-focus table when items load so keyboard works immediately
+  useEffect(() => {
+    if (items.length > 0 && tableRef.current) {
+      tableRef.current.focus();
+    }
+  }, [items.length]);
 
   if (loading) {
     return (
@@ -60,7 +96,12 @@ export function ReviewQueue({
   }
 
   return (
-    <div className="bg-white rounded-lg shadow">
+    <div
+      className="bg-white rounded-lg shadow focus:outline-none"
+      ref={tableRef}
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+    >
       <div>
         <table className="min-w-full divide-y divide-gray-200 table-fixed">
           <thead className="bg-gray-50 sticky top-0 z-10">
@@ -113,6 +154,7 @@ export function ReviewQueue({
               return (
                 <tr
                   key={doc.id}
+                  ref={el => { if (el) rowRefs.current.set(doc.id, el); }}
                   className={`cursor-pointer transition-colors ${
                     isSelected
                       ? 'bg-blue-100 hover:bg-blue-100'
