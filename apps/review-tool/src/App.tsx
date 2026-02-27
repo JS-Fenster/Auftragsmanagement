@@ -550,7 +550,7 @@ function App() {
                 </span>
               )}
             </h2>
-            <div className="flex-1" style={{ maxHeight: 'calc(100vh - 360px)', overflowY: 'scroll' }}>
+            <div className="flex-1 queue-scroll" style={{ maxHeight: 'calc(100vh - 360px)' }}>
               <ReviewQueue
                 items={documents}
                 loading={loadingQueue}

@@ -26,6 +26,12 @@ body {
   background: #a1a1a1;
 }
 
+/* Queue scrollbar always visible */
+.queue-scroll {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+
 /* PDF Canvas Styling */
 .react-pdf__Page__canvas {
   max-width: 100%;
