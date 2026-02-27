@@ -1,6 +1,6 @@
 // =============================================================================
 // Shared Category Definitions, Canonicalization, and Heuristic Rules
-// Version: 3.3.0 - 2026-02-27
+// Version: 3.5.0 - 2026-02-27
 // =============================================================================
 // Aenderungen v3.2.0 (G-021 Email-Kategorien Bereinigung):
 // - Email-Kategorien: 22 -> 29 (5 Renames + 7 Neue)
@@ -52,9 +52,11 @@ export const VALID_DOKUMENT_KATEGORIEN = [
   "Finanzierung",
   "Formular",
   "Freistellungsbescheinigung", // v3.0: NEU
-  "Gutschrift",
+  "Gutschrift_Ausgehend",        // v3.4: Split (von uns an Kunden)
+  "Gutschrift_Eingehend",        // v3.4: Split (von Lieferanten an uns)
   "Kassenbeleg_Ausgehend",      // v3.3: Split (von uns erstellt, Verkauf/Einnahme)
   "Kassenbeleg_Eingehend",      // v3.3: Split (erhalten, Einkauf/Ausgabe)
+  "Katalog",                    // v3.5: Produktkataloge, Broschueren, Prospekte
   "Leasing",
   "Lieferschein_Ausgehend",     // v3.0: was Kundenlieferschein
   "Lieferschein_Eingehend",     // v3.0: was Eingangslieferschein
@@ -64,6 +66,7 @@ export const VALID_DOKUMENT_KATEGORIEN = [
   "Notiz",
   "Office_Dokument",
   "Personalunterlagen",         // v2.5.0: Stundennachweis, AU, Lohnabrechnung
+  "Preisliste",                 // v3.5: Preislisten von Lieferanten/Herstellern
   "Produktdatenblatt",
   "Rechnung_Ausgehend",         // v3.0: was Ausgangsrechnung
   "Rechnung_Eingehend",         // v3.0: was Eingangsrechnung
@@ -138,6 +141,7 @@ const KATEGORIE_ALIASES: Record<string, string> = {
   "Zahlungserinnerung": "Mahnung_Eingehend",
   "Mahnung": "Mahnung_Eingehend",          // v3.1: Split
   "Kassenbeleg": "Kassenbeleg_Eingehend",  // v3.3: Split (Default: erhalten/Einkauf)
+  "Gutschrift": "Gutschrift_Eingehend",   // v3.4: Split (Default: vom Lieferanten)
 
   // === v3.0 Removed Pseudo-Categories ===
   "Email_Anhang": "Sonstiges_Dokument",
@@ -360,6 +364,41 @@ const HEURISTIC_RULES: HeuristicRule[] = [
     priority: 82,
   },
 
+  // Preisliste (priority 81)
+  {
+    kategorie: "Preisliste",
+    keywords: [
+      "preisliste",
+      "netto-preisliste",
+      "brutto-preisliste",
+      "preis pro meter",
+      "preis pro stück",
+      "preis pro stueck",
+      "staffelpreis",
+      "mengenrabatt",
+      "einkaufspreis",
+      "listenpreis",
+      "konditionsliste",
+    ],
+    priority: 81,
+  },
+
+  // Katalog (priority 80)
+  {
+    kategorie: "Katalog",
+    keywords: [
+      "katalog",
+      "produktkatalog",
+      "sortiment",
+      "prospekt",
+      "broschüre",
+      "broschuere",
+      "produktuebersicht",
+      "produktübersicht",
+    ],
+    priority: 80,
+  },
+
   // Produktdatenblatt (priority 80)
   {
     kategorie: "Produktdatenblatt",
@@ -380,9 +419,9 @@ const HEURISTIC_RULES: HeuristicRule[] = [
     priority: 80,
   },
 
-  // Gutschrift (priority 80 - wins over Rechnung_Eingehend)
+  // Gutschrift_Eingehend (priority 80 - Default: vom Lieferanten)
   {
-    kategorie: "Gutschrift",
+    kategorie: "Gutschrift_Eingehend",
     keywords: [
       "gutschrift",
       "stornorechnung",
@@ -414,6 +453,28 @@ const HEURISTIC_RULES: HeuristicRule[] = [
       "kontobelastung",
       "einzug vom",
       "abbuchungsauftrag",
+    ],
+    priority: 78,
+  },
+
+  // Retoure_Ausgehend (priority 78 - Retoure/Ruecksendung an Lieferanten inkl. Einlieferungsbelege)
+  {
+    kategorie: "Retoure_Ausgehend",
+    keywords: [
+      "retoure",
+      "retourenschein",
+      "rücksendung",
+      "ruecksendung",
+      "rma-nummer",
+      "rma nummer",
+      "einlieferungsbeleg",
+      "shopreturn",
+      "dhl retoure",
+      "gls retoure",
+      "hermes retoure",
+      "paketshop",
+      "kopie für den kunden",
+      "kopie fuer den kunden",
     ],
     priority: 78,
   },

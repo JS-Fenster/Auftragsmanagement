@@ -139,6 +139,8 @@
 | [K-011] | 2026-02-26 | KATEG | PROG | KI-Review Notiz-System + Regeln-Cleanup (Review Tool v0.7.0, admin-review v1.9.0) |
 | [K-012] | 2026-02-26 | KATEG | PROG | Review-Tool Performance (PDF Blob-Download, Debounce, Request-Dedup, Optimistic Updates) |
 | [K-013] | 2026-02-26 | KATEG | PROG | G-030: Mahnung → Mahnung_Eingehend/Ausgehend (6 Docs, process-document v3.1.0) |
+| [G-035] | 2026-02-27 | KATEG | PROG | Kassenbeleg Split Eingehend/Ausgehend |
+| [G-036] | 2026-02-27 | KATEG | PROG | Gutschrift Split + Retoure Keywords + Review Tool Scroll-Fix |
 
 ---
 
@@ -5654,6 +5656,35 @@ Dokumente nach KI-Aenderungen zur erneuten Pruefung zu markieren. Ausserdem war 
 - constants.js: Frontend-Kategorien aktualisiert
 - process-document deployed
 - Backlog bereinigt: G-023/G-024/G-025/G-026/G-027/G-028/G-030 geloescht
+
+---
+
+### [G-035] Kassenbeleg Split Eingehend/Ausgehend (2026-02-27)
+**Status:** ABGESCHLOSSEN
+**Commit:** 9fc0073
+
+**Aenderungen:**
+- DB: Kassenbeleg → Kassenbeleg_Eingehend/Kassenbeleg_Ausgehend Split
+- categories.ts v3.3: Array + Alias + Heuristic Rules
+- prompts.ts: Eingehend/Ausgehend Beschreibungen
+- constants.js: Frontend-Kategorien aktualisiert
+
+---
+
+### [G-036] Gutschrift Split + Retoure Keywords (2026-02-27)
+**Status:** ABGESCHLOSSEN
+
+**Aenderungen:**
+- DB: Gutschrift → Gutschrift_Eingehend (2 Docs), CHECK Constraint (50 Kategorien)
+- Storage: 2 Dateien von Gutschrift/ nach Gutschrift_Eingehend/ verschoben
+- categories.ts v3.4.0: Gutschrift Split (Array + Alias + Heuristic Rule)
+- categories.ts: Neue Heuristic Rule fuer Retoure_Ausgehend (Einlieferungsbeleg-Keywords)
+- prompts.ts v3.2.0: Gutschrift Split-Beschreibungen + Retoure_Ausgehend erweitert
+- schema.ts: Enum komplett aktualisiert (50 Kategorien, war veraltet seit v3.0)
+- constants.js: Frontend-Dropdown aktualisiert
+- Review Tool: Pfeiltasten-Scroll-Fix (sticky Header verdeckte Zeilen)
+- Deployed: admin-review + process-document via CLI
+- Edge Function Logs: Keine Fehler nach Deploy
 
 ---
 

@@ -387,53 +387,41 @@ async function getPreviewUrl(path: string) {
 // =============================================================================
 
 async function getReviewStats() {
-  // Get counts by review_status
-  const { data: statusCounts } = await supabase
-    .from("documents")
-    .select("review_status")
-    .not("review_status", "is", null);
+  // Use proper count queries (no 1000-row default limit)
+  const [
+    { count: pendingCount },
+    { count: approvedCount },
+    { count: correctedCount },
+    { count: errorsCount },
+  ] = await Promise.all([
+    supabase.from("documents").select("*", { count: "exact", head: true }).eq("review_status", "pending"),
+    supabase.from("documents").select("*", { count: "exact", head: true }).eq("review_status", "approved"),
+    supabase.from("documents").select("*", { count: "exact", head: true }).eq("review_status", "corrected"),
+    supabase.from("documents").select("*", { count: "exact", head: true }).eq("processing_status", "error"),
+  ]);
 
-  // Get suspect counts (last 48h) - using proper count
+  // Suspect counts (last 48h)
   const since48h = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
 
-  // FIX: Use count properly - don't use head:true, get actual count from response
-  const { count: sonstigesDokumentCount } = await supabase
-    .from("documents")
-    .select("*", { count: "exact", head: true })
-    .eq("kategorie", "Sonstiges_Dokument")
-    .gte("created_at", since48h);
+  const [
+    { count: sonstigesDokumentCount },
+    { count: sonstigesEmailCount },
+    { count: total48hCount },
+  ] = await Promise.all([
+    supabase.from("documents").select("*", { count: "exact", head: true }).eq("kategorie", "Sonstiges_Dokument").gte("created_at", since48h),
+    supabase.from("documents").select("*", { count: "exact", head: true }).eq("email_kategorie", "Sonstiges").gte("created_at", since48h),
+    supabase.from("documents").select("*", { count: "exact", head: true }).gte("created_at", since48h),
+  ]);
 
-  const { count: sonstigesEmailCount } = await supabase
-    .from("documents")
-    .select("*", { count: "exact", head: true })
-    .eq("email_kategorie", "Sonstiges")
-    .gte("created_at", since48h);
-
-  const { count: errorsCount } = await supabase
-    .from("documents")
-    .select("*", { count: "exact", head: true })
-    .eq("processing_status", "error");
-
-  const { count: pendingReviewsCount } = await supabase
-    .from("documents")
-    .select("*", { count: "exact", head: true })
-    .eq("review_status", "pending");
-
-  const { count: total48hCount } = await supabase
-    .from("documents")
-    .select("*", { count: "exact", head: true })
-    .gte("created_at", since48h);
-
-  // Calculate percentages with proper null handling
   const sonstigesDok = sonstigesDokumentCount || 0;
   const sonstigesEmail = sonstigesEmailCount || 0;
   const total48h = total48hCount || 1;
 
   return {
     review_status: {
-      pending: statusCounts?.filter(d => d.review_status === "pending").length || 0,
-      approved: statusCounts?.filter(d => d.review_status === "approved").length || 0,
-      corrected: statusCounts?.filter(d => d.review_status === "corrected").length || 0,
+      pending: pendingCount || 0,
+      approved: approvedCount || 0,
+      corrected: correctedCount || 0,
     },
     suspects_48h: {
       sonstiges_dokument: sonstigesDok,
@@ -441,7 +429,7 @@ async function getReviewStats() {
       sonstiges_percent: ((sonstigesDok + sonstigesEmail) / total48h * 100).toFixed(1),
     },
     errors_total: errorsCount || 0,
-    pending_reviews: pendingReviewsCount || 0,
+    pending_reviews: pendingCount || 0,
     last_updated: new Date().toISOString(),
   };
 }

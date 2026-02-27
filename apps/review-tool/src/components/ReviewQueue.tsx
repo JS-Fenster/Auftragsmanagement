@@ -54,9 +54,26 @@ export function ReviewQueue({
       const nextDoc = items[nextIndex];
       onSelect(nextDoc);
       onHover?.(nextDoc.id);
-      // Scroll row into view
+      // Scroll row into view, accounting for sticky thead
       const row = rowRefs.current.get(nextDoc.id);
-      row?.scrollIntoView({ block: 'nearest' });
+      if (row) {
+        const scrollContainer = row.closest('.queue-scroll') as HTMLElement;
+        if (scrollContainer) {
+          const thead = scrollContainer.querySelector('thead');
+          const headerHeight = thead?.offsetHeight ?? 0;
+          const rowTop = row.offsetTop - headerHeight;
+          const rowBottom = row.offsetTop + row.offsetHeight;
+          const scrollTop = scrollContainer.scrollTop;
+          const visibleBottom = scrollTop + scrollContainer.clientHeight;
+          if (rowTop < scrollTop) {
+            scrollContainer.scrollTop = rowTop;
+          } else if (rowBottom > visibleBottom) {
+            scrollContainer.scrollTop = rowBottom - scrollContainer.clientHeight;
+          }
+        } else {
+          row.scrollIntoView({ block: 'nearest' });
+        }
+      }
     }
   }, [items, selectedId, onSelect, onHover]);
 
