@@ -1,6 +1,6 @@
 // =============================================================================
 // Shared Category Definitions, Canonicalization, and Heuristic Rules
-// Version: 3.2.0 - 2026-02-27
+// Version: 3.3.0 - 2026-02-27
 // =============================================================================
 // Aenderungen v3.2.0 (G-021 Email-Kategorien Bereinigung):
 // - Email-Kategorien: 22 -> 29 (5 Renames + 7 Neue)
@@ -53,7 +53,8 @@ export const VALID_DOKUMENT_KATEGORIEN = [
   "Formular",
   "Freistellungsbescheinigung", // v3.0: NEU
   "Gutschrift",
-  "Kassenbeleg",                // v2.4.0: Tankquittungen, Baumarkt-Bons, Barbelege
+  "Kassenbeleg_Ausgehend",      // v3.3: Split (von uns erstellt, Verkauf/Einnahme)
+  "Kassenbeleg_Eingehend",      // v3.3: Split (erhalten, Einkauf/Ausgabe)
   "Leasing",
   "Lieferschein_Ausgehend",     // v3.0: was Kundenlieferschein
   "Lieferschein_Eingehend",     // v3.0: was Eingangslieferschein
@@ -136,6 +137,7 @@ const KATEGORIE_ALIASES: Record<string, string> = {
   "Ausgangsrechnung": "Rechnung_Ausgehend",
   "Zahlungserinnerung": "Mahnung_Eingehend",
   "Mahnung": "Mahnung_Eingehend",          // v3.1: Split
+  "Kassenbeleg": "Kassenbeleg_Eingehend",  // v3.3: Split (Default: erhalten/Einkauf)
 
   // === v3.0 Removed Pseudo-Categories ===
   "Email_Anhang": "Sonstiges_Dokument",
@@ -328,9 +330,9 @@ const HEURISTIC_RULES: HeuristicRule[] = [
     priority: 85,
   },
 
-  // Kassenbeleg (priority 82)
+  // Kassenbeleg_Eingehend (priority 82) - Default: erhaltene Belege
   {
-    kategorie: "Kassenbeleg",
+    kategorie: "Kassenbeleg_Eingehend",
     keywords: [
       "kassenbon",
       "kassenbeleg",
