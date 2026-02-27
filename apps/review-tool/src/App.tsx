@@ -139,7 +139,11 @@ function App() {
         );
       }
       if (filterKategorieManual) {
-        items = items.filter(doc => doc.kategorie_manual === filterKategorieManual);
+        if (filterKategorieManual === '__null__') {
+          items = items.filter(doc => doc.kategorie_manual === null);
+        } else {
+          items = items.filter(doc => doc.kategorie_manual === filterKategorieManual);
+        }
       }
       setDocuments(items);
       setBatchSelectedIds(new Set()); // Clear batch selection on reload
@@ -413,6 +417,7 @@ function App() {
                 className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
               >
                 <option value="">Alle</option>
+                <option value="__null__">(Leer)</option>
                 {categories?.dokument_kategorien.map(cat => (
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
@@ -427,6 +432,7 @@ function App() {
                 className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
               >
                 <option value="">Alle</option>
+                <option value="__null__">(Leer)</option>
                 {categories?.dokument_kategorien.map(cat => (
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
@@ -544,7 +550,7 @@ function App() {
                 </span>
               )}
             </h2>
-            <div className="flex-1 overflow-auto" style={{ maxHeight: 'calc(100vh - 360px)' }}>
+            <div className="flex-1" style={{ maxHeight: 'calc(100vh - 360px)', overflowY: 'scroll' }}>
               <ReviewQueue
                 items={documents}
                 loading={loadingQueue}
@@ -585,7 +591,7 @@ function App() {
 
       {/* Footer */}
       <footer className="max-w-7xl mx-auto px-4 py-4 text-center text-xs text-gray-400">
-        Review Tool v0.7.0 | KI-Review Notizen
+        Review Tool v0.8.0 | Email-Kategorien v3.2
       </footer>
 
     </div>

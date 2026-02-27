@@ -1,32 +1,28 @@
 // =============================================================================
 // Shared Category Definitions, Canonicalization, and Heuristic Rules
-// Version: 3.0.0 - 2026-02-25
+// Version: 3.2.0 - 2026-02-27
 // =============================================================================
+// Aenderungen v3.2.0 (G-021 Email-Kategorien Bereinigung):
+// - Email-Kategorien: 22 -> 29 (5 Renames + 7 Neue)
+// - RENAMED: Rechnung_Eingang -> Rechnung_Eingehend
+// - RENAMED: Rechnung_Gesendet -> Rechnung_Ausgehend
+// - RENAMED: Bestellbestaetigung -> Auftragsbestaetigung_Eingehend
+// - RENAMED: Auftragserteilung -> Bestellung_Eingehend
+// - RENAMED: Angebot_Anforderung -> Anfrage_Ausgehend
+// - NEU: Angebot_Eingehend, Angebot_Ausgehend, Bestellung_Ausgehend
+// - NEU: Auftragsbestaetigung_Ausgehend, Mahnung_Eingehend, Mahnung_Ausgehend
+// - NEU: Lieferschein_Eingehend
+// - NEU: KATEGORIE_EMAIL_ALIASES Map + canonicalizeEmailKategorie()
+//
+// Aenderungen v3.1 (2026-02-26):
+// - Mahnung -> Mahnung_Eingehend / Mahnung_Ausgehend (G-030)
+//
 // Aenderungen v3.0.0 (Kategorien-Rename G-021 bis G-028):
 // - RENAMED: Eingehend/Ausgehend-Schema statt Kunden/Lieferanten-Prefix
-//   Kundenanfrage -> Anfrage_Eingehend
-//   Preisanfrage -> Anfrage_Ausgehend
-//   Angebot -> Angebot_Ausgehend / Angebot_Eingehend (Split)
-//   Lieferantenangebot -> Angebot_Eingehend
-//   Auftragsbestaetigung -> Auftragsbestaetigung_Eingehend / _Ausgehend (Split)
-//   Bestellung -> Bestellung_Ausgehend
-//   Kundenbestellung -> Bestellung_Eingehend
-//   Eingangslieferschein -> Lieferschein_Eingehend
-//   Kundenlieferschein -> Lieferschein_Ausgehend
-//   Eingangsrechnung -> Rechnung_Eingehend
-//   Ausgangsrechnung -> Rechnung_Ausgehend
-//   Zahlungserinnerung -> Mahnung_Eingehend (merged + split)
-// v3.1 (2026-02-26): Mahnung -> Mahnung_Eingehend / Mahnung_Ausgehend (G-030)
 // - REMOVED: Email_Anhang, Email_Eingehend, Email_Ausgehend (Pseudo-Kategorien)
 // - NEU: Steuer_Bescheid, Freistellungsbescheinigung, Buchhaltungsunterlagen
 // - NEU: Retoure_Eingehend, Retoure_Ausgehend
-// - Email: +4 neue (Automatische_Benachrichtigung, Intern, Marktplatz_Anfrage, Nachverfolgung)
-// - Alle alten Namen als KATEGORIE_ALIASES fuer Rueckwaertskompatibilitaet
 // - 40 -> 45 Dokument-Kategorien, 18 -> 22 Email-Kategorien
-//
-// Aenderungen v2.6.0:
-// - NEU: Kategorie "Anleitung" (Bedienungsanleitung, Montageanleitung, Programmieranleitung)
-// - NEU: Kategorie "Spam" (Fax-Spam, Werbe-Faxe, unerwuenschte Dokumente)
 // =============================================================================
 
 // =============================================================================
@@ -91,22 +87,29 @@ export const VALID_DOKUMENT_KATEGORIEN = [
 
 export const VALID_EMAIL_KATEGORIEN = [
   "Anforderung_Unterlagen",
-  "Angebot_Anforderung",
+  "Anfrage_Ausgehend",              // v3.2: was Angebot_Anforderung
+  "Angebot_Ausgehend",              // v3.2: NEU - Unser Angebot per Email
+  "Angebot_Eingehend",              // v3.2: NEU - Lieferantenangebot per Email
   "Antwort_oder_Weiterleitung",
-  "Auftragserteilung",
-  "Automatische_Benachrichtigung",  // v3.0: NEU - System-Notifications, Auto-Replies
+  "Auftragsbestaetigung_Ausgehend", // v3.2: NEU - Unsere AB per Email
+  "Auftragsbestaetigung_Eingehend", // v3.2: was Bestellbestaetigung
+  "Automatische_Benachrichtigung",
   "BAFA_Foerderung",
-  "Bestellbestaetigung",
+  "Bestellung_Ausgehend",           // v3.2: NEU - Unsere Bestellung per Email
+  "Bestellung_Eingehend",           // v3.2: was Auftragserteilung
   "Bewerbung",
-  "Intern",                         // v3.0: NEU - Interne Kommunikation
+  "Intern",
   "Kundenanfrage",
   "Lead_Anfrage",
+  "Lieferschein_Eingehend",         // v3.2: NEU - Lieferschein per Email
   "Lieferstatus_Update",
-  "Marktplatz_Anfrage",             // v3.0: NEU - MyHammer, Check24, etc.
-  "Nachverfolgung",                 // v3.0: NEU - Follow-up Emails
+  "Mahnung_Ausgehend",              // v3.2: NEU - Unsere Mahnung per Email
+  "Mahnung_Eingehend",              // v3.2: NEU - Mahnung vom Lieferanten per Email
+  "Marktplatz_Anfrage",
+  "Nachverfolgung",
   "Newsletter_Werbung",
-  "Rechnung_Eingang",
-  "Rechnung_Gesendet",
+  "Rechnung_Ausgehend",             // v3.2: was Rechnung_Gesendet
+  "Rechnung_Eingehend",             // v3.2: was Rechnung_Eingang
   "Reklamation",
   "Serviceanfrage",
   "Sonstiges",
@@ -154,6 +157,18 @@ const KATEGORIE_ALIASES: Record<string, string> = {
   // GPT-5 mini Typo-Korrekturen
   "Brief_eingend": "Brief_eingehend",
   "Brief_eingang": "Brief_eingehend",
+};
+
+// =============================================================================
+// Email Category Aliases (legacy -> canonical, v3.2.0)
+// =============================================================================
+
+const KATEGORIE_EMAIL_ALIASES: Record<string, string> = {
+  "Rechnung_Eingang": "Rechnung_Eingehend",
+  "Rechnung_Gesendet": "Rechnung_Ausgehend",
+  "Bestellbestaetigung": "Auftragsbestaetigung_Eingehend",
+  "Auftragserteilung": "Bestellung_Eingehend",
+  "Angebot_Anforderung": "Anfrage_Ausgehend",
 };
 
 // =============================================================================
@@ -594,6 +609,25 @@ export function canonicalizeKategorie(kategorie: string | null | undefined): str
   }
 
   return cleaned;
+}
+
+/**
+ * Maps legacy/alias email category names to their canonical form.
+ * Returns the input unchanged if no alias exists.
+ *
+ * @param kategorie - The email category to canonicalize
+ * @returns The canonical email category name
+ */
+export function canonicalizeEmailKategorie(kategorie: string | null | undefined): string | null {
+  if (!kategorie) return null;
+
+  const canonical = KATEGORIE_EMAIL_ALIASES[kategorie];
+  if (canonical) {
+    console.log(`[CATEGORIES] Email alias mapped: "${kategorie}" -> "${canonical}"`);
+    return canonical;
+  }
+
+  return kategorie;
 }
 
 /**

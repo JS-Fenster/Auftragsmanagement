@@ -43,7 +43,19 @@ async function classifyEmail(
 Kategorisiere die folgende E-Mail in GENAU eine dieser Kategorien:
 ${VALID_EMAIL_KATEGORIEN.join(", ")}
 
-Kategorie-Definitionen:
+Kategorie-Hinweise:
+- Rechnung_Eingehend: Rechnungen die wir erhalten (von Lieferanten)
+- Rechnung_Ausgehend: Rechnungen die wir versenden (an Kunden)
+- Anfrage_Ausgehend: Unsere Anfragen an Lieferanten (Preisanfrage, Angebotsanforderung)
+- Auftragsbestaetigung_Eingehend: AB vom Lieferanten an uns
+- Auftragsbestaetigung_Ausgehend: Unsere AB an den Kunden
+- Bestellung_Eingehend: Kunde bestellt bei uns
+- Bestellung_Ausgehend: Wir bestellen beim Lieferanten
+- Angebot_Eingehend: Lieferant schickt uns ein Angebot
+- Angebot_Ausgehend: Wir schicken dem Kunden ein Angebot
+- Mahnung_Eingehend: Mahnung die wir erhalten
+- Mahnung_Ausgehend: Mahnung die wir versenden
+- Lieferschein_Eingehend: Lieferschein vom Lieferanten
 - Automatische_Benachrichtigung: Auto-Replies, Abwesenheitsnotizen, Zustellberichte, System-Mails, Mailerdaemon
 - Intern: Interne Kommunikation zwischen Mitarbeitern von JS Fenster
 - Marktplatz_Anfrage: Anfragen ueber eBay, Kleinanzeigen, oder andere Marktplaetze

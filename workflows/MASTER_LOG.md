@@ -170,6 +170,22 @@
 
 ---
 
+### [G-021] Email-Kategorien Bereinigung (2026-02-27)
+**Status:** ABGESCHLOSSEN
+
+**Aenderungen:**
+- DB: kategorie nullable, 971 Emails kategorie=NULL, CHECK Constraint angepasst
+- 5 Renames email_kategorie: Rechnung_Eingang→Eingehend, Rechnung_Gesendet→Ausgehend, Bestellbestaetigung→AB_Eingehend, Auftragserteilung→Bestellung_Eingehend, Angebot_Anforderung→Anfrage_Ausgehend
+- 7 neue Email-Kategorien: Angebot_Ein/Ausgehend, Bestellung_Ausgehend, AB_Ausgehend, Mahnung_Ein/Ausgehend, Lieferschein_Eingehend
+- categories.ts v3.2.0: 22→29 Email-Kategorien + KATEGORIE_EMAIL_ALIASES + canonicalizeEmailKategorie()
+- Deployed: admin-review v2.1.0 (__null__ Filter), email-webhook v3.12.0 (kategorie:null), process-email (29 Kat. + Hinweise), reclassify-emails
+- Review Tool v0.8.0: "(Leer)" Filter in Dok-Kategorie Dropdowns, permanente Queue-Scrollbar
+- Dashboard constants.js: EMAIL_KATEGORIEN 22→29
+- KI-Review: 979 Docs markiert (971 Dok-Kat entfernt + 8 Renames)
+- Backlog: G-021 + G-022 geloescht (erledigt)
+
+---
+
 ## [K-008] Programmierer: Dashboard kategorie_manual als Haupt-Kategorie
 **Datum:** 2026-02-25 02:00
 **Workflow:** KATEG

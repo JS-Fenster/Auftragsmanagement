@@ -40,10 +40,9 @@
 | G-018 | MITTEL | E-Mail | Dokument-Namensformatierung pro Kunde (beim Rechnungsversand) |
 | G-019 | MITTEL | Kontakte | Mehrere E-Mail-Adressen pro Kunde (Rechnungs-E-Mail etc.) |
 | G-020 | MITTEL | Kontakte | Kunden-Bestellnummer/Projektnummer (Pflichtfeld-Hinweis) |
-| G-021 | MITTEL | E-Mail | Dok-Kategorie bei Emails entfernen (nur email_kategorie nutzen) |
-| G-022 | MITTEL | Kategorien | Angebot pruefen: Kunden- vs. Lieferantenangebote trennen |
 | G-031 | MITTEL | Kategorien | Kategorien-Bereinigung: Zu allgemeine Kategorien aufspalten (nach Review) |
 | G-029 | MITTEL | Budget | Ud-Wert Rechner (EN ISO 10077-1) fuer Tueren |
+| G-032 | HOCH | E-Mail | Email-Versand-Architektur (eigene UI vs. Outlook, Entwurf/Fehlgeschlagen) |
 
 ---
 
@@ -423,40 +422,6 @@ Manche Kunden verlangen, dass ihre eigene Bestellnummer oder Projektnummer auf a
 
 ---
 
-## [G-021] Dok-Kategorie bei Emails entfernen
-**Prio:** MITTEL | **Aufwand:** 2-3 Std
-
-Emails bekommen aktuell ZWEI Kategorien: `email_kategorie` UND `kategorie` (Dokument-Kategorie). Die Dok-Kategorie ist ueberfluessig, da Emails bereits ueber `email_kategorie` + Metadaten vollstaendig klassifiziert sind. 95%+ Emails sind Begleittext zum Anhang.
-
-**Offene Frage:** Sonderbehandlung fuer Emails OHNE Anhang die selbst Dokumentcharakter haben (z.B. Auftragserteilung per Email)?
-
-**TODO (mit Andreas besprechen):**
-1. `kategorie` bei bestehenden Emails auf NULL setzen
-2. `process-email`: Dok-Kategorisierung entfernen (spart GPT-Tokens)
-3. Dashboard/Review-Tool: Emails nur ueber `email_kategorie` filtern
-4. Edge-Case klaeren: Emails ohne Anhang mit Dokumentcharakter
-5. Email_Anhang (79), Email_Eingehend (61), Email_Ausgehend (11) → richtige Dok-Kategorie oder NULL
-6. Richtung erkennbar am Absender/Empfaenger → keine eigene Dok-Kategorie noetig
-
----
-
-## [G-022] Angebot pruefen: Kunden- vs. Lieferantenangebote trennen
-**Prio:** MITTEL | **Aufwand:** 2-3 Std
-
-Kategorie "Angebot" (65 Docs) enthaelt vermutlich sowohl eigene Angebote an Kunden als auch Lieferantenangebote. "Lieferantenangebot" (21 Docs) existiert bereits als eigene Kategorie.
-
-**TODO:**
-1. Alle 65 "Angebot"-Docs pruefen: welche sind eigene, welche sind Lieferantenangebote?
-2. Falsch zugeordnete nach "Lieferantenangebot" verschieben
-3. Prompt anpassen: Angebot = NUR eigene Angebote an Kunden, Lieferantenangebot = Angebote von Lieferanten
-
----
-
----
-
-
----
-
 ## [G-029] Ud-Wert Rechner (Tueren)
 **Prio:** MITTEL | **Aufwand:** 4-6 Std
 
@@ -480,6 +445,58 @@ Normgerechter Ud-Wert-Rechner nach EN ISO 10077-1:2017 ins Auftragsmanagement ei
 **Voraussetzung:** Exakte Profilansichtsbreiten aus Wicona-Datenblaettern (statt rueckgerechnet) fuer normgenaue Ergebnisse.
 
 **Erweiterbar auf:** Uw-Berechnung fuer Fenster (gleiche Formel, Glas statt Paneel).
+
+---
+
+## [G-032] Email-Versand-Architektur
+**Prio:** HOCH | **Aufwand:** 15-25 Std | **Abhaengigkeit:** G-021 (Email-Kategorien)
+
+Emails aus dem Auftragsmanagement versenden mit vollstaendigem Status-Tracking. Grundsatzentscheidung noetig: Eigene Email-UI vs. Outlook-Integration.
+
+**Option A: Eigene Email-UI im Auftragsmanagement**
+- Vorteil: Volle Kontrolle, kein Outlook-Abhaengigkeit, laeuft ueberall
+- Vorteil: Status (Entwurf/Gesendet/Fehlgeschlagen) sofort im System
+- Nachteil: Email-Editor bauen (Formatierung, Anhaenge, Signatur)
+- Nachteil: SMTP/Graph API direkt anbinden
+- Tech: Microsoft Graph `sendMail` API oder SMTP
+
+**Option B: Outlook-Integration (Compose-Fenster)**
+- Vorteil: Gewohnte Outlook-Oberflaeche, Signatur automatisch
+- Nachteil: Outlook buggt regelmaessig unter Windows
+- Nachteil: Erkennung ob Email tatsaechlich gesendet wurde (Graph Webhook auf Sent Items)
+- Nachteil: Entwuerfe schwerer zu tracken
+- Tech: Graph Draft erstellen + Outlook Deep Link, Webhook auf Sent Items
+
+**Status-Tracking (beide Optionen):**
+- `email_versand_status`: entwurf | wird_gesendet | gesendet | fehlgeschlagen
+- `email_versand_fehler`: Fehlermeldung bei Fehlschlag
+- `email_versand_am`: Timestamp
+- `bezug_dokument_id`: Link zum Angebot/Rechnung/AB das verschickt wurde
+
+**Sende- und Lesebestaetigung:**
+- Sendebestaetigung (Delivery Receipt): Bestaetigung dass Email zugestellt wurde
+- Lesebestaetigung (Read Receipt): Bestaetigung dass Empfaenger Email geoeffnet hat
+- Beides per Graph API anforderbar (`isDeliveryReceiptRequested`, `isReadReceiptRequested`)
+- Bestaetigungen werden NICHT im Postfach/Tool angezeigt, sondern nur im Email-Verlauf dokumentiert
+- DB-Felder: `zugestellt_am`, `gelesen_am` (automatisch befuellt wenn Receipt eingeht)
+
+**Workflow-Trigger bei Versand:**
+- Angebot versendet → Angebot-Status auf "gesendet"
+- Rechnung versendet → Rechnung-Status auf "versendet"
+- AB versendet → AB-Status auf "versendet"
+- Mahnung versendet → Mahnung-Status auf "versendet"
+
+**Weitere Aspekte (zu besprechen):**
+- Email-Vorlagen pro Dokumenttyp (Angebot-Anschreiben, Rechnungs-Anschreiben, Mahnung)
+- CC/BCC-Regeln (z.B. Buchhaltung automatisch in CC bei Rechnungen)
+- Anhang-Benennung pro Kunde (→ G-018)
+- Mehrere Empfaenger-Adressen pro Kunde (→ G-019)
+- Email-Verlauf/Thread pro Vorgang (alle Emails zu einem Angebot/Auftrag gruppiert)
+- Wiedervorlage bei fehlgeschlagenem Versand (automatischer Retry oder Benachrichtigung)
+- Signatur-Verwaltung (pro Mitarbeiter oder Firmen-Signatur)
+- Anhaenge: Automatisch das richtige Dokument (PDF) anhaengen oder manuell waehlen?
+
+**Entscheidung:** Mit Andreas besprechen - eigene UI vs. Outlook. Outlook-Instabilitaet unter Windows ist ein Argument fuer eigene UI.
 
 ---
 

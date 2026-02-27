@@ -110,25 +110,32 @@ const INLINE_ATTACHMENT_SIGNATURES = [
   "signature", "logo", "banner", "cid:", "outlook"
 ];
 
-// Categories - synchronized with _shared/categories.ts v3.0.0
+// Categories - synchronized with _shared/categories.ts v3.2.0
 const VALID_CATEGORIES = [
   "Anforderung_Unterlagen",
-  "Angebot_Anforderung",
+  "Anfrage_Ausgehend",
+  "Angebot_Ausgehend",
+  "Angebot_Eingehend",
   "Antwort_oder_Weiterleitung",
-  "Auftragserteilung",
+  "Auftragsbestaetigung_Ausgehend",
+  "Auftragsbestaetigung_Eingehend",
   "Automatische_Benachrichtigung",
   "BAFA_Foerderung",
-  "Bestellbestaetigung",
+  "Bestellung_Ausgehend",
+  "Bestellung_Eingehend",
   "Bewerbung",
   "Intern",
   "Kundenanfrage",
   "Lead_Anfrage",
+  "Lieferschein_Eingehend",
   "Lieferstatus_Update",
+  "Mahnung_Ausgehend",
+  "Mahnung_Eingehend",
   "Marktplatz_Anfrage",
   "Nachverfolgung",
   "Newsletter_Werbung",
-  "Rechnung_Eingang",
-  "Rechnung_Gesendet",
+  "Rechnung_Ausgehend",
+  "Rechnung_Eingehend",
   "Reklamation",
   "Serviceanfrage",
   "Sonstiges",
@@ -271,10 +278,25 @@ async function categorizeWithGPT(
 
   const truncatedBody = bodyText?.substring(0, 2000) || "";
 
-  const prompt = `Du bist ein E-Mail-Kategorisierer fuer ein Fenster- und Tuerenunternehmen.
+  const prompt = `Du bist ein E-Mail-Kategorisierer fuer ein Fenster- und Tuerenunternehmen (J.S. Fenster & Tueren).
 
 Kategorisiere die folgende E-Mail in GENAU eine dieser Kategorien:
 ${VALID_CATEGORIES.join(", ")}
+
+Kategorie-Hinweise:
+- Rechnung_Eingehend: Rechnungen die wir erhalten (von Lieferanten)
+- Rechnung_Ausgehend: Rechnungen die wir versenden (an Kunden)
+- Anfrage_Ausgehend: Unsere Anfragen an Lieferanten (Preisanfrage, Angebotsanforderung)
+- Auftragsbestaetigung_Eingehend: AB vom Lieferanten an uns
+- Auftragsbestaetigung_Ausgehend: Unsere AB an den Kunden
+- Bestellung_Eingehend: Kunde bestellt bei uns
+- Bestellung_Ausgehend: Wir bestellen beim Lieferanten
+- Angebot_Eingehend: Lieferant schickt uns ein Angebot
+- Angebot_Ausgehend: Wir schicken dem Kunden ein Angebot
+- Mahnung_Eingehend: Mahnung die wir erhalten
+- Mahnung_Ausgehend: Mahnung die wir versenden
+- Lieferschein_Eingehend: Lieferschein vom Lieferanten
+- Sonstiges: NUR wenn keine andere Kategorie passt
 
 E-Mail-Daten:
 - Richtung: ${richtung}

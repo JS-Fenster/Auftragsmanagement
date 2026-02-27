@@ -19,7 +19,7 @@ export interface ReviewDocument {
   id: string;
   created_at: string;
   updated_at: string;
-  kategorie: string;
+  kategorie: string | null;
   kategorie_manual: string | null;
   email_kategorie: string | null;
   email_kategorie_confidence: number | null;

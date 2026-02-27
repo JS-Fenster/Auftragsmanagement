@@ -430,12 +430,10 @@ async function saveEmailToDatabase(
       .trim();
   }
 
-  // v3.8: Use proper Email categories based on direction
-  const emailKategorie = richtung === "eingehend" ? "Email_Eingehend" : "Email_Ausgehend";
-
+  // v3.12: kategorie = null fuer Emails (keine Dok-Kategorie, nur email_kategorie)
   const documentData = {
     dokument_typ: "email",
-    kategorie: emailKategorie,
+    kategorie: null,
     source: "email",
 
     // E-Mail Identifikation
@@ -958,7 +956,7 @@ Deno.serve(async (req: Request) => {
   return new Response(
     JSON.stringify({
       service: "email-webhook",
-      version: "3.10.0",
+      version: "3.12.0",
       status: overallStatus,
       message: statusMessage,
       configured: {

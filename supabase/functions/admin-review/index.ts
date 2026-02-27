@@ -1,7 +1,10 @@
 // =============================================================================
 // Admin Review API - Review Queue, Labeling, Preview, Stats, Categories
-// Version: 2.0.0 - 2026-02-26
+// Version: 2.1.0 - 2026-02-27
 // =============================================================================
+// Aenderungen v2.1.0:
+// - NEU: kategorie=__null__ Filter (WHERE kategorie IS NULL) fuer Emails ohne Dok-Kategorie
+//
 // Aenderungen v2.0.0:
 // - NEU: ki_review_notiz Spalte in Queue-Select + Filter + Auto-Clearing
 // - ENTFERNT: Learning Loop (Fingerprint, Features, Clusters, Rules, Settings, Backfill)
@@ -219,8 +222,12 @@ async function getReviewQueue(params: ReviewQueueParams) {
 
   // Category filters (work with all modes including KI-Review)
   if (kategorie) {
-    query = query.eq("kategorie", kategorie);
-    query = query.neq("source", "email");
+    if (kategorie === "__null__") {
+      query = query.is("kategorie", null);
+    } else {
+      query = query.eq("kategorie", kategorie);
+      query = query.neq("source", "email");
+    }
   }
   if (email_kategorie) {
     query = query.eq("email_kategorie", email_kategorie);
@@ -452,7 +459,7 @@ Deno.serve(async (req: Request) => {
       return new Response(
         JSON.stringify({
           service: "admin-review",
-          version: "2.0.0",
+          version: "2.1.0",
           status: "ready",
           configured: {
             supabase: !!(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY),
