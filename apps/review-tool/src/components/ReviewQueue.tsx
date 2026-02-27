@@ -60,8 +60,8 @@ export function ReviewQueue({
   }
 
   return (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
-      <div className="overflow-x-auto">
+    <div className="bg-white rounded-lg shadow">
+      <div>
         <table className="min-w-full divide-y divide-gray-200 table-fixed">
           <thead className="bg-gray-50">
             <tr>
