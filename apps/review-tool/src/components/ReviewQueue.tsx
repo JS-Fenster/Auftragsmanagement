@@ -63,7 +63,7 @@ export function ReviewQueue({
     <div className="bg-white rounded-lg shadow">
       <div>
         <table className="min-w-full divide-y divide-gray-200 table-fixed">
-          <thead className="bg-gray-50">
+          <thead className="bg-gray-50 sticky top-0 z-10">
             <tr>
               {hasBatchMode && (
                 <th className="w-10 px-2 py-3">

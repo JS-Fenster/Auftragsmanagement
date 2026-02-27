@@ -44,6 +44,7 @@
 | G-029 | MITTEL | Budget | Ud-Wert Rechner (EN ISO 10077-1) fuer Tueren |
 | G-032 | HOCH | E-Mail | Email-Versand-Architektur (eigene UI vs. Outlook, Entwurf/Fehlgeschlagen) |
 | G-033 | MITTEL | E-Mail | Globale Duplikat-Erkennung Email-Anhaenge (file_hash) |
+| G-034 | HOCH | Pipeline | OCR-Korrektur + Feinere Klassifizierung (Basis fuer Workflows) |
 
 ---
 
@@ -527,3 +528,29 @@ Aktuell wird file_hash nur innerhalb einer Email geprueft. Wenn derselbe Anhang 
 - Wenn ja: Dokument als Duplikat markieren oder gar nicht erst anlegen
 - Optional: Referenz auf das Original-Dokument speichern
 - Betrifft: `process-email` bzw. Anhang-Pipeline
+
+---
+
+## [G-034] OCR-Korrektur + Feinere Klassifizierung
+**Prio:** HOCH | **Aufwand:** 8-16 Std
+
+**Problem:** OCR-Fehler fuehren zu Fehlklassifizierungen. Dokumente die falsch zugeordnet sind, koennen spaeter nicht sauber automatisiert werden. Saubere Grunddaten sind Voraussetzung fuer alles was darauf aufbaut.
+
+**Schritt 1: OCR-Korrektur in `process-document` einbauen**
+- Nach OCR: LLM bereinigt den Text (Tippfehler, Formatierung, Sonderzeichen)
+- Bereinigter Text wird in DB gespeichert (verbessert Suche, Embeddings, Klassifizierung)
+- Einbauen VOR der Klassifizierung in der bestehenden Pipeline
+
+**Schritt 2: Feinere Kategorien einfuehren**
+- `Anfrage_Eingehend` aufspalten: Reparaturanfrage, Reklamation, Preisanfrage, etc.
+- Mit bereinigtem OCR-Text kann GPT im selben Klassifizierungs-Schritt feiner unterscheiden
+- Neue Kategorien nach Bedarf - nicht alles auf einmal, sondern wo Fehlzuordnungen auffallen
+
+**Spaeter (nicht Teil dieses Tickets):**
+- Workflow-Trigger basierend auf Kategorien (Reparatur → Monteur, Reklamation → Vorgang, etc.)
+- Sub-Kategorisierung per zweiter LLM-Stufe wo noetig
+- Sprachnachrichten, weitere Eingangs-Kanaele
+
+**Kosten-Argument:** LLM-Korrektur im Cent-Bereich pro Dokument vs. manuelle Nachkorrektur im Euro-Bereich pro Minute.
+
+**Voraussetzung:** `process-document` ist geschuetzt → Backtest noetig vor Aenderung
