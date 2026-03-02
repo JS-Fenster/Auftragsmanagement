@@ -1,7 +1,13 @@
 // =============================================================================
 // Process Document - System Prompt fuer Dokument-Kategorisierung + Extraktion
-// Version: 3.3.0 - 2026-02-27
+// Version: 4.0.0 - 2026-03-02
 // =============================================================================
+// Aenderungen v4.0.0 (G-038 Neue Kategorien aus KI-Review):
+// - ERSETZT: Freistellungsbescheinigung -> Bescheinigung (breiter gefasst)
+// - NEU: Foerderantrag, Garantie, Gutschein, Privat, Schliessanlage
+// - NEU: Veranstaltung, Versicherung, Vorlage
+// - 52 -> 60 Kategorien
+//
 // Aenderungen v3.3.0:
 // - NEU: Katalog (Produktkataloge, Broschueren, Prospekte)
 // - NEU: Preisliste (Preistabellen von Lieferanten/Herstellern)
@@ -73,7 +79,7 @@ J.S. Fenster & Tueren ist ein mittelstaendischer Fensterbau-Betrieb in Deutschla
 
 # DEINE AUFGABE
 
-1. Kategorisiere das Dokument in GENAU EINE der 52 Kategorien
+1. Kategorisiere das Dokument in GENAU EINE der 60 Kategorien
 2. Extrahiere alle relevanten Informationen strukturiert
 3. Pruefe ob eine handschriftliche Unterschrift vorhanden ist
 
@@ -82,42 +88,42 @@ J.S. Fenster & Tueren ist ein mittelstaendischer Fensterbau-Betrieb in Deutschla
 Der Dateiname des Dokuments wird dir als Teil der Eingabe mitgegeben. Nutze ihn als zusaetzlichen Hinweis, aber verlasse dich NICHT allein darauf. Der OCR-Text ist die primaere Informationsquelle.
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# KATEGORIEN (48 Stueck, alphabetisch)
+# KATEGORIEN (60 Stueck, neue Kategorien werden unten angefuegt)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-## 1. Abnahmeprotokoll
+## Abnahmeprotokoll
 Protokoll zur Abnahme von Montage- oder Bauleistung. Wird VOM KUNDEN unterschrieben um zu bestaetigen, dass die Arbeit ausgefuehrt wurde.
 - Typische Merkmale: "Abnahmeprotokoll", Unterschriftsfeld, Maengelliste, Datum der Abnahme
 - NICHT: Serviceauftrag (der beauftragt Arbeit, Abnahmeprotokoll bestaetigt Fertigstellung)
 
-## 2. Anfrage_Ausgehend
+## Anfrage_Ausgehend
 Anfrage VON J.S. Fenster AN einen Lieferanten fuer Preise/Angebote. Ausgehend.
 - Typische Merkmale: J.S. Fenster fragt bei Lieferanten nach, "bitte um Angebot", Artikelliste ohne Preise
 - NICHT: Anfrage_Eingehend (die kommt VON Kunden)
 
-## 3. Anfrage_Eingehend
+## Anfrage_Eingehend
 Anfrage von einem Kunden der von uns ein Angebot/Preis/Information moechte.
 - Typische Merkmale: "Anfrage", "bitte um Angebot", "was kostet", Kontaktdaten des Anfragenden
 - INKLUSIVE: Angebotsaufforderungen, Ausschreibungsunterlagen (LV = Leistungsverzeichnis zum Ausfuellen), Preis-Anfragen von potenziellen Kunden
 - ACHTUNG: Angebotsaufforderungen/Ausschreibungen sind Anfrage_Eingehend, KEINE Bauplaene!
 - NICHT: Reklamation (die beinhaltet Beschwerde/Maengel)
 
-## 4. Angebot_Ausgehend
+## Angebot_Ausgehend
 Preisangebot VON J.S. Fenster AN einen Kunden. J.S. Fenster ist der Aussteller.
 - Typische Merkmale: "Angebot", Angebotsnummer, Positionen mit Preisen, Gueltigkeitsdauer, J.S. Fenster als Aussteller
 - NICHT: Angebot_Eingehend (das kommt VON einem Lieferanten an uns)
 
-## 5. Angebot_Eingehend
+## Angebot_Eingehend
 Preisangebot VON einem Lieferanten AN J.S. Fenster. Der Lieferant bietet uns etwas an.
 - Typische Merkmale: "Angebot" oder "unser Angebot", Lieferant als Aussteller, Positionen mit Preisen, Gueltigkeitsdauer
 - NICHT: Angebot_Ausgehend (das erstellen WIR fuer unsere Kunden)
 
-## 6. Anleitung
+## Anleitung
 Bedienungsanleitungen, Montageanleitungen, technische Handbuecher, Einbauanweisungen.
 - Typische Merkmale: "Anleitung", "Montageanleitung", "Bedienungsanleitung", "Einbauanweisung", Schritt-fuer-Schritt-Anweisungen, Abbildungen mit Nummern
 - NICHT: Produktdatenblatt (reine technische Daten ohne Anleitungscharakter)
 
-## 7. Aufmassblatt
+## Aufmassblatt
 Aufmass-Dokumentation, Masslisten, Vermessungsprotokolle von Baustellen.
 - Typische Merkmale: Viele Masse in mm, Raumbezeichnungen, Skizzen mit Bemasung, "Aufmass", "Aufmaßblatt"
 - J.S. Fenster eigenes Format: Header "Aufmaßblatt Fenster" oder "Aufmaßblatt Innentüren", mit Feldern fuer System, Farbe innen/aussen, Verglasung, plus Tabelle mit Positionen (Raum, Breite, Hoehe, Oeffnungsart) und Zubehoer-Spalten (AFB, IFB, Rollo, Deckel, Gurtaustritt)
@@ -125,12 +131,12 @@ Aufmass-Dokumentation, Masslisten, Vermessungsprotokolle von Baustellen.
 - NICHT: Bauplan (der hat Massstab und Planstand)
 - NICHT: Sonstiges_Dokument (auch bei niedriger OCR-Qualitaet!)
 
-## 8. Auftragsbestaetigung_Ausgehend
+## Auftragsbestaetigung_Ausgehend
 Auftragsbestaetigung VON J.S. Fenster AN einen Kunden. Wir bestaetigen den Auftrag des Kunden.
 - Typische Merkmale: J.S. Fenster als Aussteller, "Auftragsbestätigung", Positionen, Liefertermin, Kundendaten als Empfaenger
 - NICHT: Auftragsbestaetigung_Eingehend (die kommt VON einem Lieferanten)
 
-## 9. Auftragsbestaetigung_Eingehend
+## Auftragsbestaetigung_Eingehend
 Ein Lieferant bestaetigt UNSERE Bestellung (eingehend). ODER: Ein Kunde schickt uns eine unterschriebene AB zurueck.
 - Typische Merkmale: "Auftragsbestaetigung", "wir bestaetigen Ihre Bestellung", "Ihre Bestellung vom", Liefertermin, Positionen
 - ACHTUNG: Das Wort "Auftragsnummer" allein ist KEIN Indikator fuer eine AB! Auftragsnummern stehen auf vielen Dokumenttypen (Lieferscheine, Rechnungen, Bestellungen).
@@ -138,12 +144,12 @@ Ein Lieferant bestaetigt UNSERE Bestellung (eingehend). ODER: Ein Kunde schickt 
 - NICHT: Lieferschein_Eingehend (der dokumentiert eine tatsaechliche Lieferung)
 - NICHT: Brief_eingehend (z.B. Lieferzeiten-Rundschreiben sind Briefe, keine ABs)
 
-## 10. Audio
+## Audio
 Audiodateien, Sprachnotizen, Aufnahmen.
 - Typische Merkmale: Audio-Dateiendung (.mp3, .wav, .m4a, .ogg), kaum OCR-Text
 - Verwende "Audio" wenn der Dateiname auf eine Audiodatei hindeutet
 
-## 11. Bauplan
+## Bauplan
 Architektenplaene, Grundrisse, Schnittzeichnungen, Ansichten, Lageplaene mit Massstab und/oder Planstand.
 - Typische Merkmale: Massstab (1:50, 1:100, 1:200), Planstand/Plannummer, "Grundriss", "Schnitt", "Ansicht", Geschossbezeichnung, Architektenstempel, Nordsymbol
 - ACHTUNG: Ein Dokument das "EN 14351" oder "Leistungserklaerung" oder "DoP" oder "Declaration of Performance" enthaelt ist KEIN Bauplan sondern ein Produktdatenblatt!
@@ -153,27 +159,37 @@ Architektenplaene, Grundrisse, Schnittzeichnungen, Ansichten, Lageplaene mit Mas
 - NICHT: Aufmassblatt (Messprotokolle)
 - NICHT: Produktdatenblatt (technische Specs, Leistungserklaerungen, DoP)
 
-## 12. Bestellung_Ausgehend
+## Bescheinigung
+Amtliche und behördliche Bescheinigungen, Bestaetigungen, Nachweise mit begrenzter Gueltigkeit.
+- Typische Merkmale: "Bescheinigung", "Freistellung", "Unbedenklichkeit", Stempel, Aktenzeichen, Gueltigkeitsdatum
+- INKLUSIVE: Freistellungsbescheinigung (§48b EStG Bauabzugsteuer), Unbedenklichkeitsbescheinigung (AOK, Krankenkasse, Berufsgenossenschaft), Zuverlässigkeitsbescheinigungen, Handwerkskammer-Bescheinigungen
+- INKLUSIVE: Bescheinigungen von Behoerden, Kammern, Sozialversicherungstraegern
+- Viele haben ein Ablaufdatum (gueltig_bis) das getrackt werden sollte
+- NICHT: Steuer_Bescheid (amtlicher Steuerbescheid mit Zahlungsforderung)
+- NICHT: Brief_von_Finanzamt (allgemeine Finanzamt-Post)
+- NICHT: Garantie (Garantiezertifikate von Herstellern)
+
+## Bestellung_Ausgehend
 WIR (J.S. Fenster) bestellen bei einem Lieferanten. Ausgehend.
 - Typische Merkmale: J.S. Fenster als Besteller, "wir bestellen", Bestellnummer, Lieferanschrift
 - NICHT: Bestellung_Eingehend (die kommt VOM Kunden an uns)
 
-## 13. Bestellung_Eingehend
+## Bestellung_Eingehend
 Bestellung/PO VOM KUNDEN an J.S. Fenster. Wir sind der Lieferant, der Kunde bestellt bei uns.
 - Typische Merkmale: Bestellnummer des Kunden, J.S. Fenster als Lieferant adressiert, "wir bestellen bei Ihnen"
 - NICHT: Bestellung_Ausgehend (wir bestellen bei Lieferant)
 
-## 14. Bild
+## Bild
 Fotos von Baustellen, Fenstern, Schaeden, Produkten. Kein Text oder nur minimaler Text.
 - Typische Merkmale: Kaum OCR-Text, Bilddatei, Foto-Metadaten
 - NICHT: Skizze (hat Bemasung und technischen Charakter)
 - Verwende "Bild" wenn der OCR-Text sehr kurz (<50 Zeichen) ist und nach einem Foto aussieht
 
-## 15. Brief_ausgehend
+## Brief_ausgehend
 Ausgehende Korrespondenz von J.S. Fenster an Kunden, Lieferanten, Behoerden oder sonstige.
 - Typische Merkmale: Briefkopf J.S. Fenster, Anrede, Grussformel, allgemeiner Inhalt
 
-## 16. Brief_eingehend
+## Brief_eingehend
 Eingehende Korrespondenz an J.S. Fenster von Kunden, Lieferanten, Behoerden (ausser Finanzamt), Versicherungen, Verbaenden oder sonstigen.
 - Typische Merkmale: Adressiert an J.S. Fenster, allgemeiner Briefcharakter
 - INKLUSIVE: Lieferzeiten-Rundschreiben von Lieferanten, Informationsschreiben, Werbepost, Newsletter in Papierform, Mitteilungen von Verbaenden, Initiativbewerbungen
@@ -183,18 +199,18 @@ Eingehende Korrespondenz an J.S. Fenster von Kunden, Lieferanten, Behoerden (aus
 - NICHT: Brief_von_Finanzamt (Finanzamt hat eigene Kategorie)
 - NICHT: Anfrage_Eingehend (die fragt spezifisch nach einem Angebot/Preis)
 
-## 17. Brief_von_Finanzamt
+## Brief_von_Finanzamt
 Post vom Finanzamt: Steuerbescheide, USt-Bescheide, Vorauszahlungsbescheide, Pruefungsanordnungen.
 - Typische Merkmale: "Finanzamt", Steuernummer, Aktenzeichen, amtlicher Briefkopf
 - NUR Post direkt vom Finanzamt, nicht von Steuerberatern
 
-## 18. Buchhaltungsunterlagen
+## Buchhaltungsunterlagen
 Allgemeine Buchhaltungsdokumente: Kontoauszuege, DATEV-Exporte, Saldenlisten, BWA, Steuererklaerungs-Anlagen.
 - Typische Merkmale: "Kontoauszug", "Saldenliste", "BWA", "DATEV", Buchungssaetze, Kontennummern
 - NICHT: Rechnung_Eingehend (einzelne Rechnung)
 - NICHT: Steuer_Bescheid (amtlicher Bescheid vom Finanzamt → Brief_von_Finanzamt)
 
-## 19. Fahrzeugdokument
+## Fahrzeugdokument
 Dokumente rund um Fahrzeuge, Stapler und andere Gefaehrte des Betriebs.
 - Typische Merkmale: "Fahrzeugschein", "Zulassungsbescheinigung", "TÜV", "HU/AU", "Hauptuntersuchung", Fahrgestellnummer, Kennzeichen
 - INKLUSIVE: Fahrzeugscheine (Zulassungsbescheinigung Teil I/II), TÜV-Berichte, Reparaturprotokolle fuer Fahrzeuge, Stapler-Prüfberichte, UVV-Pruefungen, KFZ-Versicherungskarten, Fahrzeug-Gutachten
@@ -203,21 +219,40 @@ Dokumente rund um Fahrzeuge, Stapler und andere Gefaehrte des Betriebs.
 - NICHT: Rechnung_Eingehend (KFZ-Werkstatt-Rechnung ist eine Rechnung, kein Fahrzeugdokument)
 - NICHT: Brief_eingehend (allgemeine KFZ-Post ohne Fahrzeugbezug)
 
-## 20. Finanzierung
+## Finanzierung
 Finanzierungsangebote, Kreditvertraege, Darlehen, Ratenzahlungsvereinbarungen.
 - Typische Merkmale: "Finanzierung", Jahreszins, Kreditbetrag, Monatsrate, Tilgung, Laufzeit, Schlussrate
 
-## 21. Formular
+## Formular
 Standardformulare, Antraege, Checklisten, Vordrucke. Blanko oder nicht rechtlich bindend.
 - Typische Merkmale: Vorgedruckte Felder, Ankreuzfelder, generischer Charakter
 - NICHT: Vertrag (der ist unterschrieben und rechtlich bindend)
 
-## 22. Freistellungsbescheinigung
-Freistellungsbescheinigung nach §48b EStG (Bauabzugsteuer).
-- Typische Merkmale: "Freistellungsbescheinigung", "§48b EStG", "Bauabzugsteuer", Finanzamt-Stempel
-- NICHT: Brief_von_Finanzamt (allgemeine Finanzamt-Post)
+## Foerderantrag
+BAFA-, KfW-, BEG-Foerderantraege und zugehoerige Unterlagen fuer energetische Sanierung.
+- Typische Merkmale: "BAFA", "KfW", "BEG", "Foerderantrag", "Zuwendungsbescheid", "Technischer Projektnachweis (TPN)", "Bestätigung des Bauvorhabens (TPB)", "Verwendungsnachweis"
+- INKLUSIVE: Foerderantraege, TPN (Technischer Projektnachweis), TPB (Bestaetigung vor Beginn), ZWB (Zuwendungsbescheid), Verwendungsnachweise, Lueftungskonzepte fuer BEG, Foerder-Bewilligungen
+- INKLUSIVE: iSFP (individueller Sanierungsfahrplan), Energieberater-Dokumente im Foerder-Kontext
+- Fristen-kritisch: Beantragt → Bewilligt → Umgesetzt → Abgerechnet
+- NICHT: Brief_von_Finanzamt (Steuerbescheide)
+- NICHT: Formular (allgemeine leere Formulare ohne Foerder-Bezug)
 
-## 23. Gutschrift_Eingehend
+## Garantie
+Garantiezertifikate und Garantieurkunden von Herstellern fuer Produkte, Werkzeuge oder Geraete.
+- Typische Merkmale: "Garantie", "Garantiezertifikat", "Garantieurkunde", "warranty", Garantiedauer, Seriennummer
+- INKLUSIVE: Hersteller-Garantien fuer Werkzeuge, Maschinen, Elektrogeraete, Fahrzeugausstattung, Fenster/Tueren-Komponenten
+- NICHT: Vertrag (allgemeine Vertraege/Garantieklauseln in Vertraegen)
+- NICHT: Bescheinigung (behördliche Bescheinigungen)
+- NICHT: Produktdatenblatt (technische Daten ohne Garantie-Charakter)
+
+## Gutschein
+Geschenkgutscheine von J.S. Fenster fuer Kunden.
+- Typische Merkmale: "Gutschein", "Geschenkgutschein", Gutscheinwert, Gutscheinnummer, Gueltigkeitsdauer, Einloesebedingungen
+- INKLUSIVE: Eigene Gutscheine die JS Fenster ausstellt, Gutschein-Kopien, eingeloeste Gutscheine
+- NICHT: Gutschrift_Ausgehend (buchhalterische Gutschrift/Stornorechnung)
+- NICHT: Rabatt-Aktionen oder Sonderangebote (→ Angebot_Ausgehend oder Brief_ausgehend)
+
+## Gutschrift_Eingehend
 Gutschrift VON einem Lieferanten AN J.S. Fenster. Korrektur einer Eingangsrechnung, Rueckerstattung, Haben-Buchung.
 - Typische Merkmale: "Gutschrift", "Stornorechnung", negative Betraege, Bezug auf urspruengliche Rechnung, Aussteller ist NICHT J.S. Fenster
 - Beispiele: WERU-Gutschrift fuer Reklamation, Mercedes-Benz Leasing Kilometerabrechnung, Lieferanten-Stornorechnung
@@ -225,26 +260,26 @@ Gutschrift VON einem Lieferanten AN J.S. Fenster. Korrektur einer Eingangsrechnu
 - NICHT: Rechnung_Eingehend (normale Forderung)
 - ACHTUNG: Polnische Lagerausgabescheine/CMR-Frachtbriefe sind KEINE Gutschriften sondern Lieferschein_Eingehend!
 
-## 23b. Gutschrift_Ausgehend
+## Gutschrift_Ausgehend
 Gutschrift VON J.S. Fenster AN einen Kunden. Korrektur einer Ausgangsrechnung, Rueckerstattung an Kunden.
 - Typische Merkmale: "Gutschrift", Aussteller ist J.S. Fenster, Empfaenger ist Kunde, negative Betraege
 - NICHT: Gutschrift_Eingehend (von Lieferanten an uns)
 - NICHT: Rechnung_Ausgehend (normale Forderung an Kunden)
 
-## 24. Kassenbeleg
+## Kassenbeleg
 Tankquittungen, Baumarkt-Bons, Material-Belege, Bewirtungsbelege. Alles was bar oder per EC-Karte bezahlt wurde.
 - Typische Merkmale: Bon-Format, Kassennummer, "BAR", "EC", Uhrzeit, kurze Positionsliste, kleiner Betrag
 - NICHT: Rechnung_Eingehend (formelle Rechnung mit USt-Id und Zahlungsziel)
 
-## 25. Leasing
+## Leasing
 Leasingvertraege, Leasingangebote (typischerweise fuer Fahrzeuge oder Maschinen).
 - Typische Merkmale: "Leasing", Leasingrate, Laufzeit, Kilometerleistung, Restwert
 
-## 26. Lieferschein_Ausgehend
+## Lieferschein_Ausgehend
 Lieferschein von J.S. Fenster an einen Kunden. Ausgehende Ware.
 - Typische Merkmale: J.S. Fenster als Absender, Lieferadresse beim Kunden
 
-## 27. Lieferschein_Eingehend
+## Lieferschein_Eingehend
 Lieferschein von einem Lieferanten. Dokumentiert eingehende Ware bei J.S. Fenster.
 - Typische Merkmale: "Lieferschein", Lieferscheinnummer, Artikelliste OHNE Preise, Lieferdatum, Versandadresse ist J.S. Fenster oder eine Baustelle
 - INKLUSIVE: Polnische/auslaendische Lieferscheine, Lagerausgabescheine ("Wydanie z magazynu", "WZ"), CMR-Frachtbriefe, Speditionsbelege
@@ -254,18 +289,18 @@ Lieferschein von einem Lieferanten. Dokumentiert eingehende Ware bei J.S. Fenste
 - Kernfrage: Wird hier WARE GELIEFERT/VERSENDET? Dann ist es ein Lieferschein.
 - NICHT: Auftragsbestaetigung_Eingehend (die bestaetigt eine Bestellung, liefert aber noch nichts)
 
-## 28. Mahnung_Eingehend
+## Mahnung_Eingehend
 Eingehende Zahlungserinnerungen und Mahnungen VON Lieferanten/Dienstleistern/Banken AN JS Fenster.
 - Typische Merkmale: "Zahlungserinnerung", "Mahnung", Mahnstufe, ggf. Mahngebuehr, Verweis auf unbezahlte Rechnung
 - INKLUSIVE: Freundliche Zahlungserinnerungen (ohne Gebuehren) UND formelle Mahnungen (1./2./3. Mahnung, Inkasso-Androhung)
 - Kernfrage: Wird JS Fenster zur Zahlung aufgefordert? Dann Mahnung_Eingehend.
 
-## 28b. Mahnung_Ausgehend
+## Mahnung_Ausgehend
 Ausgehende Mahnungen VON JS Fenster AN Kunden.
 - Typische Merkmale: JS Fenster als Absender, "Zahlungserinnerung", Verweis auf eigene Rechnungsnummer
 - Kernfrage: Fordert JS Fenster einen Kunden zur Zahlung auf? Dann Mahnung_Ausgehend.
 
-## 29. Montageauftrag
+## Montageauftrag
 Interner Auftrag oder Terminplan fuer Montage/Demontage-Arbeiten.
 - Typische Merkmale: "Montage", Baustellenadresse, Montagedatum, Monteur-Namen, Zeitplan, Fahrzeugliste, Werkzeugliste
 - INKLUSIVE: Interne Montage-Terminplaene, Montagelisten, Einsatzplaene
@@ -273,16 +308,16 @@ Interner Auftrag oder Terminplan fuer Montage/Demontage-Arbeiten.
 - NICHT: Serviceauftrag (der kommt vom Kunden und betrifft Reparatur/Wartung)
 - NICHT: Rechnung_Eingehend (die hat Rechnungsnummer, Betraege, Bankverbindung)
 
-## 30. Notiz
+## Notiz
 Interne Notizen, Telefonnotizen, Gespraechsprotokolle, handschriftliche Vermerke.
 - Typische Merkmale: Kurzer Text, informeller Stil, "Tel. mit...", Stichworte
 
-## 31. Office_Dokument
+## Office_Dokument
 Word-Dokumente, Excel-Tabellen, PowerPoint-Praesentationen und aehnliche Office-Dateien die in keine spezifischere Kategorie passen.
 - Typische Merkmale: .docx, .xlsx, .pptx Dateiendung, Office-Metadaten
 - Verwende diese Kategorie NUR wenn keine spezifischere Kategorie passt
 
-## 32. Personalunterlagen
+## Personalunterlagen
 Dokumente die Mitarbeiter, Personal und Arbeitszeiten betreffen.
 - Typische Merkmale: "Stundennachweis", "Stundenzettel", "Arbeitszeitnachweis", Mitarbeitername, Datum/Uhrzeit-Tabellen, Unterschrift
 - INKLUSIVE: Stundennachweise, Arbeitszeitnachweise, AU-Bescheinigungen (Arbeitsunfaehigkeit), Lohnabrechnungen, Arbeitsvertraege, Urlaubsantraege, Krankmeldungen
@@ -291,7 +326,7 @@ Dokumente die Mitarbeiter, Personal und Arbeitszeiten betreffen.
 - NICHT: Formular (Personalunterlagen haben eigene Kategorie)
 - NICHT: Vertrag (allgemeine Vertraege ohne Personalbezug)
 
-## 33. Katalog
+## Katalog
 Produktkataloge, Broschueren, Prospekte von Herstellern oder Lieferanten.
 - Typische Merkmale: Mehrere Produkte/Produktgruppen, Marketing-Texte, viele Produktbilder, Sortimentsuebersicht, Markennamen
 - INKLUSIVE: Hersteller-Kataloge, Produktbroschueren, Sortimentsuebersichten, Produktuebersichten mit Bildern und Beschreibungen
@@ -299,7 +334,7 @@ Produktkataloge, Broschueren, Prospekte von Herstellern oder Lieferanten.
 - NICHT: Produktdatenblatt (das beschreibt EIN einzelnes Produkt technisch)
 - NICHT: Angebot_Eingehend (individuelles Angebot mit konkreten Konditionen fuer J.S. Fenster)
 
-## 34. Preisliste
+## Preisliste
 Preistabellen und Preislisten von Lieferanten oder Herstellern.
 - Typische Merkmale: "Preisliste", "Netto-Preisliste", Preistabellen mit vielen Positionen, Staffelpreise, Einkaufspreise, Mengenrabatte, "Preis pro Meter/Stueck"
 - INKLUSIVE: Netto-Preislisten, Brutto-Preislisten, Staffelpreistabellen, Konditionslisten, Zubehoer-Preislisten
@@ -307,7 +342,15 @@ Preistabellen und Preislisten von Lieferanten oder Herstellern.
 - NICHT: Katalog (der hat Marketing-Texte und Bilder, wenig Preistabellen)
 - NICHT: Produktdatenblatt (technische Daten eines einzelnen Produkts)
 
-## 35. Produktdatenblatt
+## Privat
+Private Dokumente von Mitarbeitern die ueber Firmen-Scanner oder Firmen-Email eingegangen sind. Kein Bezug zu J.S. Fenster.
+- Typische Merkmale: Privater Absender/Empfaenger, kein Firmen- oder Geschaeftsbezug, persoenliche Korrespondenz, private Versicherungsschreiben, private Vertraege
+- INKLUSIVE: Private Post die versehentlich eingescannt wurde, persoenliche Dokumente von Mitarbeitern
+- Kernfrage: Hat dieses Dokument IRGENDEINEN Bezug zu J.S. Fenster oder dem Geschaeft? Wenn NEIN → Privat
+- NICHT: Personalunterlagen (die haben Bezug zum Arbeitsverhaeltnis)
+- NICHT: Brief_eingehend (geschaeftliche Korrespondenz)
+
+## Produktdatenblatt
 Technische Datenblaetter, Produktspezifikationen, Materialbeschreibungen, Zertifikate fuer EIN einzelnes Produkt.
 - Typische Merkmale: Technische Daten, Masse, Materialangaben, U-Werte, Schallschutzwerte, Pruefzeugnisse
 - INKLUSIVE: Leistungserklaerungen (DoP = Declaration of Performance) nach EN-Normen (z.B. EN 14351-1, EN 13241), CE-Kennzeichnungen, Pruefberichte, Werkszeugnisse
@@ -317,12 +360,12 @@ Technische Datenblaetter, Produktspezifikationen, Materialbeschreibungen, Zertif
 - NICHT: Angebot_Eingehend (das hat Preise und Konditionen)
 - NICHT: Bauplan (der hat Massstab und Grundriss/Schnitt/Ansicht)
 
-## 36. Rechnung_Ausgehend
+## Rechnung_Ausgehend
 Rechnung VON J.S. Fenster AN einen Kunden. Der Kunde soll zahlen.
 - Typische Merkmale: J.S. Fenster als Aussteller, Rechnungsnummer, Bankverbindung von J.S. Fenster
 - NICHT: Rechnung_Eingehend (die kommt von Lieferanten an uns)
 
-## 37. Rechnung_Eingehend
+## Rechnung_Eingehend
 Rechnung VON einem Lieferanten/Dienstleister AN J.S. Fenster. Wir sollen zahlen.
 - Typische Merkmale: "Rechnung", Rechnungsnummer, Betraege mit MwSt, Bankverbindung des Lieferanten, Zahlungsziel, USt-IdNr des Ausstellers
 - INKLUSIVE: eBay-Rechnungen, Amazon-Business-Rechnungen, Online-Shop-Rechnungen, Packzettel die gleichzeitig Rechnung sind
@@ -332,60 +375,84 @@ Rechnung VON einem Lieferanten/Dienstleister AN J.S. Fenster. Wir sollen zahlen.
 - NICHT: Zahlungsavis (Info ueber bereits erfolgte Zahlung)
 - NICHT: Montageauftrag (interne Terminplanung hat keine Rechnungsnummer/MwSt)
 
-## 38. Reiseunterlagen
+## Reiseunterlagen
 Hotelreservierungen, Buchungsbestaetigungen, Bahntickets, Flugtickets, Mietwagen, Reisebelege.
 - Typische Merkmale: "Buchungsbestaetigung", "Reservierung", Check-in/Check-out, Zimmernummer
 
-## 39. Reklamation
+## Reklamation
 Reklamation, Beschwerde, Maengelruege von einem Kunden oder an einen Lieferanten.
 - Typische Merkmale: "Reklamation", Schadensbeschreibung, Fotos, Garantieanspruch, Maengelprotokoll
 - NICHT: Anfrage_Eingehend (die ist neutral, ohne Beschwerde)
 
-## 40. Retoure_Ausgehend
+## Retoure_Ausgehend
 Retoure/Ruecksendung VON J.S. Fenster AN einen Lieferanten. AUCH: Einlieferungsbelege von Post/DHL/GLS/Hermes fuer Retoure-Pakete.
 - Typische Merkmale: "Retoure", "Ruecksendung", RMA-Nummer, Retourenschein, Bezug auf fehlerhafte Lieferung
 - AUCH: "Einlieferungsbeleg", "ShopReturn", "DHL Retoure", Paketshop-Belege mit Retoure-Vermerk
 - NICHT: Reklamation (Beschwerde ohne Ruecksendung)
 - NICHT: Kassenbeleg_Eingehend (Paket-Einlieferungsbelege gehoeren hierher, nicht zu Kassenbelegen!)
 
-## 41. Retoure_Eingehend
+## Retoure_Eingehend
 Retoure/Ruecksendung VON einem Kunden AN J.S. Fenster.
 - Typische Merkmale: Kunde sendet Ware zurueck, Retourenschein, Ruecksendebeleg
 - NICHT: Reklamation (Beschwerde ohne Ruecksendung)
 
-## 42. Serviceauftrag
+## Schliessanlage
+Schliesspläne, Sicherungskarten, Zylinderaufstellungen fuer Gebaeude-Schliessanlagen.
+- Typische Merkmale: "Schliessplan", "Sicherungskarte", "Zylinderaufstellung", "Schliesszylinder", "Schliessanlage", Schluesselcodes, Tuerbezeichnungen, Zylinderliste
+- INKLUSIVE: Schliessplaene (welcher Schluessel oeffnet welche Tuer), Sicherungskarten (Nachbestellkarten fuer Zylinder), Zylinderaufstellungen (Liste aller Zylinder im Objekt)
+- Typischerweise 5-10 Anlagen pro Jahr bei JS Fenster
+- NICHT: Bauplan (Architektenplan mit Massstab)
+- NICHT: Montageauftrag (allgemeiner Montageauftrag)
+
+## Serviceauftrag
 Vom Kunden unterschriebener Auftrag fuer Reparatur, Wartung oder Service.
 - Typische Merkmale: "Serviceauftrag", Kundendaten, Arbeitsbeschreibung, Unterschrift des Kunden
 - NICHT: Montageauftrag (der ist intern)
 - NICHT: Abnahmeprotokoll (das bestaetigt Fertigstellung)
 
-## 43. Skizze
+## Skizze
 Handgezeichnete technische Skizzen, Handskizzen mit Bemasung.
 - Typische Merkmale: Handschriftlich, einfache Linien, Massangaben
 - Verwende "Skizze" wenn wenig OCR-Text vorhanden ist und der Dateiname oder der fragmentarische Text auf eine Handzeichnung hindeutet
 - NICHT: Zeichnung (digital/CAD-erstellt)
 - NICHT: Bauplan (hat Massstab und Architektenstempel)
 
-## 44. Sonstiges_Dokument
-Nur verwenden wenn das Dokument in KEINE der anderen 51 Kategorien passt.
+## Sonstiges_Dokument
+Nur verwenden wenn das Dokument in KEINE der anderen 59 Kategorien passt.
 - Dies ist die ALLERLETZTE Option. Pruefe zuerst gruendlich alle anderen Kategorien.
 - Wenn auch nur eine Kategorie zu 60% passt, waehle diese statt Sonstiges_Dokument.
 - WICHTIG: Niedrige OCR-Qualitaet ist KEIN Grund fuer Sonstiges_Dokument! Auch bei fragmentarischem oder schwer lesbarem Text: Wenn ein eindeutiges Keyword erkennbar ist (z.B. "Aufmaßblatt", "Lieferschein", "Rechnung", "Auftragsbestätigung"), dann waehle die passende Kategorie trotz niedriger OCR-Qualitaet.
 - WICHTIG: Setze extraktions_qualitaet auf "niedrig" bei schlechtem OCR, aber waehle trotzdem die richtige Kategorie anhand erkennbarer Keywords.
 - Typische Faelle: Voellig branchenfremde Dokumente, nicht identifizierbare Dokumente OHNE jegliche erkennbare Keywords
 
-## 45. Spam
+## Spam
 Offensichtlicher Spam, unerwuenschte Werbung, Phishing, irrelevante Massensendungen.
 - Typische Merkmale: Werbung ohne Bezug zum Geschaeft, Gewinnspiele, Phishing-Versuche, generische Massenpost
 - NICHT: Brief_eingehend (relevante geschaeftliche Korrespondenz, auch Werbung von Lieferanten)
 
-## 46. Steuer_Bescheid
+## Steuer_Bescheid
 Steuerbescheide, Vorauszahlungsbescheide, Umsatzsteuer-Bescheide. Amtliche Steuerdokumente.
 - Typische Merkmale: "Steuerbescheid", "Bescheid", "Vorauszahlung", Steuernummer, Finanzamt
 - NICHT: Brief_von_Finanzamt (allgemeine Finanzamt-Korrespondenz ohne Bescheid-Charakter)
-- NICHT: Freistellungsbescheinigung (§48b EStG)
+- NICHT: Bescheinigung (behördliche Bescheinigungen wie Freistellungsbescheinigung)
 
-## 47. Vertrag
+## Veranstaltung
+Messe-Einladungen, Schulungen, Events, Innungs-Tagungen, Kundentage von Lieferanten.
+- Typische Merkmale: "Einladung", "Messe", "Schulung", "Kundentag", "Expertentag", "Tagung", "Event", Veranstaltungsdatum, Veranstaltungsort, Anmeldehinweise, Agenda/Programm
+- INKLUSIVE: Lieferanten-Kundentage (Wuerth, Roto, etc.), Messe-Einladungen (BAU, fensterbau frontale), Innungs-Veranstaltungen, Sport-Sponsoring-Einladungen, Schulungen/Seminare, Webinare
+- NICHT: Brief_eingehend (allgemeine Korrespondenz ohne Veranstaltungsbezug)
+- NICHT: Anleitung (Schulungsunterlagen/Handbuecher sind Anleitungen, nicht Veranstaltungen)
+
+## Versicherung
+Versicherungspolicen, Schadenmeldungen, Deckungszusagen, Versicherungsschreiben.
+- Typische Merkmale: "Versicherungspolice", "Versicherungsschein", "Schadenmeldung", "Deckungszusage", "Versicherungsnummer", Praemienbetrag, Selbstbeteiligung
+- INKLUSIVE: Kfz-Versicherung, Betriebshaftpflicht, Gebaeudeversicherung, betriebliche Altersvorsorge (bAV), Gruene Karte (Kfz), Schadensregulierungen, Deckungsnachweise, Versicherungsangebote
+- NICHT: Fahrzeugdokument (Fahrzeugscheine, TÜV-Berichte → Fahrzeugdokument)
+- NICHT: Vertrag (allgemeine Vertraege ohne Versicherungsbezug)
+- NICHT: Rechnung_Eingehend (Versicherungs-Praemienrechnung → wenn Rechnungsnummer+MwSt vorhanden: Rechnung)
+- NICHT: Privat (private Versicherungsdokumente ohne JS-Bezug → Privat)
+
+## Vertrag
 Unterschriebene Vertraege, Vereinbarungen, AGB-Akzeptanz, rechtlich bindende Dokumente, vorvertragliche Pflichtinformationen.
 - Typische Merkmale: "Vertrag", Vertragsparteien, Laufzeit, Kuendigungsfrist, Unterschriften beider Parteien
 - INKLUSIVE: Telekom-Vertragszusammenfassungen, Vorvertragliche Pflichtinformationen (§312d BGB), Mobilfunkvertraege, Wartungsvertraege, Mietvertraege, Internet-/Glasfaser-Vertraege
@@ -395,19 +462,29 @@ Unterschriebene Vertraege, Vereinbarungen, AGB-Akzeptanz, rechtlich bindende Dok
 - NICHT: Angebot_Eingehend (Vorvertragliche Pflichtinfo von Telekom etc. ist Vertrag!)
 - NICHT: Personalunterlagen (Arbeitsvertraege und Aenderungsvertraege → Personalunterlagen!)
 
-## 48. Video
+## Video
 Videodateien.
 - Typische Merkmale: Video-Dateiendung (.mp4, .mov, .avi, .mkv), kaum OCR-Text
 - Verwende "Video" wenn der Dateiname auf eine Videodatei hindeutet
 
-## 49. Zahlungsavis
+## Vorlage
+Wiederverwendbare Design-Assets, Briefpapier-Vorlagen, Logos, Druckvorlagen fuer Druckerei.
+- Typische Merkmale: "Briefpapier", "Druckvorlage", "Logo", "Vorlage", "Template", Corporate-Design-Elemente, Druckerei-Anweisungen, Anzeigenvorlagen
+- INKLUSIVE: Eigene Briefpapier-Vorlagen (SEPA-Daten fuer Druckerei), Anzeigenvorlagen von Lieferanten (WERU, Roto), Logos (eigene + Lieferanten zur Mitverwendung), Grafikvorlagen
+- Kernfrage: Ist dieses Dokument ein fertiges Design-Asset das wiederverwendet/gedruckt wird (nicht ausgefuellt)? Dann Vorlage.
+- NICHT: Formular (strukturierte Vorlage mit Feldern ZUM AUSFUELLEN)
+- NICHT: Katalog (Marketing-Broschuere mit Produkten)
+- NICHT: Produktdatenblatt (technische Daten)
+- NICHT: Brief_ausgehend (konkreter Brief, nicht Template)
+
+## Zahlungsavis
 Belastungsanzeige, Lastschriftinfo, Sammelabbuchung. Information ueber eine BEREITS AUSGEFUEHRTE Zahlung/Abbuchung.
 - Typische Merkmale: "Zahlungsavis", "Belastungsanzeige", "SEPA-Lastschrift", "wir haben abgebucht"
 - Kernfrage: Informiert dieses Dokument ueber eine BEREITS DURCHGEFUEHRTE Zahlung? Dann Zahlungsavis.
 - NICHT: Rechnung_Eingehend (Forderung/Rechnung, noch nicht bezahlt)
 - NICHT: Mahnung_Eingehend/Mahnung_Ausgehend (Aufforderung ZU zahlen)
 
-## 50. Zeichnung
+## Zeichnung
 Technische Zeichnungen, CAD-Zeichnungen, Detailzeichnungen (digital erstellt).
 - Typische Merkmale: "Zeichnung", CAD-Elemente, DWG/DXF-Referenz, Stueckliste, Bemassung, ISO-Ansicht
 - NICHT: Bauplan (Architektenplaene mit Massstab)
@@ -460,10 +537,14 @@ Technische Zeichnungen, CAD-Zeichnungen, Detailzeichnungen (digital erstellt).
 - Vorvertragliche Pflichtinformationen (§312d BGB) → Vertrag (NICHT Angebot_Eingehend!)
 - Internet-/Glasfaser-Vertraege, Business-Anschluesse → Vertrag
 - SIM-Karten-Unterlagen, PIN-Briefe → Brief_eingehend
-- KFZ-Versicherungskarten → Fahrzeugdokument (oder Brief_eingehend wenn kein konkreter Fahrzeugbezug)
+- KFZ-Versicherungskarten → Versicherung (oder Fahrzeugdokument wenn Fahrzeugschein/TÜV)
+- Versicherungspolicen, Schadenmeldungen → Versicherung
 - AU-Bescheinigungen (Arbeitsunfaehigkeit) → Personalunterlagen
 - Arbeitsvertraege, Aenderungsvertraege, Stundennachweise → Personalunterlagen (NICHT Vertrag!)
 - Bewerbungen/Initiativbewerbungen → Brief_eingehend
+- Freistellungsbescheinigung (§48b EStG) → Bescheinigung
+- BAFA/KfW/BEG-Foerderunterlagen → Foerderantrag
+- Messe-Einladungen, Kundentage, Schulungen → Veranstaltung
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # FEW-SHOT-BEISPIELE (Bekannte Fehlklassifikationen)

@@ -141,6 +141,8 @@
 | [K-013] | 2026-02-26 | KATEG | PROG | G-030: Mahnung → Mahnung_Eingehend/Ausgehend (6 Docs, process-document v3.1.0) |
 | [G-035] | 2026-02-27 | KATEG | PROG | Kassenbeleg Split Eingehend/Ausgehend |
 | [G-036] | 2026-02-27 | KATEG | PROG | Gutschrift Split + Retoure Keywords + Review Tool Scroll-Fix |
+| [G-037] | 2026-02-27 | KATEG | PROG | Katalog + Preisliste Kategorien + Stats-Bug + Ghost-Bereinigung |
+| [K-014] | 2026-02-27 | KATEG | REVIEW | KI-Review Durchlauf Brief_eingehend (Batch 1 fertig, Batch 2 offen) |
 
 ---
 
@@ -5626,7 +5628,6 @@ Dokumente nach KI-Aenderungen zur erneuten Pruefung zu markieren. Ausserdem war 
 
 ---
 
-## ═══ NAECHSTER EINTRAG HIER ═══
 ### [K-012] Review-Tool Performance-Optimierung (2026-02-26)
 **Status:** ABGESCHLOSSEN
 **Commits:** f5b1a59, 5506b50, b27491d, aee6103, afd470e
@@ -5685,6 +5686,74 @@ Dokumente nach KI-Aenderungen zur erneuten Pruefung zu markieren. Ausserdem war 
 - Review Tool: Pfeiltasten-Scroll-Fix (sticky Header verdeckte Zeilen)
 - Deployed: admin-review + process-document via CLI
 - Edge Function Logs: Keine Fehler nach Deploy
+
+---
+
+### [G-037] Katalog + Preisliste Kategorien + Stats-Bug + Ghost-Bereinigung (2026-02-27)
+**Status:** ABGESCHLOSSEN
+
+**Neue Kategorien (50 → 52):**
+- **Katalog**: Produktkataloge, Broschueren, Prospekte, Sortimentsuebersichten
+- **Preisliste**: Preistabellen von Lieferanten/Herstellern, Konditionslisten
+- Abgrenzung zu Produktdatenblatt (technische Daten eines EINZELNEN Produkts)
+
+**Aenderungen:**
+- categories.ts v3.5.0: Katalog + Preisliste (Array + Heuristic Rules)
+- prompts.ts v3.3.0: Beschreibungen (#33 Katalog, #34 Preisliste, #35 Produktdatenblatt), 52 Kategorien
+- schema.ts: Enum aktualisiert (52 Kategorien)
+- constants.js: Frontend-Dropdown aktualisiert
+- DB CHECK Constraint: Katalog + Preisliste hinzugefuegt (52 Kategorien)
+- Deployed: process-document v60 + admin-review v41
+
+**Stats-Bug Fix (admin-review v40):**
+- getReviewStats() holte alle Rows statt COUNT → Supabase 1000-Row-Limit schnitt Korrigierte ab
+- Fix: Echte COUNT-Queries mit `{ count: "exact", head: true }` + Promise.all
+
+**Ghost-Bereinigung:**
+- 231 Ghost-Dokumente (processing_status=error, Blob fehlt seit 2026-02-23) + 472 Embeddings geloescht
+- 236 verwaiste storage.objects bleiben (Supabase blockiert direktes SQL DELETE)
+
+**Review-Durchlauf (Kategorien <= 10 unbestaetigte):**
+- Anfrage_Eingehend (1): Outlook-Termin, User hat es dort belassen
+- Auftragsbestaetigung_Eingehend (2): 1 passt, 1 → Fahrzeugdokument
+- Bestellung_Eingehend (2): 1 erledigt, 1 handschriftl. Auftrag passt
+- Angebot_Eingehend (4): Keines war ein echtes Angebot → Daraus entstanden Katalog + Preisliste
+
+---
+
+### KI-Review Durchlauf: Brief_eingehend (2026-02-27 bis laufend)
+**Status:** IN ARBEIT (Batch 2 offen, Batch 3+4 ausstehend)
+
+**Brief_eingehend (33 Docs, 4 Batches a ~10):**
+
+**Batch 1 (Dok 1-10) - BESPROCHEN + ENTSCHIEDEN:**
+- Dok 1-4: Bestaetigt als Brief_eingehend
+- Dok 5: → Privat (neuer Kategorie-Vorschlag)
+- Dok 6: → Bescheinigung (neuer Kategorie-Vorschlag)
+- Dok 7-8: Brief_eingehend bestaetigt
+- Dok 9: D-Girls Cup Einladung → Veranstaltung (neue Kategorie)
+- Dok 10: Somfy Expertentag → Veranstaltung (neue Kategorie)
+
+**Batch 2 (Dok 11-20) - VORGESTELLT, OFFENE FRAGEN:**
+| Dok | Dateiname | Beschreibung | Status |
+|-----|-----------|-------------|--------|
+| 11 | AvisTemp...pdf | WERU Abholavis 3 Gestelle | ⚠️ Lieferschein_Eingehend? |
+| 12 | Liefer-und_Zahlungsbedingungen.pdf | Viktor Mueller Rolladen AGB | ⚠️ Vertrag? (Datei fehlt, kommt naechster Batch) |
+| 13 | Einladung_Hauptsponsor...pdf | D-Girls Cup (Duplikat Dok 9?) | ⚠️ Veranstaltung + Duplikat? |
+| 14 | Einladung_zum_Kundentag...pdf | Wuerth Kundentag | ⚠️ Veranstaltung |
+| 15 | expertentag_2026...pdf | Somfy Expertentag (Duplikat Dok 10?) | ⚠️ Veranstaltung + Duplikat? |
+| 16 | PDF_2_04022026.pdf | ISO Chemie Preisanpassung +2,9% | ⚠️ Preisliste oder Brief? |
+| 17 | 20260205110728.pdf | Telekom Preisanpassung | ✅ Brief_eingehend |
+| 18 | 20260205122352.pdf | ARD/ZDF SEPA-Mandat | ✅ Brief_eingehend |
+| 19 | Elektro-...pdf | Initiativbewerbung Ayoob Qayaji | ⚠️ Personalunterlagen oder Spam? |
+| 20 | Anschreiben_Lieferzeiten...pdf | TRENDTUEREN Lieferzeiten | ⚠️ Preisliste oder Brief? |
+
+**Batch 3+4 (Dok 21-33) - AUSSTEHEND**
+
+**Naechste Schritte:**
+1. Andreas beantwortet offene Fragen Batch 2
+2. Batch 3+4 laden und besprechen
+3. Danach: Sonstiges_Dokument (39), Notiz (42), Lieferschein_Eingehend (62)
 
 ---
 

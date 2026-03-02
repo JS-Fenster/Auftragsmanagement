@@ -45,6 +45,9 @@
 | G-032 | HOCH | E-Mail | Email-Versand-Architektur (eigene UI vs. Outlook, Entwurf/Fehlgeschlagen) |
 | G-033 | MITTEL | E-Mail | Globale Duplikat-Erkennung Email-Anhaenge (file_hash) |
 | G-034 | HOCH | Pipeline | OCR-Korrektur + Feinere Klassifizierung (Basis fuer Workflows) |
+| G-038 | MITTEL | Kategorien | Neue Kategorie "Vorlage" + Brief_ausgehend-Bereinigung |
+| G-039 | MITTEL | Pipeline | Auto-Split Multi-Dokument PDFs (eigenstaendige Bloecke) |
+| G-040 | HOCH | Pipeline | Dokument-Beziehungen (Querverweise zwischen zusammengehoerenden Docs) |
 
 ---
 
@@ -560,3 +563,135 @@ Aktuell wird file_hash nur innerhalb einer Email geprueft. Wenn derselbe Anhang 
 **Kosten-Argument:** LLM-Korrektur im Cent-Bereich pro Dokument vs. manuelle Nachkorrektur im Euro-Bereich pro Minute.
 
 **Voraussetzung:** `process-document` ist geschuetzt → Backtest noetig vor Aenderung
+
+---
+
+## [G-038] Neue Kategorie "Vorlage" + Brief_ausgehend-Bereinigung
+**Prio:** MITTEL | **Aufwand:** 2-3 Std | **Abhaengigkeit:** G-031 (Review-Durchlauf)
+
+Neue Dokument-Kategorie **Vorlage** fuer wiederverwendbare Marketing/Design-Assets:
+- Eigene Briefpapier-Vorlagen, Druckvorlagen fuer Druckerei
+- Anzeigenvorlagen von Lieferanten (WERU, Roto, etc.)
+- Logos (eigene + Lieferanten-Logos zur Mitverwendung)
+- Grafikvorlagen, Corporate-Design-Material
+
+**Weitere neue Kategorien:**
+- **Versicherung** = Policen, Schadenmeldungen, Deckungszusagen, Gruene Karte (Kfz-Versicherung, bAV, Haftpflicht)
+- **Privat** = Private Dokumente von Mitarbeitern (ueber Firmen-Scanner/Email eingegangen, kein JS-Bezug)
+- **Foerderantrag** = BAFA, KfW, BEG-Foerderung (Antraege, TPN, TPB, Zuwendungsbescheide, Verwendungsnachweise, Lueftungskonzepte). Workflow: beantragt→bewilligt→umgesetzt→abgerechnet. Fristen-kritisch!
+- **Gutschein** = Eigene Geschenkgutscheine fuer Kunden (Wert, Gueltigkeitsdauer, Einloesung tracken)
+- **Schliessanlage** = Schliesspläne, Sicherungskarten, Zylinderaufstellungen (5-10 Anlagen/Jahr, eigener Workflow)
+- **Garantie** = Garantiezertifikate (Werkzeuge, Geraete, Fahrzeugausstattung). Bis zu 20-30 Docs bei Fahrzeug-Neubestueckung
+- **Bescheinigung** = Unbedenklichkeit (AOK), Freistellung (Finanzamt), etc. Ersetzt bisherige Kategorie "Freistellungsbescheinigung". Ablaufdatum per DB-Feld `gueltig_bis` tracken
+- **Veranstaltung** = Messe-Einladungen, Schulungen, Events, Innungs-Tagungen (statt Brief_eingehend)
+
+**Abgrenzung:**
+- **Vorlage** = Fertiges Design-Asset zur Wiederverwendung (wird nicht ausgefuellt, sondern eingesetzt/gedruckt)
+- **Versicherung** = Versicherungspolicen, Schadenfaelle, Deckungszusagen (Kfz, bAV, Betriebshaftpflicht, Gebaeudeversicherung)
+- **Privat** = Kein Firmenbezug, privat gescannt/gemailt → auto-ausblenden, nur fuer Scanner-User sichtbar
+- **Finanzierung** = Darlehen, Leasing, Sicherungsuebereignung (bereits vorhanden)
+- **Formular** = Strukturierte Vorlage zum Ausfuellen (Aufmassblatt, Checkliste) → hat Felder, wird pro Auftrag befuellt
+- **Katalog** = Hersteller-Broschuere mit Produktuebersicht
+- **Produktdatenblatt** = Technische Daten eines Einzelprodukts
+
+**Umsetzung (wie bei Katalog/Preisliste):**
+- categories.ts: Array + Heuristic Rules (Keywords: Briefpapier, Druckvorlage, Logo, Anzeigenvorlage, Template)
+- prompts.ts: Beschreibung mit NICHT-Hinweisen
+- schema.ts + constants.js: Enum/Dropdown erweitern
+- DB CHECK Constraint aktualisieren
+- Deploy: process-document + admin-review
+
+**Prompt-Anpassung (Brief_eingehend/ausgehend Richtungs-Regel):**
+- Eingehend/Ausgehend wird nach **Interesse/Perspektive von JS Fenster** bestimmt, NICHT nach physischem Absender
+- **Ausgehend** = Im Namen/Auftrag von JS Fenster (auch Anwaltsschreiben, Steuerberater-Schreiben etc.)
+- **Eingehend** = Von Dritten an JS Fenster (Behoerden, Gegenseite, Lieferanten, Innung etc.)
+- Diese Regel in prompts.ts bei Brief_eingehend + Brief_ausgehend einarbeiten
+
+**Brief_ausgehend-Bereinigung:**
+- Dok `9540679a` (JS Briefpapier SEPA fuer Druckerei) → Vorlage verschieben
+- Dok `8b0684c8` + `29c48705` (JHV Einladung, Duplikat) → Brief_eingehend + Duplikat loeschen
+
+**Querverweis:** → G-033 (Globale Duplikat-Erkennung) im gleichen Zug fixen
+
+---
+
+## [G-039] Auto-Split Multi-Dokument PDFs
+**Prio:** MITTEL | **Aufwand:** 6-10 Std | **Abhaengigkeit:** G-034 (OCR-Korrektur)
+
+Automatisches Erkennen und Aufteilen von PDFs die mehrere eigenstaendige Dokumente enthalten (z.B. Uebergabeprotokoll + Darlehensantrag + SEPA-Mandat in einer PDF).
+
+**Ablauf (in process-document):**
+1. GPT analysiert OCR-Text: "Enthaelt diese PDF mehrere eigenstaendige Dokumente?"
+2. Wenn ja: Pro Block `{seiten, kategorie, titel, zusammenfassung}` zurueckliefern
+3. Wenn nein: Normaler Single-Dokument-Flow (kein Split)
+4. PDF wird seitenbasiert aufgeteilt (pdf-lib)
+5. Jeder Block wird als eigenes Dokument angelegt mit eigener Kategorie
+6. Verbindung ueber `parent_document_id` bleibt immer erhalten
+
+**DB-Erweiterung:**
+```sql
+ALTER TABLE documents ADD COLUMN parent_document_id UUID REFERENCES documents(id);
+ALTER TABLE documents ADD COLUMN split_seiten TEXT;      -- z.B. "4-8"
+ALTER TABLE documents ADD COLUMN split_label TEXT;        -- z.B. "Darlehensantrag"
+```
+
+**Regeln:**
+- Nur splitten wenn klar eigenstaendige Bloecke (anderer Briefkopf, Dokumenttyp, Absender)
+- Bei Unsicherheit: KEIN Split (lieber ein Dokument zu viel als falsch getrennt)
+- Original-PDF bleibt als Parent erhalten (wird nie geloescht)
+- Im Review Tool: Verknuepfte Dokumente als Gruppe anzeigen
+- Vollautomatisch ohne menschlichen Eingriff
+
+**Fehlertoleranz:**
+- Kein Split erkannt → bleibt wie heute (kein Schaden)
+- Falscher Split → im Review korrigierbar (Bloecke wieder zusammenfuehren)
+
+**Beispiel:** Mercedes-Paket (Dok ac26b130): 3 Bloecke → Leasing + Finanzierung + Finanzierung
+
+---
+
+## [G-040] Dokument-Beziehungen (Querverweise)
+**Prio:** HOCH | **Aufwand:** 8-12 Std | **Abhaengigkeit:** G-033 (Duplikate), G-039 (Split)
+
+Zusammengehoerige Dokumente automatisch verknuepfen. Aktuell existieren Dokumente isoliert - eine AGB weiss nicht, zu welcher Rechnung sie gehoert. Eine Zeichnung weiss nicht, zu welchem Auftrag sie geliefert wurde.
+
+**DB-Erweiterung:**
+```sql
+CREATE TABLE document_relations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  document_id_a UUID REFERENCES documents(id) NOT NULL,
+  document_id_b UUID REFERENCES documents(id) NOT NULL,
+  relation_type TEXT NOT NULL,  -- 'anlage_zu', 'version_von', 'duplikat_von', 'gehoert_zu'
+  created_at TIMESTAMPTZ DEFAULT now(),
+  created_by TEXT DEFAULT 'system',
+  UNIQUE(document_id_a, document_id_b, relation_type)
+);
+```
+
+**Relation Types:**
+- `anlage_zu` - AGB ist Anlage zu Rechnung/Bestellung
+- `gehoert_zu` - Zeichnung gehoert zu AB/Auftrag
+- `version_von` - Neue AGB-Fassung ersetzt alte
+- `duplikat_von` - Identisches Dokument (aus G-033)
+
+**Automatische Erkennung (in process-email / process-document):**
+- Email-Anhaenge die zusammen kommen → automatisch verknuepfen
+- AGB/Widerrufsrecht + Rechnung aus gleicher Email → `anlage_zu`
+- Zeichnung + AB aus gleicher Email → `gehoert_zu`
+- Gleicher file_hash → `duplikat_von`
+- Bei Duplikat-AGB: Nur einmal speichern, Relation zu allen zugehoerigen Docs
+
+**Deduplizierung (AGB-Beispiel):**
+- Erste AGB von Lieferant X: Normal speichern
+- Gleiche AGB nochmal: Nicht neu anlegen, nur `anlage_zu` Relation zur neuen Rechnung
+- Neue AGB-Fassung: Als neues Dok speichern + `version_von` alte AGB
+
+**UI (Review Tool + Dokumente-Seite):**
+- Bei jedem Dokument: "Verknuepfte Dokumente" Abschnitt
+- Klick auf Verknuepfung oeffnet das verknuepfte Dokument
+- Manuelles Verknuepfen per Drag&Drop oder Suche
+
+**Beispiele:**
+- Rechnung 260092 ←anlage_zu→ AGB + Widerrufsrecht + Zahlungsbedingungen
+- AB von WERU ←gehoert_zu→ Zeichnung + Produktdatenblatt
+- Lieferschein ←gehoert_zu→ Bestellung

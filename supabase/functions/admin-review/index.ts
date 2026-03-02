@@ -329,7 +329,18 @@ async function updateLabel(documentId: string, body: LabelUpdateBody) {
     updateData.unterschrift_erforderlich = unterschrift_erforderlich;
   }
 
-  if (action === "correct") {
+  if (action === "approve") {
+    // Bug-Fix: Bei approve die aktuelle Kategorie als manuell bestaetigt setzen
+    const doc = await supabase.from("documents").select("kategorie, email_kategorie").eq("id", documentId).single();
+    if (doc.data) {
+      if (doc.data.kategorie) {
+        updateData.kategorie_manual = doc.data.kategorie;
+      }
+      if (doc.data.email_kategorie) {
+        updateData.email_kategorie_manual = doc.data.email_kategorie;
+      }
+    }
+  } else if (action === "correct") {
     if (kategorie_manual) {
       updateData.kategorie_manual = kategorie_manual;
     }

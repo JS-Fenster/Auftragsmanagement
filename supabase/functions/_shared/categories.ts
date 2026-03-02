@@ -1,7 +1,14 @@
 // =============================================================================
 // Shared Category Definitions, Canonicalization, and Heuristic Rules
-// Version: 3.5.0 - 2026-02-27
+// Version: 4.0.0 - 2026-03-02
 // =============================================================================
+// Aenderungen v4.0.0 (G-038 Neue Kategorien aus KI-Review):
+// - NEU: Bescheinigung (ersetzt Freistellungsbescheinigung, breiter gefasst)
+// - NEU: Foerderantrag, Garantie, Gutschein, Privat, Schliessanlage
+// - NEU: Veranstaltung, Versicherung, Vorlage
+// - ALIAS: Freistellungsbescheinigung -> Bescheinigung
+// - 52 -> 60 Dokument-Kategorien
+//
 // Aenderungen v3.2.0 (G-021 Email-Kategorien Bereinigung):
 // - Email-Kategorien: 22 -> 29 (5 Renames + 7 Neue)
 // - RENAMED: Rechnung_Eingang -> Rechnung_Eingehend
@@ -41,6 +48,7 @@ export const VALID_DOKUMENT_KATEGORIEN = [
   "Auftragsbestaetigung_Eingehend",  // v3.0: Split von Auftragsbestaetigung
   "Audio",
   "Bauplan",                    // v2.3.0: Grundriss, Schnitt, Ansicht, Lageplan, Architekt
+  "Bescheinigung",              // v4.0: ersetzt Freistellungsbescheinigung, inkl. Unbedenklichkeit, etc.
   "Bestellung_Ausgehend",       // v3.0: was Bestellung (von uns an Lieferanten)
   "Bestellung_Eingehend",       // v3.0: was Kundenbestellung (PO vom Kunden an uns)
   "Bild",
@@ -50,8 +58,10 @@ export const VALID_DOKUMENT_KATEGORIEN = [
   "Buchhaltungsunterlagen",     // v3.0: NEU
   "Fahrzeugdokument",           // v2.5.0: Fahrzeugschein, TUeV, Reparatur, Stapler-Pruefung
   "Finanzierung",
+  "Foerderantrag",              // v4.0: BAFA, KfW, BEG Foerderantraege
   "Formular",
-  "Freistellungsbescheinigung", // v3.0: NEU
+  "Garantie",                   // v4.0: Garantiezertifikate, Werkzeuge, Geraete
+  "Gutschein",                  // v4.0: Eigene Geschenkgutscheine fuer Kunden
   "Gutschrift_Ausgehend",        // v3.4: Split (von uns an Kunden)
   "Gutschrift_Eingehend",        // v3.4: Split (von Lieferanten an uns)
   "Kassenbeleg_Ausgehend",      // v3.3: Split (von uns erstellt, Verkauf/Einnahme)
@@ -67,6 +77,7 @@ export const VALID_DOKUMENT_KATEGORIEN = [
   "Office_Dokument",
   "Personalunterlagen",         // v2.5.0: Stundennachweis, AU, Lohnabrechnung
   "Preisliste",                 // v3.5: Preislisten von Lieferanten/Herstellern
+  "Privat",                     // v4.0: Private Docs von Mitarbeitern (kein JS-Bezug)
   "Produktdatenblatt",
   "Rechnung_Ausgehend",         // v3.0: was Ausgangsrechnung
   "Rechnung_Eingehend",         // v3.0: was Eingangsrechnung
@@ -74,13 +85,17 @@ export const VALID_DOKUMENT_KATEGORIEN = [
   "Reklamation",
   "Retoure_Ausgehend",          // v3.0: NEU
   "Retoure_Eingehend",          // v3.0: NEU
+  "Schliessanlage",             // v4.0: Schliesspläne, Sicherungskarten, Zylinderaufstellungen
   "Serviceauftrag",
   "Skizze",
   "Sonstiges_Dokument",
   "Spam",                       // v2.6.0: Fax-Spam, Werbe-Faxe, unerwuenschte Dokumente
   "Steuer_Bescheid",            // v3.0: NEU
+  "Veranstaltung",              // v4.0: Messe-Einladungen, Schulungen, Events
+  "Versicherung",               // v4.0: Policen, Schadenmeldungen, Kfz-Versicherung
   "Vertrag",
   "Video",
+  "Vorlage",                    // v4.0: Design-Assets, Briefpapier, Logos, Druckvorlagen
   "Zahlungsavis",               // v2.2.0: Belastungsanzeige, Lastschrift, Sammelabbuchung
   "Zeichnung",                  // v2.3.0: Technische Zeichnungen, CAD-Zeichnungen
 ];
@@ -142,6 +157,7 @@ const KATEGORIE_ALIASES: Record<string, string> = {
   "Mahnung": "Mahnung_Eingehend",          // v3.1: Split
   "Kassenbeleg": "Kassenbeleg_Eingehend",  // v3.3: Split (Default: erhalten/Einkauf)
   "Gutschrift": "Gutschrift_Eingehend",   // v3.4: Split (Default: vom Lieferanten)
+  "Freistellungsbescheinigung": "Bescheinigung",  // v4.0: Bescheinigung ist breiter gefasst
 
   // === v3.0 Removed Pseudo-Categories ===
   "Email_Anhang": "Sonstiges_Dokument",

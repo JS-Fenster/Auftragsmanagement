@@ -32,7 +32,7 @@ export const ZEITFENSTER = {
   SPAET: { label: 'Spät (16:00–18:00)', zeit: '16:00-18:00' },
 }
 
-// Synchronized with supabase/functions/_shared/categories.ts v3.3.0
+// Synchronized with supabase/functions/_shared/categories.ts v4.0.0
 export const DOKUMENT_KATEGORIEN = [
   'Abnahmeprotokoll',
   'Anfrage_Ausgehend',
@@ -45,6 +45,7 @@ export const DOKUMENT_KATEGORIEN = [
   'Auftragsbestaetigung_Eingehend',
   'Audio',
   'Bauplan',
+  'Bescheinigung',
   'Bestellung_Ausgehend',
   'Bestellung_Eingehend',
   'Bild',
@@ -54,8 +55,10 @@ export const DOKUMENT_KATEGORIEN = [
   'Buchhaltungsunterlagen',
   'Fahrzeugdokument',
   'Finanzierung',
+  'Foerderantrag',
   'Formular',
-  'Freistellungsbescheinigung',
+  'Garantie',
+  'Gutschein',
   'Gutschrift_Ausgehend',
   'Gutschrift_Eingehend',
   'Kassenbeleg_Ausgehend',
@@ -71,6 +74,7 @@ export const DOKUMENT_KATEGORIEN = [
   'Office_Dokument',
   'Personalunterlagen',
   'Preisliste',
+  'Privat',
   'Produktdatenblatt',
   'Rechnung_Ausgehend',
   'Rechnung_Eingehend',
@@ -78,13 +82,17 @@ export const DOKUMENT_KATEGORIEN = [
   'Reklamation',
   'Retoure_Ausgehend',
   'Retoure_Eingehend',
+  'Schliessanlage',
   'Serviceauftrag',
   'Skizze',
   'Sonstiges_Dokument',
   'Spam',
   'Steuer_Bescheid',
+  'Veranstaltung',
+  'Versicherung',
   'Vertrag',
   'Video',
+  'Vorlage',
   'Zahlungsavis',
   'Zeichnung',
 ]
