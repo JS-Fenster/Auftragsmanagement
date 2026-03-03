@@ -5983,6 +5983,35 @@ Dokumente nach KI-Aenderungen zur erneuten Pruefung zu markieren. Ausserdem war 
 4. **Abgrenzung Anfrage_Eingehend:** Formelle Anfragen per Brief/Fax (kein handschriftliches Formular)
 5. **Few-Shot-Beispiele:** Kundennotiz (Bestellung + Abholung), Kundennotiz (Reparatur), Notiz (Telefonvermerk)
 
+### GPT-Erkennungsprobleme bei handschriftlichen Dokumenten
+
+**Was GPT schlecht erkennt:**
+1. **Handschrift-Qualitaet:** Viele OCR-Texte enthalten Fehler ("Qohrer" statt Rohrer, "quif" statt ?, "Moplidtote" statt Möbeltüre). GPT muss aus fehlerhaftem OCR den Kontext ableiten
+2. **Formular vs. Freitext:** GPT unterscheidet nicht zwischen strukturiertem Formular (Kundennotiz mit Feldern) und losem Zettel (Post-it, Stichwort-Notiz)
+3. **Intern vs. Extern:** GPT kann nicht erkennen ob ein Zettel VOM KUNDEN ausgefuellt wurde oder INTERN von einem Mitarbeiter
+4. **Aktionstyp im Freitext:** Der "Grund"-Bereich enthaelt die eigentliche Aktion (Bestellung, Reparatur, Termin) - GPT muesste das extrahieren, tut es aber nicht
+5. **Checkboxen:** OCR erkennt Checkboxen schlecht (angekreuzt vs. leer). Rueckruf/Termin/Angebot gehen oft verloren
+
+**Was GPT brauchte fuer bessere Erkennung:**
+1. **Formular-Layout-Erkennung:** Wenn strukturierte Felder (Name:___, Strasse:___, Telefon:___, Grund:___) → Kundennotiz, nicht einfach "Notiz"
+2. **Checkbox-Erkennung:** Explizit im Prompt: "Pruefe ob Checkboxen angekreuzt sind (Rueckruf/Termin/Angebot)"
+3. **Kontext-Hinweis im Prompt:** "JS Fenster hat ein Kundennotiz-Formular fuer Ausstellungskunden mit den Feldern Name, Strasse, PLZ/Ort, Telefon, E-Mail, Grund und Checkboxen Rueckruf/Termin/Angebot"
+4. **Aktionsextraktion:** GPT soll aus dem Freitext den Aktionstyp ableiten (Bestellung, Reparatur, Termin, Angebot, Reklamation)
+
+**Optimierungsansaetze fuer Formulare (G-042):**
+1. **QR-Code auf Formular:** Formular-Typ automatisch erkennbar (Kundennotiz, Reparaturauftrag, etc.)
+2. **Mehr Checkboxen:** Statt nur Rueckruf/Termin/Angebot auch: Bestellung, Reparatur, Reklamation, Ersatzteil
+3. **Strukturierte Felder:** Artikel-Nr, Menge, Element-Typ (Fenster/Tuer/Rollladen) als Ankreuzfelder
+4. **Druckschrift-Hinweis:** "Bitte in DRUCKBUCHSTABEN ausfuellen" verbessert OCR-Qualitaet drastisch
+5. **Pflichtfelder markieren:** Sterne bei Name + Telefon, damit GPT weiss was ausgefuellt sein MUSS
+6. **Digitale Alternative:** Tablet-Erfassung in der Ausstellung (laengerfristig, eliminiert OCR-Probleme komplett)
+
+**Quick-Wins fuer Prompt (ohne Formular-Aenderung):**
+- "Kundennotiz"-Header als starkes Signal im Prompt verankern
+- Formular-Layout-Beschreibung als Few-Shot-Beispiel
+- Handschrift-Toleranz: "OCR-Text kann fehlerhaft sein, interpretiere den Kontext"
+- Aktionsextraktion als zusaetzliches Feld im Schema
+
 ### Naechste Schritte
 - [ ] Anfrage_Eingehend (51 Docs) pruefen (morgen)
 - [ ] Neue Kategorie "Kundennotiz" anlegen (DB, Edge Functions, Frontend)
