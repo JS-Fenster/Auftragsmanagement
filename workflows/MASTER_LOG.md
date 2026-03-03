@@ -5930,4 +5930,66 @@ Dokumente nach KI-Aenderungen zur erneuten Pruefung zu markieren. Ausserdem war 
 
 ---
 
+## [K-019] Projektleiter: G-031 Kategorien-Bereinigung Notiz + Anfrage_Eingehend
+
+**Datum:** 2026-03-03
+**Status:** IN ARBEIT (Notiz fertig, Anfrage_Eingehend morgen)
+
+### Phase 1: Kundennotiz-Erkennung per OCR
+
+**OCR-Suche "Kundennotiz":** 27 Treffer (18 aus Notiz, 9 aus Anfrage_Eingehend)
+→ Alle haben das Formular-Layout mit "Kundennotiz" als Header (Ausstellungskunden-Formular)
+
+### Phase 2: Manuelle Pruefung 17 restliche Notizen (mit Andreas)
+
+**5 weitere Kundennotizen gefunden (ohne Header):**
+- `88cbca20...pdf` - Kundenanfrage Ausstellung (Tueren 900x2010)
+- `90c99402...pdf` - Kundenanfrage Ausstellung (DFF Roto Dachfenster)
+- `768b6b2d...pdf` - Reparaturanfrage (Seniorenheim)
+- `a43013bc...pdf` - Beschlagsanfrage (MACO, Werner Seidl)
+- `20260202084050.pdf` - Reparaturanfrage (Ammerthal, DKF einstellen)
+
+**12 bleiben "Notiz" (interne Vermerke):**
+- Telefonnotizen (Bestellaenderungen, Auftragsinfos, verpasste Termine)
+- Auftragsnotizen (Aenderungen zu Angeboten, Retoure-Vermerke)
+- Einsatzplaene mit Notizen
+- Duplikat: `Nicklas.pdf` = Duplikat zu `20260114084709.pdf`
+
+### Erkennungsmuster fuer Prompt-Optimierung
+
+**"Kundennotiz" erkennen (fuer prompts.ts):**
+1. OCR enthaelt "Kundennotiz" (Header auf Formular) → 100% sicher
+2. Handschriftliches Formular mit Feldern: Name, Strasse, PLZ/Ort, Telefon, Grund + Checkboxen (Rueckruf/Termin/Angebot) → Kundennotiz auch ohne Header
+3. Walk-in Anfrage mit Kundendaten + konkretem Anliegen (Bestellung, Reparatur, Angebot)
+
+**"Notiz" bleibt Notiz wenn:**
+- Interner Vermerk (Telefonnotiz, Aenderung zu Auftrag, Retoure-Hinweis)
+- Kein Kundenkontakt-Formular sondern Post-it, Zettel, Stichwort-Liste
+- Bezug zu bestehendem Auftrag/Angebot (Ergaenzungen, Korrekturen)
+
+**Abgrenzung Kundennotiz vs. Notiz:**
+- Kundennotiz = Anfrage/Anliegen DIREKT VOM KUNDEN (Ausstellung, Walk-in, Anruf mit Auftrag)
+- Notiz = INTERNER Vermerk von Mitarbeitern (Telefon-Rueckfragen, Bestellaenderungen, Einsatzplaene)
+
+### Gesamt-Stand Kundennotizen
+- 27 (OCR-Header) + 5 (manuell geprueft) = **32 Kundennotizen**
+- 12 bleiben "Notiz"
+- 51 Anfrage_Eingehend noch zu pruefen (morgen)
+
+### Prompt-Verbesserungen (fuer prompts.ts, nach Abschluss)
+1. **Neue Kategorie "Kundennotiz":** Handschriftliche Formulare von Ausstellungs-/Laufkunden
+2. **Erkennungsregel:** "Kundennotiz" im Header ODER Formular mit Name/Adresse/Telefon/Grund + Anliegen
+3. **Abgrenzung Notiz:** Interne Vermerke, Telefonnotizen zu laufenden Auftraegen, Stichwortzettel
+4. **Abgrenzung Anfrage_Eingehend:** Formelle Anfragen per Brief/Fax (kein handschriftliches Formular)
+5. **Few-Shot-Beispiele:** Kundennotiz (Bestellung + Abholung), Kundennotiz (Reparatur), Notiz (Telefonvermerk)
+
+### Naechste Schritte
+- [ ] Anfrage_Eingehend (51 Docs) pruefen (morgen)
+- [ ] Neue Kategorie "Kundennotiz" anlegen (DB, Edge Functions, Frontend)
+- [ ] 32+ Docs umkategorisieren
+- [ ] Prompt-Optimierung mit neuen Erkennungsregeln
+- [ ] Backtest
+
+---
+
 ## ═══ NAECHSTER EINTRAG HIER ═══

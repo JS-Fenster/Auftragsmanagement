@@ -67,35 +67,49 @@
 ## [G-041] Notiz→Workflow Pipeline
 **Prio:** HOCH | **Aufwand:** 8-16 Std | **Voraussetzung:** KI-Review Notiz abgeschlossen
 
-**Erkenntnis aus KI-Review (Batch Notiz, 2026-03-02):**
-Die Kategorie "Notiz" enthaelt ~40 Dokumente die fast alle handgeschriebene Kundennotiz-Formulare,
-Telefonnotizen oder Post-its sind. Darin stecken 3 klare Workflow-Typen:
+**Kontext (2026-03-03):**
+Das Kundennotiz-Formular ist der **zentrale Eingangskanal fuer Ausstellungskunden** (Laufkundschaft).
+Frequenz: **2-20 pro Woche** (je nach Saison), geschaetzt **300-800/Jahr**.
+Aktuell wird jeder Zettel manuell gelesen und abgearbeitet (~3-5 Min pro Stueck = 15-65 Std/Jahr).
 
-| Muster | Anteil | Aktion |
-|--------|--------|--------|
-| Serviceanfrage (BT defekt, Gurt abgerissen, Getriebe kaputt) | ~60% | → Serviceauftrag erstellen |
-| Beratung/Angebotsanfrage (Fenster, Innentüren, WET) | ~25% | → Lead/Angebotsanfrage erstellen |
-| Interne Aufgabe (Bestellung senden, Material bestellen) | ~15% | → Task-Liste Eintrag |
+**Erkenntnis aus KI-Review (Batch Notiz, 2026-03-02) + Andreas-Input:**
+Die Kategorie "Notiz" enthaelt ~40 Dokumente die fast alle handgeschriebene Kundennotiz-Formulare,
+Telefonnotizen oder Post-its sind. Darin stecken 6 klare Workflow-Typen:
+
+| Muster | Beispiel | Workflow |
+|--------|----------|----------|
+| Bestellung | "2.5 SZ-027-CC bestellen, Abholung" | → Bestellvorgang + Lieferant kontaktieren |
+| Ersatzteil-Bestellung | "Getriebe fuer BT links, Griff weiss" | → Ersatzteil-Bestellung + Kunde informieren |
+| Reparaturauftrag | "BT klemmt, Gurt gerissen, Dichtung defekt" | → Serviceauftrag + Monteur zuweisen |
+| Kundentermin | "Aufmass Kueche, naechste Woche" | → Kalender-Eintrag + Bestaetigung |
+| Angebotsanfrage | "3 Fenster EG, Kunststoff weiss" | → Angebotsanfrage / Budgetangebot |
+| Reklamation | "Fenster undicht seit Einbau" | → Reklamationsvorgang |
 
 **Architektur:**
 ```
-Scan/Upload → process-document (Notiz erkannt)
+Scan/Upload → process-document (Kundennotiz erkannt)
                     ↓
             extract_action() [NEU]
                     ↓
-         ┌─────────┼──────────┐
-    Reparatur   Beratung    Intern
-         ↓         ↓          ↓
-  Serviceauftrag  Lead    Task-Liste
+    ┌──────────┬──────────┬──────────┬──────────┬──────────┐
+ Bestellung  Ersatzteil  Reparatur  Termin   Angebot  Reklamation
+    ↓           ↓           ↓         ↓         ↓         ↓
+ Bestell-    Ersatzteil-  Service-  Kalender  Budget-   Reklama-
+ vorgang     Bestellung   auftrag   Eintrag   angebot   tion
 ```
 
 **GPT extrahiert zusaetzlich:**
-- aktion_typ: reparatur | beratung | angebot | interne_aufgabe
+- aktion_typ: bestellung | ersatzteil | reparatur | termin | angebot | reklamation
 - kunde: Name, Adresse, Telefon, Email (aus Formularfeldern)
-- problem_beschreibung: Freitext
-- gewuenschte_aktion: rueckruf | termin | angebot (aus Checkboxen)
+- artikel: Artikelnummer, Beschreibung, Menge, Preis (wenn vorhanden)
+- problem_beschreibung: Freitext (bei Reparatur/Reklamation)
+- gewuenschte_aktion: rueckruf | termin | angebot | abholung | lieferung (aus Checkboxen + Freitext)
 - betroffenes_element: z.B. "Balkontuer EG", "Haustuer"
 - dringlichkeit: hoch | normal
+
+**Formular-Problem:** Aktuelles Papier-Formular hat nur 3 Checkboxen (Rueckruf/Termin/Angebot).
+Die eigentliche Aktion steckt im Freitext "Grund" → GPT muss interpretieren.
+Langfristig: Formular-Redesign (→ G-042) mit mehr Struktur.
 
 **WICHTIG:** Erst nach Abschluss des Notiz-Reviews starten, um alle Muster zu kennen.
 
@@ -583,12 +597,26 @@ Emails aus dem Auftragsmanagement versenden mit vollstaendigem Status-Tracking. 
 
 Nach dem Review-Durchlauf pruefen: Welche Kategorien sind zu allgemein und sollten in detailliertere aufgespalten werden? Beispiel: Mahnung → Mahnung_Eingehend/Ausgehend.
 
-**Kandidaten zum Pruefen:**
-- Alle Kategorien ohne _Eingehend/_Ausgehend Suffix
-- Kategorien mit hoher Fehlklassifizierungsrate
-- Kategorien mit >50 Docs die heterogene Inhalte haben
+**Konkrete Kandidaten (2026-03-03):**
 
-**Voraussetzung:** Andreas schliesst den aktuellen KI-Review ab, damit die Datenbasis stimmt.
+1. **"Notiz" → "Kundennotiz" (NEU) + Rest**
+   - Ausstellungskunden-Formulare (2-20/Woche, 300-800/Jahr) sind aktuell "Notiz"
+   - Neue Kategorie "Kundennotiz" fuer handschriftliche Kundenformulare die Workflows ausloesen
+   - Restliche Notizen (Post-its, Telefonnotizen, interne Zettel) bleiben "Notiz"
+   - Alle bestehenden "Notiz"-Docs muessen nochmal geprueft und ggf. umkategorisiert werden
+   - Voraussetzung fuer G-041 (Notiz→Workflow Pipeline)
+
+2. **"Anfrage_Eingehend" pruefen**
+   - Moeglicherweise heterogen: Kundenanfragen, Angebotsanfragen, Reparaturanfragen
+   - Nach Review pruefen ob Split sinnvoll (z.B. Reparaturanfrage, Preisanfrage, Reklamation)
+
+3. **Weitere Kandidaten (aus kategorie_fehlerrate View):**
+   - Alle Kategorien ohne _Eingehend/_Ausgehend Suffix
+   - Kategorien mit hoher Fehlklassifizierungsrate (Sonstiges 86%, Skizze 83%, Formular 58%)
+   - Kategorien mit >50 Docs die heterogene Inhalte haben
+
+**Voraussetzung:** K-017 Review muss abgeschlossen sein, damit die Datenbasis stimmt.
+**Reihenfolge:** G-031 (Bereinigung) → G-041 (Workflow-Pipeline)
 
 ---
 
