@@ -32,7 +32,7 @@ export const ZEITFENSTER = {
   SPAET: { label: 'Spät (16:00–18:00)', zeit: '16:00-18:00' },
 }
 
-// Synchronized with supabase/functions/_shared/categories.ts v4.0.0
+// Synchronized with supabase/functions/_shared/categories.ts v4.1.0
 export const DOKUMENT_KATEGORIEN = [
   'Abnahmeprotokoll',
   'Anfrage_Ausgehend',
@@ -64,6 +64,7 @@ export const DOKUMENT_KATEGORIEN = [
   'Kassenbeleg_Ausgehend',
   'Kassenbeleg_Eingehend',
   'Katalog',
+  'Kundenunterlage',
   'Leasing',
   'Lieferschein_Ausgehend',
   'Lieferschein_Eingehend',

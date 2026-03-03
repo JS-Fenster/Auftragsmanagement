@@ -130,6 +130,7 @@ export const EXTRACTION_SCHEMA = {
         "Kassenbeleg_Ausgehend",
         "Kassenbeleg_Eingehend",
         "Katalog",
+        "Kundenunterlage",
         "Leasing",
         "Lieferschein_Ausgehend",
         "Lieferschein_Eingehend",

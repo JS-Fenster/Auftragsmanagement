@@ -7,7 +7,8 @@
 // - NEU: Foerderantrag, Garantie, Gutschein, Privat, Schliessanlage
 // - NEU: Veranstaltung, Versicherung, Vorlage
 // - ALIAS: Freistellungsbescheinigung -> Bescheinigung
-// - 52 -> 60 Dokument-Kategorien
+// - NEU: Kundenunterlage (Fremd-Dokumente die Kunden mitbringen)
+// - 52 -> 62 Dokument-Kategorien
 //
 // Aenderungen v3.2.0 (G-021 Email-Kategorien Bereinigung):
 // - Email-Kategorien: 22 -> 29 (5 Renames + 7 Neue)
@@ -67,6 +68,7 @@ export const VALID_DOKUMENT_KATEGORIEN = [
   "Kassenbeleg_Ausgehend",      // v3.3: Split (von uns erstellt, Verkauf/Einnahme)
   "Kassenbeleg_Eingehend",      // v3.3: Split (erhalten, Einkauf/Ausgabe)
   "Katalog",                    // v3.5: Produktkataloge, Broschueren, Prospekte
+  "Kundenunterlage",            // v4.1: Fremd-Dokumente die Kunden mitbringen (nicht von/an JS)
   "Leasing",
   "Lieferschein_Ausgehend",     // v3.0: was Kundenlieferschein
   "Lieferschein_Eingehend",     // v3.0: was Eingangslieferschein
@@ -217,9 +219,6 @@ const HEURISTIC_RULES: HeuristicRule[] = [
       "wir bestaetigen ihre bestellung",
       "hiermit bestätigen wir",
       "hiermit bestaetigen wir",
-      "auftragsnummer",
-      "lieferwoche",
-      "auftragseingang",
     ],
     priority: 100,
   },

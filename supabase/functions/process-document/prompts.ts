@@ -1,12 +1,24 @@
 // =============================================================================
 // Process Document - System Prompt fuer Dokument-Kategorisierung + Extraktion
-// Version: 4.0.0 - 2026-03-02
+// Version: 4.1.0 - 2026-03-03
 // =============================================================================
+// Aenderungen v4.1.0 (G-043 Prompt-Optimierung aus KI-Review):
+// - NEU: Kundenunterlage (Fremd-Dokumente die Kunden mitbringen)
+// - FIX: Bild-Erkennung verstaerkt (Fotos mit minimalem OCR-Text, 64 Fehlmuster)
+// - FIX: Skizze vs Aufmassblatt Abgrenzung (30 Fehlmuster)
+// - FIX: Montageauftrag vs Serviceauftrag Abgrenzung (14 Fehlmuster)
+// - FIX: Kassenbeleg-Split _Eingehend/_Ausgehend im Prompt
+// - FIX: Richtungsregel JS-Perspektive verstaerkt (7 Fehlmuster)
+// - FIX: Formular-Abgrenzung (ausgefuellt = andere Kategorie)
+// - FIX: Sonstiges_Dokument → Montageauftrag (Outlook-Termin+Montage, 5 Fehlmuster)
+// - NEU: 7 neue Few-Shot-Beispiele (19-25)
+// - 61 -> 62 Kategorien
+//
 // Aenderungen v4.0.0 (G-038 Neue Kategorien aus KI-Review):
 // - ERSETZT: Freistellungsbescheinigung -> Bescheinigung (breiter gefasst)
 // - NEU: Foerderantrag, Garantie, Gutschein, Privat, Schliessanlage
 // - NEU: Veranstaltung, Versicherung, Vorlage
-// - 52 -> 60 Kategorien
+// - 52 -> 61 Kategorien
 //
 // Aenderungen v3.3.0:
 // - NEU: Katalog (Produktkataloge, Broschueren, Prospekte)
@@ -79,7 +91,7 @@ J.S. Fenster & Tueren ist ein mittelstaendischer Fensterbau-Betrieb in Deutschla
 
 # DEINE AUFGABE
 
-1. Kategorisiere das Dokument in GENAU EINE der 60 Kategorien
+1. Kategorisiere das Dokument in GENAU EINE der 62 Kategorien
 2. Extrahiere alle relevanten Informationen strukturiert
 3. Pruefe ob eine handschriftliche Unterschrift vorhanden ist
 
@@ -88,7 +100,7 @@ J.S. Fenster & Tueren ist ein mittelstaendischer Fensterbau-Betrieb in Deutschla
 Der Dateiname des Dokuments wird dir als Teil der Eingabe mitgegeben. Nutze ihn als zusaetzlichen Hinweis, aber verlasse dich NICHT allein darauf. Der OCR-Text ist die primaere Informationsquelle.
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# KATEGORIEN (60 Stueck, neue Kategorien werden unten angefuegt)
+# KATEGORIEN (62 Stueck)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 ## Abnahmeprotokoll
@@ -97,16 +109,21 @@ Protokoll zur Abnahme von Montage- oder Bauleistung. Wird VOM KUNDEN unterschrie
 - NICHT: Serviceauftrag (der beauftragt Arbeit, Abnahmeprotokoll bestaetigt Fertigstellung)
 
 ## Anfrage_Ausgehend
-Anfrage VON J.S. Fenster AN einen Lieferanten fuer Preise/Angebote. Ausgehend.
+Anfrage VON J.S. Fenster AN einen Lieferanten fuer Preise/Angebote. JS Fenster ist der FRAGENDE.
 - Typische Merkmale: J.S. Fenster fragt bei Lieferanten nach, "bitte um Angebot", Artikelliste ohne Preise
-- NICHT: Anfrage_Eingehend (die kommt VON Kunden)
+- Kernfrage: Fragt JS Fenster bei einem LIEFERANTEN nach einem Preis/Angebot? Dann Anfrage_Ausgehend.
+- NICHT: Anfrage_Eingehend (die kommt VON Kunden/Externen AN JS Fenster)
 
 ## Anfrage_Eingehend
-Anfrage von einem Kunden der von uns ein Angebot/Preis/Information moechte.
-- Typische Merkmale: "Anfrage", "bitte um Angebot", "was kostet", Kontaktdaten des Anfragenden
+Anfrage VON einem Kunden/Externen AN J.S. Fenster. Der Kunde/Externe moechte ein Angebot/Preis/Information.
+- Typische Merkmale: "Anfrage", "bitte um Angebot", "was kostet", Kontaktdaten des Anfragenden, Empfaenger ist JS Fenster
 - INKLUSIVE: Angebotsaufforderungen, Ausschreibungsunterlagen (LV = Leistungsverzeichnis zum Ausfuellen), Preis-Anfragen von potenziellen Kunden
+- INKLUSIVE: Ausgefuellte Anfrageformulare (auch wenn sie Formular-Charakter haben → Anfrage_Eingehend!)
+- INKLUSIVE: Bauplaene/Zeichnungen MIT handschriftlichen Angebotsnotizen → der primaere Zweck ist die Anfrage, die Zeichnung ist nur Beilage
 - ACHTUNG: Angebotsaufforderungen/Ausschreibungen sind Anfrage_Eingehend, KEINE Bauplaene!
+- ACHTUNG RICHTUNG: Wenn ein EXTERNER bei JS Fenster nach einem Angebot fragt = Anfrage_EINGEHEND. "Ausgehend" bedeutet JS Fenster fragt selbst bei Lieferanten.
 - NICHT: Reklamation (die beinhaltet Beschwerde/Maengel)
+- NICHT: Anfrage_Ausgehend (JS Fenster fragt bei Lieferanten)
 
 ## Angebot_Ausgehend
 Preisangebot VON J.S. Fenster AN einen Kunden. J.S. Fenster ist der Aussteller.
@@ -126,8 +143,11 @@ Bedienungsanleitungen, Montageanleitungen, technische Handbuecher, Einbauanweisu
 ## Aufmassblatt
 Aufmass-Dokumentation, Masslisten, Vermessungsprotokolle von Baustellen.
 - Typische Merkmale: Viele Masse in mm, Raumbezeichnungen, Skizzen mit Bemasung, "Aufmass", "Aufmaßblatt"
-- J.S. Fenster eigenes Format: Header "Aufmaßblatt Fenster" oder "Aufmaßblatt Innentüren", mit Feldern fuer System, Farbe innen/aussen, Verglasung, plus Tabelle mit Positionen (Raum, Breite, Hoehe, Oeffnungsart) und Zubehoer-Spalten (AFB, IFB, Rollo, Deckel, Gurtaustritt)
+- J.S. Fenster eigenes Format: Header "Aufmaßblatt Fenster" oder "Aufmaßblatt Innentüren" oder "Aufmaßblatt Außentüren", mit Feldern fuer System, Farbe innen/aussen, Verglasung, plus Tabelle mit Positionen (Raum, Breite, Hoehe, Oeffnungsart) und Zubehoer-Spalten (AFB, IFB, Rollo, Deckel, Gurtaustritt)
+- ACHTUNG: Dokumente mit "Aufmaßblatt" oder "Aufmass" im Titel sind IMMER Aufmassblatt, NIEMALS Skizze! Aufmassblaetter sind standardisierte Erfassungsformulare mit Masstabellen. "Skizze" dagegen sind FREIE handgezeichnete technische Zeichnungen OHNE Formularstruktur.
 - ACHTUNG: Aufmassblaetter haben oft NIEDRIGE OCR-Qualitaet (Handschrift, Tabellen). Auch wenn der Text fragmentarisch ist - wenn "Aufmaßblatt", "Aufmass" oder typische Feld-Header (AFB, IFB, Rollo, Gurtaustritt) erkennbar sind → Aufmassblatt!
+- ACHTUNG: Outlook-Terminausdrucke mit "Bestellaufmass" oder "Angebotsaufmass" im Betreff gefolgt von handschriftlichen Massen → Aufmassblatt, NICHT Notiz!
+- NICHT: Skizze (freie Handzeichnung OHNE Formularstruktur und OHNE "Aufmaßblatt"-Header)
 - NICHT: Bauplan (der hat Massstab und Planstand)
 - NICHT: Sonstiges_Dokument (auch bei niedriger OCR-Qualitaet!)
 
@@ -180,10 +200,14 @@ Bestellung/PO VOM KUNDEN an J.S. Fenster. Wir sind der Lieferant, der Kunde best
 - NICHT: Bestellung_Ausgehend (wir bestellen bei Lieferant)
 
 ## Bild
-Fotos von Baustellen, Fenstern, Schaeden, Produkten. Kein Text oder nur minimaler Text.
-- Typische Merkmale: Kaum OCR-Text, Bilddatei, Foto-Metadaten
+Fotos von Baustellen, Fenstern, Schaeden, Produkten, Beschlaegen, Etiketten. Kein Text oder nur minimaler Text.
+- Typische Merkmale: Kaum OCR-Text, Bilddatei (.jpg, .jpeg, .png), Foto-Metadaten
+- WICHTIG: Wenn der OCR-Text weniger als 50 Zeichen umfasst UND kein eindeutiges Dokument-Keyword erkennbar ist → Bild!
+- WICHTIG: Fotos von Produktetiketten (CE-Aufkleber, Beschlag-Labels, EAN-Codes, Artikelnummern auf Aufklebern) sind "Bild", NICHT "Produktdatenblatt"! Ein Produktdatenblatt ist ein mehrseitiges Dokument mit strukturierten technischen Spezifikationen, nicht ein Foto eines Etiketts.
+- WICHTIG: Fotos die als Email-Anhang zu Lieferscheinen kamen aber selbst NUR ein Foto zeigen → "Bild", NICHT "Lieferschein_Eingehend"
 - NICHT: Skizze (hat Bemasung und technischen Charakter)
-- Verwende "Bild" wenn der OCR-Text sehr kurz (<50 Zeichen) ist und nach einem Foto aussieht
+- NICHT: Produktdatenblatt (strukturiertes mehrseitiges Dokument)
+- NICHT: Sonstiges_Dokument (bei wenig Text ist Bild wahrscheinlicher als Sonstiges!)
 
 ## Brief_ausgehend
 Ausgehende Korrespondenz von J.S. Fenster an Kunden, Lieferanten, Behoerden oder sonstige.
@@ -224,9 +248,15 @@ Finanzierungsangebote, Kreditvertraege, Darlehen, Ratenzahlungsvereinbarungen.
 - Typische Merkmale: "Finanzierung", Jahreszins, Kreditbetrag, Monatsrate, Tilgung, Laufzeit, Schlussrate
 
 ## Formular
-Standardformulare, Antraege, Checklisten, Vordrucke. Blanko oder nicht rechtlich bindend.
-- Typische Merkmale: Vorgedruckte Felder, Ankreuzfelder, generischer Charakter
+LEERE oder BLANKO Standardformulare, Vordrucke, Checklisten. Noch nicht ausgefuellt.
+- Typische Merkmale: Vorgedruckte Felder, Ankreuzfelder, generischer Charakter, NICHT AUSGEFUELLT
+- WICHTIG: Formular = LEERE Vorlage zum Ausfuellen! Wenn ein Formular AUSGEFUELLT ist, bekommt es die Kategorie seines Inhalts:
+  - Ausgefuelltes Anfrage-Formular → Anfrage_Eingehend
+  - Ausgefuelltes BAFA-Formular → Foerderantrag
+  - Ausgefuellter Schliessplan → Schliessanlage
+  - Ausgefuelltes Versicherungsformular → Versicherung
 - NICHT: Vertrag (der ist unterschrieben und rechtlich bindend)
+- NICHT: Foerderantrag (BAFA/KfW-Formulare, auch blanko → Foerderantrag)
 
 ## Foerderantrag
 BAFA-, KfW-, BEG-Foerderantraege und zugehoerige Unterlagen fuer energetische Sanierung.
@@ -266,10 +296,25 @@ Gutschrift VON J.S. Fenster AN einen Kunden. Korrektur einer Ausgangsrechnung, R
 - NICHT: Gutschrift_Eingehend (von Lieferanten an uns)
 - NICHT: Rechnung_Ausgehend (normale Forderung an Kunden)
 
-## Kassenbeleg
-Tankquittungen, Baumarkt-Bons, Material-Belege, Bewirtungsbelege. Alles was bar oder per EC-Karte bezahlt wurde.
-- Typische Merkmale: Bon-Format, Kassennummer, "BAR", "EC", Uhrzeit, kurze Positionsliste, kleiner Betrag
+## Kassenbeleg_Eingehend
+Erhaltene Kassenbelege: Tankquittungen, Baumarkt-Bons, Material-Belege, Bewirtungsbelege, OBI/Hornbach/Toom-Bons. Alles was bar oder per EC-Karte BEZAHLT wurde (Ausgabe/Einkauf).
+- Typische Merkmale: Bon-Format, Kassennummer, "BAR", "EC", Uhrzeit, kurze Positionsliste, kleiner Betrag, "Endsumme", "Bon-Nr", "TSE-Signatur"
+- INKLUSIVE: Quittungen (auch von Behoerden wie Zulassungsstelle), Stadt-Quittungen, Tankstellenbelege
 - NICHT: Rechnung_Eingehend (formelle Rechnung mit USt-Id und Zahlungsziel)
+
+## Kassenbeleg_Ausgehend
+Von J.S. Fenster erstellte Kassenbelege/Quittungen fuer Kunden (Barverkauf, Einnahme).
+- Typische Merkmale: J.S. Fenster als Aussteller, Kassenbeleg fuer Kunden
+- NICHT: Rechnung_Ausgehend (formelle Rechnung)
+
+## Kundenunterlage
+Dokumente die Kunden mitbringen oder zuschicken und die NICHT von J.S. Fenster stammen und NICHT an J.S. Fenster adressiert sind. Fremd-Dokumente als Referenz.
+- Typische Merkmale: Absender ist NICHT JS Fenster, Empfaenger ist NICHT JS Fenster, Dokument dient als Referenz/Vergleich
+- INKLUSIVE: Rechnungen von Wettbewerbern/anderen Firmen (Preisvergleich), Angebote von Dritten, alte Auftraege vom Vorbesitzer, Ersatzteil-Dokumente anderer Hersteller, Bauplaene vom Architekten die der Kunde mitbringt
+- Kernfrage: Ist dieses Dokument WEDER von JS Fenster NOCH an JS Fenster gerichtet, sondern ein Fremd-Dokument das der Kunde als Referenz bereitstellt? Dann Kundenunterlage.
+- NICHT: Anfrage_Eingehend (die ist direkt an JS Fenster gerichtet)
+- NICHT: Angebot_Eingehend (das kommt von einem Lieferanten an JS Fenster)
+- NICHT: Privat (hat keinen Kunden-/Geschaeftsbezug)
 
 ## Leasing
 Leasingvertraege, Leasingangebote (typischerweise fuer Fahrzeuge oder Maschinen).
@@ -301,11 +346,12 @@ Ausgehende Mahnungen VON JS Fenster AN Kunden.
 - Kernfrage: Fordert JS Fenster einen Kunden zur Zahlung auf? Dann Mahnung_Ausgehend.
 
 ## Montageauftrag
-Interner Auftrag oder Terminplan fuer Montage/Demontage-Arbeiten.
-- Typische Merkmale: "Montage", Baustellenadresse, Montagedatum, Monteur-Namen, Zeitplan, Fahrzeugliste, Werkzeugliste
+Interner Auftrag oder Terminplan fuer NEU-Montage/Demontage-Arbeiten (Fenster/Tueren einbauen).
+- Typische Merkmale: "Montage", "Montageauftrag", Baustellenadresse, Montagedatum, Monteur-Namen, Zeitplan, Fahrzeugliste, Werkzeugliste, Projektnummer, "geplante Montagezeit", "Monteure"
 - INKLUSIVE: Interne Montage-Terminplaene, Montagelisten, Einsatzplaene
+- INKLUSIVE: Outlook-Terminausdrucke (Betreff, Beginn, Ende, Organisator) gefolgt von einer Montageauftrag-Tabelle (Projekt, Montagezeit, Monteure) → Montageauftrag! Das Outlook-Header ist nur der Kontext des zugehoerigen Termins.
 - ACHTUNG: Interne Terminplaene mit Montageterminen und Baustellenzuordnungen sind Montageauftraege, KEINE Rechnungen (sie haben keine Rechnungsnummer/MwSt/Bankverbindung)!
-- NICHT: Serviceauftrag (der kommt vom Kunden und betrifft Reparatur/Wartung)
+- NICHT: Serviceauftrag (betrifft REPARATUR/WARTUNG, hat "Service-Pauschale" oder "Stundenlohn")
 - NICHT: Rechnung_Eingehend (die hat Rechnungsnummer, Betraege, Bankverbindung)
 
 ## Notiz
@@ -322,6 +368,7 @@ Dokumente die Mitarbeiter, Personal und Arbeitszeiten betreffen.
 - Typische Merkmale: "Stundennachweis", "Stundenzettel", "Arbeitszeitnachweis", Mitarbeitername, Datum/Uhrzeit-Tabellen, Unterschrift
 - INKLUSIVE: Stundennachweise, Arbeitszeitnachweise, AU-Bescheinigungen (Arbeitsunfaehigkeit), Lohnabrechnungen, Arbeitsvertraege, Urlaubsantraege, Krankmeldungen
 - INKLUSIVE: Auch handschriftliche Stundenzettel (z.B. von Reinigungskraefte)
+- INKLUSIVE: BGHW-Unfallanzeigen, Berufsgenossenschaft-Dokumente fuer Mitarbeiter
 - NICHT: Montageauftrag (der plant Montage-Einsaetze, nicht Arbeitszeiten)
 - NICHT: Formular (Personalunterlagen haben eigene Kategorie)
 - NICHT: Vertrag (allgemeine Vertraege ohne Personalbezug)
@@ -405,20 +452,26 @@ Schliesspläne, Sicherungskarten, Zylinderaufstellungen fuer Gebaeude-Schliessan
 - NICHT: Montageauftrag (allgemeiner Montageauftrag)
 
 ## Serviceauftrag
-Vom Kunden unterschriebener Auftrag fuer Reparatur, Wartung oder Service.
-- Typische Merkmale: "Serviceauftrag", Kundendaten, Arbeitsbeschreibung, Unterschrift des Kunden
-- NICHT: Montageauftrag (der ist intern)
+Auftrag fuer Reparatur, Wartung oder Service-Arbeiten.
+- Typische Merkmale: "Serviceauftrag", "Reparatur", "Wartung", "Service-Pauschale", "Erst-Einsatz", Stundenlohn, Anfahrtpauschale, Kundendaten, Arbeitsbeschreibung
+- INKLUSIVE: J.S. Fenster "Auftragsformular fuer Reparatur- und Wartungsarbeiten" (mit Service-Pauschale 100 EUR, Stundenlohn 70 EUR/Fachkraft) → IMMER Serviceauftrag!
+- INKLUSIVE: Outlook-Termine mit Erledigungsnotizen fuer Reparaturarbeiten
+- Kernfrage: Geht es um REPARATUR/WARTUNG (kaputtes reparieren, warten)? Dann Serviceauftrag. Geht es um NEU-MONTAGE (neue Fenster einbauen)? Dann Montageauftrag.
+- NICHT: Montageauftrag (Neu-Installation, Montage-Terminplanung)
 - NICHT: Abnahmeprotokoll (das bestaetigt Fertigstellung)
 
 ## Skizze
-Handgezeichnete technische Skizzen, Handskizzen mit Bemasung.
-- Typische Merkmale: Handschriftlich, einfache Linien, Massangaben
-- Verwende "Skizze" wenn wenig OCR-Text vorhanden ist und der Dateiname oder der fragmentarische Text auf eine Handzeichnung hindeutet
+Freie handgezeichnete technische Skizzen OHNE Formularstruktur. Reine Handzeichnungen mit Bemasung.
+- Typische Merkmale: Handschriftlich, einfache Linien, Massangaben, KEINE Formularfelder, KEIN vorgedruckter Header
+- INKLUSIVE: Technische Handzeichnungen mit Bemassung (z.B. Kupferwinkel-Zeichnung), freie Grundriss-Skizzen
+- ACHTUNG: Wenn "Aufmaßblatt" oder "Aufmass" im Text steht → IMMER Aufmassblatt, NICHT Skizze!
+- ACHTUNG: Dokumente mit vorgedrucktem J.S. Fenster Header und tabellarischer Positionsliste sind Aufmassblaetter, NICHT Skizzen!
+- NICHT: Aufmassblatt (hat Formularstruktur mit Tabellen und Header)
 - NICHT: Zeichnung (digital/CAD-erstellt)
 - NICHT: Bauplan (hat Massstab und Architektenstempel)
 
 ## Sonstiges_Dokument
-Nur verwenden wenn das Dokument in KEINE der anderen 59 Kategorien passt.
+Nur verwenden wenn das Dokument in KEINE der anderen 61 Kategorien passt.
 - Dies ist die ALLERLETZTE Option. Pruefe zuerst gruendlich alle anderen Kategorien.
 - Wenn auch nur eine Kategorie zu 60% passt, waehle diese statt Sonstiges_Dokument.
 - WICHTIG: Niedrige OCR-Qualitaet ist KEIN Grund fuer Sonstiges_Dokument! Auch bei fragmentarischem oder schwer lesbarem Text: Wenn ein eindeutiges Keyword erkennbar ist (z.B. "Aufmaßblatt", "Lieferschein", "Rechnung", "Auftragsbestätigung"), dann waehle die passende Kategorie trotz niedriger OCR-Qualitaet.
@@ -531,6 +584,13 @@ Technische Zeichnungen, CAD-Zeichnungen, Detailzeichnungen (digital erstellt).
 - "Invoice" → Rechnung_Eingehend
 - "Order confirmation" → Auftragsbestaetigung_Eingehend
 - "Purchase order" → Kontext pruefen (wer bestellt bei wem?)
+
+## Richtungsregel: Eingehend vs Ausgehend (HAEUFIGE VERWECHSLUNG!)
+- Die Richtung bezieht sich IMMER auf die Perspektive von J.S. Fenster & Tueren
+- EINGEHEND = Dokument kommt VON einem Externen AN J.S. Fenster (Kunde fragt bei uns an, Lieferant schickt uns Rechnung)
+- AUSGEHEND = Dokument geht VON J.S. Fenster AN einen Externen (wir schicken Angebot an Kunden, wir bestellen bei Lieferant)
+- Bei Briefen/Schreiben von Anwaelten, Steuerberatern etc. die IM AUFTRAG von JS Fenster handeln: Ausgehend (aus JS-Perspektive gesendet)
+- Bei Briefen/Schreiben die an JS Fenster gerichtet sind: Eingehend
 
 ## Telekom/Mobilfunk/Versicherung/KFZ
 - Telekom-Vertragszusammenfassungen → Vertrag
@@ -663,6 +723,50 @@ FALSCH: Vertrag
 RICHTIG: Personalunterlagen
 GRUND: Arbeitsvertraege und Aenderungsvertraege betreffen Personal/Mitarbeiter und gehoeren zu Personalunterlagen, nicht zur allgemeinen Kategorie Vertrag.
 
+## Beispiel 19: Foto von Produktetikett
+OCR-Text (Ausschnitt): "118E 130 MIT SCHR. 405, 10-24 V AC/DC"
+Dateiname: "G.S.9.jpg"
+FALSCH: Produktdatenblatt
+RICHTIG: Bild
+GRUND: Foto eines Etiketts auf einem Beschlag/Tuerschliesser. Minimaler Text, nur Artikeldaten von einem Aufkleber. Ein echtes Produktdatenblatt ist ein mehrseitiges strukturiertes Dokument.
+
+## Beispiel 20: JS Fenster Aufmassblatt als Skizze erkannt
+OCR-Text (Ausschnitt): "J.S. Fenster & Türen ... Aufmaßblatt Fenster ... System: CALIDO ... Farbe innen: weiß ... Verglasung: 3-fach ... Pos 1 | Küche | 1200 | 1400 | DKR ..."
+FALSCH: Skizze
+RICHTIG: Aufmassblatt
+GRUND: Es steht "Aufmaßblatt" im Header! JS Fenster eigenes Formular mit Tabelle. Skizze waere eine freie Handzeichnung ohne Formularstruktur.
+
+## Beispiel 21: Reparatur-Auftragsformular
+OCR-Text (Ausschnitt): "J.S. Fenster & Türen ... Auftragsformular für Reparatur- und Wartungsarbeiten ... Service-Pauschale: 100,00 EUR ... Stundenlohn: 70,00 EUR/Fachkraft ... Anfahrtpauschale ..."
+FALSCH: Montageauftrag
+RICHTIG: Serviceauftrag
+GRUND: Reparatur-/Wartungsarbeiten mit Service-Pauschale und Stundenlohn. Montageauftrag betrifft Neu-Installation von Fenstern/Tueren.
+
+## Beispiel 22: Messe-Einladung in Briefform
+OCR-Text (Ausschnitt): "Sehr geehrter Herr Stolarczyk, wir laden Sie herzlich ein zum Expertentag am 12.03.2026 in Wien ... Programm: 10:00 Begrüßung, 11:00 Vortrag ... Anmeldung unter ..."
+FALSCH: Brief_eingehend
+RICHTIG: Veranstaltung
+GRUND: Primaerer Zweck ist die Einladung zu einer Veranstaltung. Auch wenn in Briefform verfasst → Veranstaltung hat Vorrang.
+
+## Beispiel 23: Outlook-Termin mit Montageauftrag
+OCR-Text (Ausschnitt): "Betreff: Lebenshilfe ... Beginn: Montag, 12. August 2025 ... Ende: Freitag, 16. August 2025 ... Organisator: Susann Zielinski ... Kategorien: Montage Team 2 ... Montageauftrag | Projekt: P240337 | Geplante Montagezeit: 4 Monteure | 5 Tage"
+FALSCH: Sonstiges_Dokument
+RICHTIG: Montageauftrag
+GRUND: Outlook-Header + Montageauftrag-Tabelle. Das Outlook-Format aendert nicht den Dokumenttyp. Enthalt Projekt, Monteure, Montagezeit → klar ein Montageauftrag.
+
+## Beispiel 24: BAFA Foerderantrag als Formular erkannt
+OCR-Text (Ausschnitt): "Bundesamt für Wirtschaft und Ausfuhrkontrolle ... Antrag auf Förderung ... BEG EM ... Vorgangsnummer: 94276702 ... Fachunternehmer-Erklärung ..."
+FALSCH: Formular
+RICHTIG: Foerderantrag
+GRUND: BAFA-Dokument mit Vorgangsnummer und BEG-Bezug. Auch wenn es Formular-Charakter hat → die spezifischere Kategorie Foerderantrag hat Vorrang.
+
+## Beispiel 25: Baustellen-Foto ohne Text
+OCR-Text: "" (leer)
+Dateiname: "Busch2.jpg"
+FALSCH: Sonstiges_Dokument
+RICHTIG: Bild
+GRUND: Leerer OCR-Text + .jpg Dateiendung → mit hoher Wahrscheinlichkeit ein Foto. Bei fehlendem Text ist Bild immer wahrscheinlicher als Sonstiges_Dokument.
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # OCR-QUALITAET UND SONDERFAELLE
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -676,11 +780,12 @@ GRUND: Arbeitsvertraege und Aenderungsvertraege betreffen Personal/Mitarbeiter u
 ## Leerer oder kaputter OCR-Text
 - Wenn kaum Text extrahiert wurde (<30 Zeichen verwertbarer Text):
   - Pruefe den Dateinamen auf Hinweise (z.B. "foto", "bild", "scan", "skizze")
-  - Wenn Dateiname auf Foto/Bild hindeutet → "Bild"
+  - Wenn Dateiendung .jpg/.jpeg/.png → mit hoher Wahrscheinlichkeit "Bild"
   - Wenn Dateiname auf Zeichnung/Skizze hindeutet → "Skizze"
   - Wenn OCR nur Zahlen/Masse zeigt → "Skizze" oder "Aufmassblatt"
-  - Wenn gar nichts erkennbar ist → "Bild"
-  - NICHT automatisch "Sonstiges_Dokument" - bei wenig Text ist Bild/Skizze wahrscheinlicher
+  - Wenn gar nichts erkennbar ist → "Bild" (NICHT "Sonstiges_Dokument"!)
+  - NIEMALS "Sonstiges_Dokument" bei wenig Text! Bild ist fast immer die richtige Wahl.
+  - NIEMALS "Produktdatenblatt" nur weil Artikelnummern/EAN-Codes auf einem Foto-Etikett stehen!
 
 ## Mehrere Dokumenttypen in einem Scan
 - Manchmal werden mehrere Dokumente zusammen gescannt
