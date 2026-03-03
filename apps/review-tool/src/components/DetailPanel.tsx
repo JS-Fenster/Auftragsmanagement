@@ -340,16 +340,23 @@ export function DetailPanel({ document: doc, categories, api, onUpdate, onNextDo
         )}
 
         {/* Email Body / Summary */}
-        {(doc.email_body_text || doc.inhalt_zusammenfassung) && (
+        {(doc.email_body_html || doc.email_body_text || doc.inhalt_zusammenfassung) && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              {doc.email_body_text ? 'E-Mail Text' : 'Zusammenfassung'}
+              {doc.email_body_html ? 'E-Mail (Original)' : doc.email_body_text ? 'E-Mail Text' : 'Zusammenfassung'}
             </label>
-            <div className="bg-gray-50 rounded-lg p-3 max-h-48 overflow-auto">
-              <pre className="text-xs text-gray-700 whitespace-pre-wrap font-sans">
-                {doc.email_body_text || doc.inhalt_zusammenfassung}
-              </pre>
-            </div>
+            {doc.email_body_html ? (
+              <div
+                className="bg-white border border-gray-200 rounded-lg p-3 max-h-64 overflow-auto text-sm text-gray-800 [&_img]:max-w-full [&_img]:h-auto [&_table]:border-collapse [&_td]:p-1 [&_a]:text-blue-600 [&_a]:underline"
+                dangerouslySetInnerHTML={{ __html: doc.email_body_html }}
+              />
+            ) : (
+              <div className="bg-gray-50 rounded-lg p-3 max-h-48 overflow-auto">
+                <pre className="text-xs text-gray-700 whitespace-pre-wrap font-sans">
+                  {doc.email_body_text || doc.inhalt_zusammenfassung}
+                </pre>
+              </div>
+            )}
           </div>
         )}
 

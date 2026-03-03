@@ -45,13 +45,81 @@
 | G-032 | HOCH | E-Mail | Email-Versand-Architektur (eigene UI vs. Outlook, Entwurf/Fehlgeschlagen) |
 | G-033 | MITTEL | E-Mail | Globale Duplikat-Erkennung Email-Anhaenge (file_hash) |
 | G-034 | HOCH | Pipeline | OCR-Korrektur + Feinere Klassifizierung (Basis fuer Workflows) |
-| G-038 | MITTEL | Kategorien | Neue Kategorie "Vorlage" + Brief_ausgehend-Bereinigung |
+| G-038 | NIEDRIG | Kategorien | Brief_ausgehend-Bereinigung (3 Docs verschieben) + Prompt-Richtungsregel |
 | G-039 | MITTEL | Pipeline | Auto-Split Multi-Dokument PDFs (eigenstaendige Bloecke) |
 | G-040 | HOCH | Pipeline | Dokument-Beziehungen (Querverweise zwischen zusammengehoerenden Docs) |
+| G-041 | HOCH | Workflow | Notiz→Workflow Pipeline (Reparatur, Termin, Angebot aus Notizen) |
+| G-042 | MITTEL | Prozess | Handschriftliche Eingaenge: Formulare fuer GPT/Workflows optimieren |
+| G-043 | HOCH | Pipeline | Prompt-Optimierung aus KI-Review-Erkenntnissen (Feedback-Loop) |
+| G-044 | MITTEL | Pipeline | HEIC→JPEG Konverter vor GPT-Verarbeitung |
+| G-045 | NIEDRIG | Pipeline | Upload-Filter: Min-Dateigröße + Extension-Whitelist |
+| G-046 | NIEDRIG | Kategorien | Neue Kategorie "Kundenunterlage" + .ics-Support in Email-Pipeline |
 
 ---
 
 ## ═══ BACKLOG START ═══
+
+---
+
+## [G-041] Notiz→Workflow Pipeline
+**Prio:** HOCH | **Aufwand:** 8-16 Std | **Voraussetzung:** KI-Review Notiz abgeschlossen
+
+**Erkenntnis aus KI-Review (Batch Notiz, 2026-03-02):**
+Die Kategorie "Notiz" enthaelt ~40 Dokumente die fast alle handgeschriebene Kundennotiz-Formulare,
+Telefonnotizen oder Post-its sind. Darin stecken 3 klare Workflow-Typen:
+
+| Muster | Anteil | Aktion |
+|--------|--------|--------|
+| Serviceanfrage (BT defekt, Gurt abgerissen, Getriebe kaputt) | ~60% | → Serviceauftrag erstellen |
+| Beratung/Angebotsanfrage (Fenster, Innentüren, WET) | ~25% | → Lead/Angebotsanfrage erstellen |
+| Interne Aufgabe (Bestellung senden, Material bestellen) | ~15% | → Task-Liste Eintrag |
+
+**Architektur:**
+```
+Scan/Upload → process-document (Notiz erkannt)
+                    ↓
+            extract_action() [NEU]
+                    ↓
+         ┌─────────┼──────────┐
+    Reparatur   Beratung    Intern
+         ↓         ↓          ↓
+  Serviceauftrag  Lead    Task-Liste
+```
+
+**GPT extrahiert zusaetzlich:**
+- aktion_typ: reparatur | beratung | angebot | interne_aufgabe
+- kunde: Name, Adresse, Telefon, Email (aus Formularfeldern)
+- problem_beschreibung: Freitext
+- gewuenschte_aktion: rueckruf | termin | angebot (aus Checkboxen)
+- betroffenes_element: z.B. "Balkontuer EG", "Haustuer"
+- dringlichkeit: hoch | normal
+
+**WICHTIG:** Erst nach Abschluss des Notiz-Reviews starten, um alle Muster zu kennen.
+
+---
+
+## [G-042] Handschriftliche Eingaenge: Formulare fuer GPT/Workflows optimieren
+**Prio:** MITTEL | **Aufwand:** 4-8 Std | **Voraussetzung:** G-041 geplant
+
+**Grundlegende Ueberlegung:**
+Alle handgeschriebenen Eingaenge (Kundennotiz, Telefonnotiz, Aufmassblatt, Skizzen) muessen
+hinsichtlich GPT-Lesbarkeit und Workflow-Eignung ueberdacht werden.
+
+**Probleme aktuell:**
+- Handschrift ist fuer OCR/GPT schwer lesbar (viele Fehlinterpretationen in den Zusammenfassungen)
+- Kundennotiz-Formular hat nur 3 Checkboxen (Rueckruf/Termin/Angebot) - zu wenig fuer Workflows
+- Keine klare Trennung zwischen Reparatur und Neuanfrage
+- Keine Felder fuer: Element-Typ, Stockwerk, Dringlichkeit, Zeitfenster
+
+**Optimierungsrichtung:**
+1. **Formular-Redesign:** Bessere Struktur mit Ankreuzfeldern statt Freitext wo moeglich
+2. **QR-Code/Barcode:** Formular-ID fuer automatische Zuordnung
+3. **Checkbox-Erweiterung:** Reparatur/Beratung/Angebot/Reklamation
+4. **Element-Typ Felder:** Fenster/Tuer/Rollladen/Haustuer/Sonstiges
+5. **Pflichtfelder klar markiert** fuer konsistente Datenerfassung
+6. **Eventuell Tablet-Erfassung** statt Papier (laengerfristig)
+
+**WICHTIG:** Erst alle Notizen reviewen, dann Muster analysieren, dann Formulare entwerfen.
 
 ---
 
@@ -544,16 +612,15 @@ Aktuell wird file_hash nur innerhalb einer Email geprueft. Wenn derselbe Anhang 
 - Bereinigter Text wird in DB gespeichert (verbessert Suche, Embeddings, Klassifizierung)
 - Einbauen VOR der Klassifizierung in der bestehenden Pipeline
 
-**Schritt 2: Strukturierte Datenextraktion (einmalig pro Dokument)**
-- LLM extrahiert beim Verarbeiten relevante Felder in die DB (JSON oder eigene Spalten)
-- Beispiele: Lieferant/Kunde, Betrag, Projektnummer, Laufzeit, Vertragsnummer
-- Danach: Suche/Filter/Workflows per SQL-Query, KEIN erneuter LLM-Aufruf noetig
-- Kostenmodell: Einmal Cent-Betraege fuer Extraktion, danach 0 Kosten fuer Queries
+**Schritt 2: Strukturierte Datenextraktion (einmalig pro Dokument) - ERLEDIGT**
+- ✓ process-document extrahiert bereits: aussteller, empfaenger, positionen, summen, bezug, bank, mahnung etc.
+- ✓ Schema in `schema.ts` mit 40+ Feldern (ExtractedDocument Interface)
+- ✓ Daten werden in `documents` JSON-Spalten gespeichert
 
-**Schritt 3: Feinere Kategorien einfuehren**
-- `Anfrage_Eingehend` aufspalten: Reparaturanfrage, Reklamation, Preisanfrage, etc.
-- Mit bereinigtem OCR-Text kann GPT im selben Klassifizierungs-Schritt feiner unterscheiden
-- Neue Kategorien nach Bedarf - nicht alles auf einmal, sondern wo Fehlzuordnungen auffallen
+**Schritt 3: Feinere Kategorien einfuehren - TEILWEISE ERLEDIGT**
+- ✓ 50→60 Kategorien (v3.0→v4.0): Splits (Mahnung, Kassenbeleg, Gutschrift, Retoure) + 9 Neue
+- Offen: `Anfrage_Eingehend` aufspalten (Reparaturanfrage, Reklamation, Preisanfrage)
+- Offen: Weitere Splits nach KI-Review-Auswertung (→ G-031, G-043)
 
 **Spaeter (nicht Teil dieses Tickets):**
 - Workflow-Trigger basierend auf Kategorien (Reparatur → Monteur, Reklamation → Vorgang, etc.)
@@ -566,52 +633,20 @@ Aktuell wird file_hash nur innerhalb einer Email geprueft. Wenn derselbe Anhang 
 
 ---
 
-## [G-038] Neue Kategorie "Vorlage" + Brief_ausgehend-Bereinigung
-**Prio:** MITTEL | **Aufwand:** 2-3 Std | **Abhaengigkeit:** G-031 (Review-Durchlauf)
+## [G-038] Brief_ausgehend-Bereinigung + Richtungsregel
+**Prio:** NIEDRIG | **Aufwand:** 1 Std
+**Hinweis:** 9 neue Kategorien (Vorlage, Versicherung, Privat, Foerderantrag, Gutschein, Schliessanlage, Garantie, Bescheinigung, Veranstaltung) sind ERLEDIGT (v4.0.0, 2026-02-27).
 
-Neue Dokument-Kategorie **Vorlage** fuer wiederverwendbare Marketing/Design-Assets:
-- Eigene Briefpapier-Vorlagen, Druckvorlagen fuer Druckerei
-- Anzeigenvorlagen von Lieferanten (WERU, Roto, etc.)
-- Logos (eigene + Lieferanten-Logos zur Mitverwendung)
-- Grafikvorlagen, Corporate-Design-Material
+**Offen:**
+1. **Brief_ausgehend-Bereinigung (3 Docs):**
+   - Dok `9540679a` (JS Briefpapier SEPA fuer Druckerei) → Vorlage verschieben
+   - Dok `8b0684c8` + `29c48705` (JHV Einladung, Duplikat) → Brief_eingehend + Duplikat loeschen
 
-**Weitere neue Kategorien:**
-- **Versicherung** = Policen, Schadenmeldungen, Deckungszusagen, Gruene Karte (Kfz-Versicherung, bAV, Haftpflicht)
-- **Privat** = Private Dokumente von Mitarbeitern (ueber Firmen-Scanner/Email eingegangen, kein JS-Bezug)
-- **Foerderantrag** = BAFA, KfW, BEG-Foerderung (Antraege, TPN, TPB, Zuwendungsbescheide, Verwendungsnachweise, Lueftungskonzepte). Workflow: beantragt→bewilligt→umgesetzt→abgerechnet. Fristen-kritisch!
-- **Gutschein** = Eigene Geschenkgutscheine fuer Kunden (Wert, Gueltigkeitsdauer, Einloesung tracken)
-- **Schliessanlage** = Schliesspläne, Sicherungskarten, Zylinderaufstellungen (5-10 Anlagen/Jahr, eigener Workflow)
-- **Garantie** = Garantiezertifikate (Werkzeuge, Geraete, Fahrzeugausstattung). Bis zu 20-30 Docs bei Fahrzeug-Neubestueckung
-- **Bescheinigung** = Unbedenklichkeit (AOK), Freistellung (Finanzamt), etc. Ersetzt bisherige Kategorie "Freistellungsbescheinigung". Ablaufdatum per DB-Feld `gueltig_bis` tracken
-- **Veranstaltung** = Messe-Einladungen, Schulungen, Events, Innungs-Tagungen (statt Brief_eingehend)
-
-**Abgrenzung:**
-- **Vorlage** = Fertiges Design-Asset zur Wiederverwendung (wird nicht ausgefuellt, sondern eingesetzt/gedruckt)
-- **Versicherung** = Versicherungspolicen, Schadenfaelle, Deckungszusagen (Kfz, bAV, Betriebshaftpflicht, Gebaeudeversicherung)
-- **Privat** = Kein Firmenbezug, privat gescannt/gemailt → auto-ausblenden, nur fuer Scanner-User sichtbar
-- **Finanzierung** = Darlehen, Leasing, Sicherungsuebereignung (bereits vorhanden)
-- **Formular** = Strukturierte Vorlage zum Ausfuellen (Aufmassblatt, Checkliste) → hat Felder, wird pro Auftrag befuellt
-- **Katalog** = Hersteller-Broschuere mit Produktuebersicht
-- **Produktdatenblatt** = Technische Daten eines Einzelprodukts
-
-**Umsetzung (wie bei Katalog/Preisliste):**
-- categories.ts: Array + Heuristic Rules (Keywords: Briefpapier, Druckvorlage, Logo, Anzeigenvorlage, Template)
-- prompts.ts: Beschreibung mit NICHT-Hinweisen
-- schema.ts + constants.js: Enum/Dropdown erweitern
-- DB CHECK Constraint aktualisieren
-- Deploy: process-document + admin-review
-
-**Prompt-Anpassung (Brief_eingehend/ausgehend Richtungs-Regel):**
-- Eingehend/Ausgehend wird nach **Interesse/Perspektive von JS Fenster** bestimmt, NICHT nach physischem Absender
-- **Ausgehend** = Im Namen/Auftrag von JS Fenster (auch Anwaltsschreiben, Steuerberater-Schreiben etc.)
-- **Eingehend** = Von Dritten an JS Fenster (Behoerden, Gegenseite, Lieferanten, Innung etc.)
-- Diese Regel in prompts.ts bei Brief_eingehend + Brief_ausgehend einarbeiten
-
-**Brief_ausgehend-Bereinigung:**
-- Dok `9540679a` (JS Briefpapier SEPA fuer Druckerei) → Vorlage verschieben
-- Dok `8b0684c8` + `29c48705` (JHV Einladung, Duplikat) → Brief_eingehend + Duplikat loeschen
-
-**Querverweis:** → G-033 (Globale Duplikat-Erkennung) im gleichen Zug fixen
+2. **Prompt-Richtungsregel (Brief_eingehend/ausgehend):**
+   - Eingehend/Ausgehend nach **JS Fenster Perspektive**, NICHT physischer Absender
+   - Ausgehend = Im Namen/Auftrag von JS Fenster (auch Anwalts-/Steuerberaterschreiben)
+   - Eingehend = Von Dritten an JS Fenster
+   - In prompts.ts einarbeiten (→ wird mit G-043 zusammen erledigt)
 
 ---
 
@@ -647,6 +682,117 @@ ALTER TABLE documents ADD COLUMN split_label TEXT;        -- z.B. "Darlehensantr
 - Falscher Split → im Review korrigierbar (Bloecke wieder zusammenfuehren)
 
 **Beispiel:** Mercedes-Paket (Dok ac26b130): 3 Bloecke → Leasing + Finanzierung + Finanzierung
+
+---
+
+## [G-043] Prompt-Optimierung aus KI-Review-Erkenntnissen
+**Prio:** HOCH | **Aufwand:** 4-8 Std | **Abhaengigkeit:** KI-Review-Durchlauf weitgehend abgeschlossen
+
+**Ziel:** Systematischer Feedback-Loop: Alle Korrekturen aus dem KI-Review auswerten, GPT-Fehlmuster identifizieren, Prompts in `prompts.ts` optimieren, Backtest durchfuehren.
+
+**Datengrundlage (Stand 2026-03-02):**
+- 473 korrigierte Dokumente (`review_status = 'corrected'`)
+- Davon ~250 echte Umklassifizierungen (kategorie != kategorie_manual)
+
+**Top GPT-Fehlmuster (haeufigste Verwechslungen):**
+
+| GPT-Kategorie | Korrigiert zu | Anzahl | Ursache / Prompt-Fix |
+|---------------|--------------|--------|---------------------|
+| Sonstiges_Dokument | Bild | 40 | Fotos ohne Text werden als "sonstig" statt "Bild" erkannt |
+| Skizze | Aufmassblatt | 30 | Handskizzen MIT Massen = Aufmassblatt, OHNE = Skizze |
+| Montageauftrag | Serviceauftrag | 14 | Reparatur-Einsaetze sind Serviceauftraege, nicht Montage |
+| Produktdatenblatt | Bild | 12 | Einzelfotos von Produkten sind Bilder, nicht Datenblaetter |
+| Anfrage_Ausgehend | Anfrage_Eingehend | 7 | Richtungs-Verwechslung (JS-Perspektive nicht klar) |
+| Lieferschein_Eingehend | Bild | 7 | Lieferfotos sind keine Lieferscheine |
+| Formular | Foerderantrag | 7 | BAFA/KfW-Formulare = Foerderantrag (neue Kategorie) |
+| Sonstiges_Dokument | Montageauftrag | 5 | Outlook-Termine mit Montage-Infos |
+| Notiz | Aufmassblatt | 4 | Outlook "Bestellaufmass" + handschr. Masse = Aufmassblatt |
+| Formular | Schliessanlage | 3 | Schliesspläne/Sicherungskarten = Schliessanlage |
+| Bauplan | Anfrage_Eingehend | 3 | Bauplan MIT handschriftl. Angebotsnotizen = Anfrage, nicht Bauplan |
+
+**Erkenntnisse aus dem Notiz-Review (2026-03-02):**
+- Outlook-Termin-Ausdrucke mit "Bestellaufmass/Angebotsaufmass" + handschriftliche Masse → Aufmassblatt
+- Outlook-Termin + Erledigungsnotizen → Serviceauftrag
+- Technische Zeichnung mit Bemaßung (z.B. Kupferwinkel) → Skizze
+- Google-Maps-Screenshot → Bild
+
+**Ablauf:**
+1. Alle `corrected` Docs mit `kategorie != kategorie_manual` exportieren
+2. Pro Fehlmuster: Docs stichprobenartig ansehen, Ursache verstehen
+3. Prompt-Hints in `prompts.ts` ergaenzen (NICHT/Abgrenzung-Regeln)
+4. Optional: Heuristic Rules in `categories.ts` erweitern
+5. Backtest mit `classify-backtest` Edge Function
+6. Bei Verbesserung: process-document deployen (mit Andreas-Freigabe)
+
+**Metriken:**
+- Ziel: Top-10 Fehlmuster um >50% reduzieren
+- Messung: Vor/Nach-Vergleich der Fehlklassifizierungsrate
+
+---
+
+## [G-044] HEIC→JPEG Konverter vor GPT-Verarbeitung
+**Prio:** MITTEL | **Aufwand:** 2-3 Std
+
+Apple-Geraete erzeugen HEIC-Bilder die weder von der Email-Pipeline (nicht in ALLOWED_EXTENSIONS) noch von der OCR-Pipeline (nicht in OCR_SUPPORTED_EXTENSIONS) unterstuetzt werden. Uploads kommen trotzdem durch weil der Upload-Pfad keinen Extension-Filter hat.
+
+**Loesung:**
+- In `process-document`: Vor der OCR/GPT-Verarbeitung HEIC→JPEG konvertieren
+- Deno-kompatible Library (z.B. `libheif-js` oder ImageMagick via WASM)
+- Konvertiertes JPEG wird gespeichert, Original-HEIC wird ersetzt oder beibehalten
+- `.heic` und `.heif` zu `ALLOWED_EXTENSIONS` in process-email hinzufuegen (nach Konverter)
+
+**Betroffene Dateien:**
+- `supabase/functions/process-document/index.ts` (Konverter-Logik vor OCR)
+- `supabase/functions/process-document/utils.ts` (OCR_SUPPORTED_EXTENSIONS erweitern)
+- `supabase/functions/process-email/index.ts` (ALLOWED_EXTENSIONS erweitern)
+
+---
+
+## [G-045] Upload-Filter: Min-Dateigröße + Extension-Whitelist
+**Prio:** NIEDRIG | **Aufwand:** 1-2 Std
+
+Uploads (Scanner/Upload) haben aktuell KEINEN Extension- oder Groessen-Filter. Dadurch kommen Dateien wie .ics, .txt, QR-Code-PNGs (21 KB) oder .HEIC durch die kein OCR/GPT verarbeiten kann.
+
+**Loesung:**
+- Min-Dateigröße fuer Bilder (z.B. < 5 KB = wahrscheinlich Icon/QR-Code → skip oder als "Bild" kategorisieren)
+- Extension-Whitelist fuer Uploads (wie bei Email-Pipeline)
+- Sonderbehandlung .ics: Kalender-Metadaten extrahieren statt OCR
+
+**Betroffene Dateien:**
+- `supabase/functions/process-document/index.ts` (Eingangs-Validierung)
+
+---
+
+## [G-046] Neue Kategorie "Kundenunterlage" + .ics-Support
+**Prio:** NIEDRIG | **Aufwand:** 2-3 Std
+
+**1. Kategorie "Kundenunterlage":**
+Dokumente die Kunden mitbringen/zuschicken und NICHT an JS Fenster adressiert sind:
+- Rechnungen von Wettbewerbern/anderen Firmen (Preisvergleich)
+- Angebote von Dritten
+- Alte Auftraege, Bauplaene vom Vorbesitzer
+- Ersatzteil-Dokumente anderer Hersteller
+
+Abgrenzung: Dokument ist NICHT von JS und NICHT an JS gerichtet, sondern Fremd-Dokument das der Kunde als Referenz bereitstellt.
+
+**2. .ics Kalender-Support:**
+- `.ics` zu `ALLOWED_EXTENSIONS` in process-email hinzufuegen
+- Kalender-Metadaten extrahieren (SUMMARY, DTSTART, DTEND, LOCATION) statt OCR
+- In documents-Tabelle speichern (betreff, termine, etc.)
+- Kategorie: ggf. eigene Kategorie "Termin" oder unter bestehende einordnen
+
+**Wartende Dokumente (nach Umsetzung neu kategorisieren):**
+- `216f7015` (Immergy...ics) → .ics verarbeiten + Kategorie zuweisen
+- `3295756f` (188.HEIC) → nach G-044 (HEIC-Konverter) verarbeiten + Kategorie zuweisen
+- `97e1a2fd` (72f12653...pdf, HOVEBA-Rechnung an Strobl) → Kundenunterlage
+
+**Betroffene Dateien:**
+- `supabase/functions/_shared/categories.ts` (neue Kategorie)
+- `supabase/functions/process-document/prompts.ts` (Prompt-Hint)
+- `supabase/functions/process-document/schema.ts` (Enum)
+- `supabase/functions/process-email/index.ts` (ALLOWED_EXTENSIONS + .ics Parser)
+- DB: CHECK Constraint aktualisieren
+- Frontend: constants.js + Review-Tool Filter
 
 ---
 

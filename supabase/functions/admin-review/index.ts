@@ -185,6 +185,7 @@ async function getReviewQueue(params: ReviewQueueParams) {
       email_anhaenge_count,
       email_anhaenge_meta,
       email_body_text,
+      email_body_html,
       inhalt_zusammenfassung,
       processing_status,
       processing_last_error,

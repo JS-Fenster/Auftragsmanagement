@@ -143,6 +143,7 @@
 | [G-036] | 2026-02-27 | KATEG | PROG | Gutschrift Split + Retoure Keywords + Review Tool Scroll-Fix |
 | [G-037] | 2026-02-27 | KATEG | PROG | Katalog + Preisliste Kategorien + Stats-Bug + Ghost-Bereinigung |
 | [K-014] | 2026-02-27 | KATEG | REVIEW | KI-Review Durchlauf Brief_eingehend (Batch 1 fertig, Batch 2 offen) |
+| [K-015] | 2026-03-03 | KATEG | PROG | Ghost-Storage Cleanup (237 Eintraege) + batch-process-pending v1.2.0 |
 
 ---
 
@@ -5711,7 +5712,7 @@ Dokumente nach KI-Aenderungen zur erneuten Pruefung zu markieren. Ausserdem war 
 
 **Ghost-Bereinigung:**
 - 231 Ghost-Dokumente (processing_status=error, Blob fehlt seit 2026-02-23) + 472 Embeddings geloescht
-- 236 verwaiste storage.objects bleiben (Supabase blockiert direktes SQL DELETE)
+- 236 verwaiste storage.objects → in K-015 per Storage API geloescht (0 verbleibend)
 
 **Review-Durchlauf (Kategorien <= 10 unbestaetigte):**
 - Anfrage_Eingehend (1): Outlook-Termin, User hat es dort belassen
@@ -5754,6 +5755,40 @@ Dokumente nach KI-Aenderungen zur erneuten Pruefung zu markieren. Ausserdem war 
 1. Andreas beantwortet offene Fragen Batch 2
 2. Batch 3+4 laden und besprechen
 3. Danach: Sonstiges_Dokument (39), Notiz (42), Lieferschein_Eingehend (62)
+
+---
+
+## [K-015] Programmierer: Ghost-Storage Cleanup + batch-process-pending Fix
+
+**Datum:** 2026-03-03
+**Kontext:** 237 verwaiste storage.objects-Eintraege (Ghost-Metadata ohne S3-Blobs) blockierten batch-process-pending.
+
+**Problem:**
+- 237 Dateien in `storage.objects` hatten Metadata-Eintraege aber keine echten S3-Blobs
+- In vorheriger Session wurden dafuer Orphan-Eintraege in `documents` erstellt (file_hash='orphan_...')
+- `batch-process-pending` versuchte diese zu verarbeiten → Download schlug fehl mit `{}`
+- Root Cause: Supabase JS SDK `storage.download()` gibt im Edge Runtime nur opakes `{}` bei Fehlern zurueck
+
+**Fixes:**
+1. **batch-process-pending v1.2.0** (Version 4) deployed:
+   - SDK `storage.download()` ersetzt durch direkten `fetch()` an Storage REST API
+   - Klare Fehlermeldungen mit HTTP-Statuscodes statt opakes `{}`
+   - Ergebnis: HTTP 400/404 enthuellte dass S3-Blobs nicht existieren
+
+2. **Ghost-Cleanup:**
+   - 237 Orphan-Eintraege aus `documents` geloescht (WHERE file_hash LIKE 'orphan_%')
+   - SQL DELETE auf `storage.objects` blockiert durch `storage.protect_delete()` Trigger
+   - Temporaere Edge Function `cleanup-ghost-storage` deployed
+   - `supabase.storage.from('documents').remove(paths)` funktioniert auch fuer Ghost-Eintraege
+   - Alle 237 Ghost-Eintraege erfolgreich geloescht
+   - Temporaere Function danach geloescht
+
+3. **Edge Functions bereinigt:**
+   - `cleanup-ghost-storage` geloescht (Einmal-Utility)
+   - `reclassify-emails` geloescht (K-010 abgeschlossen)
+   - 19 Edge Functions verbleiben (vorher 21)
+
+**Ergebnis:** 0 Ghost-Eintraege in storage.objects, batch-process-pending funktionsfaehig
 
 ---
 

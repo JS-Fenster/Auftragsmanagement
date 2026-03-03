@@ -117,7 +117,7 @@ Siehe `docs/Auftragsmanagement_Projektplan.md` fuer Details.
 |----------|---------|--------|-------------|
 | `process-document` | v34 (Deploy 52) | STABIL | Kategorisierung laeuft stabil (36 Kategorien, GPT-5 mini) |
 | `process-email` | v4.1.0 | STABIL | GPT-Kategorisierung + Anhang-Pipeline mit fetchWithRetry (2026-02-12) |
-| `batch-process-pending` | v1.1.0 | STABIL | Safety-Net fuer stuck pending_ocr Docs, fetchWithRetry (2026-02-12) |
+| `batch-process-pending` | v1.2.0 | STABIL | Safety-Net fuer stuck pending_ocr Docs, direct fetch statt SDK (2026-03-03) |
 
 **Regeln:**
 1. KEINE Aenderungen am Kategorisierungs-Prompt (`prompts.ts`) ohne vorherigen Backtest

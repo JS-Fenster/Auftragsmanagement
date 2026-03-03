@@ -32,6 +32,7 @@ export interface ReviewDocument {
   email_anhaenge_count: number;
   email_anhaenge_meta: AttachmentMeta[] | null;
   email_body_text: string | null;
+  email_body_html: string | null;
   inhalt_zusammenfassung: string | null;
   processing_status: string;
   processing_last_error: string | null;
