@@ -1,11 +1,12 @@
 // =============================================================================
 // Classify Backtest - Re-Klassifizierung mit optionalem DB-Update
-// Version: 2.1.0 - 2026-02-23
+// Version: 2.2.0 - 2026-03-03
 // =============================================================================
 // Liest Dokumente aus der DB, sendet den OCR-Text an GPT-5 mini mit dem
 // SYSTEM_PROMPT aus process-document/prompts.ts und vergleicht die neue
 // Kategorie mit der bestehenden.
 //
+// v2.2.0: Confidence-Score (0-100) hinzugefuegt - GPT bewertet Sicherheit der Kategorisierung
 // v2.1.0: KATEGORIE_ENUM auf 38 Kategorien aktualisiert (+ Fahrzeugdokument, Personalunterlagen)
 //         Import KATEGORIE_ENUM direkt aus categories.ts statt hardcoded
 // NEU v2.0: apply=true schreibt die neue Kategorie in die DB zurueck.
@@ -47,7 +48,7 @@ const GPT_MODEL = "gpt-5-mini";
 // Nutze die zentrale Kategorie-Liste aus _shared/categories.ts (38 Kategorien)
 const KATEGORIE_ENUM = VALID_DOKUMENT_KATEGORIEN;
 
-// Minimales JSON-Schema: nur Kategorie extrahieren (spart Tokens)
+// JSON-Schema: Kategorie + Confidence-Score
 const CLASSIFICATION_SCHEMA = {
   type: "object",
   properties: {
@@ -55,8 +56,12 @@ const CLASSIFICATION_SCHEMA = {
       type: "string",
       enum: [...KATEGORIE_ENUM],
     },
+    confidence: {
+      type: "number",
+      description: "Sicherheit der Kategorisierung auf einer Skala von 0-100",
+    },
   },
-  required: ["kategorie"],
+  required: ["kategorie", "confidence"],
   additionalProperties: false,
 } as const;
 
@@ -86,17 +91,19 @@ function validateApiKey(req: Request): { valid: boolean; reason?: string } {
 }
 
 // =============================================================================
-// GPT Classification (nur Kategorie)
+// GPT Classification (Kategorie + Confidence)
 // =============================================================================
 
 interface ClassificationResult {
   kategorie: string;
+  confidence: number;
 }
 
 async function classifyText(ocrText: string, fileName?: string): Promise<ClassificationResult> {
+  const confidenceInstruction = "Bewerte zusaetzlich deine Sicherheit bei der Kategorisierung auf einer Skala von 0-100 (confidence). 100 = absolut sicher, 0 = reine Vermutung.";
   const userContent = fileName
-    ? `Dateiname: ${fileName}\n\nKategorisiere das folgende Dokument. Gib NUR die Kategorie zurueck, keine weiteren Felder.\n\n${ocrText}`
-    : `Kategorisiere das folgende Dokument. Gib NUR die Kategorie zurueck, keine weiteren Felder.\n\n${ocrText}`;
+    ? `Dateiname: ${fileName}\n\nKategorisiere das folgende Dokument. ${confidenceInstruction}\n\n${ocrText}`
+    : `Kategorisiere das folgende Dokument. ${confidenceInstruction}\n\n${ocrText}`;
 
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -149,6 +156,7 @@ interface BacktestResult {
   id: string;
   alt: string | null;
   neu: string;
+  confidence: number;
   changed: boolean;
   applied: boolean;
   alt_source: string | null;
@@ -165,11 +173,11 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         service: "classify-backtest",
-        version: "2.1.0",
+        version: "2.2.0",
         status: "ready",
         model: GPT_MODEL,
         max_docs_per_call: MAX_DOCS_PER_CALL,
-        features: { apply_mode: true },
+        features: { apply_mode: true, confidence_score: true },
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
@@ -289,6 +297,7 @@ Deno.serve(async (req: Request) => {
           id: doc.id,
           alt: oldKategorie,
           neu: newKategorie,
+          confidence: classification.confidence,
           changed,
           applied,
           alt_source: doc.kategorisiert_von,
@@ -299,6 +308,7 @@ Deno.serve(async (req: Request) => {
           id: doc.id,
           alt: doc.kategorie,
           neu: "ERROR",
+          confidence: 0,
           changed: false,
           applied: false,
           alt_source: doc.kategorisiert_von,

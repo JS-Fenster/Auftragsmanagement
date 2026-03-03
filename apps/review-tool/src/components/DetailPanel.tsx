@@ -283,6 +283,14 @@ export function DetailPanel({ document: doc, categories, api, onUpdate, onNextDo
         </div>
       </div>
 
+      {/* KI-Review Notiz */}
+      {doc.ki_review_notiz && (
+        <div className="mx-4 mt-3 bg-amber-50 border border-amber-200 rounded-lg p-3">
+          <div className="text-sm font-medium text-amber-800">KI-Review Hinweis:</div>
+          <div className="text-sm text-amber-700 mt-1">{doc.ki_review_notiz}</div>
+        </div>
+      )}
+
       {/* Content */}
       <div className="p-4 space-y-4">
         {/* Current Categories - Email-Kategorie only for email sources */}

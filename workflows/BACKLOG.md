@@ -54,6 +54,9 @@
 | G-044 | MITTEL | Pipeline | HEIC→JPEG Konverter vor GPT-Verarbeitung |
 | G-045 | NIEDRIG | Pipeline | Upload-Filter: Min-Dateigröße + Extension-Whitelist |
 | G-046 | NIEDRIG | Kategorien | Neue Kategorie "Kundenunterlage" + .ics-Support in Email-Pipeline |
+| G-047 | MITTEL | Pipeline | Confidence-Score: classify-backtest + process-document + DB-Spalte |
+| G-048 | MITTEL | Monitoring | Drift-Erkennung: Woechentlicher Kategorie-Verteilungs-Check |
+| G-049 | NIEDRIG | Monitoring | Kategorie-spezifische Fehlerrate tracken (pro Kategorie Trefferquote) |
 
 ---
 
@@ -841,3 +844,93 @@ CREATE TABLE document_relations (
 - Rechnung 260092 ←anlage_zu→ AGB + Widerrufsrecht + Zahlungsbedingungen
 - AB von WERU ←gehoert_zu→ Zeichnung + Produktdatenblatt
 - Lieferschein ←gehoert_zu→ Bestellung
+
+---
+
+## [G-047] Confidence-Score fuer Klassifizierung
+**Prio:** MITTEL | **Aufwand:** 3-5 Std
+**Ausloeser:** K-017 Backtest (2026-03-03) - kein Confidence in DB, kein Auto-Confirm moeglich
+
+**Problem:**
+GPT klassifiziert Dokumente, aber wir speichern keinen Confidence-Score. Dadurch:
+- Kein Auto-Confirm bei hoher Sicherheit (alles muss manuell reviewed werden)
+- Keine Smart Review-Queue (unsichere oben, sichere unten)
+- Kein Prompt-Monitoring (Verschlechterung nicht erkennbar)
+- Backtests koennen nicht zwischen sicher/unsicher unterscheiden
+
+**Umsetzung in 3 Schritten:**
+
+**Schritt 1: classify-backtest (ungefaehrlich, kein Prod-System)**
+- GPT-Prompt um `confidence` (0-100) erweitern
+- Response-Schema anpassen: `{kategorie, confidence, begruendung}`
+- Backtest-Ergebnisse enthalten dann Confidence pro Dokument
+- Analyse kann sofort confidence-basiert filtern
+
+**Schritt 2: DB-Spalte anlegen**
+```sql
+ALTER TABLE documents ADD COLUMN kategorie_confidence NUMERIC;
+```
+
+**Schritt 3: process-document (GESCHUETZT - nur mit Andreas-Freigabe)**
+- GPT-Prompt analog erweitern
+- Confidence in DB speichern bei jeder Klassifizierung
+- Review-Tool: Confidence anzeigen, sortierbar machen
+
+**Langfristiger Nutzen:**
+- Auto-Confirm: Confidence > 90% + Agreement → kein Review noetig
+- Smart Queue: Niedrige Confidence → oben in der Review-Liste
+- Prompt-Monitoring: Durchschnittliche Confidence tracken ueber Zeit
+- Backtest-Analyse: Unsichere Faelle gezielt identifizieren
+- Weniger Review-Aufwand fuer Andreas bei gleichbleibender Qualitaet
+
+**Hinweis:** GPT 5.2 hat kein Temperature-Parameter mehr. Confidence muss ueber Prompt-Instruktion ("Bewerte deine Sicherheit 0-100") erhoben werden, nicht ueber Modell-Logprobs.
+
+**Ergaenzung:** `kategorisiert_von` konsequent mit Prompt-Version befuellen (z.B. "process-document-v4.1.0"). Dann kann man per Query die Confidence pro Version vergleichen und sehen ob der Prompt besser oder schlechter wurde.
+
+---
+
+## [G-048] Drift-Erkennung: Kategorie-Verteilungs-Monitoring
+**Prio:** MITTEL | **Aufwand:** 2 Std | **Abhaengigkeit:** Keine
+
+**Problem:** Wenn ein Prompt-Update oder GPT-Modell-Wechsel die Klassifizierung verschlechtert, merken wir das erst beim naechsten manuellen Review - Wochen spaeter.
+
+**Loesung:** pg_cron Job (woechentlich) der die Kategorie-Verteilung der letzten 7 Tage mit den 30 Tagen davor vergleicht.
+
+**Alarm-Logik:**
+```sql
+-- Wenn eine Kategorie >20% Abweichung vom Durchschnitt hat → Warnung
+-- Wenn "Sonstiges_Dokument" > 10% aller neuen Docs → Alarm
+-- Wenn eine Kategorie ploetzlich 0 Docs hat die vorher regelmaessig kam → Warnung
+```
+
+**Ergebnis speichern in:**
+- Neue Tabelle `system_alerts` (typ, nachricht, created_at, resolved_at)
+- Optional: Telegram-Benachrichtigung ueber bestehenden @JS_Fotobot
+
+**Verworfene Alternativen:**
+- Absender-Profil als GPT-Hint: Risiko dass GPT in falsche Richtung gefuehrt wird
+- Dateiname/Groesse als Vorstufe: Gleiche Gefahr, GPT folgt Hint blind statt Inhalt zu lesen
+
+---
+
+## [G-049] Kategorie-spezifische Fehlerrate
+**Prio:** NIEDRIG | **Aufwand:** 1 Std | **Abhaengigkeit:** G-047 (Confidence)
+
+**Problem:** Wir wissen nicht welche Kategorien zuverlaessig klassifiziert werden (99% Rechnung_Eingehend) und welche fehleranfaellig sind (60% Aufmassblatt vs Skizze).
+
+**Loesung:** SQL-View oder materialized View:
+```sql
+SELECT kategorie,
+       COUNT(*) AS total,
+       COUNT(*) FILTER (WHERE review_status = 'corrected' AND kategorie != kategorie_manual) AS fehler,
+       ROUND(100.0 * COUNT(*) FILTER (WHERE review_status = 'corrected' AND kategorie != kategorie_manual) / COUNT(*), 1) AS fehlerrate_pct,
+       AVG(kategorie_confidence) AS avg_confidence
+FROM documents
+GROUP BY kategorie
+ORDER BY fehlerrate_pct DESC
+```
+
+**Nutzen:**
+- Prompt-Optimierung gezielt auf schwache Kategorien fokussieren
+- Review-Aufwand priorisieren (schwache Kategorien zuerst)
+- Zusammen mit G-047 (Confidence): Kategorien mit niedriger Confidence + hoher Fehlerrate = Prompt-Baustelle

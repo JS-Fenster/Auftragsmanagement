@@ -144,6 +144,9 @@
 | [G-037] | 2026-02-27 | KATEG | PROG | Katalog + Preisliste Kategorien + Stats-Bug + Ghost-Bereinigung |
 | [K-014] | 2026-02-27 | KATEG | REVIEW | KI-Review Durchlauf Brief_eingehend (Batch 1 fertig, Batch 2 offen) |
 | [K-015] | 2026-03-03 | KATEG | PROG | Ghost-Storage Cleanup (237 Eintraege) + batch-process-pending v1.2.0 |
+| [K-016] | 2026-03-03 | KATEG | PROG | G-043 Prompt-Optimierung: 299 Fehlmuster analysiert, Top-5 gefixt, 62 Kategorien |
+| [K-017] | 2026-03-03 | KATEG | REVIEW | Full-Backtest 1123 Docs + Daten-Bereinigung (Admin-Review Bug-2 Aufarbeitung) |
+| [K-018] | 2026-03-03 | KATEG | PROG | G-044 HEIC-Support + G-045 Upload-Filter vorbereitet (NICHT deployed) |
 
 ---
 
@@ -5789,6 +5792,141 @@ Dokumente nach KI-Aenderungen zur erneuten Pruefung zu markieren. Ausserdem war 
    - 19 Edge Functions verbleiben (vorher 21)
 
 **Ergebnis:** 0 Ghost-Eintraege in storage.objects, batch-process-pending funktionsfaehig
+
+---
+
+## [K-016] Programmierer: G-043 Prompt-Optimierung aus KI-Review (v4.1.0)
+
+**Datum:** 2026-03-03
+**Ticket:** G-043
+**Aufwand:** ~2h (Analyse + Prompt-Aenderungen + Deploy)
+
+**Analyse-Ergebnis (2 Subagenten parallel):**
+- 510 korrigierte Dokumente, davon 299 echte Umklassifizierungen (58.6%)
+- Upload hatte hoechste Fehlerrate (68.2%), Scanner (59%), Email-Attachments (46.5%)
+
+**Top-5 Fehlmuster + Fixes:**
+
+| # | Fehlmuster | Anzahl | Fix |
+|---|-----------|--------|-----|
+| 1 | Sonstiges/Produktdatenblatt → Bild | 64 | Bild-Erkennung verstaerkt: <50 Zeichen OCR + .jpg → Bild; Foto-Etiketten ≠ Produktdatenblatt |
+| 2 | Skizze → Aufmassblatt | 30 | "Aufmaßblatt" im Header = IMMER Aufmassblatt; Skizze nur fuer freie Handzeichnungen |
+| 3 | Montageauftrag → Serviceauftrag | 14 | Reparatur/Wartung/Service-Pauschale = Serviceauftrag; Neu-Montage = Montageauftrag |
+| 4 | Diverse → Neue Kategorien | 44 | Veranstaltung(13), Foerderantrag(12), Vorlage(6), Versicherung(5) - Prompts bereits da, gestaerkt |
+| 5 | Anfrage_Ausgehend → Anfrage_Eingehend | 7 | Richtungsregel JS-Perspektive deutlich verstaerkt |
+
+**Weitere Fixes:**
+- Kassenbeleg-Split (_Eingehend/_Ausgehend) im Prompt ergaenzt
+- Formular-Regel: Ausgefuellte Formulare → spezifischere Kategorie
+- Outlook-Termin + Montageauftrag → Montageauftrag (statt Sonstiges)
+- Personalunterlagen um BGHW-Unfallanzeigen erweitert
+- 7 neue Few-Shot-Beispiele (19-25)
+
+**Heuristic Rule Fix:**
+- "auftragsnummer", "lieferwoche", "auftragseingang" aus AB_Eingehend Rule entfernt (False-Positive-Quellen)
+
+**Neue Kategorie:**
+- "Kundenunterlage" (G-046): Fremd-Dokumente die Kunden mitbringen (nicht von/an JS)
+- In categories.ts, schema.ts, prompts.ts, DB CHECK Constraint, Frontend constants.js
+
+**Deployed:** process-document v4.1.0 + admin-review (CLI deploy)
+**Commit:** ab2bd40
+
+---
+
+## [K-017] Programmierer: Full-Backtest 1123 Docs + Daten-Bereinigung
+
+**Datum:** 2026-03-03
+**Kontext:** Admin-Review Bug-2 Aufarbeitung - approve-Action hatte kategorie statt kategorie_manual gelesen, dadurch manuelle Korrekturen ueberschrieben.
+
+**Hintergrund (Bug-2 Timeline):**
+- **Bug 1 (2026-02-27):** approve setzte kategorie_manual NICHT → Fix: approve holt kategorie und setzt kategorie_manual
+- **Bug 2 (2026-03-03):** approve las NUR `kategorie` (GPT-Wert), NICHT `kategorie_manual` → ueberschrieb manuelle Korrekturen
+- **Fix 2:** admin-review deployed - approve liest jetzt `kategorie_manual || kategorie`
+- **Konsequenz:** Alle zwischen 02-27 und 03-03 per Approve bestaetigten Docs koennten falsche kategorie_manual haben
+
+**Ansatz: Gruendlicher Full-Backtest**
+1. Alle 1123 Dokumente frisch durch GPT (v4.1.0, 62 Kategorien) klassifizieren
+2. Vergleich: GPT-Neu vs. aktuelle DB (kategorie_manual || kategorie)
+3. Umfassendes Flagging fuer Review:
+   - Alle Disagreements (GPT-Neu != DB)
+   - Alle ~141 Bug-2-Kandidaten (kategorie = kategorie_manual, potentiell ueberschrieben)
+   - Fehleranfaellige Kategorien zusaetzlich pruefen
+4. Gruppierter Review fuer Andreas (nach Kategorie sortiert)
+5. Nach sauberem Review: Prompt-Optimierung mit echter Ground Truth
+
+**Backtest-Script:** `C:/tmp/backtest_full.sh` (classify-backtest Edge Function, 10er Batches, 113 Batches)
+**Analyse-Script:** `C:/tmp/analyze_backtest_thorough.py`
+**Ergebnisse:** `C:/tmp/backtest_full_results/` (batch_0.json - batch_112.json)
+
+**Backtest-Ergebnis (113/113 Batches, 0 Fehler, ~100 Min):**
+- **Agreements:** 1043 (92.9%) - GPT-Neu stimmt mit DB ueberein
+- **Disagreements:** 80 (7.1%) - GPT-Neu weicht ab
+- **Top-Disagreement:** Montageauftrag → Serviceauftrag (23x)
+- **Disagreement-Datei:** `C:/tmp/backtest_disagreements.json`
+
+**DB-Analyse (Review-Status-Verteilung):**
+- approved: 1129 (168 mit manual, davon 127 manual=GPT, 41 manual≠GPT)
+- corrected: 420 (212 manual=GPT [aus K-009 Bulk], 208 manual≠GPT)
+- pending: 93
+
+**Flagging (208 Docs auf KI-Review gesetzt):**
+1. **127 Bug-2-Kandidaten:** approved + kategorie_manual = kategorie (moeglicherweise durch Bug ueberschrieben)
+   → review_status='pending', ki_review_notiz="K-017 Bug-2: kategorie_manual moeglicherweise durch approve-Bug ueberschrieben"
+2. **41 Korrektur-Check:** approved + kategorie_manual ≠ kategorie (echte Korrekturen, GPT-Neu weicht ab)
+   → review_status='pending', ki_review_notiz="K-017 Korrektur-Check: Korrektur erhalten, aber GPT-Neu weicht ab"
+3. **40 Backtest-Disagreements:** corrected/pending Docs wo GPT-Neu ≠ DB (ohne Overlap mit Gruppe 1+2)
+   → review_status='pending', ki_review_notiz mit konkretem GPT-Neu-Vorschlag
+- **Overlap:** 40 von 41 Korrektur-Check-Docs sind auch Disagreements (3-Wege-Abweichung)
+
+**Neue Backlog-Items erstellt:**
+- G-047: Confidence-Score in classify-backtest + process-document + DB-Spalte
+- G-048: Drift-Erkennung (woechentlicher Kategorie-Verteilungs-Check)
+- G-049: Kategorie-spezifische Fehlerrate tracken
+
+**Checkliste:**
+- [x] Backtest abgeschlossen (113/113, 0 Fehler)
+- [x] Analyse: 1043 Agreements, 80 Disagreements
+- [x] Flagging: 208 Docs in DB auf KI-Review gesetzt
+- [ ] Andreas reviewed die 208 Docs im Review-Tool
+- [ ] Prompt-Optimierung mit sauberer Ground Truth
+
+---
+
+## [K-018] Programmierer: G-044 HEIC-Support + G-045 Upload-Filter
+
+**Datum:** 2026-03-03
+**Status:** VORBEREITET - NICHT DEPLOYED (process-document ist geschuetzt)
+**Betrifft:** process-document v37 → v38
+
+### G-045: Upload-Filter (VOR der Pipeline)
+- **validateUpload()** in `utils.ts`: Prueft Extension + Mindestgroesse
+- Unbekannte Extensions → HTTP 400 Ablehnung
+- Bilder < 5KB → Auto-Kategorie "Bild" (kein OCR/GPT-Kosten)
+- Erlaubte Extensions: pdf, png, jpg, jpeg, gif, webp, tif, tiff, bmp, heic, heif, docx, xlsx, xls, mp4, mov, etc.
+
+### G-044: HEIC/HEIF-Unterstuetzung (3-stufiger Ansatz)
+- **Ansatz:** Mistral OCR Versuch + Fallback auf "Bild"
+- HEIC/HEIF in `OCR_SUPPORTED_EXTENSIONS` aufgenommen
+- `isImage()`, `getMimeType()`, `detectFileType()` erweitert
+- Falls Mistral HEIC kann: Volle Pipeline (OCR + GPT)
+- Falls Mistral fehlschlaegt: Sauberer Fallback auf Kategorie "Bild"
+- **Kein WASM-Konverter** (zu riskant fuer Edge Functions Memory)
+
+### Recherche-Ergebnisse
+- GPT Vision API: HEIC **NICHT** unterstuetzt (nur JPEG, PNG, GIF, WEBP)
+- Mistral OCR: HEIC **moeglicherweise** unterstuetzt (LibreChat listet es, offizielle Docs sagen "and more...")
+- WASM (heic-convert, libheif): Funktioniert in Deno, aber riskant fuer Edge Functions (Memory-Limits, Cold Start)
+
+### Dateien
+- `supabase/functions/process-document/CHANGES_G044_G045.md` - Vollstaendige Aenderungsdoku
+- Betroffene Dateien: `index.ts`, `utils.ts`, `extraction.ts`
+
+### Deploy-Checkliste
+- [ ] Aenderungen in Dateien umsetzen
+- [ ] Lokal testen (PDF, Mini-PNG, .xyz, HEIC)
+- [ ] Freigabe von Andreas
+- [ ] Deploy + Health-Check + Monitoring
 
 ---
 

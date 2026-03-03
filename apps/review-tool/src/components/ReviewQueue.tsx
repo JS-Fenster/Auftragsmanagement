@@ -212,8 +212,8 @@ export function ReviewQueue({
                     </div>
                     {doc.ki_review_notiz && (
                       <div
-                        className="mt-0.5 text-xs text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded truncate"
-                        style={{ maxWidth: '280px' }}
+                        className="mt-0.5 text-xs text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded"
+                        style={{ maxWidth: '400px' }}
                         title={doc.ki_review_notiz}
                       >
                         {doc.ki_review_notiz}

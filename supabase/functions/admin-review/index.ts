@@ -332,13 +332,14 @@ async function updateLabel(documentId: string, body: LabelUpdateBody) {
 
   if (action === "approve") {
     // Bug-Fix: Bei approve die aktuelle Kategorie als manuell bestaetigt setzen
-    const doc = await supabase.from("documents").select("kategorie, email_kategorie").eq("id", documentId).single();
+    // Wichtig: kategorie_manual hat Vorrang (bereits korrigiert), sonst GPT-Wert
+    const doc = await supabase.from("documents").select("kategorie, kategorie_manual, email_kategorie, email_kategorie_manual").eq("id", documentId).single();
     if (doc.data) {
-      if (doc.data.kategorie) {
-        updateData.kategorie_manual = doc.data.kategorie;
+      if (doc.data.kategorie_manual || doc.data.kategorie) {
+        updateData.kategorie_manual = doc.data.kategorie_manual || doc.data.kategorie;
       }
-      if (doc.data.email_kategorie) {
-        updateData.email_kategorie_manual = doc.data.email_kategorie;
+      if (doc.data.email_kategorie_manual || doc.data.email_kategorie) {
+        updateData.email_kategorie_manual = doc.data.email_kategorie_manual || doc.data.email_kategorie;
       }
     }
   } else if (action === "correct") {
