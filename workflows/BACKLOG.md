@@ -57,7 +57,7 @@
 | G-047 | MITTEL | Pipeline | Confidence-Score: classify-backtest + process-document + DB-Spalte |
 | G-048 | MITTEL | Monitoring | Drift-Erkennung: Woechentlicher Kategorie-Verteilungs-Check |
 | G-049 | NIEDRIG | Monitoring | Kategorie-spezifische Fehlerrate tracken (pro Kategorie Trefferquote) |
-| G-050 | HOCH | Pipeline | GPT-Input verbessern: Strukturiertes JSON statt blanker OCR-Text |
+| G-050 | MITTEL | Pipeline | GPT-Input verbessern: Strukturiertes Metadaten-JSON (json_schema ERLEDIGT in v39) |
 
 ---
 
@@ -65,36 +65,19 @@
 
 ---
 
-## [G-050] GPT-Input verbessern: Strukturiertes JSON statt blanker OCR-Text
-**Prio:** HOCH | **Aufwand:** 4-8 Std | **Voraussetzung:** K-020 stabil
+## [G-050] GPT-Input verbessern: Strukturiertes Metadaten-JSON
+**Prio:** MITTEL | **Aufwand:** 2-4 Std | **Voraussetzung:** v39 stabil
 
-**Erkenntnis (2026-03-05, K-020 Analyse):**
-GPT bekommt aktuell NUR den blanken Mistral-OCR-Markdown-Dump + Dateinamen.
-Kein Bild, keine Metadaten, kein strukturierter Kontext. Das fuehrt zu:
-- GPT muss selbst Struktur erkennen (Tabellen, Header, Formulare)
-- Keine Bildinformation (Fotos, Skizzen, handschriftliche Notizen)
-- Kein Kontext (Dateiquelle: Scanner/Email, Groesse, Seitenzahl)
+**Hebel 2 ERLEDIGT (v39, Deploy 65, 2026-03-05):**
+- json_schema strict mit Enum-Constraint in process-document aktiviert
+- Backtest: 89% (json_schema) vs 56% (json_object) bei 9 Montageauftrag-Docs
+- Montageauftrag-Header-Regel: Formular-Header schlaegt Einzelpositionen im Body
+- prompts.ts v4.3.0 deployed
 
-**Zwei Hebel:**
-1. **Strukturiertes JSON statt blanker Text:**
-   - `{ "dateiname": "...", "quelle": "scanner|email", "ocr_text": "...", "seitenzahl": N, "dateigroesse_kb": N }`
-   - GPT kann Metadaten fuer bessere Entscheidungen nutzen
-2. **json_schema statt json_object im GPT-Call:**
-   - classify-backtest nutzt json_schema (strict) und erreicht 89% (vs 56% mit json_object)
-   - Enum-Constraint verhindert Sonstiges_Dokument-Fallback bei gueltigem Dokument
-   - EXTRACTION_SCHEMA existiert in schema.ts, ist aber seit v32 deaktiviert
-
-**Backtest-Ergebnis (9 identische Montageauftrag-Docs):**
-| Methode | Korrekt | Quote |
-|---------|---------|-------|
-| v37 process-doc (json_object, kein reasoning) | 5/9 | 56% |
-| Backtest (json_schema strict, v4.1.0 prompt) | 8/9 | 89% |
-| Einziger Fehler: 4029cd7d hat "Reparatur" im Body, Header sagt "Montageauftrag" |
-
-**Naechste Schritte:**
-1. json_schema mit Enum in process-document aktivieren (EXTRACTION_SCHEMA erweitern)
-2. Strukturiertes Metadaten-JSON an GPT liefern
-3. Optional: Bilder mitliefern (GPT Vision) fuer Foto/Skizze-Erkennung
+**Verbleibender Hebel 1: Strukturiertes Metadaten-JSON**
+- `{ "dateiname": "...", "quelle": "scanner|email", "ocr_text": "...", "seitenzahl": N, "dateigroesse_kb": N }`
+- GPT kann Metadaten fuer bessere Entscheidungen nutzen
+- Optional: Bilder mitliefern (GPT Vision) fuer Foto/Skizze-Erkennung
 
 ---
 

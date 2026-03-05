@@ -6111,7 +6111,16 @@ classify-backtest nutzt `json_schema` (strict mit Enum), process-document v37 nu
 
 **Neues Backlog-Item:** G-050 (json_schema + strukturiertes JSON-Input)
 
-**Status: DEPLOYED** (Monitoring laeuft)
+### v39 Deploy + Health-Check (Deploy 65)
+
+- **Deployed:** process-document v39 via `supabase functions deploy` (CLI)
+- **Health-Check bestaetigt:** Version 39.0.0, responseFormat: `json_schema_strict`, reasoningEffort: `low`
+- **Alle APIs OK:** Mistral, OpenAI, Supabase, internalApiKey konfiguriert
+- **Git Tag:** `process-document-v39-stable` erstellt
+- **CLAUDE.md:** v39 als STABIL markiert
+- **G-050 teilweise erledigt:** json_schema Hebel deployed, Metadaten-JSON verbleibt als MITTEL-Prio
+
+**Status: v39 STABIL + DEPLOYED** (Monitoring laeuft)
 
 ---
 
