@@ -4,7 +4,7 @@
 // =============================================================================
 
 // Supported file types for OCR (Mistral)
-export const OCR_SUPPORTED_EXTENSIONS = ["pdf", "png", "jpg", "jpeg", "gif", "webp", "tif", "tiff", "bmp"];
+export const OCR_SUPPORTED_EXTENSIONS = ["pdf", "png", "jpg", "jpeg", "gif", "webp", "tif", "tiff", "bmp", "heic", "heif"];
 
 // Office file types with native text extraction
 export const OFFICE_EXTENSIONS = ["docx", "xlsx", "xls"];
@@ -36,6 +36,8 @@ export function getMimeType(fileName: string): string {
     xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     zip: "application/zip",
     rar: "application/x-rar-compressed",
+    heic: "image/heic",
+    heif: "image/heif",
   };
   return mimeTypes[ext] || "application/octet-stream";
 }
@@ -100,6 +102,11 @@ export function detectFileType(buffer: ArrayBuffer): { type: string; isOfficeDoc
     return { type: "ole", isOfficeDoc: true };
   }
 
+  // HEIC/HEIF: ISO Base Media File Format - "ftyp" at offset 4
+  if (bytes.length >= 8 && bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70) {
+    return { type: "heic", isOfficeDoc: false };
+  }
+
   return { type: "unknown", isOfficeDoc: false };
 }
 
@@ -112,6 +119,7 @@ export function getMediaCategory(fileName: string): string {
   if (["mp3", "wav", "ogg", "m4a"].includes(ext)) return "Audio";
   if (["doc", "docx", "xls", "xlsx", "ppt", "pptx"].includes(ext)) return "Office_Dokument";
   if (["zip", "rar", "7z", "tar", "gz"].includes(ext)) return "Archiv";
+  if (["heic", "heif"].includes(ext)) return "Bild";  // G-044: HEIC als Bild wenn OCR fehlschlaegt
   return "Sonstiges_Dokument";
 }
 
@@ -201,4 +209,77 @@ export function createApiKeyValidator(
   scannerApiKey: string | undefined | null
 ): (req: Request) => ApiKeyValidationResult {
   return (req: Request) => validateApiKey(req, internalApiKey, scannerApiKey);
+}
+
+// =============================================================================
+// G-045: Upload-Filter - Extension + Mindestgroesse Validierung
+// =============================================================================
+
+/**
+ * Erlaubte Datei-Extensions fuer den Upload
+ * Umfasst OCR-faehige, Office- und Medien-Formate
+ */
+const ALLOWED_EXTENSIONS = [
+  // OCR-faehig (Mistral)
+  "pdf", "png", "jpg", "jpeg", "gif", "webp", "tif", "tiff", "bmp",
+  // HEIC/HEIF (G-044: Mistral-OCR-Versuch + Fallback)
+  "heic", "heif",
+  // Office (native Text-Extraktion)
+  "docx", "xlsx", "xls",
+  // Medien (werden als Media-Kategorie gespeichert)
+  "mp4", "mov", "avi", "mkv", "webm",
+  "mp3", "wav", "ogg", "m4a",
+  "doc", "ppt", "pptx",
+  "zip", "rar", "7z", "tar", "gz",
+];
+
+/**
+ * Mindestgroesse in Bytes - darunter wahrscheinlich Icon/Thumbnail/QR-Code
+ */
+const MIN_FILE_SIZE_BYTES = 5 * 1024; // 5 KB
+
+/**
+ * Bild-Extensions fuer Mindestgroessen-Check
+ * (nur Bilder werden auf Mindestgroesse geprueft, nicht PDFs/Office)
+ */
+const IMAGE_EXTENSIONS_FOR_SIZE_CHECK = [
+  "png", "jpg", "jpeg", "gif", "bmp", "webp", "heic", "heif",
+];
+
+export interface UploadValidationResult {
+  valid: boolean;
+  reason?: string;
+  autoKategorie?: string;
+  skipProcessing?: boolean;
+}
+
+/**
+ * G-045: Validiert einen Upload VOR der Verarbeitung.
+ *
+ * Prueft:
+ * 1. Extension erlaubt?
+ * 2. Bild zu klein? (< 5KB -> auto-"Bild", kein GPT)
+ */
+export function validateUpload(fileName: string, fileSize: number): UploadValidationResult {
+  const ext = fileName.split(".").pop()?.toLowerCase() || "";
+
+  // Check 1: Extension erlaubt?
+  if (!ALLOWED_EXTENSIONS.includes(ext)) {
+    return {
+      valid: false,
+      reason: `Extension .${ext} nicht unterstuetzt. Erlaubt: ${ALLOWED_EXTENSIONS.join(", ")}`
+    };
+  }
+
+  // Check 2: Bild zu klein? (Icons, QR-Codes, Thumbnails)
+  if (IMAGE_EXTENSIONS_FOR_SIZE_CHECK.includes(ext) && fileSize < MIN_FILE_SIZE_BYTES) {
+    return {
+      valid: true,
+      autoKategorie: "Bild",
+      skipProcessing: true,
+      reason: `Bild unter ${MIN_FILE_SIZE_BYTES / 1024} KB - automatisch als Bild kategorisiert`
+    };
+  }
+
+  return { valid: true };
 }

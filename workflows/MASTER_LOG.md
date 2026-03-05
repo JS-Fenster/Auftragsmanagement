@@ -147,6 +147,8 @@
 | [K-016] | 2026-03-03 | KATEG | PROG | G-043 Prompt-Optimierung: 299 Fehlmuster analysiert, Top-5 gefixt, 62 Kategorien |
 | [K-017] | 2026-03-03 | KATEG | REVIEW | Full-Backtest 1123 Docs + Daten-Bereinigung (Admin-Review Bug-2 Aufarbeitung) |
 | [K-018] | 2026-03-03 | KATEG | PROG | G-044 HEIC-Support + G-045 Upload-Filter vorbereitet (NICHT deployed) |
+| [K-019] | 2026-03-03 | KATEG | PL | G-031 Kategorien-Bereinigung Notiz + Anfrage_Eingehend - ABGESCHLOSSEN |
+| [K-020] | 2026-03-05 | KATEG | PROG | process-document v38: 3 Bugfixes + G-044 + G-045 deployed |
 
 ---
 
@@ -6012,12 +6014,87 @@ Dokumente nach KI-Aenderungen zur erneuten Pruefung zu markieren. Ausserdem war 
 - Handschrift-Toleranz: "OCR-Text kann fehlerhaft sein, interpretiere den Kontext"
 - Aktionsextraktion als zusaetzliches Feld im Schema
 
-### Naechste Schritte
-- [ ] Anfrage_Eingehend (51 Docs) pruefen (morgen)
-- [ ] Neue Kategorie "Kundennotiz" anlegen (DB, Edge Functions, Frontend)
-- [ ] 32+ Docs umkategorisieren
-- [ ] Prompt-Optimierung mit neuen Erkennungsregeln
-- [ ] Backtest
+### Phase 3: Anfrage_Eingehend Review (2026-03-05, 51 Docs)
+
+**Kern-Erkenntnis:** Zweck > Format. GPT kategorisiert nach Dokumentformat (Bauplan, Skizze, Aufmassblatt), aber die richtige Kategorie ergibt sich aus dem ZWECK/KONTEXT. Ein Bauplan mit Anfragenotizen ist eine Anfrage_Eingehend, keine Bauplan.
+
+**Ergebnis 51 Docs:**
+- 49 bleiben Anfrage_Eingehend (bestaetigt)
+- 2 auf Bestellung_Eingehend geaendert (Nr 30 + 51, WEG Pfarrer-Drexler Rollladen)
+- 2 unklar (Nr 17 Adressvermerk, Nr 29 WhatsApp-Bild) → bleiben Anfrage_Eingehend
+
+### Phase 4: Kundennotiz-Kategorie GESTRICHEN (2026-03-05)
+
+**Entscheidung:** Kategorie "Kundennotiz" wird NICHT angelegt.
+- Grund: Beschreibt nur das Traegermedium (handschriftliches Formular), nicht den Zweck
+- Alle 34 ex-"Kundennotiz"-Docs → **Anfrage_Eingehend** (20 Docs geaendert, 9 waren schon korrekt, 5 ohne Header)
+- 12 interne Notizen bleiben **Notiz**
+- Fuer spaetere Workflows zaehlt der Aktionstyp (Angebot/Reparatur/Ersatzteil), nicht das Papierformat
+
+### Weitere Fixes (2026-03-05)
+- 5 Uploads mit falschem email_kategorie_manual = 'Rechnung_Ausgehend' auf NULL gefixt (Bug-2 Artefakt)
+- 1 .lnk-Datei (Windows-Verknuepfung) aus DB geloescht (versehentlich gescannt)
+- G-031 Backlog aktualisiert: Kundennotiz gestrichen, Prompt-Erkenntnisse dokumentiert
+- G-045 Backlog: .lnk als konkreten Fall ergaenzt
+
+### Offene Prompt-Optimierung (→ G-031)
+- 9 Referenz-Doc-IDs im Backlog fuer Prompt-Verfeinerung dokumentiert
+- GPT muss lernen: Zweck > Format (Bauplan mit Notizen = Anfrage, nicht Bauplan)
+- Typische Signale: Handschriftl. Ergaenzungen, Kundennamen, "inkl. Lieferung", Positionen
+
+**Status: ABGESCHLOSSEN** (Prompt-Optimierung als separates TODO in G-031)
+
+---
+
+## [K-020] Programmierer: process-document v38 - Bugfixes + G-044 + G-045
+**Datum:** 2026-03-05
+**Anlass:** Andreas meldete, dass viele Scanner-Docs vom 05.03. falsch kategorisiert wurden (49% Sonstiges_Dokument)
+
+### Root-Cause-Analyse
+
+**Problem 1: Inkonsistente Kategorisierung (49% Sonstiges_Dokument bei Scanner-Docs)**
+- Identische Montageauftrag-Formate wurden zufaellig mal richtig, mal als Sonstiges kategorisiert
+- GPT-5-mini lief OHNE `reasoning.effort` Parameter (Default-Verhalten = inkonsistent)
+- GPT-5 Modelle unterstuetzen kein `temperature` mehr → `reasoning: { effort: "low" }` ist der Ersatz
+- Sonstiges-Rate stieg von ~5% (Jan-Feb) auf 49% (diese Woche)
+
+**Problem 2: NULL inhalt_zusammenfassung bei ALLEN Scanner-Docs seit Feb 16**
+- Summary-Rate fiel von 98-100% (Jan) auf 0% (ab Feb 16)
+- Ursache: Felder `inhalt_zusammenfassung`, `betreff`, `bemerkungen`, `dringlichkeit` waren in `schema.ts` definiert, aber NICHT in den EXTRAKTIONSREGELN des Prompts erwaehnt
+- Da `json_object` (nicht `json_schema`) verwendet wird, hatte GPT keine Anweisung diese Felder zu liefern
+
+**Problem 3: Keine Kategorie-Validierung**
+- `isValidDokumentKategorie()` existierte in `categories.ts`, wurde aber nie aufgerufen
+- GPT konnte beliebige Strings als Kategorie zurueckgeben
+
+### Fixes (process-document v38)
+
+1. **reasoning.effort "low"** in `categorizeAndExtract()` → konsistentere GPT-Antworten
+2. **Fehlende Felder in EXTRAKTIONSREGELN** (prompts.ts v4.2.0): inhalt_zusammenfassung, betreff, bemerkungen, dringlichkeit, liefertermin, mahnung
+3. **Kategorie-Validierung** nach `canonicalizeKategorie()` → Fallback Sonstiges_Dokument + Warn-Log
+
+### G-044 HEIC-Support (bundled)
+- HEIC/HEIF in `OCR_SUPPORTED_EXTENSIONS`, `getMimeType()`, `isImage()`, `detectFileType()`
+- Mistral OCR wird mit HEIC gefuettert (koennte funktionieren)
+- Fallback: Als "Bild" kategorisieren wenn OCR fehlschlaegt
+- Kein WASM-Konverter (zu riskant fuer Edge Functions Memory)
+
+### G-045 Upload-Filter (bundled)
+- Extension-Whitelist: Unbekannte Extensions → HTTP 400
+- Bilder < 5KB → automatisch "Bild" (kein OCR/GPT-Kosten)
+- .lnk, .exe, .bat etc. werden abgelehnt
+
+### Deploy
+- **Version:** 38.0.0 (Deploy 63)
+- **Deployed:** 2026-03-05 per Supabase CLI
+- **Dateien:** index.ts, prompts.ts (v4.2.0), utils.ts, extraction.ts, schema.ts, categories.ts, budget-prompts.ts
+
+### Heutiger Stand Scanner-Docs (25 Docs vom 05.03.)
+- 12 richtig kategorisiert (GPT = Manual)
+- 13 falsch (davon 11x Sonstiges_Dokument für klar erkennbare Docs)
+- Alle von Andreas manuell korrigiert
+
+**Status: DEPLOYED** (Monitoring laeuft)
 
 ---
 

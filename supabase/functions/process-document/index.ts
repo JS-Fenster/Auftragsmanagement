@@ -1,7 +1,20 @@
 // =============================================================================
 // Process Document - OCR + GPT Kategorisierung
-// Version: 37 - 2026-02-23 (Prompt-Fixes: eBay Packzettel, Arbeitsvertraege)
+// Version: 38 - 2026-03-05 (K-020 Bugfixes + G-044 HEIC + G-045 Upload-Filter)
 // =============================================================================
+// Aenderungen v38 (K-020 + G-044 + G-045):
+// - K-020 FIX: reasoning.effort "low" fuer GPT-5-mini (konsistentere Kategorisierung)
+// - K-020 FIX: Fehlende Felder in Prompt EXTRAKTIONSREGELN (inhalt_zusammenfassung, betreff, etc.)
+// - K-020 FIX: Kategorie-Validierung nach canonicalizeKategorie() (isValidDokumentKategorie)
+// - G-045: Upload-Filter VOR der Pipeline (Extension-Whitelist + Mindestgroesse)
+//   - Unbekannte Extensions werden abgelehnt (HTTP 400)
+//   - Bilder < 5KB werden automatisch als "Bild" kategorisiert (kein OCR/GPT)
+// - G-044: HEIC/HEIF Unterstuetzung
+//   - HEIC/HEIF in erlaubte Extensions aufgenommen
+//   - Mistral OCR wird damit gefuettert (unterstuetzt moeglicherweise HEIC)
+//   - Falls OCR fehlschlaegt: Sauberer Fallback auf Kategorie "Bild"
+//   - detectFileType() erkennt HEIC Magic Bytes
+//
 // Aenderungen v37:
 // - Prompt v2.3.0: eBay Packzettel OHNE Preise → Eingangslieferschein
 // - Prompt v2.3.0: Arbeitsvertraege/Aenderungsvertraege → Personalunterlagen (nicht Vertrag)
@@ -121,7 +134,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { SYSTEM_PROMPT } from "./prompts.ts";
-import { canonicalizeKategorie } from "../_shared/categories.ts";
+import { canonicalizeKategorie, isValidDokumentKategorie } from "../_shared/categories.ts";
 import {
   calculateHash,
   calculateTextHash,
@@ -144,6 +157,7 @@ import {
   getMediaCategory,
   sanitizeFileName,
   createApiKeyValidator,
+  validateUpload,
 } from "./utils.ts";
 import {
   BUDGET_EXTRACTION_PROMPT,
@@ -182,7 +196,7 @@ const COMPRESSION_CONFIG = {
 };
 
 // Bildformate die komprimiert werden koennen
-const COMPRESSIBLE_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "bmp", "tiff", "tif"];
+const COMPRESSIBLE_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "bmp", "tiff", "tif", "heic", "heif"];
 
 /**
  * v24: Komprimiert ein Bild wenn es groesser als der Schwellwert ist.
@@ -289,7 +303,7 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         service: "process-document",
-        version: "37.0.0",
+        version: "38.0.0",
         status: "ready",
         configured: {
           mistral: !!MISTRAL_API_KEY,
@@ -300,6 +314,7 @@ Deno.serve(async (req: Request) => {
         supportedFormats: {
           ocr: OCR_SUPPORTED_EXTENSIONS,
           office: OFFICE_EXTENSIONS,
+          heic: ["heic", "heif"],  // G-044: Versucht OCR, Fallback auf Bild
         },
         compression: {
           enabled: COMPRESSION_CONFIG.enabled,
@@ -311,6 +326,9 @@ Deno.serve(async (req: Request) => {
           updateMode: true,  // v25: Email attachment update mode
           budgetExtraction: true,  // v31: GPT-basierte Budget-Extraktion fuer Aufmassblaetter
           budgetExtractionModel: "gpt-5.2",  // v31: GPT-5.2 fuer Budget-Extraktion
+          uploadFilter: true,  // G-045: Extension + Mindestgroesse Validierung
+          heicSupport: "ocr-attempt-with-fallback",  // G-044: Mistral OCR Versuch, Bild-Fallback
+          reasoningEffort: "low",  // K-020: GPT-5-mini reasoning effort
         },
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
@@ -353,6 +371,94 @@ Deno.serve(async (req: Request) => {
         status: 400,
         headers: { "Content-Type": "application/json" },
       });
+    }
+
+    // ========================================================================
+    // G-045: Upload-Filter - Extension + Mindestgroesse
+    // ========================================================================
+    if (!isUpdateMode) {
+      const uploadValidation = validateUpload(file.name, file.size);
+
+      if (!uploadValidation.valid) {
+        console.log(`[UPLOAD-FILTER] Abgelehnt: ${file.name} - ${uploadValidation.reason}`);
+        return new Response(JSON.stringify({
+          error: uploadValidation.reason,
+          rejected: true,
+          fileName: file.name,
+          fileSize: file.size,
+        }), {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      // G-045: Mini-Bilder automatisch als "Bild" kategorisieren (kein OCR/GPT)
+      if (uploadValidation.skipProcessing && uploadValidation.autoKategorie) {
+        console.log(`[UPLOAD-FILTER] Auto-Kategorie: ${file.name} -> ${uploadValidation.autoKategorie} (${uploadValidation.reason})`);
+
+        const autoFileBuffer = await file.arrayBuffer();
+        const autoFileHash = await calculateHash(autoFileBuffer);
+        const autoMimeType = getMimeType(file.name);
+
+        // Upload to Storage
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+        const safeFileName = sanitizeFileName(file.name);
+        const storagePath = `${uploadValidation.autoKategorie}/${timestamp}_${safeFileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("documents")
+          .upload(storagePath, autoFileBuffer, {
+            contentType: autoMimeType,
+            upsert: false,
+          });
+
+        if (uploadError) {
+          throw new Error(`Storage upload failed: ${uploadError.message}`);
+        }
+
+        const now = new Date().toISOString();
+        const { data: insertData, error: insertError } = await supabase
+          .from("documents")
+          .insert({
+            kategorie: uploadValidation.autoKategorie,
+            dokument_url: storagePath,
+            ocr_text: null,
+            extraktions_zeitstempel: now,
+            extraktions_qualitaet: "keine",
+            extraktions_hinweise: [
+              uploadValidation.reason || "Auto-kategorisiert",
+              `Original: ${file.name}`,
+              `Groesse: ${(file.size / 1024).toFixed(1)} KB`,
+            ],
+            file_hash: autoFileHash,
+            text_hash: null,
+            bemerkungen: `Mini-Bild: ${file.name}`,
+            source: "scanner",
+            processing_status: "done",
+            processed_at: now,
+            kategorisiert_von: "upload-filter",
+          })
+          .select("id")
+          .single();
+
+        if (insertError) {
+          throw new Error(`Database insert failed: ${insertError.message}`);
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          id: insertData.id,
+          kategorie: uploadValidation.autoKategorie,
+          dokument_url: storagePath,
+          extraktions_qualitaet: "keine",
+          file_hash: autoFileHash,
+          message: uploadValidation.reason,
+          kategorisiert_von: "upload-filter",
+        }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
     }
 
     const fileExt = file.name.split(".").pop()?.toLowerCase() || "";
@@ -1000,6 +1106,9 @@ async function categorizeAndExtract(ocrText: string, fileName: string): Promise<
       ],
       // v32: json_object statt json_schema (GPT-5 mini Kompatibilitaet)
       response_format: { type: "json_object" },
+      // v38/K-020: Reasoning effort fuer konsistentere Kategorisierung
+      // GPT-5 Modelle unterstuetzen kein temperature - stattdessen reasoning.effort
+      reasoning: { effort: "low" },
     }),
   });
 
@@ -1038,7 +1147,13 @@ function buildDatabaseRecord(
   kategorisiertVon: string = "gpt"  // v26: Parameter hinzugefuegt
 ): Record<string, unknown> {
   // v21: Canonicalize kategorie (alias mapping)
-  const kategorie = canonicalizeKategorie(extracted.kategorie) || extracted.kategorie;
+  let kategorie = canonicalizeKategorie(extracted.kategorie) || extracted.kategorie;
+
+  // v38/K-020: Validate category against known enum
+  if (!isValidDokumentKategorie(kategorie)) {
+    console.warn(`[GPT-VALIDATION] Invalid kategorie '${kategorie}' after canonicalization - falling back to Sonstiges_Dokument`);
+    kategorie = "Sonstiges_Dokument";
+  }
 
   // v20: Business-Logik fuer unterschrift_erforderlich
   const unterschriftErforderlich = UNTERSCHRIFT_ERFORDERLICH_KATEGORIEN.includes(kategorie);

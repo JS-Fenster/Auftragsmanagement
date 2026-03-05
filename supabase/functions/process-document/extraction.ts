@@ -46,7 +46,7 @@ export async function calculateTextHash(text: string): Promise<string> {
  */
 export function isImage(fileName: string): boolean {
   const ext = fileName.split(".").pop()?.toLowerCase() || "";
-  return ["png", "jpg", "jpeg", "gif", "webp", "tif", "tiff", "bmp"].includes(ext);
+  return ["png", "jpg", "jpeg", "gif", "webp", "tif", "tiff", "bmp", "heic", "heif"].includes(ext);
 }
 
 // =============================================================================

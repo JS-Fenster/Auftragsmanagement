@@ -51,8 +51,8 @@
 | G-041 | HOCH | Workflow | Notiz→Workflow Pipeline (Reparatur, Termin, Angebot aus Notizen) |
 | G-042 | MITTEL | Prozess | Handschriftliche Eingaenge: Formulare fuer GPT/Workflows optimieren |
 | G-043 | HOCH | Pipeline | Prompt-Optimierung aus KI-Review-Erkenntnissen (Feedback-Loop) |
-| G-044 | MITTEL | Pipeline | HEIC→JPEG Konverter vor GPT-Verarbeitung |
-| G-045 | NIEDRIG | Pipeline | Upload-Filter: Min-Dateigröße + Extension-Whitelist |
+| ~~G-044~~ | ~~ERLEDIGT~~ | ~~Pipeline~~ | ~~HEIC-Support (v38, deployed 2026-03-05)~~ |
+| ~~G-045~~ | ~~ERLEDIGT~~ | ~~Pipeline~~ | ~~Upload-Filter (v38, deployed 2026-03-05)~~ |
 | G-046 | NIEDRIG | Kategorien | Neue Kategorie "Kundenunterlage" + .ics-Support in Email-Pipeline |
 | G-047 | MITTEL | Pipeline | Confidence-Score: classify-backtest + process-document + DB-Spalte |
 | G-048 | MITTEL | Monitoring | Drift-Erkennung: Woechentlicher Kategorie-Verteilungs-Check |
@@ -599,16 +599,33 @@ Nach dem Review-Durchlauf pruefen: Welche Kategorien sind zu allgemein und sollt
 
 **Konkrete Kandidaten (2026-03-03):**
 
-1. **"Notiz" → "Kundennotiz" (NEU) + Rest**
-   - Ausstellungskunden-Formulare (2-20/Woche, 300-800/Jahr) sind aktuell "Notiz"
-   - Neue Kategorie "Kundennotiz" fuer handschriftliche Kundenformulare die Workflows ausloesen
-   - Restliche Notizen (Post-its, Telefonnotizen, interne Zettel) bleiben "Notiz"
-   - Alle bestehenden "Notiz"-Docs muessen nochmal geprueft und ggf. umkategorisiert werden
-   - Voraussetzung fuer G-041 (Notiz→Workflow Pipeline)
+1. **~~"Notiz" → "Kundennotiz" (NEU)~~ GESTRICHEN (2026-03-05)**
+   - Erkenntnis K-019: Zweck > Format. "Kundennotiz" beschreibt nur das Traegermedium (Formular), nicht den Zweck
+   - Alle 34 ex-"Kundennotiz"-Docs sind jetzt **Anfrage_Eingehend** (Kunde will Angebot/Reparatur/Ersatzteil)
+   - 12 interne Notizen (Telefonnotizen, Auftragsvermerke) bleiben **Notiz**
+   - Fuer Workflows zaehlt der Aktionstyp, nicht das Papierformat
 
-2. **"Anfrage_Eingehend" pruefen**
-   - Moeglicherweise heterogen: Kundenanfragen, Angebotsanfragen, Reparaturanfragen
-   - Nach Review pruefen ob Split sinnvoll (z.B. Reparaturanfrage, Preisanfrage, Reklamation)
+2. **"Anfrage_Eingehend" - Prompt-Erkennung verbessern**
+   - **Kern-Erkenntnis (K-019 Review 2026-03-05):** GPT kategorisiert nach DOKUMENTFORMAT (Bauplan, Skizze, Aufmassblatt), aber die richtige Kategorie ergibt sich aus dem ZWECK/KONTEXT
+   - **WICHTIG:** Nicht pauschal "Aufmassblatt→Anfrage" umleiten! Echte Aufmassblätter bleiben Aufmassblatt. Das Problem: GPT hat Docs FALSCH als Aufmassblatt/Bauplan/Skizze erkannt, die eigentlich Anfragen waren.
+   - **Prompt-Anpassung noetig:** GPT muss den ZWECK des Dokuments erkennen, nicht nur das Traegermedium:
+     - Bauplan mit handschriftlichen Anfragenotizen → Anfrage_Eingehend
+     - Kundenzeichnung/Skizze mit konkretem Anliegen (Angebot, Reparatur, Ersatzteil) → Anfrage_Eingehend
+     - Spezifikations-Aufnahme bei Kundentermin in Ausstellung → Anfrage_Eingehend
+     - Begleitdokumente zu LVs/Ausschreibungen → Anfrage_Eingehend (gehoeren zum Vorgang)
+     - ABER: Reines Aufmassblatt (tatsaechliche Vermessung) → bleibt Aufmassblatt
+   - **Typische Signale fuer Anfrage:** Handschriftliche Ergaenzungen wie "ohne Montage", "inkl. Lieferung", "Dreh/Kipp", nummerierte Positionen, Kundennamen/Adressen am Rand, "Ausstellung", Preisnotizen
+   - **Referenz-Docs fuer Prompt-Verfeinerung (OCR nochmal pruefen!):**
+     - `c07afd9f` (Nr3) - Kunde Ausstellung, GPT sagte Aufmassblatt → war keins
+     - `6945e46a` (Nr5) - Bauplan mit Anfragenotizen, GPT sagte Bauplan
+     - `03cf8d72` (Nr6) - Ersatzteilanfrage Ausstellung, GPT sagte Skizze
+     - `5bb6da27` (Nr10) - Spezifikationen Ausstellungstermin, GPT sagte Aufmassblatt → war keins
+     - `82c02e23` (Nr15) - Bauplan mit Anfragenotizen, GPT sagte Bauplan
+     - `a1175bf1` (Nr16) - Begleitdokument LV, GPT sagte Aufmassblatt → war keins
+     - `a4269f87` (Nr20) - Kundenanfrage mit Skizze, GPT sagte Skizze
+     - `16271418` (Nr21) - Begleitdokument LV, GPT sagte Aufmassblatt → war keins
+     - `eda49a41` (Nr26) - Anfrage neue Fenster mit Zeichnungen, GPT sagte Bauplan
+   - **Spaeter:** Pruefen ob Split sinnvoll (z.B. nach Aktionstyp: Angebotanfrage, Reparaturanfrage, Ersatzteilanfrage)
 
 3. **Weitere Kandidaten (aus kategorie_fehlerrate View):**
    - Alle Kategorien ohne _Eingehend/_Ausgehend Suffix
@@ -761,36 +778,13 @@ ALTER TABLE documents ADD COLUMN split_label TEXT;        -- z.B. "Darlehensantr
 
 ---
 
-## [G-044] HEIC→JPEG Konverter vor GPT-Verarbeitung
-**Prio:** MITTEL | **Aufwand:** 2-3 Std
-
-Apple-Geraete erzeugen HEIC-Bilder die weder von der Email-Pipeline (nicht in ALLOWED_EXTENSIONS) noch von der OCR-Pipeline (nicht in OCR_SUPPORTED_EXTENSIONS) unterstuetzt werden. Uploads kommen trotzdem durch weil der Upload-Pfad keinen Extension-Filter hat.
-
-**Loesung:**
-- In `process-document`: Vor der OCR/GPT-Verarbeitung HEIC→JPEG konvertieren
-- Deno-kompatible Library (z.B. `libheif-js` oder ImageMagick via WASM)
-- Konvertiertes JPEG wird gespeichert, Original-HEIC wird ersetzt oder beibehalten
-- `.heic` und `.heif` zu `ALLOWED_EXTENSIONS` in process-email hinzufuegen (nach Konverter)
-
-**Betroffene Dateien:**
-- `supabase/functions/process-document/index.ts` (Konverter-Logik vor OCR)
-- `supabase/functions/process-document/utils.ts` (OCR_SUPPORTED_EXTENSIONS erweitern)
-- `supabase/functions/process-email/index.ts` (ALLOWED_EXTENSIONS erweitern)
+## ~~[G-044] HEIC-Support~~ → ERLEDIGT (v38, deployed 2026-03-05)
+Pragmatischer Ansatz: Mistral-OCR-Versuch + Bild-Fallback. Kein WASM-Konverter.
 
 ---
 
-## [G-045] Upload-Filter: Min-Dateigröße + Extension-Whitelist
-**Prio:** NIEDRIG | **Aufwand:** 1-2 Std
-
-Uploads (Scanner/Upload) haben aktuell KEINEN Extension- oder Groessen-Filter. Dadurch kommen Dateien wie .ics, .txt, QR-Code-PNGs (21 KB) oder .HEIC durch die kein OCR/GPT verarbeiten kann.
-
-**Loesung:**
-- Min-Dateigröße fuer Bilder (z.B. < 5 KB = wahrscheinlich Icon/QR-Code → skip oder als "Bild" kategorisieren)
-- Extension-Whitelist fuer Uploads (wie bei Email-Pipeline)
-- Sonderbehandlung .ics: Kalender-Metadaten extrahieren statt OCR
-
-**Betroffene Dateien:**
-- `supabase/functions/process-document/index.ts` (Eingangs-Validierung)
+## ~~[G-045] Upload-Filter~~ → ERLEDIGT (v38, deployed 2026-03-05)
+Extension-Whitelist + Bilder <5KB auto-"Bild". .lnk wird jetzt abgelehnt (HTTP 400).
 
 ---
 

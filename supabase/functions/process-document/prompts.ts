@@ -1,7 +1,13 @@
 // =============================================================================
 // Process Document - System Prompt fuer Dokument-Kategorisierung + Extraktion
-// Version: 4.1.0 - 2026-03-03
+// Version: 4.2.0 - 2026-03-05
 // =============================================================================
+// Aenderungen v4.2.0 (K-020 Fehlende Extraktionsfelder):
+// - FIX: inhalt_zusammenfassung, betreff, bemerkungen, dringlichkeit in EXTRAKTIONSREGELN
+//   (Felder waren in schema.ts definiert aber NICHT im Prompt erwaehnt → GPT gab sie nicht zurueck)
+// - NEU: Liefertermin-Felder (liefertermin_datum, lieferzeit_wochen) im Prompt
+// - NEU: Mahnung-Felder (mahnung_stufe, mahngebuehren, etc.) im Prompt
+//
 // Aenderungen v4.1.0 (G-043 Prompt-Optimierung aus KI-Review):
 // - NEU: Kundenunterlage (Fremd-Dokumente die Kunden mitbringen)
 // - FIX: Bild-Erkennung verstaerkt (Fotos mit minimalem OCR-Text, 64 Fehlmuster)
@@ -836,6 +842,18 @@ Objekt mit: name, iban, bic - alle Felder koennen null sein, oder das ganze Obje
 
 ## Bezuege
 Objekt mit: angebot_nr, bestellung_nr, lieferschein_nr, rechnung_nr, auftrag_nr, projekt - alle null wenn nicht vorhanden
+
+## Liefertermin
+liefertermin_datum (YYYY-MM-DD), lieferzeit_wochen (Zahl) - oder null
+
+## Mahnung
+mahnung_stufe (Zahl), mahngebuehren (Zahl), verzugszinsen_betrag (Zahl), gesamtforderung (Zahl) - oder null
+
+## Inhalt
+- betreff: Betreff/Titel/Ueberschrift des Dokuments oder null
+- inhalt_zusammenfassung: Kurze Zusammenfassung des Dokumentinhalts (1-2 Saetze) - IMMER ausfuellen wenn moeglich!
+- bemerkungen: Besondere Hinweise oder Anmerkungen im Dokument oder null
+- dringlichkeit: "hoch", "mittel", "niedrig" oder null
 
 ## Alle Felder muessen ausgefuellt werden!
 Fuer jedes Feld gilt: Wenn die Information nicht im Dokument vorhanden ist, setze den Wert auf null.
