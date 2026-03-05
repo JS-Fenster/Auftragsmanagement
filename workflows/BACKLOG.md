@@ -57,10 +57,44 @@
 | G-047 | MITTEL | Pipeline | Confidence-Score: classify-backtest + process-document + DB-Spalte |
 | G-048 | MITTEL | Monitoring | Drift-Erkennung: Woechentlicher Kategorie-Verteilungs-Check |
 | G-049 | NIEDRIG | Monitoring | Kategorie-spezifische Fehlerrate tracken (pro Kategorie Trefferquote) |
+| G-050 | HOCH | Pipeline | GPT-Input verbessern: Strukturiertes JSON statt blanker OCR-Text |
 
 ---
 
 ## ═══ BACKLOG START ═══
+
+---
+
+## [G-050] GPT-Input verbessern: Strukturiertes JSON statt blanker OCR-Text
+**Prio:** HOCH | **Aufwand:** 4-8 Std | **Voraussetzung:** K-020 stabil
+
+**Erkenntnis (2026-03-05, K-020 Analyse):**
+GPT bekommt aktuell NUR den blanken Mistral-OCR-Markdown-Dump + Dateinamen.
+Kein Bild, keine Metadaten, kein strukturierter Kontext. Das fuehrt zu:
+- GPT muss selbst Struktur erkennen (Tabellen, Header, Formulare)
+- Keine Bildinformation (Fotos, Skizzen, handschriftliche Notizen)
+- Kein Kontext (Dateiquelle: Scanner/Email, Groesse, Seitenzahl)
+
+**Zwei Hebel:**
+1. **Strukturiertes JSON statt blanker Text:**
+   - `{ "dateiname": "...", "quelle": "scanner|email", "ocr_text": "...", "seitenzahl": N, "dateigroesse_kb": N }`
+   - GPT kann Metadaten fuer bessere Entscheidungen nutzen
+2. **json_schema statt json_object im GPT-Call:**
+   - classify-backtest nutzt json_schema (strict) und erreicht 89% (vs 56% mit json_object)
+   - Enum-Constraint verhindert Sonstiges_Dokument-Fallback bei gueltigem Dokument
+   - EXTRACTION_SCHEMA existiert in schema.ts, ist aber seit v32 deaktiviert
+
+**Backtest-Ergebnis (9 identische Montageauftrag-Docs):**
+| Methode | Korrekt | Quote |
+|---------|---------|-------|
+| v37 process-doc (json_object, kein reasoning) | 5/9 | 56% |
+| Backtest (json_schema strict, v4.1.0 prompt) | 8/9 | 89% |
+| Einziger Fehler: 4029cd7d hat "Reparatur" im Body, Header sagt "Montageauftrag" |
+
+**Naechste Schritte:**
+1. json_schema mit Enum in process-document aktivieren (EXTRACTION_SCHEMA erweitern)
+2. Strukturiertes Metadaten-JSON an GPT liefern
+3. Optional: Bilder mitliefern (GPT Vision) fuer Foto/Skizze-Erkennung
 
 ---
 

@@ -6094,6 +6094,23 @@ Dokumente nach KI-Aenderungen zur erneuten Pruefung zu markieren. Ausserdem war 
 - 13 falsch (davon 11x Sonstiges_Dokument für klar erkennbare Docs)
 - Alle von Andreas manuell korrigiert
 
+### Backtest-Ergebnis (9 Montageauftrag-Docs, classify-backtest v2.2.0)
+
+classify-backtest nutzt `json_schema` (strict mit Enum), process-document v37 nutzte `json_object`.
+
+| Methode | Korrekt | Quote | Bemerkung |
+|---------|---------|-------|-----------|
+| v37 process-doc (json_object, kein reasoning) | 5/9 | 56% | 3x Sonstiges, 1x Serviceauftrag |
+| Backtest (json_schema strict, v4.1.0 prompt) | 8/9 | 89% | Nur 4029cd7d falsch (Serviceauftrag) |
+
+**Kernerkenntnisse:**
+1. `json_schema` mit Enum-Constraint ist der groesste Hebel (eliminiert Sonstiges-Fehler komplett)
+2. `reasoning.effort` hat weniger Impact als json_schema
+3. Doc 4029cd7d hat "Reparatur" im Body → GPT folgt Repair-Regel statt Header "Montageauftrag"
+4. GPT bekommt NUR blanken OCR-Text + Dateinamen (kein Bild, keine Metadaten)
+
+**Neues Backlog-Item:** G-050 (json_schema + strukturiertes JSON-Input)
+
 **Status: DEPLOYED** (Monitoring laeuft)
 
 ---
