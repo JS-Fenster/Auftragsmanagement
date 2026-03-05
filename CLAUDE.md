@@ -115,7 +115,7 @@ Siehe `docs/Auftragsmanagement_Projektplan.md` fuer Details.
 
 | Function | Version | Status | Schutzgrund |
 |----------|---------|--------|-------------|
-| `process-document` | v34 (Deploy 52) | STABIL | Kategorisierung laeuft stabil (36 Kategorien, GPT-5 mini) |
+| `process-document` | v39 (Deploy 65) | STABIL | json_schema strict + 62 Kategorien, GPT-5 mini, Backtest 100% (2026-03-05) |
 | `process-email` | v4.1.0 | STABIL | GPT-Kategorisierung + Anhang-Pipeline mit fetchWithRetry (2026-02-12) |
 | `batch-process-pending` | v1.2.0 | STABIL | Safety-Net fuer stuck pending_ocr Docs, direct fetch statt SDK (2026-03-03) |
 
@@ -124,7 +124,7 @@ Siehe `docs/Auftragsmanagement_Projektplan.md` fuer Details.
 2. KEINE Aenderungen am GPT-Modell oder Response-Format ohne vorherigen Backtest
 3. KEIN Deploy ohne explizite Freigabe von Andreas
 4. Bei Bedarf: Erst auf Supabase Branch testen
-5. Stabiler Stand gesichert als Git Tag: `process-document-v34-stable`
+5. Stabiler Stand gesichert als Git Tag: `process-document-v39-stable`
 
 ---
 
