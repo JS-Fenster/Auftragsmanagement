@@ -1,7 +1,11 @@
 // =============================================================================
 // Process Document - System Prompt fuer Dokument-Kategorisierung + Extraktion
-// Version: 4.2.0 - 2026-03-05
+// Version: 4.3.0 - 2026-03-05
 // =============================================================================
+// Aenderungen v4.3.0 (G-050 Montageauftrag-Header-Regel):
+// - NEU: Formular-Header/Ueberschrift hat Vorrang vor Einzelpositionen
+//   (Montageauftrag-Formular bleibt Montageauftrag auch wenn "Reparatur" im Body steht)
+//
 // Aenderungen v4.2.0 (K-020 Fehlende Extraktionsfelder):
 // - FIX: inhalt_zusammenfassung, betreff, bemerkungen, dringlichkeit in EXTRAKTIONSREGELN
 //   (Felder waren in schema.ts definiert aber NICHT im Prompt erwaehnt → GPT gab sie nicht zurueck)
@@ -357,6 +361,7 @@ Interner Auftrag oder Terminplan fuer NEU-Montage/Demontage-Arbeiten (Fenster/Tu
 - INKLUSIVE: Interne Montage-Terminplaene, Montagelisten, Einsatzplaene
 - INKLUSIVE: Outlook-Terminausdrucke (Betreff, Beginn, Ende, Organisator) gefolgt von einer Montageauftrag-Tabelle (Projekt, Montagezeit, Monteure) → Montageauftrag! Das Outlook-Header ist nur der Kontext des zugehoerigen Termins.
 - ACHTUNG: Interne Terminplaene mit Montageterminen und Baustellenzuordnungen sind Montageauftraege, KEINE Rechnungen (sie haben keine Rechnungsnummer/MwSt/Bankverbindung)!
+- WICHTIG: Wenn die FORMULAR-UEBERSCHRIFT oder TABELLEN-HEADER explizit "Montageauftrag" sagt, ist es ein Montageauftrag - auch wenn einzelne Positionen Reparaturarbeiten enthalten (z.B. "Reparatur Rollladengurte"). Der Formulartyp bestimmt die Kategorie, nicht einzelne Aufgabenbeschreibungen.
 - NICHT: Serviceauftrag (betrifft REPARATUR/WARTUNG, hat "Service-Pauschale" oder "Stundenlohn")
 - NICHT: Rechnung_Eingehend (die hat Rechnungsnummer, Betraege, Bankverbindung)
 

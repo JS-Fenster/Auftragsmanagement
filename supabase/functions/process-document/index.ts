@@ -1,7 +1,12 @@
 // =============================================================================
 // Process Document - OCR + GPT Kategorisierung
-// Version: 38 - 2026-03-05 (K-020 Bugfixes + G-044 HEIC + G-045 Upload-Filter)
+// Version: 39 - 2026-03-05 (G-050 json_schema + Montageauftrag-Header-Regel)
 // =============================================================================
+// Aenderungen v39 (G-050):
+// - json_schema mit strict:true statt json_object (Enum-Constraint fuer Kategorie)
+//   Backtest: json_schema 89% vs json_object 56% bei identischen Montageauftrag-Docs
+// - Prompt: Header-Prioritaet bei Montageauftrag (Formular-Header schlaegt Einzelpositionen)
+//
 // Aenderungen v38 (K-020 + G-044 + G-045):
 // - K-020 FIX: reasoning.effort "low" fuer GPT-5-mini (konsistentere Kategorisierung)
 // - K-020 FIX: Fehlende Felder in Prompt EXTRAKTIONSREGELN (inhalt_zusammenfassung, betreff, etc.)
@@ -145,6 +150,7 @@ import {
 } from "./extraction.ts";
 import {
   ExtractedDocument,
+  EXTRACTION_SCHEMA,
   UNTERSCHRIFT_ERFORDERLICH_KATEGORIEN,
 } from "./schema.ts";
 import {
@@ -303,7 +309,7 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         service: "process-document",
-        version: "38.0.0",
+        version: "39.0.0",
         status: "ready",
         configured: {
           mistral: !!MISTRAL_API_KEY,
@@ -329,6 +335,7 @@ Deno.serve(async (req: Request) => {
           uploadFilter: true,  // G-045: Extension + Mindestgroesse Validierung
           heicSupport: "ocr-attempt-with-fallback",  // G-044: Mistral OCR Versuch, Bild-Fallback
           reasoningEffort: "low",  // K-020: GPT-5-mini reasoning effort
+          responseFormat: "json_schema_strict",  // G-050: Enum-Constraint fuer Kategorie
         },
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
@@ -1104,8 +1111,16 @@ async function categorizeAndExtract(ocrText: string, fileName: string): Promise<
           content: `Dateiname: ${fileName}\n\nAnalysiere das folgende Dokument und extrahiere alle relevanten Informationen als JSON:\n\n${ocrText}`,
         },
       ],
-      // v32: json_object statt json_schema (GPT-5 mini Kompatibilitaet)
-      response_format: { type: "json_object" },
+      // v39/G-050: json_schema statt json_object (Enum-Constraint fuer Kategorie)
+      // Backtest bewies: json_schema 89% vs json_object 56% Trefferquote
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "document_extraction",
+          strict: true,
+          schema: EXTRACTION_SCHEMA,
+        },
+      },
       // v38/K-020: Reasoning effort fuer konsistentere Kategorisierung
       // GPT-5 Modelle unterstuetzen kein temperature - stattdessen reasoning.effort
       reasoning: { effort: "low" },
