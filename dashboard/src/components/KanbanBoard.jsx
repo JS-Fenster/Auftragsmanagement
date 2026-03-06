@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import StatusBadge, { PROJEKT_PHASEN } from './StatusBadge'
 import { PrioritaetBadge } from './StatusBadge'
+import { MONTAGE_TEAMS } from '../lib/constants'
 import { GripVertical, User, Calendar, Euro, AlertTriangle } from 'lucide-react'
 
 const PHASE_ORDER = [
@@ -18,6 +19,7 @@ function daysAgo(dateStr) {
 
 function daysColor(days) {
   if (days == null) return '#6B7280'
+  if (days < 0) return '#3B82F6' // future date (e.g. planned delivery)
   if (days < 7) return '#10B981'
   if (days <= 14) return '#F59E0B'
   return '#DC2626'
@@ -28,8 +30,20 @@ function KanbanCard({ projekt, onProjektClick, isDragging, alerts, onDragStart }
   const hp = kontakt?.kontakt_personen?.find(p => p.ist_hauptkontakt) || kontakt?.kontakt_personen?.[0]
   const kundeName = kontakt?.firma1 || (hp ? [hp.vorname, hp.nachname].filter(Boolean).join(' ') : null) || 'Unbekannt'
   const wert = projekt.auftrags_wert || projekt.angebots_wert
-  const days = daysAgo(projekt.updated_at)
+  // Use the date when the project entered its current status phase
+  const statusDateMap = {
+    anfrage: projekt.created_at,
+    angebot: projekt.angebots_datum,
+    auftrag: projekt.auftrags_datum,
+    bestellt: projekt.bestell_datum,
+    ab_erhalten: projekt.ab_datum,
+    lieferung_geplant: projekt.liefertermin_geplant,
+    montagebereit: projekt.montage_datum || projekt.liefertermin_geplant,
+    erledigt: projekt.erledigt_datum,
+  }
+  const days = daysAgo(statusDateMap[projekt.status] || projekt.created_at)
   const hasAlert = alerts.some((a) => a.projekt?.id === projekt.id)
+  const teamLabel = projekt.montage_team ? MONTAGE_TEAMS.find(t => t.value === projekt.montage_team)?.label || projekt.montage_team : null
 
   return (
     <div
@@ -68,7 +82,7 @@ function KanbanCard({ projekt, onProjektClick, isDragging, alerts, onDragStart }
       <div className="flex items-center justify-between gap-1 mt-2">
         {days != null && (
           <span className="text-xs font-medium" style={{ color: daysColor(days) }}>
-            Seit {days} {days === 1 ? 'Tag' : 'Tagen'}
+            {days < 0 ? `In ${Math.abs(days)} Tagen` : days === 0 ? 'Heute' : `Seit ${days} ${days === 1 ? 'Tag' : 'Tagen'}`}
           </span>
         )}
         {projekt.prioritaet && projekt.prioritaet !== 'normal' && (
@@ -76,14 +90,14 @@ function KanbanCard({ projekt, onProjektClick, isDragging, alerts, onDragStart }
         )}
       </div>
 
-      {projekt.montage_team && (
+      {teamLabel && (
         <div className="mt-1.5">
           <span
             className="inline-flex items-center gap-1 rounded text-xs px-1.5 py-0.5"
             style={{ backgroundColor: '#F3F4F6', color: '#4B5563' }}
           >
             <User size={10} />
-            {projekt.montage_team}
+            {teamLabel}
           </span>
         </div>
       )}

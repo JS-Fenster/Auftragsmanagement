@@ -75,7 +75,7 @@ export default function Projekte() {
     try {
       let query = supabase
         .from('projekte')
-        .select('*, kontakte(id, firma1, firma2, strasse, plz, ort, kontakt_personen(vorname, nachname, ist_hauptkontakt))')
+        .select('*, kontakte(id, firma1, firma2, strasse, plz, ort, kontakt_personen!kontakt_personen_kontakt_id_fkey(vorname, nachname, ist_hauptkontakt))')
         .order('updated_at', { ascending: false })
 
       if (filterStatus) query = query.eq('status', filterStatus)
@@ -253,8 +253,9 @@ export default function Projekte() {
             </select>
             <select value={filterPrio} onChange={e => setFilterPrio(e.target.value)} className="border rounded-lg px-3 py-2 text-sm bg-white">
               <option value="">Alle Prioritäten</option>
+              <option value="dringend">Dringend</option>
               <option value="hoch">Hoch</option>
-              <option value="mittel">Mittel</option>
+              <option value="normal">Normal</option>
               <option value="niedrig">Niedrig</option>
             </select>
             {hasFilters && (
@@ -399,7 +400,7 @@ function NewProjectModal({ onClose, onCreated }) {
     const timer = setTimeout(async () => {
       const { data } = await supabase
         .from('kontakte')
-        .select('id, firma1, firma2, ort, kontakt_personen(vorname, nachname, ist_hauptkontakt)')
+        .select('id, firma1, firma2, ort, kontakt_personen!kontakt_personen_kontakt_id_fkey(vorname, nachname, ist_hauptkontakt)')
         .or(`firma1.ilike.%${kontaktSuche}%,firma2.ilike.%${kontaktSuche}%`)
         .limit(10)
       setKontaktResults(data || [])

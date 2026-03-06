@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase'
 
-const KONTAKTE_SELECT = '*, kontakte(id, firma1, firma2, strasse, plz, ort, kontakt_personen(id, vorname, nachname, ist_hauptkontakt))'
+const KONTAKTE_SELECT = '*, kontakte(id, firma1, firma2, strasse, plz, ort, kontakt_personen!kontakt_personen_kontakt_id_fkey(id, vorname, nachname, ist_hauptkontakt))'
 
 const PRIORITAET_ORDER = { dringend: 0, hoch: 1, normal: 2, niedrig: 3 }
 
