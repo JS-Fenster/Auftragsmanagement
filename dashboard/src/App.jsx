@@ -1,5 +1,5 @@
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom'
-import { LayoutDashboard, ClipboardList, FileText, Users, Mail, Settings, Calculator, History } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, FileText, Users, Mail, Settings, Calculator, History, FolderKanban } from 'lucide-react'
 import Uebersicht from './pages/Uebersicht'
 import Auftraege from './pages/Auftraege'
 import Dokumente from './pages/Dokumente'
@@ -8,9 +8,12 @@ import Emails from './pages/Emails'
 import Einstellungen from './pages/Einstellungen'
 import Budgetangebot from './pages/Budgetangebot'
 import BudgetangebotVerlauf from './pages/BudgetangebotVerlauf'
+import Projekte from './pages/Projekte'
+import ProjektDetail from './pages/ProjektDetail'
 
 const NAV_ITEMS = [
   { to: '/uebersicht', label: 'Übersicht', icon: LayoutDashboard },
+  { to: '/projekte', label: 'Projekte', icon: FolderKanban },
   { to: '/budgetangebot', label: 'Budgetangebot', icon: Calculator },
   { to: '/budgetangebot-verlauf', label: 'Angebotsverlauf', icon: History },
   { to: '/auftraege', label: 'Aufträge', icon: ClipboardList },
@@ -56,6 +59,8 @@ export default function App() {
       <main className="flex-1 overflow-auto">
         <Routes>
           <Route path="/uebersicht" element={<Uebersicht />} />
+          <Route path="/projekte" element={<Projekte />} />
+          <Route path="/projekte/:id" element={<ProjektDetail />} />
           <Route path="/budgetangebot" element={<Budgetangebot />} />
           <Route path="/budgetangebot-verlauf" element={<BudgetangebotVerlauf />} />
           <Route path="/auftraege" element={<Auftraege />} />

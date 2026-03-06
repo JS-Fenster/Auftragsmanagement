@@ -1,3 +1,28 @@
+// 8-Phasen Projekt-Lifecycle (Auftragsmanagement-Tool)
+export const PROJEKT_STATUS = {
+  anfrage:           { label: 'Anfrage',         color: '#3B82F6', bg: '#EFF6FF', text: '#1E40AF' },
+  angebot:           { label: 'Angebot',         color: '#8B5CF6', bg: '#F5F3FF', text: '#5B21B6' },
+  auftrag:           { label: 'Auftrag',         color: '#F59E0B', bg: '#FFFBEB', text: '#92400E' },
+  bestellt:          { label: 'Bestellt',        color: '#F97316', bg: '#FFF7ED', text: '#9A3412' },
+  ab_erhalten:       { label: 'AB erhalten',     color: '#14B8A6', bg: '#F0FDFA', text: '#115E59' },
+  lieferung_geplant: { label: 'Lieferung gepl.', color: '#06B6D4', bg: '#ECFEFF', text: '#155E75' },
+  montagebereit:     { label: 'Montagebereit',   color: '#10B981', bg: '#ECFDF5', text: '#065F46' },
+  erledigt:          { label: 'Erledigt',        color: '#6B7280', bg: '#F3F4F6', text: '#374151' },
+}
+
+export const PROJEKT_PRIORITAETEN = {
+  niedrig:  { label: 'Niedrig',  color: '#6B7280', bg: '#F3F4F6' },
+  normal:   { label: 'Normal',   color: '#3B82F6', bg: '#EFF6FF' },
+  hoch:     { label: 'Hoch',     color: '#F59E0B', bg: '#FFFBEB' },
+  dringend: { label: 'Dringend', color: '#DC2626', bg: '#FEF2F2' },
+}
+
+export const MONTAGE_TEAMS = [
+  { value: 'mariusz_manfred', label: 'Mariusz & Manfred' },
+  { value: 'christian_michael', label: 'Christian & Michael' },
+  { value: 'stefan', label: 'Stefan' },
+]
+
 // Reparatur-Status mit Farben (Tailwind v4 compatible - use inline styles for dynamic colors)
 export const AUFTRAG_STATUS = {
   OFFEN: { label: 'Offen', color: '#3B82F6', bg: '#EFF6FF', text: '#1E40AF' },
