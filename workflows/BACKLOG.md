@@ -58,10 +58,48 @@
 | G-048 | MITTEL | Monitoring | Drift-Erkennung: Woechentlicher Kategorie-Verteilungs-Check |
 | G-049 | NIEDRIG | Monitoring | Kategorie-spezifische Fehlerrate tracken (pro Kategorie Trefferquote) |
 | G-050 | MITTEL | Pipeline | GPT-Input verbessern: Strukturiertes Metadaten-JSON (json_schema ERLEDIGT in v39) |
+| G-051 | IDEE | Workflow | Aufgaben/Ticket-System mit Leerlauf-Aufgaben fuer Mitarbeiter |
 
 ---
 
 ## ═══ BACKLOG START ═══
+
+---
+
+## [G-051] Aufgaben/Ticket-System mit Leerlauf-Aufgaben fuer Mitarbeiter
+**Prio:** IDEE | **Aufwand:** Gross (Konzept → MVP → Ausbau) | **Status:** Ideensammlung
+
+**Kern-Idee:**
+Klassisches Aufgaben-/Ticketsystem fuer JS Fenster mit einem besonderen Feature:
+Mitarbeiter koennen bei Leerlaeufen selbststaendig interne Aufgaben waehlen und ausfuehren.
+
+**1. Klassisches Ticketsystem:**
+- Aufgaben/Tickets fuer Kunden (Reparatur, Reklamation, Montage)
+- Aufgaben fuer Lieferanten (Bestellung nachfassen, Retoure)
+- Interne Aufgaben (Buero, Lager, Verwaltung)
+- Status-Tracking, Zuweisung, Prioritaeten, Faelligkeiten
+
+**2. Interne Leerlauf-Aufgaben (das Besondere):**
+Wiederkehrende und einmalige Arbeiten, die Mitarbeiter bei Freizeit selbst waehlen koennen:
+
+| Typ | Beispiele |
+|-----|-----------|
+| Wiederkehrend (Intervall) | Ueberdachung reinigen (alle 3-6 Monate), Parkplatz saeubern (Dreck/Unkraut), Lager Aussenbereich kehren |
+| Einmalig | Feuerloescher Buero an Wand duebeln, Lager aussen verputzen, Regal aufbauen |
+
+- Wiederkehrende Aufgaben werden automatisch nach Intervall-Ablauf wieder als "offen" angeboten
+- Einmalige verschwinden nach Erledigung
+- Mitarbeiter sehen eine Liste verfuegbarer Aufgaben und koennen sich selbst eine nehmen
+
+**3. Automatische Leerlauf-Erkennung (Zukunft):**
+- Wenn erkannt wird, dass ein Mitarbeiter frueher fertig ist UND der naechste Termin fix vereinbart ist
+- System schlaegt passende Leerlauf-Aufgaben vor (nach Standort, Dauer, Faehigkeiten)
+- Voraussetzung: Termin-System (G-011) + Echtzeit-Status der Monteure
+
+**Abhaengigkeiten:**
+- G-011 (Termin-System) fuer automatische Leerlauf-Erkennung
+- G-012 (User-Management) fuer Mitarbeiter-Zuweisung
+- Ggf. Mobile-Ansicht fuer Monteure vor Ort
 
 ---
 

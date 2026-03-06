@@ -334,8 +334,8 @@ Deno.serve(async (req: Request) => {
           budgetExtractionModel: "gpt-5.2",  // v31: GPT-5.2 fuer Budget-Extraktion
           uploadFilter: true,  // G-045: Extension + Mindestgroesse Validierung
           heicSupport: "ocr-attempt-with-fallback",  // G-044: Mistral OCR Versuch, Bild-Fallback
-          reasoningEffort: "low",  // K-020: GPT-5-mini reasoning effort
-          responseFormat: "json_schema_strict",  // G-050: Enum-Constraint fuer Kategorie
+          reasoningEffort: "none",  // v39.2: gpt-5-mini unterstuetzt reasoning nicht
+          responseFormat: "json_object",
         },
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
@@ -1111,19 +1111,10 @@ async function categorizeAndExtract(ocrText: string, fileName: string): Promise<
           content: `Dateiname: ${fileName}\n\nAnalysiere das folgende Dokument und extrahiere alle relevanten Informationen als JSON:\n\n${ocrText}`,
         },
       ],
-      // v39/G-050: json_schema statt json_object (Enum-Constraint fuer Kategorie)
-      // Backtest bewies: json_schema 89% vs json_object 56% Trefferquote
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: "document_extraction",
-          strict: true,
-          schema: EXTRACTION_SCHEMA,
-        },
-      },
-      // v38/K-020: Reasoning effort fuer konsistentere Kategorisierung
-      // GPT-5 Modelle unterstuetzen kein temperature - stattdessen reasoning.effort
-      reasoning: { effort: "low" },
+      // v32: json_object (GPT-5 mini Kompatibilitaet)
+      response_format: { type: "json_object" },
+      // v39.2: reasoning Parameter ENTFERNT - gpt-5-mini unterstuetzt ihn nicht
+      // OpenAI gibt 400 "Unknown parameter: 'reasoning'" zurueck
     }),
   });
 

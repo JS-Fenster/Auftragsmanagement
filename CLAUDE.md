@@ -115,8 +115,8 @@ Siehe `docs/Auftragsmanagement_Projektplan.md` fuer Details.
 
 | Function | Version | Status | Schutzgrund |
 |----------|---------|--------|-------------|
-| `process-document` | v39 (Deploy 65) | STABIL | json_schema strict + 62 Kategorien, GPT-5 mini, Backtest 100% (2026-03-05) |
-| `process-email` | v4.1.0 | STABIL | GPT-Kategorisierung + Anhang-Pipeline mit fetchWithRetry (2026-02-12) |
+| `process-document` | v39.2 (Deploy 69) | TESTING | json_object + reasoning entfernt, 62 Kategorien, GPT-5 mini (2026-03-06) |
+| `process-email` | v4.1.1 (Deploy 46) | STABIL | GPT-Kategorisierung + Anhang-Pipeline, kategorie NULL Fix (2026-03-06) |
 | `batch-process-pending` | v1.2.0 | STABIL | Safety-Net fuer stuck pending_ocr Docs, direct fetch statt SDK (2026-03-03) |
 
 **Regeln:**
@@ -125,6 +125,33 @@ Siehe `docs/Auftragsmanagement_Projektplan.md` fuer Details.
 3. KEIN Deploy ohne explizite Freigabe von Andreas
 4. Bei Bedarf: Erst auf Supabase Branch testen
 5. Stabiler Stand gesichert als Git Tag: `process-document-v39-stable`
+
+**Checkliste bei Kategorie-Aenderungen (PFLICHT):**
+> **Hintergrund:** Am 27.02.2026 hat eine CHECK Constraint auf `documents.kategorie` dazu gefuehrt,
+> dass `process-email` keine Anhang-Dokumente mehr erstellen konnte (140 Anhaenge verloren ueber 9 Tage).
+> Ursache: `"Email_Anhang"` war nicht mehr in der erlaubten Kategorie-Liste.
+
+Bei JEDER Aenderung an Kategorien (Rename, Neu, Loeschen, CHECK Constraint) ALLE diese Stellen pruefen:
+1. `_shared/categories.ts` - VALID_DOKUMENT_KATEGORIEN + VALID_EMAIL_KATEGORIEN + Aliases
+2. `process-document/prompts.ts` - Kategorie-Beschreibungen im Prompt
+3. `process-document/schema.ts` - EXTRACTION_SCHEMA Enum-Liste
+4. `process-email/index.ts` - createAttachmentDocument() kategorie-Wert
+5. `email-webhook` - Falls dort Kategorien gesetzt werden
+6. DB CHECK Constraint auf `documents.kategorie` - Muss alle gueltigen Werte enthalten
+7. `admin-review` - Frontend Kategorie-Dropdown + constants.js
+8. Storage-Ordner - Bestehende Dateien muessen ggf. verschoben werden
+
+**Deploy-Checkliste (PFLICHT nach JEDEM Deploy):**
+> **Hintergrund:** Am 05.03.2026 wurde process-document v39 mit json_schema strict deployed.
+> Health-Check (GET) war OK, aber ALLE POST-Calls gaben 500 zurueck (24h Ausfall).
+> Ursache: Schema nutzte `type: ["string", "null"]` statt `anyOf` - OpenAI strict mode akzeptiert das nicht.
+
+Nach JEDEM Deploy einer Edge Function:
+1. Health-Check (GET) - Zeigt nur Config, NICHT ob POST funktioniert
+2. **Echten POST-Call mit realem Dokument testen** - PFLICHT
+3. **Edge Function Logs pruefen** - Innerhalb 30s auf 500er schauen
+4. **DB-Ergebnis pruefen** - Hat das Dokument eine Kategorie bekommen?
+5. Erst dann darf die Function als "funktioniert" bezeichnet werden
 
 ---
 

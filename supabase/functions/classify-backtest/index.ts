@@ -1,11 +1,12 @@
 // =============================================================================
 // Classify Backtest - Re-Klassifizierung mit optionalem DB-Update
-// Version: 2.2.0 - 2026-03-03
+// Version: 2.3.0 - 2026-03-06
 // =============================================================================
-// Liest Dokumente aus der DB, sendet den OCR-Text an GPT-5 mini mit dem
+// Liest Dokumente aus der DB, sendet den OCR-Text an GPT mit dem
 // SYSTEM_PROMPT aus process-document/prompts.ts und vergleicht die neue
 // Kategorie mit der bestehenden.
 //
+// v2.3.0: Model-Parameter (gpt-5-mini / gpt-5.2) + reasoning_effort fuer gpt-5.2
 // v2.2.0: Confidence-Score (0-100) hinzugefuegt - GPT bewertet Sicherheit der Kategorisierung
 // v2.1.0: KATEGORIE_ENUM auf 38 Kategorien aktualisiert (+ Fahrzeugdokument, Personalunterlagen)
 //         Import KATEGORIE_ENUM direkt aus categories.ts statt hardcoded
@@ -14,12 +15,14 @@
 // Usage:
 //   POST /functions/v1/classify-backtest
 //   Header: x-api-key: <INTERNAL_API_KEY>
-//   Body: { "doc_ids": ["uuid1", ...], "apply": false }
+//   Body: { "doc_ids": ["uuid1", ...], "apply": false, "model": "gpt-5.2", "reasoning_effort": "low" }
 //
 // Parameter:
 //   - doc_ids: (optional) Array von Dokument-UUIDs zum Testen (max 50)
 //   - apply: (optional) true = DB-Update, false = nur Vergleich (default: false)
 //   - limit: (optional) Max Anzahl Dokumente, default 20, max 50
+//   - model: (optional) "gpt-5-mini" (default) oder "gpt-5.2"
+//   - reasoning_effort: (optional) nur fuer gpt-5.2: "low", "medium", "high"
 // =============================================================================
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -43,7 +46,9 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 // =============================================================================
 
 const MAX_DOCS_PER_CALL = 50;
-const GPT_MODEL = "gpt-5-mini";
+const GPT_MODEL_DEFAULT = "gpt-5-mini";
+const ALLOWED_MODELS = ["gpt-5-mini", "gpt-5.2"] as const;
+const ALLOWED_REASONING_EFFORTS = ["low", "medium", "high"] as const;
 
 // Nutze die zentrale Kategorie-Liste aus _shared/categories.ts (38 Kategorien)
 const KATEGORIE_ENUM = VALID_DOKUMENT_KATEGORIEN;
@@ -99,11 +104,39 @@ interface ClassificationResult {
   confidence: number;
 }
 
-async function classifyText(ocrText: string, fileName?: string): Promise<ClassificationResult> {
+async function classifyText(
+  ocrText: string,
+  fileName?: string,
+  model: string = GPT_MODEL_DEFAULT,
+  reasoningEffort?: string,
+): Promise<ClassificationResult> {
   const confidenceInstruction = "Bewerte zusaetzlich deine Sicherheit bei der Kategorisierung auf einer Skala von 0-100 (confidence). 100 = absolut sicher, 0 = reine Vermutung.";
   const userContent = fileName
     ? `Dateiname: ${fileName}\n\nKategorisiere das folgende Dokument. ${confidenceInstruction}\n\n${ocrText}`
     : `Kategorisiere das folgende Dokument. ${confidenceInstruction}\n\n${ocrText}`;
+
+  // Build request body - GPT-5 models support NO temperature!
+  const requestBody: Record<string, unknown> = {
+    model,
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: userContent },
+    ],
+    response_format: {
+      type: "json_schema",
+      json_schema: {
+        name: "classification",
+        strict: true,
+        schema: CLASSIFICATION_SCHEMA,
+      },
+    },
+  };
+
+  // gpt-5.2: reasoning_effort als Top-Level Parameter + max_completion_tokens
+  if (model === "gpt-5.2" && reasoningEffort) {
+    requestBody.reasoning_effort = reasoningEffort;
+    requestBody.max_completion_tokens = 2048;
+  }
 
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -111,22 +144,7 @@ async function classifyText(ocrText: string, fileName?: string): Promise<Classif
       "Content-Type": "application/json",
       Authorization: `Bearer ${OPENAI_API_KEY}`,
     },
-    body: JSON.stringify({
-      model: GPT_MODEL,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: userContent },
-      ],
-      // GPT-5 mini: temperature nur default(1) erlaubt, NICHT 0
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: "classification",
-          strict: true,
-          schema: CLASSIFICATION_SCHEMA,
-        },
-      },
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {
@@ -173,11 +191,13 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         service: "classify-backtest",
-        version: "2.2.0",
+        version: "2.3.0",
         status: "ready",
-        model: GPT_MODEL,
+        default_model: GPT_MODEL_DEFAULT,
+        allowed_models: ALLOWED_MODELS,
+        allowed_reasoning_efforts: ALLOWED_REASONING_EFFORTS,
         max_docs_per_call: MAX_DOCS_PER_CALL,
-        features: { apply_mode: true, confidence_score: true },
+        features: { apply_mode: true, confidence_score: true, model_selection: true },
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
@@ -204,6 +224,8 @@ Deno.serve(async (req: Request) => {
     let docIds: string[] | null = null;
     let limit = 20;
     let applyChanges = false;
+    let selectedModel = GPT_MODEL_DEFAULT;
+    let reasoningEffort: string | undefined = undefined;
 
     try {
       const body = await req.json();
@@ -218,6 +240,14 @@ Deno.serve(async (req: Request) => {
       if (body.apply === true) {
         applyChanges = true;
       }
+      // Model selection
+      if (body.model && (ALLOWED_MODELS as readonly string[]).includes(body.model)) {
+        selectedModel = body.model;
+      }
+      // Reasoning effort (only for gpt-5.2)
+      if (body.reasoning_effort && (ALLOWED_REASONING_EFFORTS as readonly string[]).includes(body.reasoning_effort)) {
+        reasoningEffort = body.reasoning_effort;
+      }
     } catch {
       // Leerer Body ist OK
     }
@@ -230,7 +260,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // ---- Load Documents ----
-    console.log(`[BACKTEST] Loading ${docIds.length} docs, apply=${applyChanges}`);
+    console.log(`[BACKTEST] Loading ${docIds.length} docs, model=${selectedModel}, reasoning=${reasoningEffort || "none"}, apply=${applyChanges}`);
     const { data, error } = await supabase
       .from("documents")
       .select("id, kategorie, betreff, kategorisiert_von, ocr_text, dokument_url")
@@ -258,7 +288,7 @@ Deno.serve(async (req: Request) => {
         // Extract filename from dokument_url
         const fileName = doc.dokument_url?.split("/").pop() || undefined;
 
-        const classification = await classifyText(doc.ocr_text, fileName);
+        const classification = await classifyText(doc.ocr_text, fileName, selectedModel, reasoningEffort);
         // Apply alias mapping (typo fix etc.)
         const rawKategorie = classification.kategorie;
         const newKategorie = canonicalizeKategorie(rawKategorie) || rawKategorie;
@@ -323,6 +353,8 @@ Deno.serve(async (req: Request) => {
       unchanged: documents.length - changedCount,
       applied: appliedCount,
       apply_mode: applyChanges,
+      model: selectedModel,
+      reasoning_effort: reasoningEffort || null,
     };
 
     console.log(`[BACKTEST] Done: ${summary.total} total, ${summary.changed} changed, ${summary.applied} applied`);

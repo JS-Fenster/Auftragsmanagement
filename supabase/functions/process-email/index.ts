@@ -1,8 +1,12 @@
 // =============================================================================
 // Process Email - GPT Categorization + Attachment Handling
-// Version: 4.1.0 - 2026-02-12
+// Version: 4.1.1 - 2026-03-06
 // =============================================================================
 // Wird von email-webhook aufgerufen nachdem E-Mail in DB gespeichert wurde.
+//
+// v4.1.1 Changes:
+// - FIX: kategorie "Email_Anhang" → null (CHECK Constraint blockte INSERT seit G-021 am 27.02.)
+//   140 Anhaenge im Storage ohne documents-Eintrag seit 9 Tagen!
 //
 // v4.1.0 Changes:
 // - FIX: fetchWithRetry() fuer process-document Aufrufe (55s Timeout, 2 Retries, Backoff)
@@ -603,8 +607,9 @@ async function createAttachmentDocument(
   emailBetreff: string
 ): Promise<string | null> {
   const docData = {
-    // v4.0: Kategorie bleibt Email_Anhang bis process-document sie ueberschreibt
-    kategorie: "Email_Anhang",
+    // v4.1.1 FIX: kategorie NULL statt "Email_Anhang" (CHECK Constraint blockte Insert seit G-021)
+    // process-document setzt die korrekte Kategorie nach OCR
+    kategorie: null,
     bezug_email_id: emailDocumentId,
     dokument_url: storagePath,
     // NOTE: dokument_full_url is a generated column - do NOT set it

@@ -89,10 +89,14 @@ export interface ExtractedDocument {
   dringlichkeit: string | null;
 }
 
+// Helper: nullable string for json_schema strict mode
+const nullableString = { anyOf: [{ type: "string" }, { type: "null" }] };
+const nullableNumber = { anyOf: [{ type: "number" }, { type: "null" }] };
+
 /**
- * JSON Schema fuer OpenAI Structured Output
- * Wird verwendet in categorizeAndExtract() fuer response_format
- * v23: + Kundenbestellung, Reiseunterlagen, Zahlungsavis, Bauplan
+ * JSON Schema fuer OpenAI Structured Output (strict mode)
+ * WICHTIG: strict:true erfordert anyOf statt type:["string","null"]
+ * v39: Umgestellt auf anyOf-Format fuer json_schema Kompatibilitaet
  */
 export const EXTRACTION_SCHEMA = {
   type: "object",
@@ -166,7 +170,7 @@ export const EXTRACTION_SCHEMA = {
     },
     // v20: Unterschrift-Felder
     empfang_unterschrift: { type: "boolean" },
-    unterschrift: { type: ["string", "null"] },
+    unterschrift: nullableString,
     extraktions_qualitaet: {
       type: "string",
       enum: ["hoch", "mittel", "niedrig"],
@@ -175,97 +179,122 @@ export const EXTRACTION_SCHEMA = {
       type: "array",
       items: { type: "string" },
     },
-    dokument_datum: { type: ["string", "null"] },
-    dokument_nummer: { type: ["string", "null"] },
-    dokument_richtung: { type: ["string", "null"] },
+    dokument_datum: nullableString,
+    dokument_nummer: nullableString,
+    dokument_richtung: nullableString,
     aussteller: {
-      type: ["object", "null"],
-      properties: {
-        firma: { type: ["string", "null"] },
-        name: { type: ["string", "null"] },
-        strasse: { type: ["string", "null"] },
-        plz: { type: ["string", "null"] },
-        ort: { type: ["string", "null"] },
-        telefon: { type: ["string", "null"] },
-        email: { type: ["string", "null"] },
-        ust_id: { type: ["string", "null"] },
-      },
-      required: ["firma", "name", "strasse", "plz", "ort", "telefon", "email", "ust_id"],
-      additionalProperties: false,
+      anyOf: [
+        {
+          type: "object",
+          properties: {
+            firma: nullableString,
+            name: nullableString,
+            strasse: nullableString,
+            plz: nullableString,
+            ort: nullableString,
+            telefon: nullableString,
+            email: nullableString,
+            ust_id: nullableString,
+          },
+          required: ["firma", "name", "strasse", "plz", "ort", "telefon", "email", "ust_id"],
+          additionalProperties: false,
+        },
+        { type: "null" },
+      ],
     },
     empfaenger: {
-      type: ["object", "null"],
-      properties: {
-        firma: { type: ["string", "null"] },
-        vorname: { type: ["string", "null"] },
-        nachname: { type: ["string", "null"] },
-        strasse: { type: ["string", "null"] },
-        plz: { type: ["string", "null"] },
-        ort: { type: ["string", "null"] },
-        telefon: { type: ["string", "null"] },
-        email: { type: ["string", "null"] },
-        kundennummer: { type: ["string", "null"] },
-      },
-      required: ["firma", "vorname", "nachname", "strasse", "plz", "ort", "telefon", "email", "kundennummer"],
-      additionalProperties: false,
+      anyOf: [
+        {
+          type: "object",
+          properties: {
+            firma: nullableString,
+            vorname: nullableString,
+            nachname: nullableString,
+            strasse: nullableString,
+            plz: nullableString,
+            ort: nullableString,
+            telefon: nullableString,
+            email: nullableString,
+            kundennummer: nullableString,
+          },
+          required: ["firma", "vorname", "nachname", "strasse", "plz", "ort", "telefon", "email", "kundennummer"],
+          additionalProperties: false,
+        },
+        { type: "null" },
+      ],
     },
     positionen: {
-      type: ["array", "null"],
-      items: {
-        type: "object",
-        properties: {
-          pos_nr: { type: ["number", "null"] },
-          beschreibung: { type: ["string", "null"] },
-          menge: { type: ["number", "null"] },
-          einheit: { type: ["string", "null"] },
-          einzelpreis_netto: { type: ["number", "null"] },
-          gesamtpreis_netto: { type: ["number", "null"] },
+      anyOf: [
+        {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              pos_nr: nullableNumber,
+              beschreibung: nullableString,
+              menge: nullableNumber,
+              einheit: nullableString,
+              einzelpreis_netto: nullableNumber,
+              gesamtpreis_netto: nullableNumber,
+            },
+            required: ["pos_nr", "beschreibung", "menge", "einheit", "einzelpreis_netto", "gesamtpreis_netto"],
+            additionalProperties: false,
+          },
         },
-        required: ["pos_nr", "beschreibung", "menge", "einheit", "einzelpreis_netto", "gesamtpreis_netto"],
-        additionalProperties: false,
-      },
+        { type: "null" },
+      ],
     },
-    summe_netto: { type: ["number", "null"] },
-    mwst_betrag: { type: ["number", "null"] },
-    summe_brutto: { type: ["number", "null"] },
-    offener_betrag: { type: ["number", "null"] },
-    zahlungsziel_tage: { type: ["number", "null"] },
-    faellig_am: { type: ["string", "null"] },
-    skonto_prozent: { type: ["number", "null"] },
-    skonto_tage: { type: ["number", "null"] },
+    summe_netto: nullableNumber,
+    mwst_betrag: nullableNumber,
+    summe_brutto: nullableNumber,
+    offener_betrag: nullableNumber,
+    zahlungsziel_tage: nullableNumber,
+    faellig_am: nullableString,
+    skonto_prozent: nullableNumber,
+    skonto_tage: nullableNumber,
     bank: {
-      type: ["object", "null"],
-      properties: {
-        name: { type: ["string", "null"] },
-        iban: { type: ["string", "null"] },
-        bic: { type: ["string", "null"] },
-      },
-      required: ["name", "iban", "bic"],
-      additionalProperties: false,
+      anyOf: [
+        {
+          type: "object",
+          properties: {
+            name: nullableString,
+            iban: nullableString,
+            bic: nullableString,
+          },
+          required: ["name", "iban", "bic"],
+          additionalProperties: false,
+        },
+        { type: "null" },
+      ],
     },
-    liefertermin_datum: { type: ["string", "null"] },
-    lieferzeit_wochen: { type: ["number", "null"] },
+    liefertermin_datum: nullableString,
+    lieferzeit_wochen: nullableNumber,
     bezug: {
-      type: ["object", "null"],
-      properties: {
-        angebot_nr: { type: ["string", "null"] },
-        bestellung_nr: { type: ["string", "null"] },
-        lieferschein_nr: { type: ["string", "null"] },
-        rechnung_nr: { type: ["string", "null"] },
-        auftrag_nr: { type: ["string", "null"] },
-        projekt: { type: ["string", "null"] },
-      },
-      required: ["angebot_nr", "bestellung_nr", "lieferschein_nr", "rechnung_nr", "auftrag_nr", "projekt"],
-      additionalProperties: false,
+      anyOf: [
+        {
+          type: "object",
+          properties: {
+            angebot_nr: nullableString,
+            bestellung_nr: nullableString,
+            lieferschein_nr: nullableString,
+            rechnung_nr: nullableString,
+            auftrag_nr: nullableString,
+            projekt: nullableString,
+          },
+          required: ["angebot_nr", "bestellung_nr", "lieferschein_nr", "rechnung_nr", "auftrag_nr", "projekt"],
+          additionalProperties: false,
+        },
+        { type: "null" },
+      ],
     },
-    mahnung_stufe: { type: ["number", "null"] },
-    mahngebuehren: { type: ["number", "null"] },
-    verzugszinsen_betrag: { type: ["number", "null"] },
-    gesamtforderung: { type: ["number", "null"] },
-    betreff: { type: ["string", "null"] },
-    inhalt_zusammenfassung: { type: ["string", "null"] },
-    bemerkungen: { type: ["string", "null"] },
-    dringlichkeit: { type: ["string", "null"] },
+    mahnung_stufe: nullableNumber,
+    mahngebuehren: nullableNumber,
+    verzugszinsen_betrag: nullableNumber,
+    gesamtforderung: nullableNumber,
+    betreff: nullableString,
+    inhalt_zusammenfassung: nullableString,
+    bemerkungen: nullableString,
+    dringlichkeit: nullableString,
   },
   required: [
     "kategorie",
