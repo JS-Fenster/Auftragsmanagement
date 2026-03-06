@@ -22,9 +22,9 @@
 | R-002 | NIEDRIG | Repair | Reparaturen-Seite im Dashboard (nach Frontend-Loesch.) |
 | G-001 | HOCH | System | Hardcoded Werte zentralisieren (app_config Tabelle) |
 | G-002 | HOCH | Frontend | Lieferanten-Verwaltung (Seite fehlt) |
-| G-003 | HOCH | Frontend | Bestellungen-Management (Seite fehlt) |
+| ~~G-003~~ | ~~ERLEDIGT~~ | ~~Frontend~~ | ~~Bestellungen-Management (in ProjektDetail.jsx, 2026-03-06)~~ |
 | G-004 | MITTEL | E-Mail | Steuerrelevanz-Klassifizierung + Revisionssicherheit |
-| G-005 | MITTEL | Frontend | Kalender mit FullCalendar (5 Ansichten) |
+| ~~G-005~~ | ~~ERLEDIGT~~ | ~~Frontend~~ | ~~Kalender mit FullCalendar (Montageplanung, 3 Ansichten, 2026-03-06)~~ |
 | G-006 | MITTEL | Frontend | Erweiterte Dokumente (Detail, Positionen, PDF-Export) |
 | G-007 | MITTEL | Frontend | Kontakt-Detail: Interaktive Summary-Cards |
 | G-008 | MITTEL | Kontakte | Betreuer-Referenz (Phase 5: referenz_kontakt_id) |
@@ -59,10 +59,83 @@
 | G-049 | NIEDRIG | Monitoring | Kategorie-spezifische Fehlerrate tracken (pro Kategorie Trefferquote) |
 | G-050 | MITTEL | Pipeline | GPT-Input verbessern: Strukturiertes Metadaten-JSON (json_schema ERLEDIGT in v39) |
 | G-051 | IDEE | Workflow | Aufgaben/Ticket-System mit Leerlauf-Aufgaben fuer Mitarbeiter |
+| G-052 | HOCH | Pipeline | process-document 2-Stufen-Pipeline (OCR → Kategorisierung) + Storage-Verschiebung |
+| G-053 | HOCH | Auftragsm. | Reparatur-Erweiterung: Foto-Upload, Ersatzteil-DB, Dokument-Links |
+| G-054 | MITTEL | Auftragsm. | Auftragsmanagement-Tool: Ueberblick-Dashboard mit KPIs + Charts |
 
 ---
 
 ## ═══ BACKLOG START ═══
+
+---
+
+## [G-052] process-document 2-Stufen-Pipeline + Storage-Verschiebung
+
+**Prioritaet:** HOCH
+**Bereich:** Pipeline / Architektur
+**Erstellt:** 2026-03-06
+
+### Problem
+
+1. **process-document** macht alles in einer Function (~40s): OCR + GPT + Storage + DB
+   - Supabase Edge Function Limit: 150s → max 3 Docs pro Batch
+   - Wenn GPT fehlschlaegt, geht der OCR-Text verloren (muss komplett neu)
+   - Aenderungen am GPT-Prompt koennen OCR-Logik brechen (kaskadierende Fehler)
+2. **Storage-Pfad stimmt nicht nach Review-Korrektur**
+   - process-document legt Datei in Kategorie-Ordner (z.B. `Sonstiges_Dokument/`)
+   - Review korrigiert `kategorie_manual` → DB stimmt, aber Datei bleibt im falschen Ordner
+   - Aktuell kein Mechanismus der Storage-Pfad nachzieht
+
+### Loesung: 3 Komponenten
+
+**A) Stage 1: process-document-ocr (neue Edge Function, ~15-20s)**
+- Download aus Storage + Validierung + File-Hash
+- Duplikat-Check (file_hash + text_hash)
+- Mistral OCR / Office-Extraktion
+- `ocr_text` + `text_hash` in DB speichern
+- Status: `pending_ocr` → `pending_categorize`
+- Fehler: → `error_ocr`
+
+**B) Stage 2: process-document-categorize (neue Edge Function, ~15-20s)**
+- `ocr_text` aus DB lesen (KEIN File-Download, KEIN OCR)
+- GPT Kategorisierung + Feld-Extraktion
+- DB Update (Kategorie, extrahierte Felder)
+- Ruft `move-document-storage` auf (oder inline)
+- Status: `pending_categorize` → `done`
+- Fehler: → `error_gpt`
+
+**C) move-document-storage (neue Edge Function oder in Stage 2 integriert)**
+- Verschiebt Datei von aktuellem Pfad in richtigen Kategorie-Ordner
+- Updated `dokument_url` in DB
+- Wird aufgerufen von:
+  - Stage 2 nach Kategorisierung
+  - admin-review nach `correct` (Kategorie-Korrektur)
+- Idempotent: Wenn Datei schon im richtigen Ordner → noop
+
+### Status-Flow
+
+```
+pending_ocr → pending_categorize → done
+     ↓              ↓
+  error_ocr     error_gpt (OCR-Text bleibt erhalten!)
+```
+
+### Aenderungen noetig
+
+1. **DB:** Neuer Status `pending_categorize` + `error_ocr` + `error_gpt` im processing_status
+2. **process-document:** Aufsplitten in 2 neue Functions
+3. **batch-process-pending:** Zwei getrennte Schleifen (OCR-Batch + Kategorisierungs-Batch)
+4. **admin-review:** Nach `correct` Action → `move-document-storage` aufrufen
+5. **Storage-Strategie:** Neue Docs erstmal in `inbox/` oder direkt im Kategorie-Ordner (wie bisher)
+
+### Vorteile
+
+- Jede Stage <20s → 7 Docs pro Batch statt 3
+- OCR-Text ueberlebt GPT-Fehler (kein erneuter OCR noetig)
+- Prompt-Aenderungen koennen OCR nicht brechen
+- Review-Korrekturen ziehen Storage-Pfad automatisch nach
+- Retry nur die fehlgeschlagene Stage (spart Mistral-Kosten)
+- Verschiedene Modelle/Params pro Stage moeglich
 
 ---
 
