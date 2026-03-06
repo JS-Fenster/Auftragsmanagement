@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Save, Clock, Package, Wrench, FileText, Plus, Edit2, Trash2, ChevronRight } from 'lucide-react'
+import { ArrowLeft, Save, Clock, Package, Wrench, FileText, Plus, Edit2, Trash2, ChevronRight, ExternalLink } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import StatusBadge, { PROJEKT_PHASEN } from '../components/StatusBadge'
 import { PrioritaetBadge } from '../components/StatusBadge'
@@ -284,6 +284,13 @@ export default function ProjektDetail() {
               </button>
               <button onClick={handleDelete} className="px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1.5">
                 <Trash2 className="h-4 w-4" /> Loeschen
+              </button>
+              <button
+                onClick={() => window.open(`/projekte/${id}?standalone=1`, '_blank', 'width=1200,height=800')}
+                className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+                title="In neuem Fenster oeffnen"
+              >
+                <ExternalLink size={16} />
               </button>
             </>
           )}
