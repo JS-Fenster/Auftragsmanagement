@@ -15,6 +15,7 @@ import {
   Filter,
   Calendar,
   Euro,
+  FolderKanban,
 } from 'lucide-react'
 
 // ── Constants ────────────────────────────────────────────
@@ -78,6 +79,10 @@ export default function BudgetangebotVerlauf() {
   // Delete confirmation
   const [deleteId, setDeleteId] = useState(null)
   const [deleting, setDeleting] = useState(false)
+
+  // Convert to Projekt
+  const [convertId, setConvertId] = useState(null)
+  const [converting, setConverting] = useState(false)
 
   // ── Load Data ─────────────────────────────────────────
   const loadAngebote = useCallback(async () => {
@@ -157,6 +162,79 @@ export default function BudgetangebotVerlauf() {
     } catch (err) {
       console.error('Status-Aenderung Fehler:', err)
       setError(err.message)
+    }
+  }
+
+  // ── Convert to Projekt ───────────────────────────────
+  const handleConvert = async (budgetangebotId) => {
+    setConverting(true)
+    try {
+      // 1. Lade Budgetangebot + Positionen
+      const [{ data: ba, error: baErr }, { data: positionen, error: posErr }] = await Promise.all([
+        supabase.from('budgetangebote').select('*').eq('id', budgetangebotId).single(),
+        supabase.from('budgetangebot_positionen').select('*').eq('budgetangebot_id', budgetangebotId).order('pos_nr'),
+      ])
+      if (baErr) throw baErr
+      if (posErr) throw posErr
+
+      // 2. Erstelle Projekt
+      const { data: projekt, error: projErr } = await supabase
+        .from('projekte')
+        .insert({
+          titel: ba.projekt_bezeichnung || 'Aus Budgetangebot',
+          kontakt_id: ba.kontakt_id || null,
+          status: 'angebot',
+          angebots_datum: new Date().toISOString().split('T')[0],
+          angebots_wert: ba.brutto_summe || null,
+          budgetangebot_id: budgetangebotId,
+          verantwortlich: 'Andreas',
+          notizen: `Erstellt aus Budgetangebot vom ${formatDate(ba.erstellt_am)}.\nKunde: ${ba.kontakt_name || '-'}\nNetto: ${formatEuro(ba.netto_summe)} / Brutto: ${formatEuro(ba.brutto_summe)}`,
+        })
+        .select('id')
+        .single()
+      if (projErr) throw projErr
+
+      // 3. Kopiere Positionen
+      if (positionen && positionen.length > 0) {
+        const projektPositionen = positionen.map(p => ({
+          projekt_id: projekt.id,
+          pos_nr: p.pos_nr,
+          bezeichnung: [p.typ, p.bezeichnung, p.raum ? `(${p.raum})` : ''].filter(Boolean).join(' - ') || p.typ || 'Position',
+          typ: (p.typ || '').toLowerCase().includes('tuer') ? 'tuer' : (p.typ || '').toLowerCase().includes('haus') ? 'haustuer' : 'fenster',
+          breite_mm: p.breite_mm ? Math.round(p.breite_mm) : null,
+          hoehe_mm: p.hoehe_mm ? Math.round(p.hoehe_mm) : null,
+          menge: p.menge || 1,
+          einzelpreis: p.einzelpreis,
+          gesamtpreis: p.gesamtpreis,
+          budgetangebot_position_id: p.id,
+          details: p.details || null,
+        }))
+        const { error: posInsErr } = await supabase.from('projekt_positionen').insert(projektPositionen)
+        if (posInsErr) throw posInsErr
+      }
+
+      // 4. Historie-Eintrag
+      await supabase.from('projekt_historie').insert({
+        projekt_id: projekt.id,
+        aktion: 'erstellt',
+        neuer_wert: `Aus Budgetangebot konvertiert (${ba.kontakt_name || 'unbekannt'})`,
+        erstellt_von: 'Dashboard',
+      })
+
+      // 5. Budgetangebot verlinken + Status
+      await supabase.from('budgetangebote').update({
+        projekt_id: projekt.id,
+        status: 'angenommen',
+        aktualisiert_am: new Date().toISOString(),
+      }).eq('id', budgetangebotId)
+
+      setConvertId(null)
+      navigate(`/projekte/${projekt.id}`)
+    } catch (err) {
+      console.error('Konvertierung fehlgeschlagen:', err)
+      setError(err.message)
+    } finally {
+      setConverting(false)
     }
   }
 
@@ -317,6 +395,23 @@ export default function BudgetangebotVerlauf() {
                           >
                             <Pencil className="w-4 h-4" />
                           </button>
+                          {!a.projekt_id ? (
+                            <button
+                              onClick={() => setConvertId(a.id)}
+                              className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                              title="Als Projekt anlegen"
+                            >
+                              <FolderKanban className="w-4 h-4" />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => navigate(`/projekte/${a.projekt_id}`)}
+                              className="p-1.5 text-green-500 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
+                              title="Zum Projekt"
+                            >
+                              <FolderKanban className="w-4 h-4" />
+                            </button>
+                          )}
                           <button
                             onClick={() => setDeleteId(a.id)}
                             className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -381,6 +476,42 @@ export default function BudgetangebotVerlauf() {
                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-lg transition-colors"
               >
                 {deleting ? 'Loesche...' : 'Loeschen'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Convert Confirmation Modal */}
+      {convertId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setConvertId(null)}>
+          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm m-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                <FolderKanban className="w-5 h-5 text-green-600" />
+              </div>
+              <h3 className="text-base font-semibold text-gray-900">Als Projekt anlegen?</h3>
+            </div>
+            <p className="text-sm text-gray-600 mb-1">
+              Aus diesem Budgetangebot wird ein neues Projekt erstellt.
+            </p>
+            <ul className="text-xs text-gray-500 mb-6 space-y-1 ml-4 list-disc">
+              <li>Positionen werden uebernommen (kopiert)</li>
+              <li>Projekt startet im Status &quot;Angebot&quot;</li>
+              <li>Budgetangebot wird als &quot;Angenommen&quot; markiert</li>
+            </ul>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => setConvertId(null)}
+                className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={() => handleConvert(convertId)}
+                disabled={converting}
+                className="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 rounded-lg transition-colors"
+              >
+                {converting ? 'Wird erstellt...' : 'Projekt erstellen'}
               </button>
             </div>
           </div>
