@@ -11,7 +11,7 @@ const STATUS_DATE_MAP = {
   auftrag: 'auftrags_datum',
   bestellt: 'bestell_datum',
   ab_erhalten: 'ab_datum',
-  lieferung_geplant: 'liefertermin',
+  lieferung_geplant: 'liefertermin_geplant',
   montagebereit: 'montage_datum',
   erledigt: 'erledigt_datum',
 }
@@ -30,6 +30,16 @@ const HISTORIE_STYLES = {
   status_change: { dot: '#3B82F6', icon: ChevronRight },
   field_update: { dot: '#9CA3AF', icon: Edit2 },
   notiz: { dot: '#10B981', icon: FileText },
+  bestellung: { dot: '#F97316', icon: Package },
+}
+
+const BESTELL_STATUS = {
+  entwurf: { label: 'Entwurf', color: '#6B7280', bg: '#F3F4F6' },
+  bestellt: { label: 'Bestellt', color: '#F59E0B', bg: '#FFFBEB' },
+  ab_erhalten: { label: 'AB erhalten', color: '#14B8A6', bg: '#F0FDFA' },
+  teilgeliefert: { label: 'Teilgeliefert', color: '#06B6D4', bg: '#ECFEFF' },
+  geliefert: { label: 'Geliefert', color: '#10B981', bg: '#ECFDF5' },
+  storniert: { label: 'Storniert', color: '#DC2626', bg: '#FEF2F2' },
 }
 
 const DATE_FIELDS = [
@@ -37,7 +47,7 @@ const DATE_FIELDS = [
   { key: 'auftrags_datum', label: 'Auftrags-Datum' },
   { key: 'bestell_datum', label: 'Bestell-Datum' },
   { key: 'ab_datum', label: 'AB-Datum' },
-  { key: 'liefertermin', label: 'Liefertermin' },
+  { key: 'liefertermin_geplant', label: 'Liefertermin' },
   { key: 'montage_datum', label: 'Montage-Datum' },
   { key: 'erledigt_datum', label: 'Erledigt-Datum' },
 ]
@@ -58,6 +68,11 @@ export default function ProjektDetail() {
   const [editing, setEditing] = useState(false)
   const [editData, setEditData] = useState({})
   const [newNotiz, setNewNotiz] = useState('')
+  const [showNewBestellung, setShowNewBestellung] = useState(false)
+  const [newBestellung, setNewBestellung] = useState({
+    bestell_nummer: '', lieferant_name: '', bestell_datum: new Date().toISOString().split('T')[0],
+    ab_nummer: '', liefertermin_geplant: '', bestell_wert: '', notizen: ''
+  })
 
   const loadProjekt = useCallback(async () => {
     setLoading(true)
@@ -87,7 +102,7 @@ export default function ProjektDetail() {
       einsatzort_plz: projekt.einsatzort_plz || '',
       einsatzort_ort: projekt.einsatzort_ort || '',
       ab_nummer: projekt.ab_nummer || '',
-      lieferwoche: projekt.lieferwoche || '',
+      liefertermin_kw: projekt.liefertermin_kw || '',
       ...Object.fromEntries(DATE_FIELDS.map(f => [f.key, projekt[f.key] || ''])),
       angebots_wert: projekt.angebots_wert ?? '',
       auftrags_wert: projekt.auftrags_wert ?? '',
@@ -166,6 +181,46 @@ export default function ProjektDetail() {
       erstellt_von: 'Dashboard',
     })
     setNewNotiz('')
+    loadProjekt()
+  }
+
+  const handleCreateBestellung = async () => {
+    if (!newBestellung.lieferant_name.trim()) return
+
+    const { error } = await supabase.from('projekt_bestellungen').insert({
+      projekt_id: id,
+      bestell_nummer: newBestellung.bestell_nummer || null,
+      lieferant_name: newBestellung.lieferant_name,
+      bestell_datum: newBestellung.bestell_datum || null,
+      ab_nummer: newBestellung.ab_nummer || null,
+      liefertermin_geplant: newBestellung.liefertermin_geplant || null,
+      bestell_wert: newBestellung.bestell_wert ? parseFloat(newBestellung.bestell_wert) : null,
+      notizen: newBestellung.notizen || null,
+      status: 'bestellt',
+    })
+    if (error) { console.error(error); return }
+
+    // Auto-update project status to 'bestellt' if currently 'auftrag'
+    if (projekt.status === 'auftrag') {
+      await supabase.from('projekte').update({
+        status: 'bestellt',
+        bestell_datum: newBestellung.bestell_datum || new Date().toISOString().split('T')[0]
+      }).eq('id', id)
+      await supabase.from('projekt_historie').insert({
+        projekt_id: id, aktion: 'status_change', feld: 'status',
+        alter_wert: 'auftrag', neuer_wert: 'bestellt', erstellt_von: 'Dashboard'
+      })
+    }
+
+    // Historie entry for bestellung
+    await supabase.from('projekt_historie').insert({
+      projekt_id: id, aktion: 'bestellung',
+      neuer_wert: `Bestellung bei ${newBestellung.lieferant_name} (${newBestellung.bestell_nummer || 'ohne Nr.'})`,
+      erstellt_von: 'Dashboard'
+    })
+
+    setShowNewBestellung(false)
+    setNewBestellung({ bestell_nummer: '', lieferant_name: '', bestell_datum: new Date().toISOString().split('T')[0], ab_nummer: '', liefertermin_geplant: '', bestell_wert: '', notizen: '' })
     loadProjekt()
   }
 
@@ -281,7 +336,7 @@ export default function ProjektDetail() {
                     <Field key={f.key} label={f.label} value={formatDate(projekt[f.key])} editing={editing} editValue={editData[f.key]} onChange={v => setEditData(d => ({ ...d, [f.key]: v }))} type="date" />
                   ))}
                   <Field label="AB-Nummer" value={projekt.ab_nummer} editing={editing} editValue={editData.ab_nummer} onChange={v => setEditData(d => ({ ...d, ab_nummer: v }))} />
-                  <Field label="Lieferwoche (KW)" value={projekt.lieferwoche} editing={editing} editValue={editData.lieferwoche} onChange={v => setEditData(d => ({ ...d, lieferwoche: v }))} type="number" />
+                  <Field label="Lieferwoche (KW)" value={projekt.liefertermin_kw} editing={editing} editValue={editData.liefertermin_kw} onChange={v => setEditData(d => ({ ...d, liefertermin_kw: v }))} type="number" />
                 </div>
                 <div className="grid grid-cols-2 gap-4 mt-4">
                   {VALUE_FIELDS.map(f => (
@@ -327,11 +382,48 @@ export default function ProjektDetail() {
               <h2 className="font-semibold text-gray-900 flex items-center gap-2">
                 <Package className="h-4 w-4 text-gray-400" /> Bestellungen
               </h2>
+              <button onClick={() => setShowNewBestellung(true)} className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1">
+                <Plus className="h-4 w-4" /> Neue Bestellung
+              </button>
             </div>
             <div className="p-5">
-              {bestellungen.length === 0 ? (
+              {showNewBestellung && (
+                <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200 space-y-3">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-xs font-medium text-gray-500">Bestell-Nr.</label>
+                      <input type="text" value={newBestellung.bestell_nummer} onChange={e => setNewBestellung(d => ({ ...d, bestell_nummer: e.target.value }))} className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="z.B. B-2026-001" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-gray-500">Lieferant *</label>
+                      <input type="text" value={newBestellung.lieferant_name} onChange={e => setNewBestellung(d => ({ ...d, lieferant_name: e.target.value }))} className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="z.B. WERU" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-gray-500">Bestell-Datum</label>
+                      <input type="date" value={newBestellung.bestell_datum} onChange={e => setNewBestellung(d => ({ ...d, bestell_datum: e.target.value }))} className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-gray-500">Wert</label>
+                      <input type="number" value={newBestellung.bestell_wert} onChange={e => setNewBestellung(d => ({ ...d, bestell_wert: e.target.value }))} className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="0.00" step="0.01" />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="text-xs font-medium text-gray-500">Notizen</label>
+                      <input type="text" value={newBestellung.notizen} onChange={e => setNewBestellung(d => ({ ...d, notizen: e.target.value }))} className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Optionale Notizen..." />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => { setShowNewBestellung(false); setNewBestellung({ bestell_nummer: '', lieferant_name: '', bestell_datum: new Date().toISOString().split('T')[0], ab_nummer: '', liefertermin_geplant: '', bestell_wert: '', notizen: '' }) }} className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                      Abbrechen
+                    </button>
+                    <button onClick={handleCreateBestellung} disabled={!newBestellung.lieferant_name.trim()} className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5">
+                      <Save className="h-4 w-4" /> Speichern
+                    </button>
+                  </div>
+                </div>
+              )}
+              {bestellungen.length === 0 && !showNewBestellung ? (
                 <p className="text-sm text-gray-400">Keine Bestellungen vorhanden.</p>
-              ) : (
+              ) : bestellungen.length > 0 && (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
@@ -345,16 +437,25 @@ export default function ProjektDetail() {
                       </tr>
                     </thead>
                     <tbody>
-                      {bestellungen.map(b => (
-                        <tr key={b.id} className="border-b border-gray-50 hover:bg-gray-50">
-                          <td className="py-2 pr-4 font-medium">{b.bestell_nummer || '-'}</td>
-                          <td className="py-2 pr-4">{b.lieferant_name || '-'}</td>
-                          <td className="py-2 pr-4">{formatDate(b.bestell_datum)}</td>
-                          <td className="py-2 pr-4">{b.ab_nummer || '-'}</td>
-                          <td className="py-2 pr-4">{formatDate(b.liefertermin)}</td>
-                          <td className="py-2">{b.status ? <StatusBadge status={b.status} /> : '-'}</td>
-                        </tr>
-                      ))}
+                      {bestellungen.map(b => {
+                        const bStatus = BESTELL_STATUS[b.status]
+                        return (
+                          <tr key={b.id} className="border-b border-gray-50 hover:bg-gray-50">
+                            <td className="py-2 pr-4 font-medium">{b.bestell_nummer || '-'}</td>
+                            <td className="py-2 pr-4">{b.lieferant_name || '-'}</td>
+                            <td className="py-2 pr-4">{formatDate(b.bestell_datum)}</td>
+                            <td className="py-2 pr-4">{b.ab_nummer || '-'}</td>
+                            <td className="py-2 pr-4">{formatDate(b.liefertermin_geplant)}</td>
+                            <td className="py-2">
+                              {bStatus ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium" style={{ color: bStatus.color, backgroundColor: bStatus.bg }}>
+                                  {bStatus.label}
+                                </span>
+                              ) : (b.status || '-')}
+                            </td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -484,11 +585,11 @@ export default function ProjektDetail() {
                       <td className="py-2 pr-4 text-gray-500">{pos.pos_nr}</td>
                       <td className="py-2 pr-4 font-medium">{pos.bezeichnung || '-'}</td>
                       <td className="py-2 pr-4">{pos.typ || '-'}</td>
-                      <td className="py-2 pr-4 text-right">{pos.breite || '-'}</td>
-                      <td className="py-2 pr-4 text-right">{pos.hoehe || '-'}</td>
+                      <td className="py-2 pr-4 text-right">{pos.breite_mm || '-'}</td>
+                      <td className="py-2 pr-4 text-right">{pos.hoehe_mm || '-'}</td>
                       <td className="py-2 pr-4 text-right">{pos.menge ?? '-'}</td>
                       <td className="py-2 pr-4 text-right">{formatEuro(pos.einzelpreis)}</td>
-                      <td className="py-2 pr-4 text-right">{formatEuro(pos.gesamt)}</td>
+                      <td className="py-2 pr-4 text-right">{formatEuro(pos.gesamtpreis)}</td>
                       <td className="py-2">{pos.status || '-'}</td>
                     </tr>
                   ))}
@@ -498,7 +599,7 @@ export default function ProjektDetail() {
                     <tr className="border-t border-gray-200 font-semibold">
                       <td colSpan={7} className="py-2 pr-4 text-right">Summe</td>
                       <td className="py-2 pr-4 text-right">
-                        {formatEuro(positionen.reduce((sum, p) => sum + (p.gesamt || 0), 0))}
+                        {formatEuro(positionen.reduce((sum, p) => sum + (p.gesamtpreis || 0), 0))}
                       </td>
                       <td />
                     </tr>
