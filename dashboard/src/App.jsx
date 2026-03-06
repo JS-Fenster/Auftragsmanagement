@@ -1,5 +1,5 @@
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom'
-import { LayoutDashboard, ClipboardList, FileText, Users, Mail, Settings, Calculator, History, FolderKanban } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, FileText, Users, Mail, Settings, Calculator, History, FolderKanban, CalendarDays } from 'lucide-react'
 import Uebersicht from './pages/Uebersicht'
 import Auftraege from './pages/Auftraege'
 import Dokumente from './pages/Dokumente'
@@ -10,10 +10,12 @@ import Budgetangebot from './pages/Budgetangebot'
 import BudgetangebotVerlauf from './pages/BudgetangebotVerlauf'
 import Projekte from './pages/Projekte'
 import ProjektDetail from './pages/ProjektDetail'
+import Montageplanung from './pages/Montageplanung'
 
 const NAV_ITEMS = [
   { to: '/uebersicht', label: 'Übersicht', icon: LayoutDashboard },
   { to: '/projekte', label: 'Projekte', icon: FolderKanban },
+  { to: '/montageplanung', label: 'Montageplanung', icon: CalendarDays },
   { to: '/budgetangebot', label: 'Budgetangebot', icon: Calculator },
   { to: '/budgetangebot-verlauf', label: 'Angebotsverlauf', icon: History },
   { to: '/auftraege', label: 'Aufträge', icon: ClipboardList },
@@ -61,6 +63,7 @@ export default function App() {
           <Route path="/uebersicht" element={<Uebersicht />} />
           <Route path="/projekte" element={<Projekte />} />
           <Route path="/projekte/:id" element={<ProjektDetail />} />
+          <Route path="/montageplanung" element={<Montageplanung />} />
           <Route path="/budgetangebot" element={<Budgetangebot />} />
           <Route path="/budgetangebot-verlauf" element={<BudgetangebotVerlauf />} />
           <Route path="/auftraege" element={<Auftraege />} />
