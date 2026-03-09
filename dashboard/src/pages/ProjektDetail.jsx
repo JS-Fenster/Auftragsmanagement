@@ -5,7 +5,8 @@ import { supabase } from '../lib/supabase'
 import StatusBadge, { PROJEKT_PHASEN } from '../components/StatusBadge'
 import { PrioritaetBadge } from '../components/StatusBadge'
 
-const STATUS_FLOW = ['anfrage', 'angebot', 'auftrag', 'bestellt', 'ab_erhalten', 'lieferung_geplant', 'montagebereit', 'erledigt']
+const STATUS_FLOW = ['anfrage', 'angebot', 'auftrag', 'bestellt', 'ab_erhalten', 'lieferung_geplant', 'montagebereit', 'abnahme', 'rechnung', 'bezahlt', 'erledigt']
+const SONDER_STATUS = ['reklamation', 'storniert', 'pausiert']
 const STATUS_DATE_MAP = {
   angebot: 'angebots_datum',
   auftrag: 'auftrags_datum',
@@ -13,7 +14,13 @@ const STATUS_DATE_MAP = {
   ab_erhalten: 'ab_datum',
   lieferung_geplant: 'liefertermin_geplant',
   montagebereit: 'montage_datum',
+  abnahme: 'abnahme_datum',
+  rechnung: 'rechnung_datum',
+  bezahlt: 'bezahlt_datum',
   erledigt: 'erledigt_datum',
+  reklamation: 'reklamation_datum',
+  storniert: 'storniert_datum',
+  pausiert: 'pausiert_datum',
 }
 
 const formatEuro = (v) => v != null ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(v) : '-'
@@ -49,12 +56,16 @@ const DATE_FIELDS = [
   { key: 'ab_datum', label: 'AB-Datum' },
   { key: 'liefertermin_geplant', label: 'Liefertermin' },
   { key: 'montage_datum', label: 'Montage-Datum' },
+  { key: 'abnahme_datum', label: 'Abnahme-Datum' },
+  { key: 'rechnung_datum', label: 'Rechnung-Datum' },
+  { key: 'bezahlt_datum', label: 'Bezahlt-Datum' },
   { key: 'erledigt_datum', label: 'Erledigt-Datum' },
 ]
 
 const VALUE_FIELDS = [
   { key: 'angebots_wert', label: 'Angebots-Wert', format: formatEuro },
   { key: 'auftrags_wert', label: 'Auftrags-Wert', format: formatEuro },
+  { key: 'rechnungs_betrag', label: 'Rechnungs-Betrag', format: formatEuro },
 ]
 
 export default function ProjektDetail() {
@@ -106,6 +117,8 @@ export default function ProjektDetail() {
       ...Object.fromEntries(DATE_FIELDS.map(f => [f.key, projekt[f.key] || ''])),
       angebots_wert: projekt.angebots_wert ?? '',
       auftrags_wert: projekt.auftrags_wert ?? '',
+      rechnungs_betrag: projekt.rechnungs_betrag ?? '',
+      rechnungs_nummer: projekt.rechnungs_nummer || '',
     })
     setEditing(true)
   }
@@ -142,10 +155,22 @@ export default function ProjektDetail() {
 
   const handleStatusChange = async (newStatus) => {
     const oldStatus = projekt.status
+    const today = new Date().toISOString().split('T')[0]
     const updates = { status: newStatus }
+
+    // Sonder-Status: vorherigen Status merken
+    if (SONDER_STATUS.includes(newStatus)) {
+      updates.vorheriger_status = oldStatus
+    }
+    // Zurueck aus Sonder-Status: vorheriger_status leeren
+    if (SONDER_STATUS.includes(oldStatus) && !SONDER_STATUS.includes(newStatus)) {
+      updates.vorheriger_status = null
+    }
+
+    // Datum automatisch setzen (nur beim ersten Mal)
     const dateField = STATUS_DATE_MAP[newStatus]
     if (dateField && !projekt[dateField]) {
-      updates[dateField] = new Date().toISOString().split('T')[0]
+      updates[dateField] = today
     }
 
     await supabase.from('projekte').update(updates).eq('id', id)
@@ -225,12 +250,23 @@ export default function ProjektDetail() {
   }
 
   const getTransitions = () => {
-    const idx = STATUS_FLOW.indexOf(projekt?.status)
-    if (idx < 0) return []
-    const transitions = []
-    if (idx < STATUS_FLOW.length - 1) transitions.push(STATUS_FLOW[idx + 1])
-    if (idx > 0) transitions.push(STATUS_FLOW[idx - 1])
-    return transitions
+    const status = projekt?.status
+    if (!status) return { forward: [], backward: [], sonder: [], resume: null }
+
+    // Sonder-Status: nur "Zurueck" zum vorherigen Status
+    if (SONDER_STATUS.includes(status)) {
+      const resume = projekt.vorheriger_status
+      return { forward: [], backward: [], sonder: [], resume }
+    }
+
+    const idx = STATUS_FLOW.indexOf(status)
+    if (idx < 0) return { forward: [], backward: [], sonder: [], resume: null }
+
+    const forward = idx < STATUS_FLOW.length - 1 ? [STATUS_FLOW[idx + 1]] : []
+    const backward = idx > 0 ? [STATUS_FLOW[idx - 1]] : []
+    // Sonder-Status nur ab "auftrag" aufwaerts anbieten
+    const sonder = idx >= 2 ? SONDER_STATUS : []
+    return { forward, backward, sonder, resume: null }
   }
 
   if (loading) {
@@ -345,43 +381,98 @@ export default function ProjektDetail() {
                   <Field label="AB-Nummer" value={projekt.ab_nummer} editing={editing} editValue={editData.ab_nummer} onChange={v => setEditData(d => ({ ...d, ab_nummer: v }))} />
                   <Field label="Lieferwoche (KW)" value={projekt.liefertermin_kw} editing={editing} editValue={editData.liefertermin_kw} onChange={v => setEditData(d => ({ ...d, liefertermin_kw: v }))} type="number" />
                 </div>
-                <div className="grid grid-cols-2 gap-4 mt-4">
-                  {VALUE_FIELDS.map(f => (
-                    <Field key={f.key} label={f.label} value={f.format(projekt[f.key])} editing={editing} editValue={editData[f.key]} onChange={v => setEditData(d => ({ ...d, [f.key]: v }))} type="number" />
-                  ))}
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+                  {editing ? (
+                    <>
+                      {VALUE_FIELDS.map(f => (
+                        <Field key={f.key} label={f.label} value={f.format(projekt[f.key])} editing editValue={editData[f.key]} onChange={v => setEditData(d => ({ ...d, [f.key]: v }))} type="number" />
+                      ))}
+                      <Field label="Rechnungs-Nr." value={projekt.rechnungs_nummer} editing editValue={editData.rechnungs_nummer} onChange={v => setEditData(d => ({ ...d, rechnungs_nummer: v }))} />
+                    </>
+                  ) : (
+                    <>
+                      <WertCell label="Angebot" value={projekt.angebots_wert} />
+                      <WertCell label="Auftrag" value={projekt.auftrags_wert} diff={projekt.auftrags_wert != null && projekt.angebots_wert != null ? projekt.auftrags_wert - projekt.angebots_wert : null} />
+                      <WertCell label="Rechnung" value={projekt.rechnungs_betrag} diff={projekt.rechnungs_betrag != null && (projekt.auftrags_wert ?? projekt.angebots_wert) != null ? projekt.rechnungs_betrag - (projekt.auftrags_wert ?? projekt.angebots_wert) : null} />
+                    </>
+                  )}
                 </div>
               </div>
             </div>
           </div>
 
           {/* Status Transitions */}
-          {!editing && getTransitions().length > 0 && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-              <div className="px-5 py-3 border-b border-gray-200">
-                <h2 className="font-semibold text-gray-900">Status aendern</h2>
+          {!editing && (() => {
+            const { forward, backward, sonder, resume } = getTransitions()
+            const hasTransitions = forward.length > 0 || backward.length > 0 || sonder.length > 0 || resume
+            if (!hasTransitions) return null
+            return (
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+                <div className="px-5 py-3 border-b border-gray-200">
+                  <h2 className="font-semibold text-gray-900">Status aendern</h2>
+                </div>
+                <div className="p-5 space-y-3">
+                  {/* Resume from Sonder-Status */}
+                  {resume && (
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-gray-500 uppercase tracking-wide">Fortsetzen:</span>
+                      <button
+                        onClick={() => handleStatusChange(resume)}
+                        className="px-4 py-2 rounded-full text-sm font-medium transition-all hover:scale-105"
+                        style={{ backgroundColor: PROJEKT_PHASEN[resume]?.bg, color: PROJEKT_PHASEN[resume]?.text, border: `1px solid ${PROJEKT_PHASEN[resume]?.color}40` }}
+                      >
+                        <span className="flex items-center gap-1.5"><ArrowLeft className="h-3.5 w-3.5" /> {PROJEKT_PHASEN[resume]?.label || resume}</span>
+                      </button>
+                    </div>
+                  )}
+                  {/* Linear transitions */}
+                  {(forward.length > 0 || backward.length > 0) && (
+                    <div className="flex flex-wrap gap-3">
+                      {forward.map(status => {
+                        const phase = PROJEKT_PHASEN[status]
+                        return (
+                          <button key={status} onClick={() => handleStatusChange(status)}
+                            className="px-4 py-2 rounded-full text-sm font-medium transition-all hover:scale-105"
+                            style={{ backgroundColor: phase.bg, color: phase.text, border: `1px solid ${phase.color}40` }}
+                          >
+                            <span className="flex items-center gap-1.5">{phase.label} <ChevronRight className="h-4 w-4" /></span>
+                          </button>
+                        )
+                      })}
+                      {backward.map(status => {
+                        const phase = PROJEKT_PHASEN[status]
+                        return (
+                          <button key={status} onClick={() => handleStatusChange(status)}
+                            className="px-4 py-2 rounded-full text-sm font-medium transition-all hover:scale-105"
+                            style={{ backgroundColor: phase.bg, color: phase.text, border: `1px solid ${phase.color}40` }}
+                          >
+                            <span className="flex items-center gap-1.5"><ArrowLeft className="h-3.5 w-3.5" /> {phase.label}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                  {/* Sonder-Status */}
+                  {sonder.length > 0 && (
+                    <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
+                      <span className="text-xs text-gray-500 uppercase tracking-wide">Sonder:</span>
+                      {sonder.map(status => {
+                        const phase = PROJEKT_PHASEN[status]
+                        return (
+                          <button key={status} onClick={() => handleStatusChange(status)}
+                            className="px-3 py-1.5 rounded-full text-xs font-medium transition-all hover:scale-105"
+                            style={{ backgroundColor: phase.bg, color: phase.text, border: `1px solid ${phase.color}40` }}
+                          >
+                            {phase.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="p-5 flex flex-wrap gap-3">
-                {getTransitions().map(status => {
-                  const phase = PROJEKT_PHASEN[status]
-                  const isForward = STATUS_FLOW.indexOf(status) > STATUS_FLOW.indexOf(projekt.status)
-                  return (
-                    <button
-                      key={status}
-                      onClick={() => handleStatusChange(status)}
-                      className="px-4 py-2 rounded-full text-sm font-medium transition-all hover:scale-105"
-                      style={{ backgroundColor: phase.bg, color: phase.text, border: `1px solid ${phase.color}40` }}
-                    >
-                      {isForward ? (
-                        <span className="flex items-center gap-1.5">{phase.label} <ChevronRight className="h-4 w-4" /></span>
-                      ) : (
-                        <span className="flex items-center gap-1.5"><ArrowLeft className="h-3.5 w-3.5" /> {phase.label}</span>
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )}
+            )
+          })()}
 
           {/* Bestellungen */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -616,6 +707,24 @@ export default function ProjektDetail() {
             </div>
           )}
         </div>
+      </div>
+    </div>
+  )
+}
+
+function WertCell({ label, value, diff }) {
+  const hasValue = value != null
+  const hasDiff = diff != null && diff !== 0
+  return (
+    <div className="flex flex-col">
+      <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</span>
+      <div className="flex items-baseline gap-2 mt-1">
+        <span className="text-sm font-semibold text-gray-900">{hasValue ? formatEuro(value) : '-'}</span>
+        {hasDiff && (
+          <span className="text-xs font-medium" style={{ color: diff > 0 ? '#16A34A' : '#DC2626' }}>
+            {diff > 0 ? '+' : ''}{formatEuro(diff)}
+          </span>
+        )}
       </div>
     </div>
   )

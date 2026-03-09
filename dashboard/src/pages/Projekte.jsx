@@ -98,7 +98,7 @@ export default function Projekte() {
     const { data } = await supabase
       .from('projekte')
       .select('*, kontakte(firma1, firma2)')
-      .neq('status', 'erledigt')
+      .not('status', 'in', '("erledigt","bezahlt","storniert")')
 
     if (!data) return
     const now = Date.now()
@@ -150,12 +150,16 @@ export default function Projekte() {
     if (!projekt) return
     const alterStatus = projekt.status
 
+    const today = new Date().toISOString().split('T')[0]
+    const DATE_MAP = {
+      angebot: 'angebots_datum', auftrag: 'auftrags_datum', bestellt: 'bestell_datum',
+      ab_erhalten: 'ab_datum', montagebereit: 'montage_datum', abnahme: 'abnahme_datum',
+      rechnung: 'rechnung_datum', bezahlt: 'bezahlt_datum', erledigt: 'erledigt_datum',
+      reklamation: 'reklamation_datum', storniert: 'storniert_datum', pausiert: 'pausiert_datum',
+    }
     const dateUpdates = {}
-    if (neuerStatus === 'angebot' && !projekt.angebots_datum) dateUpdates.angebots_datum = new Date().toISOString().split('T')[0]
-    if (neuerStatus === 'auftrag' && !projekt.auftrags_datum) dateUpdates.auftrags_datum = new Date().toISOString().split('T')[0]
-    if (neuerStatus === 'bestellt' && !projekt.bestell_datum) dateUpdates.bestell_datum = new Date().toISOString().split('T')[0]
-    if (neuerStatus === 'ab_erhalten' && !projekt.ab_datum) dateUpdates.ab_datum = new Date().toISOString().split('T')[0]
-    if (neuerStatus === 'erledigt' && !projekt.erledigt_datum) dateUpdates.erledigt_datum = new Date().toISOString().split('T')[0]
+    const dateField = DATE_MAP[neuerStatus]
+    if (dateField && !projekt[dateField]) dateUpdates[dateField] = today
 
     const { error } = await supabase
       .from('projekte')
@@ -188,7 +192,7 @@ export default function Projekte() {
     { key: 'montagebereit', label: 'Montagebereit', color: '#10b981' },
   ]
 
-  const aktivCount = projekte.filter(p => p.status !== 'erledigt').length
+  const aktivCount = projekte.filter(p => !['erledigt', 'bezahlt', 'storniert'].includes(p.status)).length
 
   // ── Render ───────────────────────────────────────────
 

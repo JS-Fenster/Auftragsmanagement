@@ -6,7 +6,8 @@ import { GripVertical, User, Calendar, Euro, AlertTriangle } from 'lucide-react'
 
 const PHASE_ORDER = [
   'anfrage', 'angebot', 'auftrag', 'bestellt',
-  'ab_erhalten', 'lieferung_geplant', 'montagebereit', 'erledigt',
+  'ab_erhalten', 'lieferung_geplant', 'montagebereit',
+  'abnahme', 'rechnung', 'bezahlt', 'erledigt',
 ]
 
 const formatEuro = (v) =>
@@ -39,6 +40,9 @@ function KanbanCard({ projekt, onProjektClick, isDragging, alerts, onDragStart }
     ab_erhalten: projekt.ab_datum,
     lieferung_geplant: projekt.liefertermin_geplant,
     montagebereit: projekt.montage_datum || projekt.liefertermin_geplant,
+    abnahme: projekt.abnahme_datum,
+    rechnung: projekt.rechnung_datum,
+    bezahlt: projekt.bezahlt_datum,
     erledigt: projekt.erledigt_datum,
   }
   const days = daysAgo(statusDateMap[projekt.status] || projekt.created_at)
@@ -112,7 +116,8 @@ function KanbanColumn({ column, dragOverColumn, onDragOver, onDrop, onDragLeave,
     <div
       className="flex flex-col rounded-xl shrink-0"
       style={{
-        width: '260px',
+        width: '230px',
+        minWidth: '200px',
         backgroundColor: isOver ? `${column.color}10` : '#F9FAFB',
         border: isOver ? `2px dashed ${column.color}` : '2px solid transparent',
         transition: 'background-color 0.15s, border-color 0.15s',

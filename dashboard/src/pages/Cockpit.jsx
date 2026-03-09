@@ -42,7 +42,7 @@ function kundeOrt(projekt) {
 
 const TEAMS_MAP = Object.fromEntries(MONTAGE_TEAMS.map(t => [t.value, t.label]))
 
-const DISPLAY_PHASES = ['anfrage', 'angebot', 'auftrag', 'bestellt', 'ab_erhalten', 'lieferung_geplant', 'montagebereit']
+const DISPLAY_PHASES = ['anfrage', 'angebot', 'auftrag', 'bestellt', 'ab_erhalten', 'lieferung_geplant', 'montagebereit', 'abnahme', 'rechnung']
 
 const HISTORIE_ICONS = {
   status_change: ArrowRight,
@@ -181,7 +181,7 @@ export default function Cockpit() {
         supabase
           .from('projekte')
           .select('*, kontakte(id, firma1, firma2, ort, kontakt_personen!kontakt_personen_kontakt_id_fkey(vorname, nachname, ist_hauptkontakt))')
-          .neq('status', 'erledigt')
+          .not('status', 'in', '("erledigt","bezahlt","storniert")')
           .order('updated_at', { ascending: false }),
         supabase
           .from('projekte')

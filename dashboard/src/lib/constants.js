@@ -1,5 +1,6 @@
-// 8-Phasen Projekt-Lifecycle (Auftragsmanagement-Tool)
+// Projekt-Lifecycle: 11 lineare Phasen + 3 Sonder-Status
 export const PROJEKT_STATUS = {
+  // Linearer Flow
   anfrage:           { label: 'Anfrage',         color: '#3B82F6', bg: '#EFF6FF', text: '#1E40AF' },
   angebot:           { label: 'Angebot',         color: '#8B5CF6', bg: '#F5F3FF', text: '#5B21B6' },
   auftrag:           { label: 'Auftrag',         color: '#F59E0B', bg: '#FFFBEB', text: '#92400E' },
@@ -7,8 +8,24 @@ export const PROJEKT_STATUS = {
   ab_erhalten:       { label: 'AB erhalten',     color: '#14B8A6', bg: '#F0FDFA', text: '#115E59' },
   lieferung_geplant: { label: 'Lieferung gepl.', color: '#06B6D4', bg: '#ECFEFF', text: '#155E75' },
   montagebereit:     { label: 'Montagebereit',   color: '#10B981', bg: '#ECFDF5', text: '#065F46' },
+  abnahme:           { label: 'Abnahme',         color: '#059669', bg: '#D1FAE5', text: '#064E3B' },
+  rechnung:          { label: 'Rechnung',        color: '#7C3AED', bg: '#EDE9FE', text: '#4C1D95' },
+  bezahlt:           { label: 'Bezahlt',         color: '#16A34A', bg: '#DCFCE7', text: '#14532D' },
   erledigt:          { label: 'Erledigt',        color: '#6B7280', bg: '#F3F4F6', text: '#374151' },
+  // Sonder-Status
+  reklamation:       { label: 'Reklamation',     color: '#DC2626', bg: '#FEE2E2', text: '#991B1B' },
+  storniert:         { label: 'Storniert',       color: '#9CA3AF', bg: '#F3F4F6', text: '#6B7280' },
+  pausiert:          { label: 'Pausiert',        color: '#D97706', bg: '#FEF3C7', text: '#92400E' },
 }
+
+// Linearer Phasen-Flow (ohne Sonder-Status)
+export const PHASE_FLOW = [
+  'anfrage', 'angebot', 'auftrag', 'bestellt', 'ab_erhalten',
+  'lieferung_geplant', 'montagebereit', 'abnahme', 'rechnung', 'bezahlt', 'erledigt',
+]
+
+// Sonder-Status (kann jederzeit gesetzt werden, speichert vorheriger_status)
+export const SONDER_STATUS = ['reklamation', 'storniert', 'pausiert']
 
 export const PROJEKT_PRIORITAETEN = {
   niedrig:  { label: 'Niedrig',  color: '#6B7280', bg: '#F3F4F6' },
