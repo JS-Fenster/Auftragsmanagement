@@ -8,6 +8,7 @@ import GroupedTableView from '../components/GroupedTableView'
 import ProaktiveAlerts from '../components/ProaktiveAlerts'
 import StatusBadge, { PROJEKT_PHASEN } from '../components/StatusBadge'
 import { PrioritaetBadge } from '../components/StatusBadge'
+import { PROJEKT_TYPEN } from '../lib/constants'
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -67,6 +68,7 @@ export default function Projekte() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [filterPrio, setFilterPrio] = useState('')
+  const [filterTyp, setFilterTyp] = useState('')
   const [showNewModal, setShowNewModal] = useState(false)
   const [showAlerts, setShowAlerts] = useState(true)
 
@@ -82,6 +84,7 @@ export default function Projekte() {
 
       if (filterStatus) query = query.eq('status', filterStatus)
       if (filterPrio) query = query.eq('prioritaet', filterPrio)
+      if (filterTyp) query = query.eq('typ', filterTyp)
       if (searchTerm) {
         query = query.or(`titel.ilike.%${searchTerm}%,projekt_nummer.ilike.%${searchTerm}%,notizen.ilike.%${searchTerm}%`)
       }
@@ -94,7 +97,7 @@ export default function Projekte() {
     } finally {
       setLoading(false)
     }
-  }, [filterStatus, filterPrio, searchTerm])
+  }, [filterStatus, filterPrio, filterTyp, searchTerm])
 
   const loadAlerts = useCallback(async () => {
     const { data } = await supabase
@@ -184,8 +187,8 @@ export default function Projekte() {
 
   // ── Filter helpers ───────────────────────────────────
 
-  const hasFilters = filterStatus || filterPrio || searchTerm
-  const clearFilters = () => { setFilterStatus(''); setFilterPrio(''); setSearchTerm('') }
+  const hasFilters = filterStatus || filterPrio || filterTyp || searchTerm
+  const clearFilters = () => { setFilterStatus(''); setFilterPrio(''); setFilterTyp(''); setSearchTerm('') }
 
   const statsCards = [
     { key: 'anfrage', label: 'Anfragen', color: '#3b82f6' },
@@ -269,6 +272,12 @@ export default function Projekte() {
               <option value="">Alle Status</option>
               {Object.entries(PROJEKT_PHASEN).map(([key, phase]) => (
                 <option key={key} value={key}>{phase.label}</option>
+              ))}
+            </select>
+            <select value={filterTyp} onChange={e => setFilterTyp(e.target.value)} className="border rounded-lg px-3 py-2 text-sm bg-white">
+              <option value="">Alle Typen</option>
+              {Object.entries(PROJEKT_TYPEN).map(([key, typ]) => (
+                <option key={key} value={key}>{typ.label}</option>
               ))}
             </select>
             <select value={filterPrio} onChange={e => setFilterPrio(e.target.value)} className="border rounded-lg px-3 py-2 text-sm bg-white">

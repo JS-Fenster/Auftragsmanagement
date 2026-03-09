@@ -188,5 +188,47 @@ export const PROCESSING_STATUS = [
   { value: 'error', label: 'Fehler' },
 ]
 
+// A-002: Projekt-Typen
+export const PROJEKT_TYPEN = {
+  auftrag:       { label: 'Auftrag',       icon: 'FileText',  color: '#3B82F6', bg: '#EFF6FF' },
+  reparatur:     { label: 'Reparatur',     icon: 'Wrench',    color: '#F59E0B', bg: '#FFFBEB' },
+  versicherung:  { label: 'Versicherung',  icon: 'Shield',    color: '#8B5CF6', bg: '#F5F3FF' },
+  intern:        { label: 'Intern',        icon: 'Building',  color: '#6B7280', bg: '#F3F4F6' },
+  wartung:       { label: 'Wartung',       icon: 'Settings',  color: '#14B8A6', bg: '#F0FDFA' },
+}
+
+// A-003: Dokument-Typen fuer projekt_dokumente
+export const PROJEKT_DOKUMENT_TYPEN = {
+  vollangebot:           { label: 'Vollangebot' },
+  auftragsbestaetigung:  { label: 'Auftragsbestätigung' },
+  ab_unterschrieben:     { label: 'AB unterschrieben' },
+  bestellung:            { label: 'Bestellung' },
+  ab_eingehend:          { label: 'AB eingehend' },
+  lieferschein:          { label: 'Lieferschein' },
+  rechnung:              { label: 'Rechnung' },
+  gutschrift:            { label: 'Gutschrift' },
+  abtretungserklaerung:  { label: 'Abtretungserklärung' },
+  sonstiges:             { label: 'Sonstiges' },
+}
+
+// A-003: Pflicht-Gates (Status-Transition → benoetigte Dokument-Typen)
+export const PFLICHT_GATES = {
+  auftrag:  ['ab_unterschrieben'],                    // Kein Auftrag ohne unterschriebene AB
+  bestellt: [],                                        // Frei (Bestellung impliziert Auftrag)
+}
+
+// Versicherungs-spezifische Gates (zusaetzlich zu Standard-Gates)
+export const VERSICHERUNG_GATES = {
+  bestellt: ['abtretungserklaerung'],                  // Versicherung: Abtretung vor Bestellung
+}
+
+// A-004: Positions-Einheiten
+export const POSITIONS_EINHEITEN = {
+  stueck:   { label: 'Stück',   short: 'Stk' },
+  lfm:      { label: 'Laufmeter', short: 'lfm' },
+  m2:       { label: 'Quadratmeter', short: 'm²' },
+  pauschal: { label: 'Pauschal', short: 'psch' },
+}
+
 // API base URL for Edge Functions
 export const API_BASE = 'https://rsmjgdujlpnydbsfuiek.supabase.co/functions/v1'

@@ -28,6 +28,9 @@ export async function fetchProjekte(filters = {}) {
   if (filters.prioritaet) {
     query = query.eq('prioritaet', filters.prioritaet)
   }
+  if (filters.typ) {
+    query = query.eq('typ', filters.typ)
+  }
   if (filters.search) {
     query = query.or(`titel.ilike.%${filters.search}%,projekt_nummer.ilike.%${filters.search}%`)
   }
@@ -57,13 +60,14 @@ export async function fetchProjekt(id) {
     .single()
   if (error) throw new Error('Fehler beim Laden des Projekts: ' + error.message)
 
-  const [positionen, bestellungen, historie] = await Promise.all([
+  const [positionen, bestellungen, historie, dokumente] = await Promise.all([
     fetchPositionen(id),
     fetchBestellungen(id),
     fetchHistorie(id),
+    fetchProjektDokumente(id),
   ])
 
-  return { ...projekt, positionen, bestellungen, historie }
+  return { ...projekt, positionen, bestellungen, historie, dokumente }
 }
 
 export async function createProjekt(data) {
@@ -223,6 +227,70 @@ export async function updateBestellung(id, updates) {
     .single()
   if (error) throw new Error('Fehler beim Aktualisieren der Bestellung: ' + error.message)
   return data
+}
+
+// ============ PROJEKT-DOKUMENTE (A-003) ============
+
+export async function fetchProjektDokumente(projektId) {
+  const { data, error } = await supabase
+    .from('projekt_dokumente')
+    .select('*, documents(id, dateiname, kategorie, storage_pfad, created_at)')
+    .eq('projekt_id', projektId)
+    .order('created_at', { ascending: false })
+  if (error) throw new Error('Fehler beim Laden der Projekt-Dokumente: ' + error.message)
+  return data
+}
+
+export async function linkDokument(projektId, documentId, dokumentTyp, istPflicht = false) {
+  const { data, error } = await supabase
+    .from('projekt_dokumente')
+    .insert({
+      projekt_id: projektId,
+      document_id: documentId,
+      dokument_typ: dokumentTyp,
+      ist_pflicht: istPflicht,
+    })
+    .select('*, documents(id, dateiname, kategorie, storage_pfad, created_at)')
+    .single()
+  if (error) throw new Error('Fehler beim Verknuepfen des Dokuments: ' + error.message)
+  return data
+}
+
+export async function unlinkDokument(projektDokumentId) {
+  const { error } = await supabase
+    .from('projekt_dokumente')
+    .delete()
+    .eq('id', projektDokumentId)
+  if (error) throw new Error('Fehler beim Entfernen der Verknuepfung: ' + error.message)
+}
+
+export async function checkPflichtGates(projekt, projektDokumente) {
+  const { PFLICHT_GATES, VERSICHERUNG_GATES } = await import('../lib/constants.js')
+  const blocked = {}
+
+  // Standard-Gates pruefen
+  for (const [status, requiredDocs] of Object.entries(PFLICHT_GATES)) {
+    const missing = requiredDocs.filter(
+      typ => !projektDokumente.some(d => d.dokument_typ === typ)
+    )
+    if (missing.length > 0) {
+      blocked[status] = missing
+    }
+  }
+
+  // Versicherungs-Gates zusaetzlich pruefen
+  if (projekt.typ === 'versicherung') {
+    for (const [status, requiredDocs] of Object.entries(VERSICHERUNG_GATES)) {
+      const missing = requiredDocs.filter(
+        typ => !projektDokumente.some(d => d.dokument_typ === typ)
+      )
+      if (missing.length > 0) {
+        blocked[status] = [...(blocked[status] || []), ...missing]
+      }
+    }
+  }
+
+  return blocked
 }
 
 // ============ HISTORIE ============

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import StatusBadge, { PROJEKT_PHASEN } from './StatusBadge'
 import { PrioritaetBadge } from './StatusBadge'
-import { MONTAGE_TEAMS } from '../lib/constants'
+import { MONTAGE_TEAMS, PROJEKT_TYPEN } from '../lib/constants'
 import { GripVertical, User, Calendar, Euro, AlertTriangle } from 'lucide-react'
 
 const PHASE_ORDER = [
@@ -48,6 +48,7 @@ function KanbanCard({ projekt, onProjektClick, isDragging, alerts, onDragStart }
   const days = daysAgo(statusDateMap[projekt.status] || projekt.created_at)
   const hasAlert = alerts.some((a) => a.projekt?.id === projekt.id)
   const teamLabel = projekt.montage_team ? MONTAGE_TEAMS.find(t => t.value === projekt.montage_team)?.label || projekt.montage_team : null
+  const typInfo = projekt.typ && projekt.typ !== 'auftrag' ? PROJEKT_TYPEN[projekt.typ] : null
 
   return (
     <div
@@ -72,6 +73,15 @@ function KanbanCard({ projekt, onProjektClick, isDragging, alerts, onDragStart }
           <GripVertical size={14} style={{ color: '#D1D5DB' }} />
         </div>
       </div>
+
+      {typInfo && (
+        <span
+          className="inline-flex items-center rounded text-xs px-1.5 py-0.5 font-medium mb-1"
+          style={{ backgroundColor: typInfo.bg, color: typInfo.color }}
+        >
+          {typInfo.label}
+        </span>
+      )}
 
       <p className="text-sm font-semibold truncate mb-1.5" style={{ color: '#111827' }}>
         {kundeName}

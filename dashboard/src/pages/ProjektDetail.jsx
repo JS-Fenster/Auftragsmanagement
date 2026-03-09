@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Save, Clock, Package, Wrench, FileText, Plus, Edit2, Trash2, ChevronRight, ExternalLink } from 'lucide-react'
+import { ArrowLeft, Save, Clock, Package, Wrench, FileText, Plus, Edit2, Trash2, ChevronRight, ExternalLink, Shield, Link2, Unlink, AlertCircle, Eye, EyeOff, Tag } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import StatusBadge, { PROJEKT_PHASEN } from '../components/StatusBadge'
 import { PrioritaetBadge } from '../components/StatusBadge'
+import { PROJEKT_TYPEN, PROJEKT_DOKUMENT_TYPEN, PFLICHT_GATES, VERSICHERUNG_GATES, POSITIONS_EINHEITEN } from '../lib/constants'
 
 const STATUS_FLOW = ['anfrage', 'angebot', 'auftrag', 'bestellt', 'ab_erhalten', 'lieferung_geplant', 'montagebereit', 'abnahme', 'rechnung', 'bezahlt', 'erledigt']
 const SONDER_STATUS = ['reklamation', 'storniert', 'pausiert']
@@ -84,14 +85,21 @@ export default function ProjektDetail() {
     bestell_nummer: '', lieferant_name: '', bestell_datum: new Date().toISOString().split('T')[0],
     ab_nummer: '', liefertermin_geplant: '', bestell_wert: '', notizen: ''
   })
+  const [dokumente, setDokumente] = useState([])
+  const [showLinkDokument, setShowLinkDokument] = useState(false)
+  const [linkDocSearch, setLinkDocSearch] = useState('')
+  const [linkDocResults, setLinkDocResults] = useState([])
+  const [linkDocTyp, setLinkDocTyp] = useState('sonstiges')
+  const [blockedGates, setBlockedGates] = useState({})
 
   const loadProjekt = useCallback(async () => {
     setLoading(true)
-    const [projektRes, posRes, bestRes, histRes] = await Promise.all([
+    const [projektRes, posRes, bestRes, histRes, dokRes] = await Promise.all([
       supabase.from('projekte').select('*, kontakte(id, firma1, firma2, strasse, plz, ort, kontakt_personen!kontakt_personen_kontakt_id_fkey(vorname, nachname, ist_hauptkontakt))').eq('id', id).single(),
       supabase.from('projekt_positionen').select('*').eq('projekt_id', id).order('pos_nr'),
       supabase.from('projekt_bestellungen').select('*').eq('projekt_id', id).order('created_at', { ascending: false }),
       supabase.from('projekt_historie').select('*').eq('projekt_id', id).order('erstellt_am', { ascending: false }),
+      supabase.from('projekt_dokumente').select('*, documents(id, dateiname, kategorie, storage_pfad, created_at)').eq('projekt_id', id).order('created_at', { ascending: false }),
     ])
 
     if (projektRes.error) { navigate('/projekte'); return }
@@ -99,10 +107,30 @@ export default function ProjektDetail() {
     setPositionen(posRes.data || [])
     setBestellungen(bestRes.data || [])
     setHistorie(histRes.data || [])
+    setDokumente(dokRes.data || [])
     setLoading(false)
   }, [id, navigate])
 
   useEffect(() => { loadProjekt() }, [loadProjekt])
+
+  // A-003: Gate-Check wenn Dokumente sich aendern
+  useEffect(() => {
+    if (!projekt) return
+    const gates = {}
+    const checkGates = (gateMap) => {
+      for (const [status, requiredDocs] of Object.entries(gateMap)) {
+        const missing = requiredDocs.filter(
+          typ => !dokumente.some(d => d.dokument_typ === typ)
+        )
+        if (missing.length > 0) {
+          gates[status] = [...(gates[status] || []), ...missing]
+        }
+      }
+    }
+    checkGates(PFLICHT_GATES)
+    if (projekt.typ === 'versicherung') checkGates(VERSICHERUNG_GATES)
+    setBlockedGates(gates)
+  }, [projekt?.typ, dokumente])
 
   const startEditing = () => {
     setEditData({
@@ -249,6 +277,42 @@ export default function ProjektDetail() {
     loadProjekt()
   }
 
+  // A-003: Dokument-Suche und Verknuepfung
+  const searchDocuments = async (term) => {
+    if (term.length < 2) { setLinkDocResults([]); return }
+    const { data } = await supabase
+      .from('documents')
+      .select('id, dateiname, kategorie, created_at')
+      .ilike('dateiname', `%${term}%`)
+      .limit(10)
+    setLinkDocResults(data || [])
+  }
+
+  const handleLinkDokument = async (documentId) => {
+    const { error } = await supabase
+      .from('projekt_dokumente')
+      .insert({
+        projekt_id: id,
+        document_id: documentId,
+        dokument_typ: linkDocTyp,
+      })
+    if (error) { console.error(error); return }
+    setShowLinkDokument(false)
+    setLinkDocSearch('')
+    setLinkDocResults([])
+    setLinkDocTyp('sonstiges')
+    loadProjekt()
+  }
+
+  const handleUnlinkDokument = async (projektDokumentId) => {
+    const { error } = await supabase
+      .from('projekt_dokumente')
+      .delete()
+      .eq('id', projektDokumentId)
+    if (error) { console.error(error); return }
+    loadProjekt()
+  }
+
   const getTransitions = () => {
     const status = projekt?.status
     if (!status) return { forward: [], backward: [], sonder: [], resume: null }
@@ -262,8 +326,13 @@ export default function ProjektDetail() {
     const idx = STATUS_FLOW.indexOf(status)
     if (idx < 0) return { forward: [], backward: [], sonder: [], resume: null }
 
-    const forward = idx < STATUS_FLOW.length - 1 ? [STATUS_FLOW[idx + 1]] : []
-    const backward = idx > 0 ? [STATUS_FLOW[idx - 1]] : []
+    const nextStatus = idx < STATUS_FLOW.length - 1 ? STATUS_FLOW[idx + 1] : null
+    const forward = nextStatus ? [{
+      status: nextStatus,
+      blocked: !!blockedGates[nextStatus],
+      missingDocs: blockedGates[nextStatus] || [],
+    }] : []
+    const backward = idx > 0 ? [{ status: STATUS_FLOW[idx - 1], blocked: false, missingDocs: [] }] : []
     // Sonder-Status nur ab "auftrag" aufwaerts anbieten
     const sonder = idx >= 2 ? SONDER_STATUS : []
     return { forward, backward, sonder, resume: null }
@@ -299,9 +368,22 @@ export default function ProjektDetail() {
             {projekt.titel && <p className="text-sm text-gray-500 mt-0.5">{projekt.titel}</p>}
           </div>
           <StatusBadge status={projekt.status} size="md" />
+          {projekt.typ && projekt.typ !== 'auftrag' && PROJEKT_TYPEN[projekt.typ] && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium"
+              style={{ backgroundColor: PROJEKT_TYPEN[projekt.typ].bg, color: PROJEKT_TYPEN[projekt.typ].color }}
+            >
+              {PROJEKT_TYPEN[projekt.typ].label}
+            </span>
+          )}
           {projekt.prioritaet && projekt.prioritaet !== 'normal' && (
             <PrioritaetBadge prioritaet={projekt.prioritaet} />
           )}
+          {projekt.tags && projekt.tags.length > 0 && projekt.tags.map(tag => (
+            <span key={tag} className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+              <Tag className="h-3 w-3" /> {tag}
+            </span>
+          ))}
         </div>
         <div className="flex items-center gap-2">
           {editing ? (
@@ -373,6 +455,24 @@ export default function ProjektDetail() {
                 <Field label="Montage-Team" value={projekt.montage_team} editing={editing} editValue={editData.montage_team} onChange={v => setEditData(d => ({ ...d, montage_team: v }))} />
               </div>
 
+              {/* A-001: Objekt + A-002: Gewährleistung */}
+              {(projekt.gewaehrleistung_bis || projekt.objekt_id) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {projekt.gewaehrleistung_bis && (
+                    <div>
+                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Gewährleistung bis</span>
+                      <p className="mt-1 text-sm text-gray-900">{formatDate(projekt.gewaehrleistung_bis)}</p>
+                    </div>
+                  )}
+                  {projekt.rechnungsempfaenger_kontakt_id && projekt.rechnungsempfaenger_kontakt_id !== projekt.kontakt_id && (
+                    <div>
+                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Rechnungsempfänger</span>
+                      <p className="mt-1 text-sm text-gray-900 italic">Abweichend (ID: {projekt.rechnungsempfaenger_kontakt_id.slice(0,8)}...)</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="border-t border-gray-100 pt-4">
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {DATE_FIELDS.map(f => (
@@ -428,18 +528,29 @@ export default function ProjektDetail() {
                   {/* Linear transitions */}
                   {(forward.length > 0 || backward.length > 0) && (
                     <div className="flex flex-wrap gap-3">
-                      {forward.map(status => {
+                      {forward.map(({ status, blocked, missingDocs }) => {
                         const phase = PROJEKT_PHASEN[status]
                         return (
-                          <button key={status} onClick={() => handleStatusChange(status)}
-                            className="px-4 py-2 rounded-full text-sm font-medium transition-all hover:scale-105"
-                            style={{ backgroundColor: phase.bg, color: phase.text, border: `1px solid ${phase.color}40` }}
-                          >
-                            <span className="flex items-center gap-1.5">{phase.label} <ChevronRight className="h-4 w-4" /></span>
-                          </button>
+                          <div key={status} className="relative group">
+                            <button onClick={() => !blocked && handleStatusChange(status)}
+                              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${blocked ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
+                              style={{ backgroundColor: phase.bg, color: phase.text, border: `1px solid ${phase.color}40` }}
+                              disabled={blocked}
+                            >
+                              <span className="flex items-center gap-1.5">
+                                {blocked && <AlertCircle className="h-3.5 w-3.5" />}
+                                {phase.label} <ChevronRight className="h-4 w-4" />
+                              </span>
+                            </button>
+                            {blocked && (
+                              <div className="absolute bottom-full left-0 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                                Fehlend: {missingDocs.map(d => PROJEKT_DOKUMENT_TYPEN[d]?.label || d).join(', ')}
+                              </div>
+                            )}
+                          </div>
                         )
                       })}
-                      {backward.map(status => {
+                      {backward.map(({ status }) => {
                         const phase = PROJEKT_PHASEN[status]
                         return (
                           <button key={status} onClick={() => handleStatusChange(status)}
@@ -561,6 +672,104 @@ export default function ProjektDetail() {
             </div>
           </div>
 
+          {/* Dokumente (A-003) */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="px-5 py-3 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+                <Link2 className="h-4 w-4 text-gray-400" /> Dokumente
+              </h2>
+              <button onClick={() => setShowLinkDokument(true)} className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1">
+                <Plus className="h-4 w-4" /> Verknuepfen
+              </button>
+            </div>
+            <div className="p-5">
+              {/* Pflicht-Dokumente Checkliste */}
+              {Object.keys(blockedGates).length > 0 && (
+                <div className="mb-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                  <p className="text-xs font-medium text-amber-800 mb-2 flex items-center gap-1">
+                    <AlertCircle className="h-3.5 w-3.5" /> Fehlende Pflicht-Dokumente
+                  </p>
+                  {Object.entries(blockedGates).map(([status, docs]) => (
+                    <div key={status} className="text-xs text-amber-700">
+                      <span className="font-medium">{PROJEKT_PHASEN[status]?.label || status}:</span>{' '}
+                      {docs.map(d => PROJEKT_DOKUMENT_TYPEN[d]?.label || d).join(', ')}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Link-Dokument Formular */}
+              {showLinkDokument && (
+                <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200 space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-medium text-gray-500">Dokument suchen</label>
+                      <input
+                        type="text" value={linkDocSearch}
+                        onChange={e => { setLinkDocSearch(e.target.value); searchDocuments(e.target.value) }}
+                        className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Dateiname eingeben..."
+                      />
+                      {linkDocResults.length > 0 && (
+                        <ul className="mt-1 bg-white border rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                          {linkDocResults.map(doc => (
+                            <li key={doc.id} onClick={() => handleLinkDokument(doc.id)}
+                              className="px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer flex justify-between">
+                              <span className="truncate">{doc.dateiname}</span>
+                              <span className="text-xs text-gray-400 ml-2">{doc.kategorie}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-gray-500">Dokument-Typ</label>
+                      <select value={linkDocTyp} onChange={e => setLinkDocTyp(e.target.value)}
+                        className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm bg-white">
+                        {Object.entries(PROJEKT_DOKUMENT_TYPEN).map(([key, typ]) => (
+                          <option key={key} value={key}>{typ.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <button onClick={() => { setShowLinkDokument(false); setLinkDocSearch(''); setLinkDocResults([]) }}
+                      className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">
+                      Abbrechen
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Dokumente-Liste */}
+              {dokumente.length === 0 && !showLinkDokument ? (
+                <p className="text-sm text-gray-400">Keine Dokumente verknuepft.</p>
+              ) : dokumente.length > 0 && (
+                <div className="space-y-2">
+                  {dokumente.map(d => (
+                    <div key={d.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 group">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <FileText className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{d.documents?.dateiname || 'Unbekannt'}</p>
+                          <p className="text-xs text-gray-400">
+                            {PROJEKT_DOKUMENT_TYPEN[d.dokument_typ]?.label || d.dokument_typ}
+                            {d.ist_pflicht && <span className="ml-1 text-amber-600 font-medium">Pflicht</span>}
+                          </p>
+                        </div>
+                      </div>
+                      <button onClick={() => handleUnlinkDokument(d.id)}
+                        className="p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Verknuepfung entfernen">
+                        <Unlink className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Notizen */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">
             <div className="px-5 py-3 border-b border-gray-200">
@@ -651,7 +860,7 @@ export default function ProjektDetail() {
         </div>
       </div>
 
-      {/* Positionen (full width) */}
+      {/* Positionen (full width) - A-004 erweitert */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="px-5 py-3 border-b border-gray-200 flex items-center justify-between">
           <h2 className="font-semibold text-gray-900 flex items-center gap-2">
@@ -672,35 +881,71 @@ export default function ProjektDetail() {
                     <th className="pb-2 pr-4 text-right">Breite</th>
                     <th className="pb-2 pr-4 text-right">Hoehe</th>
                     <th className="pb-2 pr-4 text-right">Menge</th>
-                    <th className="pb-2 pr-4 text-right">Einzelpreis</th>
+                    <th className="pb-2 pr-4">Einheit</th>
+                    <th className="pb-2 pr-4 text-right">EK</th>
+                    <th className="pb-2 pr-4 text-right">VK</th>
                     <th className="pb-2 pr-4 text-right">Gesamt</th>
                     <th className="pb-2">Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {positionen.map(pos => (
-                    <tr key={pos.id} className="border-b border-gray-50 hover:bg-gray-50">
-                      <td className="py-2 pr-4 text-gray-500">{pos.pos_nr}</td>
-                      <td className="py-2 pr-4 font-medium">{pos.bezeichnung || '-'}</td>
-                      <td className="py-2 pr-4">{pos.typ || '-'}</td>
-                      <td className="py-2 pr-4 text-right">{pos.breite_mm || '-'}</td>
-                      <td className="py-2 pr-4 text-right">{pos.hoehe_mm || '-'}</td>
-                      <td className="py-2 pr-4 text-right">{pos.menge ?? '-'}</td>
-                      <td className="py-2 pr-4 text-right">{formatEuro(pos.einzelpreis)}</td>
-                      <td className="py-2 pr-4 text-right">{formatEuro(pos.gesamtpreis)}</td>
-                      <td className="py-2">{pos.status || '-'}</td>
-                    </tr>
-                  ))}
+                  {positionen
+                    .filter(pos => pos.status !== 'REPLACED')
+                    .map(pos => {
+                      if (pos.ist_ueberschrift) {
+                        return (
+                          <tr key={pos.id} className="bg-gray-50">
+                            <td className="py-2 pr-4 text-gray-500">{pos.pos_nr}</td>
+                            <td colSpan={10} className="py-2 font-bold text-gray-700">{pos.bezeichnung || pos.gruppe || '-'}</td>
+                          </tr>
+                        )
+                      }
+                      const isAlt = pos.ist_alternativ
+                      const isNachtrag = pos.ist_nachtrag
+                      return (
+                        <tr key={pos.id} className={`border-b border-gray-50 hover:bg-gray-50 ${isAlt ? 'opacity-50' : ''} ${isNachtrag ? 'bg-blue-50/30' : ''}`}>
+                          <td className="py-2 pr-4 text-gray-500">
+                            {pos.pos_nr}
+                            {pos.version > 1 && (
+                              <span className="ml-1 text-xs px-1 py-0.5 rounded bg-blue-100 text-blue-700">V{pos.version}</span>
+                            )}
+                          </td>
+                          <td className="py-2 pr-4 font-medium">
+                            {pos.bezeichnung || '-'}
+                            {isAlt && <span className="ml-1 text-xs text-gray-400">(Alternativ)</span>}
+                            {isNachtrag && <span className="ml-1 text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">NT {pos.nachtrag_nr || ''}</span>}
+                          </td>
+                          <td className="py-2 pr-4">{pos.typ || '-'}</td>
+                          <td className="py-2 pr-4 text-right">{pos.breite_mm || '-'}</td>
+                          <td className="py-2 pr-4 text-right">{pos.hoehe_mm || '-'}</td>
+                          <td className="py-2 pr-4 text-right">{pos.menge ?? '-'}</td>
+                          <td className="py-2 pr-4 text-xs text-gray-500">{POSITIONS_EINHEITEN[pos.einheit]?.short || pos.einheit || '-'}</td>
+                          <td className="py-2 pr-4 text-right">{formatEuro(pos.einzelpreis)}</td>
+                          <td className="py-2 pr-4 text-right">{formatEuro(pos.vk_preis)}</td>
+                          <td className="py-2 pr-4 text-right font-medium">{isAlt ? '-' : formatEuro(pos.gesamtpreis)}</td>
+                          <td className="py-2">{pos.status || '-'}</td>
+                        </tr>
+                      )
+                    })}
                 </tbody>
-                {positionen.length > 0 && (
+                {positionen.filter(p => p.status !== 'REPLACED' && !p.ist_ueberschrift && !p.ist_alternativ).length > 0 && (
                   <tfoot>
                     <tr className="border-t border-gray-200 font-semibold">
-                      <td colSpan={7} className="py-2 pr-4 text-right">Summe</td>
+                      <td colSpan={9} className="py-2 pr-4 text-right">Summe</td>
                       <td className="py-2 pr-4 text-right">
-                        {formatEuro(positionen.reduce((sum, p) => sum + (p.gesamtpreis || 0), 0))}
+                        {formatEuro(positionen.filter(p => p.status !== 'REPLACED' && !p.ist_ueberschrift && !p.ist_alternativ).reduce((sum, p) => sum + (p.gesamtpreis || 0), 0))}
                       </td>
                       <td />
                     </tr>
+                    {positionen.some(p => p.ist_nachtrag && p.status !== 'REPLACED') && (
+                      <tr className="font-semibold text-blue-700">
+                        <td colSpan={9} className="py-1 pr-4 text-right text-sm">davon Nachträge</td>
+                        <td className="py-1 pr-4 text-right text-sm">
+                          {formatEuro(positionen.filter(p => p.ist_nachtrag && p.status !== 'REPLACED' && !p.ist_alternativ).reduce((sum, p) => sum + (p.gesamtpreis || 0), 0))}
+                        </td>
+                        <td />
+                      </tr>
+                    )}
                   </tfoot>
                 )}
               </table>
