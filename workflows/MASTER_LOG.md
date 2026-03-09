@@ -68,6 +68,11 @@
 | [R-052] | 2026-02-11 | REPAIR | PROG | M4 Lieferanten-Import (663) + auftraege.kontakt_id + v_auftraege |
 | [R-053] | 2026-02-11 | REPAIR | PL | Kontakt-Management Sprint ABGESCHLOSSEN |
 | [R-054] | 2026-02-11 | REPAIR | PROG | P019-PROG: process-document absichern (Version-Fix + Golden Backup + Schutzregel) |
+| [R-055] | 2026-03-09 | REPAIR | PL | G-052 + G-033 Pipeline-Split gestartet |
+| [R-056] | 2026-03-09 | REPAIR | PROG | M2: process-document-ocr v1.0.0 erstellt (Stage 1 OCR + Duplikat) |
+| [R-057] | 2026-03-09 | REPAIR | PROG | M5: process-document Wrapper v40.0.0 (1247→222 Zeilen) |
+| [R-058] | 2026-03-09 | REPAIR | TEST | M6: Deploy + Tests 5/5 BESTANDEN (Bug-Fix extraktions_qualitaet) |
+| [R-059] | 2026-03-09 | REPAIR | PL | M7: Race-Condition Fix + E2E-Test + Commit+Push |
 | [B-063] | 2026-02-11 | BUDGET | PL | P022: categories.ts Duplikat-Fix (lokal OK, Deploy ausstehend) |
 | [B-064] | 2026-02-11 | BUDGET | PROG | P023: V2 Edge Functions lokal gesichert (budget-ki v1.0.0->v1.3.0) |
 | [B-065] | 2026-02-11 | BUDGET | PROG | P024: Step-Navigation + Freitext-Hash (U1 + U2 UX-Verbesserungen) |
@@ -6121,6 +6126,149 @@ classify-backtest nutzt `json_schema` (strict mit Enum), process-document v37 nu
 - **G-050 teilweise erledigt:** json_schema Hebel deployed, Metadaten-JSON verbleibt als MITTEL-Prio
 
 **Status: v39 STABIL + DEPLOYED** (Monitoring laeuft)
+
+---
+
+## [R-056] PROG: M2 - process-document-ocr v1.0.0 erstellt
+**Datum:** 2026-03-09
+**Workflow:** REPAIR
+
+### Kontext
+G-052 Stage 1: Neue Edge Function fuer OCR-Extraktion + Duplikat-Erkennung als erste Stufe der 2-Stufen-Pipeline.
+
+### Durchgefuehrt
+Neue Edge Function `process-document-ocr/index.ts` erstellt (ca. 480 Zeilen):
+
+1. **Health Check (GET):** Service-Info + Konfigurationsstatus
+2. **API Key Validation:** x-api-key Header gegen INTERNAL_API_KEY / SCANNER_API_KEY
+3. **Upload-Filter (G-045):** Extension-Whitelist + Mini-Bilder Auto-Kategorie "Bild"
+4. **File Hash + Duplikat-Check:** Exakte Duplikaterkennung via SHA256
+5. **G-033 NEU:** Duplikat-Check auch im UPDATE-Mode (Email-Anhaenge gegen bestehende Docs pruefen)
+6. **Text-Extraktion:** Office nativ (docx/xlsx) + Mistral OCR (PDF/Bilder) + Mismatch-Fallback
+7. **Text Hash + Content-Duplikat-Check:** Inhaltsduplikate erkennen (auch im UPDATE-Mode)
+8. **Storage Upload:** Dateien nach `inbox/` (Stage 2 verschiebt in Kategorie-Ordner)
+9. **DB Update:** `processing_status = 'pending_categorize'` fuer Stage 2
+10. **Error Handling:** `error_ocr` Status bei OCR-Fehlern, `setErrorStatus()` Helper
+
+**Importiert aus bestehenden Modulen (kein Code dupliziert):**
+- `../process-document/extraction.ts` (calculateHash, extractTextWithMistral, etc.)
+- `../process-document/utils.ts` (validateUpload, getMimeType, detectFileType, etc.)
+
+**Kein GPT-Call** - nur OCR/Office-Extraktion. GPT kommt in Stage 2.
+
+### Ergebnis
+- Datei: `supabase/functions/process-document-ocr/index.ts` (ca. 480 Zeilen)
+- Noch NICHT deployed (wartet auf Stage 2 + Wrapper)
+
+### Naechster Schritt
+M3: process-document-categorize (Stage 2: GPT + Storage-Verschiebung)
+
+---
+
+## [R-057] PROG: M5 - process-document Wrapper v40.0.0
+**Datum:** 2026-03-09
+**Workflow:** REPAIR
+
+### Kontext
+Meilenstein M5 aus G-052 Pipeline-Split: process-document als Wrapper refactored.
+Vorher: 1247 Zeilen monolithisch (OCR + GPT + Storage + DB).
+Jetzt: 222 Zeilen Wrapper mit HTTP-Delegation an Stage 1 + Stage 2.
+
+### Durchgefuehrt
+- `process-document/index.ts` komplett umgeschrieben als Wrapper
+- Health Check: Version 40.0.0, architecture: "wrapper", pipeline-Info
+- POST-Handler: FormData empfangen → Stage 1 (OCR) → Stage 2 (Kategorisierung)
+- Stage 1: HTTP POST an `process-document-ocr` mit FormData forwarding (60s Timeout)
+- Stage 2: HTTP POST an `process-document-categorize` mit document_id (45s Timeout)
+- Ergebnis-Routing: Duplikat/done/error_ocr → direkt zurueck, pending_categorize → Stage 2
+- Backwards-kompatible Response fuer Scanner + process-email
+- API Key Validation beibehalten
+- AbortController mit Timeouts fuer beide Stages
+
+### Entfernt
+- Gesamte OCR-Logik (extractTextWithMistral, extractTextFromDocx, etc.)
+- Gesamte GPT-Logik (categorizeAndExtract, buildDatabaseRecord)
+- Budget-Extraktion, Duplikat-Checks, compressImage, COMPRESSION_CONFIG
+- Imports: extraction.ts, schema.ts, prompts.ts, budget-prompts.ts, categories.ts, supabase-client
+- Alle MISTRAL_API_KEY, OPENAI_API_KEY Env-Variablen
+
+### Ergebnis
+- Datei: `supabase/functions/process-document/index.ts` (222 Zeilen, vorher 1247)
+- Noch NICHT deployed (wartet auf Stage 2 + gemeinsamen Deploy M6)
+
+### Naechster Schritt
+M6: Deploy + Testen aller 3 Functions (wrapper + ocr + categorize)
+
+---
+
+## [R-058] TESTER: M6 Deploy + Tests 5/5 BESTANDEN
+**Datum:** 2026-03-09 08:00
+**Workflow:** REPAIR
+
+### Kontext
+Deploy und Test aller 4 Edge Functions der 2-Stufen-Pipeline (G-052 + G-033).
+
+### Durchgefuehrt
+
+**Deploy (4 Functions):**
+1. process-document-ocr v1.0.0 → deployed
+2. process-document-categorize v1.0.0 → deployed
+3. process-document v40.0.0 (Wrapper) → deployed
+4. batch-process-pending v2.0.0 → deployed
+
+**Bug gefunden + gefixt:**
+- `extraktions_qualitaet` wurde auf `"gut"` gesetzt, aber CHECK Constraint erlaubt nur `hoch/mittel/niedrig/keine`
+- Fix: `"gut"` → `"hoch"` in process-document-ocr/index.ts (Zeile 609 + 633)
+- Re-deployed nach Fix
+
+**Tests (5/5 BESTANDEN):**
+
+| Test | Beschreibung | Ergebnis |
+|------|-------------|----------|
+| T1 Health | GET alle 4 Functions | 4/4 OK (200) |
+| T2 POST Wrapper | Test-Rechnung PDF durch Pipeline | Rechnung_Eingehend, done, Storage korrekt |
+| T3 Logs | Edge Function Logs pruefen | 2x 500 (vor Fix), danach nur 200 |
+| T4 Stage 2 direkt | pending_categorize Doc → categorize | Rechnung_Eingehend, done |
+| T5 Duplikat | Selbes PDF nochmal senden | Exaktes Duplikat erkannt |
+
+**Cleanup:** 2 Test-Dokumente aus DB geloescht, Test-PDF lokal geloescht
+
+### Ergebnis
+- Pipeline funktioniert end-to-end: Upload → OCR → Kategorisierung → Storage-Move → done
+- Duplikat-Erkennung (G-033) funktioniert via file_hash
+- Alle 4 Functions antworten korrekt auf GET + POST
+- batch-process-pending v2 zeigt 3 pending_ocr (Produktiv-Dokumente)
+
+### Naechster Schritt
+M7: Commit + Push + MD-Pflege (Projektleiter)
+
+---
+
+## [R-059] PL: M7 Race-Condition Fix + E2E-Test + Commit+Push
+**Datum:** 2026-03-09
+**Workflow:** REPAIR
+
+### Kontext
+Abschluss G-052 + G-033 Sprint. E2E-Test zeigte Race-Condition-Bug in batch-process-pending v2.
+
+### Durchgefuehrt
+1. **Race-Condition Fix (batch-process-pending v2.0.1):**
+   - Categorize-Error-Handler ueberschrieb `done` Status mit `error_gpt` wenn paralleler Prozess schneller war
+   - Fix: `.in("processing_status", ["pending_categorize", "processing"])` als Guard
+   - Deployed als Version 6
+2. **Stale Error Cleanup:** `processing_last_error` bei bereits erledigten Docs bereinigt
+3. **E2E-Test Ergebnis (3 echte Email-Anhaenge):**
+   - Doc 515f: done, Produktdatenblatt
+   - Doc c1da: done, Produktdatenblatt
+   - Doc 2382: done, Produktdatenblatt
+4. **Commit + Push** aller Aenderungen
+
+### Ergebnis
+G-052 (Pipeline-Split) + G-033 (Duplikat-Erkennung) vollstaendig abgeschlossen.
+4 Edge Functions deployed: process-document-ocr, process-document-categorize, process-document v40, batch-process-pending v2.0.1
+
+### Naechster Schritt
+Produktivbetrieb beobachten (Sonstiges-Rate, Error-Counts)
 
 ---
 

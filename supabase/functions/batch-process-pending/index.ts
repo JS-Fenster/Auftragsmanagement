@@ -1,9 +1,15 @@
 // =============================================================================
-// Batch Process Pending - Verarbeitet alle pending_ocr Dokumente
-// Version: 1.1.0 - 2026-02-12
+// Batch Process Pending - 2-Stufen-Pipeline (OCR + Kategorisierung)
+// Version: 2.0.1 - 2026-03-09
 // =============================================================================
-// Findet alle Dokumente mit processing_status='pending_ocr' und ruft
-// process-document fuer jedes auf.
+// Stage 1: pending_ocr → process-document-ocr (Download + OCR)
+// Stage 2: pending_categorize → process-document-categorize (GPT, kein Download)
+//
+// v2.0.0 Changes:
+// - 2-Stufen-Pipeline: OCR und Kategorisierung getrennt
+// - Neuer Parameter: stage ("ocr", "categorize", "both" [default])
+// - Health Check zeigt beide Queues + Error-Counts
+// - Response mit ocr_batch + categorize_batch
 //
 // v1.1.0 Changes:
 // - FIX: fetchWithRetry() fuer process-document (55s Timeout, 1 Retry)
@@ -12,11 +18,12 @@
 // Usage:
 //   POST /functions/v1/batch-process-pending
 //   Header: x-api-key: <INTERNAL_API_KEY>
-//   Body: { "limit": 10, "dry_run": false }
+//   Body: { "limit": 10, "dry_run": false, "stage": "both" }
 //
 // Parameter:
-//   - limit: Max Anzahl zu verarbeitender Dokumente (default: 10)
+//   - limit: Max Anzahl pro Stage (default: 10, max: 50)
 //   - dry_run: Wenn true, nur anzeigen was verarbeitet wuerde (default: false)
+//   - stage: "ocr" | "categorize" | "both" (default: "both")
 // =============================================================================
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -76,7 +83,7 @@ function getMimeType(fileName: string): string {
 }
 
 // =============================================================================
-// v1.1: Retry + Timeout for process-document calls
+// Retry + Timeout for Edge Function calls
 // =============================================================================
 
 async function fetchWithRetry(
@@ -106,22 +113,39 @@ async function fetchWithRetry(
 }
 
 // =============================================================================
-// Process a single document
+// Process Result Types
 // =============================================================================
 
-interface ProcessResult {
+interface OcrResult {
   document_id: string;
   storage_path: string;
+  success: boolean;
+  error?: string;
+}
+
+interface CategorizeResult {
+  document_id: string;
   success: boolean;
   kategorie?: string;
   error?: string;
 }
 
-async function processDocument(
+interface BatchResult {
+  processed: number;
+  success: number;
+  errors: number;
+  results: (OcrResult | CategorizeResult)[];
+}
+
+// =============================================================================
+// Stage 1: OCR (pending_ocr → process-document-ocr)
+// =============================================================================
+
+async function processDocumentOcr(
   documentId: string,
   storagePath: string
-): Promise<ProcessResult> {
-  const result: ProcessResult = {
+): Promise<OcrResult> {
+  const result: OcrResult = {
     document_id: documentId,
     storage_path: storagePath,
     success: false,
@@ -129,20 +153,19 @@ async function processDocument(
 
   try {
     // 1. Download file from Storage
-    console.log(`[BATCH] Downloading: ${storagePath}`);
+    console.log(`[BATCH-OCR] Downloading: ${storagePath}`);
     const { data: fileData, error: downloadError } = await supabase.storage
       .from("documents")
       .download(storagePath);
 
     if (downloadError || !fileData) {
       result.error = `Download failed: ${downloadError?.message || "No data"}`;
-      console.error(`[BATCH] ${result.error}`);
+      console.error(`[BATCH-OCR] ${result.error}`);
 
-      // Mark as error in DB
       await supabase
         .from("documents")
         .update({
-          processing_status: "error",
+          processing_status: "error_ocr",
           processing_last_error: result.error,
         })
         .eq("id", documentId);
@@ -150,41 +173,39 @@ async function processDocument(
       return result;
     }
 
-    console.log(`[BATCH] Downloaded ${fileData.size} bytes`);
+    console.log(`[BATCH-OCR] Downloaded ${fileData.size} bytes`);
 
-    // 2. Extract filename from storage path
+    // 2. Extract filename and build FormData
     const fileName = storagePath.split("/").pop() || "document";
     const mimeType = getMimeType(fileName);
 
-    // 3. Call process-document with UPDATE mode
     const formData = new FormData();
     const blob = new Blob([fileData], { type: mimeType });
     formData.append("file", blob, fileName);
     formData.append("document_id", documentId);
     formData.append("storage_path", storagePath);
 
-    console.log(`[BATCH] Calling process-document for ${documentId}`);
+    // 3. Call process-document-ocr (55s timeout, 1 retry)
+    console.log(`[BATCH-OCR] Calling process-document-ocr for ${documentId}`);
 
-    const processUrl = `${SUPABASE_URL}/functions/v1/process-document`;
-    // v1.1: fetchWithRetry mit Timeout (55s) und 1 Retry
+    const processUrl = `${SUPABASE_URL}/functions/v1/process-document-ocr`;
     const response = await fetchWithRetry(processUrl, {
       method: "POST",
       headers: {
         "x-api-key": INTERNAL_API_KEY!,
       },
       body: formData,
-    });
+    }, 1, 55000);
 
     if (!response.ok) {
       const errorText = await response.text();
-      result.error = `process-document returned ${response.status}: ${errorText.substring(0, 200)}`;
-      console.error(`[BATCH] ${result.error}`);
+      result.error = `process-document-ocr returned ${response.status}: ${errorText.substring(0, 200)}`;
+      console.error(`[BATCH-OCR] ${result.error}`);
 
-      // Mark as error in DB
       await supabase
         .from("documents")
         .update({
-          processing_status: "error",
+          processing_status: "error_ocr",
           processing_last_error: result.error,
         })
         .eq("id", documentId);
@@ -194,28 +215,101 @@ async function processDocument(
 
     const processResult = await response.json();
     result.success = processResult.success === true;
-    result.kategorie = processResult.kategorie;
 
     if (result.success) {
-      console.log(`[BATCH] SUCCESS: ${documentId} -> ${result.kategorie}`);
+      console.log(`[BATCH-OCR] SUCCESS: ${documentId} → pending_categorize`);
     } else {
-      result.error = processResult.error || "Unknown error from process-document";
-      console.warn(`[BATCH] FAILED: ${documentId} - ${result.error}`);
+      result.error = processResult.error || "Unknown error from process-document-ocr";
+      console.warn(`[BATCH-OCR] FAILED: ${documentId} - ${result.error}`);
     }
 
     return result;
   } catch (error) {
     result.error = `Exception: ${error}`;
-    console.error(`[BATCH] ${result.error}`);
+    console.error(`[BATCH-OCR] ${result.error}`);
 
-    // Mark as error in DB
     await supabase
       .from("documents")
       .update({
-        processing_status: "error",
+        processing_status: "error_ocr",
         processing_last_error: result.error,
       })
       .eq("id", documentId);
+
+    return result;
+  }
+}
+
+// =============================================================================
+// Stage 2: Kategorisierung (pending_categorize → process-document-categorize)
+// =============================================================================
+
+async function processDocumentCategorize(
+  documentId: string
+): Promise<CategorizeResult> {
+  const result: CategorizeResult = {
+    document_id: documentId,
+    success: false,
+  };
+
+  try {
+    // Kein File-Download noetig - Stage 2 liest ocr_text aus der DB
+    console.log(`[BATCH-CAT] Calling process-document-categorize for ${documentId}`);
+
+    const processUrl = `${SUPABASE_URL}/functions/v1/process-document-categorize`;
+    // 30s Timeout (kein OCR), 1 Retry
+    const response = await fetchWithRetry(processUrl, {
+      method: "POST",
+      headers: {
+        "x-api-key": INTERNAL_API_KEY!,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ document_id: documentId }),
+    }, 1, 30000);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      result.error = `process-document-categorize returned ${response.status}: ${errorText.substring(0, 200)}`;
+      console.error(`[BATCH-CAT] ${result.error}`);
+
+      // Race-condition guard: Don't overwrite 'done' if parallel process already finished
+      await supabase
+        .from("documents")
+        .update({
+          processing_status: "error_gpt",
+          processing_last_error: result.error,
+        })
+        .eq("id", documentId)
+        .in("processing_status", ["pending_categorize", "processing"]);
+
+      return result;
+    }
+
+    const processResult = await response.json();
+    result.success = processResult.success === true;
+    result.kategorie = processResult.kategorie;
+
+    if (result.success) {
+      console.log(`[BATCH-CAT] SUCCESS: ${documentId} → ${result.kategorie}`);
+    } else {
+      result.error = processResult.error || "Unknown error from process-document-categorize";
+      console.warn(`[BATCH-CAT] FAILED: ${documentId} - ${result.error}`);
+    }
+
+    return result;
+  } catch (error) {
+    result.error = `Exception: ${error}`;
+    console.error(`[BATCH-CAT] ${result.error}`);
+
+    // Race-condition guard: Don't overwrite 'done' if parallel process already finished
+    await supabase
+      .from("documents")
+      .update({
+        processing_status: "error_gpt",
+        processing_last_error: result.error,
+      })
+      .eq("id", documentId)
+      .in("processing_status", ["pending_categorize", "processing"]);
 
     return result;
   }
@@ -228,18 +322,27 @@ async function processDocument(
 Deno.serve(async (req: Request) => {
   // Health check
   if (req.method === "GET") {
-    // Count pending documents
-    const { count } = await supabase
-      .from("documents")
-      .select("*", { count: "exact", head: true })
-      .eq("processing_status", "pending_ocr");
+    const [
+      { count: pendingOcrCount },
+      { count: pendingCategorizeCount },
+      { count: errorOcrCount },
+      { count: errorGptCount },
+    ] = await Promise.all([
+      supabase.from("documents").select("*", { count: "exact", head: true }).eq("processing_status", "pending_ocr"),
+      supabase.from("documents").select("*", { count: "exact", head: true }).eq("processing_status", "pending_categorize"),
+      supabase.from("documents").select("*", { count: "exact", head: true }).eq("processing_status", "error_ocr"),
+      supabase.from("documents").select("*", { count: "exact", head: true }).eq("processing_status", "error_gpt"),
+    ]);
 
     return new Response(
       JSON.stringify({
         service: "batch-process-pending",
-        version: "1.1.0",
+        version: "2.0.1",
         status: "ready",
-        pending_count: count || 0,
+        pending_ocr_count: pendingOcrCount || 0,
+        pending_categorize_count: pendingCategorizeCount || 0,
+        error_ocr_count: errorOcrCount || 0,
+        error_gpt_count: errorGptCount || 0,
         configured: {
           supabase: !!(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY),
           internalApiKey: !!INTERNAL_API_KEY,
@@ -269,6 +372,7 @@ Deno.serve(async (req: Request) => {
     // Parse request body
     let limit = 10;
     let dryRun = false;
+    let stage: "ocr" | "categorize" | "both" = "both";
 
     try {
       const body = await req.json();
@@ -278,96 +382,159 @@ Deno.serve(async (req: Request) => {
       if (body.dry_run === true) {
         dryRun = true;
       }
+      if (body.stage === "ocr" || body.stage === "categorize") {
+        stage = body.stage;
+      }
     } catch {
       // Empty body is OK, use defaults
     }
 
-    console.log(`[BATCH] Starting batch process: limit=${limit}, dry_run=${dryRun}`);
+    console.log(`[BATCH] Starting batch process: limit=${limit}, dry_run=${dryRun}, stage=${stage}`);
 
-    // 1. Find pending documents
-    const { data: pendingDocs, error: queryError } = await supabase
-      .from("documents")
-      .select("id, dokument_url, email_betreff")
-      .eq("processing_status", "pending_ocr")
-      .order("created_at", { ascending: true })
-      .limit(limit);
+    const runOcr = stage === "ocr" || stage === "both";
+    const runCategorize = stage === "categorize" || stage === "both";
 
-    if (queryError) {
-      throw new Error(`Query failed: ${queryError.message}`);
+    // =========================================================================
+    // Stage 1: OCR Batch (pending_ocr)
+    // =========================================================================
+
+    const ocrBatch: BatchResult = { processed: 0, success: 0, errors: 0, results: [] };
+
+    if (runOcr) {
+      const { data: pendingOcrDocs, error: ocrQueryError } = await supabase
+        .from("documents")
+        .select("id, dokument_url, email_betreff")
+        .eq("processing_status", "pending_ocr")
+        .order("created_at", { ascending: true })
+        .limit(limit);
+
+      if (ocrQueryError) {
+        throw new Error(`OCR query failed: ${ocrQueryError.message}`);
+      }
+
+      if (pendingOcrDocs && pendingOcrDocs.length > 0) {
+        console.log(`[BATCH] Found ${pendingOcrDocs.length} pending_ocr document(s)`);
+
+        if (dryRun) {
+          ocrBatch.processed = pendingOcrDocs.length;
+          ocrBatch.results = pendingOcrDocs.map((d) => ({
+            document_id: d.id,
+            storage_path: d.dokument_url || "",
+            success: false,
+            error: "dry_run",
+          }));
+        } else {
+          for (const doc of pendingOcrDocs) {
+            if (!doc.dokument_url) {
+              console.warn(`[BATCH-OCR] Skipping ${doc.id} - no dokument_url`);
+              ocrBatch.results.push({
+                document_id: doc.id,
+                storage_path: "",
+                success: false,
+                error: "No dokument_url",
+              });
+              ocrBatch.errors++;
+              ocrBatch.processed++;
+              continue;
+            }
+
+            const result = await processDocumentOcr(doc.id, doc.dokument_url);
+            ocrBatch.results.push(result);
+            ocrBatch.processed++;
+
+            if (result.success) {
+              ocrBatch.success++;
+            } else {
+              ocrBatch.errors++;
+            }
+
+            // Small delay between requests to avoid rate limiting
+            await new Promise((resolve) => setTimeout(resolve, 500));
+          }
+        }
+      }
+
+      console.log(`[BATCH] OCR batch: ${ocrBatch.success} success, ${ocrBatch.errors} errors`);
     }
 
-    if (!pendingDocs || pendingDocs.length === 0) {
+    // =========================================================================
+    // Stage 2: Kategorisierungs-Batch (pending_categorize)
+    // =========================================================================
+
+    const categorizeBatch: BatchResult = { processed: 0, success: 0, errors: 0, results: [] };
+
+    if (runCategorize) {
+      const { data: pendingCatDocs, error: catQueryError } = await supabase
+        .from("documents")
+        .select("id, email_betreff")
+        .eq("processing_status", "pending_categorize")
+        .order("created_at", { ascending: true })
+        .limit(limit);
+
+      if (catQueryError) {
+        throw new Error(`Categorize query failed: ${catQueryError.message}`);
+      }
+
+      if (pendingCatDocs && pendingCatDocs.length > 0) {
+        console.log(`[BATCH] Found ${pendingCatDocs.length} pending_categorize document(s)`);
+
+        if (dryRun) {
+          categorizeBatch.processed = pendingCatDocs.length;
+          categorizeBatch.results = pendingCatDocs.map((d) => ({
+            document_id: d.id,
+            success: false,
+            error: "dry_run",
+          }));
+        } else {
+          for (const doc of pendingCatDocs) {
+            const result = await processDocumentCategorize(doc.id);
+            categorizeBatch.results.push(result);
+            categorizeBatch.processed++;
+
+            if (result.success) {
+              categorizeBatch.success++;
+            } else {
+              categorizeBatch.errors++;
+            }
+
+            // Small delay between requests
+            await new Promise((resolve) => setTimeout(resolve, 500));
+          }
+        }
+      }
+
+      console.log(`[BATCH] Categorize batch: ${categorizeBatch.success} success, ${categorizeBatch.errors} errors`);
+    }
+
+    // =========================================================================
+    // Response
+    // =========================================================================
+
+    const totalProcessed = ocrBatch.processed + categorizeBatch.processed;
+
+    if (totalProcessed === 0 && !dryRun) {
       return new Response(
         JSON.stringify({
           success: true,
           message: "No pending documents found",
-          processed: 0,
-          results: [],
+          stage,
+          ocr_batch: ocrBatch,
+          categorize_batch: categorizeBatch,
         }),
         { status: 200, headers: { "Content-Type": "application/json" } }
       );
     }
-
-    console.log(`[BATCH] Found ${pendingDocs.length} pending document(s)`);
-
-    // Dry run - just return what would be processed
-    if (dryRun) {
-      return new Response(
-        JSON.stringify({
-          success: true,
-          dry_run: true,
-          message: `Would process ${pendingDocs.length} document(s)`,
-          documents: pendingDocs.map((d) => ({
-            id: d.id,
-            storage_path: d.dokument_url,
-            betreff: d.email_betreff?.substring(0, 50),
-          })),
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    // 2. Process each document
-    const results: ProcessResult[] = [];
-    let successCount = 0;
-    let errorCount = 0;
-
-    for (const doc of pendingDocs) {
-      if (!doc.dokument_url) {
-        console.warn(`[BATCH] Skipping ${doc.id} - no dokument_url`);
-        results.push({
-          document_id: doc.id,
-          storage_path: "",
-          success: false,
-          error: "No dokument_url",
-        });
-        errorCount++;
-        continue;
-      }
-
-      const result = await processDocument(doc.id, doc.dokument_url);
-      results.push(result);
-
-      if (result.success) {
-        successCount++;
-      } else {
-        errorCount++;
-      }
-
-      // Small delay between requests to avoid rate limiting
-      await new Promise((resolve) => setTimeout(resolve, 500));
-    }
-
-    console.log(`[BATCH] Completed: ${successCount} success, ${errorCount} errors`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Processed ${pendingDocs.length} document(s)`,
-        processed: pendingDocs.length,
-        success_count: successCount,
-        error_count: errorCount,
-        results: results,
+        dry_run: dryRun || undefined,
+        stage,
+        message: dryRun
+          ? `Would process ${totalProcessed} document(s)`
+          : `Processed ${totalProcessed} document(s)`,
+        ocr_batch: ocrBatch,
+        categorize_batch: categorizeBatch,
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );

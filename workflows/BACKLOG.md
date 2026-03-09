@@ -43,7 +43,7 @@
 | G-031 | MITTEL | Kategorien | Kategorien-Bereinigung: Zu allgemeine Kategorien aufspalten (nach Review) |
 | G-029 | MITTEL | Budget | Ud-Wert Rechner (EN ISO 10077-1) fuer Tueren |
 | G-032 | HOCH | E-Mail | Email-Versand-Architektur (eigene UI vs. Outlook, Entwurf/Fehlgeschlagen) |
-| G-033 | MITTEL | E-Mail | Globale Duplikat-Erkennung Email-Anhaenge (file_hash) |
+| ~~G-033~~ | ~~ERLEDIGT~~ | ~~E-Mail~~ | ~~Globale Duplikat-Erkennung Email-Anhaenge (in process-document-ocr v1.0, 2026-03-09)~~ |
 | G-034 | HOCH | Pipeline | OCR-Korrektur + Feinere Klassifizierung (Basis fuer Workflows) |
 | G-038 | NIEDRIG | Kategorien | Brief_ausgehend-Bereinigung (3 Docs verschieben) + Prompt-Richtungsregel |
 | G-039 | MITTEL | Pipeline | Auto-Split Multi-Dokument PDFs (eigenstaendige Bloecke) |
@@ -59,9 +59,54 @@
 | G-049 | NIEDRIG | Monitoring | Kategorie-spezifische Fehlerrate tracken (pro Kategorie Trefferquote) |
 | G-050 | MITTEL | Pipeline | GPT-Input verbessern: Strukturiertes Metadaten-JSON (json_schema ERLEDIGT in v39) |
 | G-051 | IDEE | Workflow | Aufgaben/Ticket-System mit Leerlauf-Aufgaben fuer Mitarbeiter |
-| G-052 | HOCH | Pipeline | process-document 2-Stufen-Pipeline (OCR → Kategorisierung) + Storage-Verschiebung |
+| ~~G-052~~ | ~~ERLEDIGT~~ | ~~Pipeline~~ | ~~process-document 2-Stufen-Pipeline (v40 Wrapper + OCR + Categorize, 2026-03-09)~~ |
 | G-053 | HOCH | Auftragsm. | Reparatur-Erweiterung: Foto-Upload, Ersatzteil-DB, Dokument-Links |
 | G-054 | MITTEL | Auftragsm. | Auftragsmanagement-Tool: Ueberblick-Dashboard mit KPIs + Charts |
+| G-055 | NIEDRIG | Kategorien | Trendtueren-Konfigurator: Bestellung = Bestellung_Ausgehend (Lieferanten-Bestellung) |
+| G-056 | MITTEL | Kategorien | Neue Dokument-Kategorie "Werbung" (Werbeflyer, Prospekte, Newsletter-Anhaenge) |
+
+---
+
+## [G-055] Trendtueren-Konfigurator: Bestellung = Bestellung_Ausgehend
+
+**Prio:** NIEDRIG | **Bereich:** Kategorien / Wissen
+
+### Erkenntnis
+Wenn JS Fenster eine Bestellung aus dem **Trendtueren-Konfigurator** ausloest, wird ein PDF generiert (z.B. `bestellung.pdf`). Dieses Dokument ist eine **Bestellung_Ausgehend** (Lieferanten-Bestellung an Trendtueren). Danach erhaelt JS eine **AB_Eingehend** (Auftragsbestaetigung von Trendtueren).
+
+### Pruefen
+- Wird das Konfigurator-PDF korrekt als `Bestellung_Ausgehend` klassifiziert?
+- Wird die AB von Trendtueren als `AB_Eingehend` klassifiziert?
+- Falls nicht: Prompt-Hinweis oder Few-Shot-Beispiel ergaenzen
+
+---
+
+## [G-056] Neue Dokument-Kategorie "Werbung"
+
+**Prio:** MITTEL | **Bereich:** Kategorien
+**Erstellt:** 2026-03-06
+
+### Beschreibung
+Neue Dokument-Kategorie `Werbung` fuer Werbeflyer, Produktprospekte von Dienstleistern, Software-Werbung, Newsletter-Anhaenge und unaufgeforderte Aktionsangebote.
+
+### Abgrenzung
+- **Spam** = Muell, irrelevant, sofort weg (Fax-Spam, Werbe-Faxe)
+- **Katalog** = gewollte Produktkataloge von Lieferanten (WERU, Schuco etc.)
+- **Werbung** = potenziell interessant, aber kein Katalog - Flyer, Prospekte, Aktionen
+- **Brief_eingehend** = Verbandspost, Rundschreiben (z.B. BVRS)
+
+### Beispiel-Dokumente
+- `CyberRisikoCheck.pdf` - IT-Sicherheits-Werbeflyer (IDI/PHD IT-Systeme)
+- `Alles_am_Pin_und_Einbauort_gespeichert.pdf` - Software-Produktwerbung
+- Newsletter-Anhaenge von Lieferanten mit Aktionen/Neuheiten
+
+### Umsetzung (Kategorie-Checkliste)
+1. `_shared/categories.ts` - Werbung in VALID_DOKUMENT_KATEGORIEN
+2. `process-document/prompts.ts` - Kategorie-Beschreibung im Prompt
+3. `process-document/schema.ts` - Enum erweitern
+4. DB CHECK Constraint erweitern
+5. `admin-review` Frontend Dropdown (constants.js)
+6. Storage-Ordner wird automatisch erstellt
 
 ---
 

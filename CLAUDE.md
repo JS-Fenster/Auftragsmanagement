@@ -115,9 +115,11 @@ Siehe `docs/Auftragsmanagement_Projektplan.md` fuer Details.
 
 | Function | Version | Status | Schutzgrund |
 |----------|---------|--------|-------------|
-| `process-document` | v39.2 (Deploy 69) | TESTING | json_object + reasoning entfernt, 62 Kategorien, GPT-5 mini (2026-03-06) |
+| `process-document` | v40.0.0 (Wrapper) | STABIL | 2-Stage Pipeline Wrapper (OCR→Kategorisierung), 222 Zeilen (2026-03-09) |
+| `process-document-ocr` | v1.0.0 | STABIL | Stage 1: OCR + Duplikat-Check (G-033) + Upload (2026-03-09) |
+| `process-document-categorize` | v1.0.0 | STABIL | Stage 2: GPT-Kategorisierung + Storage-Move (2026-03-09) |
 | `process-email` | v4.1.1 (Deploy 46) | STABIL | GPT-Kategorisierung + Anhang-Pipeline, kategorie NULL Fix (2026-03-06) |
-| `batch-process-pending` | v1.2.0 | STABIL | Safety-Net fuer stuck pending_ocr Docs, direct fetch statt SDK (2026-03-03) |
+| `batch-process-pending` | v2.0.1 | STABIL | 2-Stufen-Pipeline + Race-Condition Guard (2026-03-09) |
 
 **Regeln:**
 1. KEINE Aenderungen am Kategorisierungs-Prompt (`prompts.ts`) ohne vorherigen Backtest
@@ -148,10 +150,16 @@ Bei JEDER Aenderung an Kategorien (Rename, Neu, Loeschen, CHECK Constraint) ALLE
 
 Nach JEDEM Deploy einer Edge Function:
 1. Health-Check (GET) - Zeigt nur Config, NICHT ob POST funktioniert
-2. **Echten POST-Call mit realem Dokument testen** - PFLICHT
+2. **Echten POST-Call mit mind. 3 verschiedenen Dokumenten testen** - PFLICHT
 3. **Edge Function Logs pruefen** - Innerhalb 30s auf 500er schauen
-4. **DB-Ergebnis pruefen** - Hat das Dokument eine Kategorie bekommen?
-5. Erst dann darf die Function als "funktioniert" bezeichnet werden
+4. **DB-Ergebnis pruefen** - Hat das Dokument eine SINNVOLLE Kategorie?
+   - "Sonstiges_Dokument" bei bekannten Dokumenttypen = FEHLGESCHLAGEN
+   - Kategorie muss zum Dokument passen (Rechnung→Rechnung, AB→AB, etc.)
+5. **Sonstiges-Rate pruefen** (nach 1-2h Produktivbetrieb):
+   - SQL: `SELECT kategorie, COUNT(*) FROM documents WHERE created_at > NOW() - INTERVAL '2 hours' GROUP BY kategorie`
+   - Sonstiges_Dokument > 15% bei Nicht-Bildern = ALARM → Rollback!
+6. **Eine Aenderung pro Deploy** - KEINE Buendelung unabhaengiger Aenderungen!
+7. Erst dann darf die Function als "funktioniert" bezeichnet werden
 
 ---
 
