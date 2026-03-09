@@ -79,8 +79,8 @@ Jeder Agent MUSS sich am Anfang seiner Arbeit identifizieren:
 - **Zweck:** Index auf detaillierte Erkenntnisse in MASTER_LOG.md
 - **Beispiel:** `| L5 | RLS vor Insert aktivieren | [{PREFIX}-042] |`
 
-### ../BACKLOG.md (Feature-Backlog)
-- **Pfad:** `../BACKLOG.md` (eine Ebene hoeher im workflows/ Ordner)
+### ../05_BACKLOG.md (Feature-Backlog)
+- **Pfad:** `../05_BACKLOG.md` (eine Ebene hoeher im workflows/ Ordner)
 - **Lesen:** Projektleiter (bei Planung neuer Auftraege)
 - **Schreiben:** NUR Projektleiter
 - **Zweck:** Offene Features/Optimierungen. Erledigte Items werden geloescht.

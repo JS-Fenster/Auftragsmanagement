@@ -1954,7 +1954,7 @@ Andreas meldete, dass der renew-subscriptions 401-Fehler behoben wurde.
 - 02_STATUS.md: FIX-1 + FIX-2 als FERTIG markiert
 - 03_LOG.md: Dieser Eintrag
 - 04_LEARNINGS.md: L23 hinzugefuegt
-- BACKLOG.md: B-005 archiviert
+- 05_BACKLOG.md: B-005 archiviert
 
 ### Ergebnis
 - renew-subscriptions Fix verifiziert
