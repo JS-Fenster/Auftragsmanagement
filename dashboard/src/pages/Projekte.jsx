@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, LayoutGrid, List, Search, Filter, X, RefreshCw } from 'lucide-react'
+import { Plus, LayoutGrid, List, Search, Filter, X, RefreshCw, Rows3, Layers } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import KanbanBoard from '../components/KanbanBoard'
+import PipelineView from '../components/PipelineView'
+import GroupedTableView from '../components/GroupedTableView'
 import ProaktiveAlerts from '../components/ProaktiveAlerts'
 import StatusBadge, { PROJEKT_PHASEN } from '../components/StatusBadge'
 import { PrioritaetBadge } from '../components/StatusBadge'
@@ -214,6 +216,20 @@ export default function Projekte() {
                 <LayoutGrid size={18} />
               </button>
               <button
+                onClick={() => setView('pipeline')}
+                className={`p-2 ${view === 'pipeline' ? 'bg-blue-50 text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+                title="Pipeline-Ansicht"
+              >
+                <Rows3 size={18} />
+              </button>
+              <button
+                onClick={() => setView('grouped')}
+                className={`p-2 ${view === 'grouped' ? 'bg-blue-50 text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+                title="Gruppierte Ansicht"
+              >
+                <Layers size={18} />
+              </button>
+              <button
                 onClick={() => setView('tabelle')}
                 className={`p-2 ${view === 'tabelle' ? 'bg-blue-50 text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
                 title="Tabellen-Ansicht"
@@ -309,6 +325,19 @@ export default function Projekte() {
           <KanbanBoard
             projekte={projekte}
             onStatusChange={handleStatusChange}
+            onProjektClick={id => navigate(`/projekte/${id}`)}
+            alerts={alerts}
+          />
+        ) : view === 'pipeline' ? (
+          <PipelineView
+            projekte={projekte}
+            alerts={alerts}
+            onProjektClick={id => navigate(`/projekte/${id}`)}
+          />
+        ) : view === 'grouped' ? (
+          <GroupedTableView
+            projekte={projekte}
+            alerts={alerts}
             onProjektClick={id => navigate(`/projekte/${id}`)}
           />
         ) : (

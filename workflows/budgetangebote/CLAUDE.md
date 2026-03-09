@@ -88,11 +88,12 @@ Jeder Agent MUSS sich am Anfang seiner Arbeit identifizieren:
 - **Zweck:** Index auf detaillierte Erkenntnisse in MASTER_LOG.md
 - **Beispiel:** `| L5 | RLS vor Insert aktivieren | [B-042] |`
 
-### ../BACKLOG.md (Feature-Backlog)
+### ../BACKLOG.md (Feature-Backlog) — ZENTRAL
 - **Pfad:** `../BACKLOG.md` (eine Ebene hoeher im workflows/ Ordner)
 - **Lesen:** Projektleiter (bei Planung neuer Auftraege)
 - **Schreiben:** NUR Projektleiter
 - **Zweck:** Offene Features/Optimierungen. Erledigte Items werden geloescht.
+- **WICHTIG:** Es gibt KEINE lokale BACKLOG.md mehr. Alle Items (Budget, Repair, General, Architektur) werden zentral in `workflows/BACKLOG.md` gepflegt. Budget-Items nutzen Prefix `B-XXX`.
 
 ---
 

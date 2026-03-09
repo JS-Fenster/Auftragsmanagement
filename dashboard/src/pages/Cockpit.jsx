@@ -62,7 +62,7 @@ function AlertCard({ alert, onClick }) {
     <div
       onClick={onClick}
       className="flex items-center justify-between rounded-lg shadow-sm cursor-pointer hover:shadow-md transition-shadow"
-      style={{ backgroundColor: bgColor, borderLeft: `4px solid ${borderColor}`, padding: '12px 16px' }}
+      style={{ backgroundColor: bgColor, borderLeft: `4px solid ${borderColor}`, padding: '8px 12px' }}
     >
       <div className="min-w-0 flex-1">
         <p className="font-semibold text-gray-900 text-sm truncate">{alert.title}</p>
@@ -82,8 +82,8 @@ function AlertCard({ alert, onClick }) {
 
 function MontageTeamCard({ team, montagen, onNavigate }) {
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-      <div className="flex items-center gap-2 mb-3">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+      <div className="flex items-center gap-2 mb-2">
         <Users size={16} style={{ color: '#10B981' }} />
         <h4 className="font-semibold text-sm text-gray-900">{TEAMS_MAP[team] || team}</h4>
         <span className="text-xs text-gray-400 ml-auto">{montagen.length} Montage{montagen.length !== 1 ? 'n' : ''}</span>
@@ -112,8 +112,8 @@ function PipelineBar({ phase, data, maxWert }) {
 
   return (
     <div className="flex items-center gap-3 text-sm">
-      <span className="w-28 text-right text-xs font-medium text-gray-600 shrink-0">{status.label}</span>
-      <div className="flex-1 h-7 bg-gray-100 rounded-md overflow-hidden relative">
+      <span className="w-24 text-right text-xs font-medium text-gray-600 shrink-0">{status.label}</span>
+      <div className="flex-1 h-5 bg-gray-100 rounded-md overflow-hidden relative">
         <div
           className="h-full rounded-md flex items-center transition-all duration-500"
           style={{ width: `${width}%`, backgroundColor: status.color }}
@@ -149,9 +149,9 @@ function HistorieItem({ entry, onNavigate }) {
   return (
     <div
       onClick={() => entry.projekt_id && onNavigate(entry.projekt_id)}
-      className="flex items-start gap-3 cursor-pointer hover:bg-gray-50 rounded-lg px-3 py-2 -mx-3"
+      className="flex items-start gap-3 cursor-pointer hover:bg-gray-50 rounded-lg px-2 py-1.5 -mx-3"
     >
-      <div className="mt-0.5 shrink-0 w-7 h-7 rounded-full flex items-center justify-center" style={{ backgroundColor: '#F3F4F6' }}>
+      <div className="mt-0.5 shrink-0 w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: '#F3F4F6' }}>
         <Icon size={14} style={{ color: '#6B7280' }} />
       </div>
       <div className="min-w-0 flex-1">
@@ -294,7 +294,7 @@ export default function Cockpit() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-8">
+    <div className="p-4 max-w-7xl mx-auto space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Cockpit</h1>
@@ -303,13 +303,13 @@ export default function Cockpit() {
 
       {/* Sektion 1: Jetzt handeln */}
       <section>
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
           <AlertTriangle size={14} />
           Jetzt handeln
         </h2>
         {alerts.length === 0 ? (
           <div
-            className="flex items-center gap-3 rounded-lg p-4 shadow-sm"
+            className="flex items-center gap-3 rounded-lg p-3 shadow-sm"
             style={{ backgroundColor: '#ECFDF5', borderLeft: '4px solid #10B981' }}
           >
             <CheckCircle size={20} style={{ color: '#10B981' }} />
@@ -328,15 +328,15 @@ export default function Cockpit() {
       </section>
 
       {/* Sektion 2+3: Montagen + Pipeline */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Heute Montagen */}
         <section>
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
             <Calendar size={14} />
             Heute Montagen
           </h2>
           {montagen.length === 0 ? (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center text-sm text-gray-400">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center text-sm text-gray-400">
               Keine Montagen geplant
             </div>
           ) : (
@@ -350,14 +350,14 @@ export default function Cockpit() {
 
         {/* Pipeline */}
         <section>
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-2">
             <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
               <TrendingUp size={14} />
               Pipeline
             </h2>
             <span className="text-sm font-bold text-gray-700">{formatEuro(totalWert)}</span>
           </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 space-y-2">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 space-y-1">
             {DISPLAY_PHASES.map(phase => (
               <PipelineBar key={phase} phase={phase} data={pipeline[phase]} maxWert={maxWert} />
             ))}
@@ -367,16 +367,16 @@ export default function Cockpit() {
 
       {/* Sektion 4: Letzte Aktivitaet */}
       <section>
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
           <Clock size={14} />
           Letzte Aktivitaet
         </h2>
         {historie.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center text-sm text-gray-400">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center text-sm text-gray-400">
             Noch keine Aktivitaeten
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
             <div className="divide-y divide-gray-100">
               {historie.map(entry => (
                 <HistorieItem key={entry.id} entry={entry} onNavigate={goToProjekt} />

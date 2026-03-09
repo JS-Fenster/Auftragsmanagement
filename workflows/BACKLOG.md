@@ -64,6 +64,120 @@
 | G-054 | MITTEL | Auftragsm. | Auftragsmanagement-Tool: Ueberblick-Dashboard mit KPIs + Charts |
 | G-055 | NIEDRIG | Kategorien | Trendtueren-Konfigurator: Bestellung = Bestellung_Ausgehend (Lieferanten-Bestellung) |
 | G-056 | MITTEL | Kategorien | Neue Dokument-Kategorie "Werbung" (Werbeflyer, Prospekte, Newsletter-Anhaenge) |
+| B-009 | MITTEL | Budget | Terrassendaecher + Wintergaerten (eigene Preismodelle) |
+| B-010 | HOCH | Budget | OCR-Integration fuer Aufmassblaetter (Mistral OCR → budget_inputs) |
+| B-011 | NIEDRIG | Budget | ML-basierte Preiskalibrierung (>100 Conversions, deviation_percent) |
+| B-012 | MITTEL | Budget | Kunde-Historie Dashboard (bisherige Angebote + Trend) |
+| R-003 | MITTEL | Repair | Fahrzeit-/Cluster-Heuristik (Geo-basiert, Tour-Planung) |
+| R-004 | NIEDRIG | Repair | Wetter-/Hitze-Constraints (Aussenjobs, Wetter-API) |
+| R-005 | NIEDRIG | Repair | Outlook-Integration (Kalender-Sync, optional) |
+| R-006 | NIEDRIG | System | Altes Frontend aufraeumen (/frontend, /apps archivieren) |
+| A-001 | HOCH | Architektur | Objekt-Modell: Gebaeude als uebergeordnete Entitaet (Hybrid + KI-Agent) |
+| A-002 | HOCH | Architektur | Projekttypen + Ticket-Konzept (Option C: Basis + Erweiterungstabellen) |
+| A-003 | HOCH | Architektur | Dokument-Kette + Pflicht-Gates (Vollangebot→AB→Auftrag→Bestellung) |
+| A-004 | HOCH | Architektur | Positions-System: Versionierung, Einheiten, Nachtraege, Baunebenkosten |
+| A-005 | HOCH | Architektur | Visualisierung: 3 Ansichten (Pipeline, Gruppiert, Kanban) + Cockpit kompakter |
+| A-006 | MITTEL | Architektur | Ticket-Konzept: Nacharbeit/Reklamation am Projekt (KI-Agent vs. manuell) |
+| A-007 | HOCH | Architektur | Buergschafts-Tracking (Versicherungsbuergschaften, R+V etc., Rueckforderung) |
+| A-008 | MITTEL | Architektur | Interne Positionen/Zeiten (Kalkulation, Zeiterfassung, Material) |
+
+---
+
+## [A-001] Objekt-Modell: Gebaeude als uebergeordnete Entitaet
+
+**Prio:** HOCH | **Bereich:** Architektur | **Status:** KONZEPT BESTAETIGT (2026-03-09)
+
+### Entscheidungen (bestaetigt von Andreas)
+- **Ansatz 3 (Hybrid):** Objekt = optionaler Smart-Layer, KI-Agent matched Adressen automatisch
+- **Objekt = Gebaeude** (NICHT Wohnung). Ein Objekt, alle Auftraege aller Kunden sichtbar
+- **Objekt optional:** Abholungen, Ersatzteile, interne Projekte haben kein Objekt
+- **Bestandsdaten am Objekt:** Was ist verbaut (Produkt, Masse, Einbau-Datum, Projekt-Referenz)
+- **Rollen am Projekt:** Auftraggeber + Rechnungsempfaenger (abweichend) + Einsatzort vom Objekt
+- **Beispiel:** Wohnanlage - Mieter gibt Auftrag, Vermieter zahlt, alles dem Gebaeude zugeordnet
+
+### DB-Tabellen (geplant)
+```sql
+objekte (id, adresse_strasse, adresse_plz, adresse_ort, gebaeude_typ, geo_lat, geo_lng, notizen)
+objekt_bestand (id, objekt_id, beschreibung, produkt, anzahl, einbau_datum, einbau_projekt_id, details JSONB, status)
+projekte += objekt_id FK (optional), typ, rechnungsempfaenger_id FK (optional, abweichend von kontakt_id)
+```
+
+### KI-Agent (spaeter)
+- Neues Dokument → OCR liest Adresse → Adress-Match auf bestehende Objekte
+- Kein Match → Neues Objekt vorschlagen
+- Alert: "An dieser Adresse lief 2024 schon ein Auftrag"
+
+### Zwei Sichtweisen, ein System
+- **Projektbasiert:** Kanban/Liste nach Phase (wie jetzt)
+- **Objektbasiert:** Alles was an einer Adresse jemals passiert ist
+
+### Referenz
+- erp-system-vite hatte dieses Konzept NICHT implementiert (war flach: Kunde→Projekt→Dokument)
+- Idee stammt von Andreas, wurde in dieser Session ausgearbeitet
+- McKinsey "Factual Layer" + Procore WBS als Industrie-Validierung
+
+---
+
+## [A-002] Projekttypen: auftrag/reparatur/intern
+
+**Prio:** HOCH | **Bereich:** Architektur | **Status:** KONZEPT (2026-03-09)
+
+### Entscheidung
+- EIN System, EINE Tabelle, EINE Oberflaeche
+- `projekte.typ` = 'auftrag' | 'reparatur' | 'intern'
+- Bestehende `auftraege`-Tabelle (24 Eintraege) wird spaeter migriert
+- UI zeigt/versteckt Felder je nach Typ
+- Phasen-Flow pro Typ (nicht jeder braucht alle 11 Phasen)
+
+### Offen
+- Welche Phasen pro Typ? (z.B. Reparatur: Anfrage→Auftrag→Termin→Erledigt→Rechnung)
+- Migration der 24 bestehenden Reparatur-Datensaetze
+
+---
+
+## [A-003] Dokument-Kette: Angebot → AB → Rechnung
+
+**Prio:** HOCH | **Bereich:** Architektur | **Status:** OFFEN (2026-03-09)
+
+### Aus erp-system-vite uebernehmen
+- Dokument-Typen: QUOTE, ORDER, INVOICE, CREDIT_NOTE, DELIVERY
+- parentId: Angebot → Auftrag → Rechnung (Kette)
+- Positionen mit Versionierung (nie loeschen, nur REPLACED)
+- Margin-Ampel: Gruen >=30%, Gelb 10-30%, Rot <10%
+- Flexible Positionsnummern (1, 1.1, LV-05.02)
+- Ueberschriften + Gruppen in Positionen
+
+### Offen
+- Noch nicht mit Andreas besprochen
+
+---
+
+## [A-004] Positions-System
+
+**Prio:** MITTEL | **Bereich:** Architektur | **Status:** OFFEN (2026-03-09)
+
+### Aus erp-system-vite uebernehmen
+- EK → Aufschlag % → VK → Rabatt % → Endpreis → Gesamtpreis
+- Alternative Positionen (isAlternative, nicht in Summe)
+- Heading/Gruppen-Struktur (Ueberschriften ohne Preis)
+- Versionierung: Alte Position → REPLACED, neue Version erstellt
+
+### Offen
+- Noch nicht mit Andreas besprochen
+
+---
+
+## [A-005] Visualisierung neu denken
+
+**Prio:** MITTEL | **Bereich:** Architektur | **Status:** OFFEN (2026-03-09)
+
+### Frage
+- Kanban bei 11+ Phasen evtl. nicht optimal (zu viele Spalten)
+- Welche Darstellung fuer Cockpit/Uebersicht?
+- Andreas will: "Auf einen Blick sehen was los ist, Details per Drill-down"
+
+### Offen
+- Noch nicht mit Andreas besprochen
 
 ---
 
@@ -1129,3 +1243,431 @@ ORDER BY fehlerrate_pct DESC
 - Prompt-Optimierung gezielt auf schwache Kategorien fokussieren
 - Review-Aufwand priorisieren (schwache Kategorien zuerst)
 - Zusammen mit G-047 (Confidence): Kategorien mit niedriger Confidence + hoher Fehlerrate = Prompt-Baustelle
+
+---
+
+## [A-001] Objekt-Modell: Gebaeude als uebergeordnete Entitaet
+**Prio:** HOCH | **Bereich:** Architektur | **Status:** KONZEPT BESTAETIGT
+
+**Entscheidung (2026-03-09):** Hybrid-Ansatz mit KI-Agent
+
+**Kern-Idee:**
+- Objekt = Gebaeude (NICHT Wohnung). Ein Mehrfamilienhaus = 1 Objekt.
+- Objekt ist OPTIONAL (Abholungen, interne Projekte haben kein Objekt).
+- Objekt lebt unabhaengig vom Eigentuemer (Eigentuemerwechsel aendert nichts am Objekt).
+- Unter dem Objekt laufen einzelne Auftraege je nach Auftraggeber.
+- Bestandsdaten am Objekt: Was ist verbaut (Produkt, Masse, Einbaudatum, Projekt-Referenz).
+
+**KI-Agent fuer Adress-Matching:**
+- Bei neuer Anfrage: Agent prueft automatisch ob Adresse schon als Objekt existiert.
+- Fuzzy-Matching (Str./Strasse, Hausnr-Varianten).
+- Vorschlag: "Dieses Gebaeude existiert bereits - verknuepfen?" oder auto-link.
+- Kein manuelles Anlegen noetig, Agent erledigt das im Hintergrund.
+
+**Kontakt-Rollen am Auftrag:**
+- Auftraggeber (wer bestellt)
+- Rechnungsempfaenger (kann abweichen, z.B. Vermieter zahlt)
+- Einsatzort kommt vom Objekt
+- Mieter gibt Auftrag → Vermieter zahlt → Objekt bleibt gleich
+
+**DB-Entwurf (grob):**
+```
+objekte (id, adresse, plz, ort, typ, notizen, created_at)
+objekt_bestand (id, objekt_id, produkt, masse, einbau_datum, projekt_id)
+projekte.objekt_id → objekte(id) [nullable]
+projekte.rechnungsempfaenger_kontakt_id → kontakte(id) [nullable, wenn abweichend]
+```
+
+**Offene Fragen:**
+- Wie granular wird Bestand? (Pro Fenster? Pro Raum? Pro Stockwerk?)
+- Sollen alte Projekte nachtraeglich Objekten zugeordnet werden?
+
+---
+
+## [A-002] Projekttypen + Ticket-Konzept
+**Prio:** HOCH | **Bereich:** Architektur | **Status:** KONZEPT BESTAETIGT
+
+**Entscheidung (2026-03-09):** Option C — Basis-Tabelle + Erweiterungstabellen
+
+**Architektur:**
+- `projekte` als gemeinsame Basis (Stammdaten, Status, Phasen, Kontakt, Objekt)
+- `projekt_reparatur` (1:1 Extension: Fehlerbeschreibung, Ersatzteil, Foto-Referenz)
+- `projekt_versicherung` (1:1 Extension: Abtretungserklaerung, Schadennummer, Versicherung)
+- `projekt_intern` (1:1 Extension: Budget, Abteilung, Zweck)
+- `projekt_wartung` (1:1 Extension: Vertragsdetails, Intervall, naechster_termin)
+
+**Bestaetigte Typen (eigener Lifecycle):**
+| Typ | Beschreibung | Prio |
+|-----|-------------|------|
+| `auftrag` | Kerngeschaeft: Fenster/Tueren Neugeschaeft | JETZT |
+| `reparatur` | Stefan-Workflow, Ersatzteile, Serviceeinsaetze | JETZT |
+| `versicherung` | Einbruch-/Sturmschaden, eigener Abrechnungsweg | JETZT |
+| `intern` | Fahrzeuge, Buero, Werkzeug, Muster | JETZT |
+| `wartung` | Wartungsvertraege (Zukunft), Prio bei Montageplanung vor Neukunden ohne Vertrag | SPAETER |
+
+**Typ-spezifische Gates (Pflicht-Dokumente pro Phase):**
+- `versicherung`: Abtretungserklaerung ZWINGEND vor Phase "bestellt" (ohne = keine Bestellung)
+- Weitere Gates pro Typ spaeter definierbar
+
+**Gewaehrleistung (kein eigener Typ, Feld am Auftrag):**
+- `gewaehrleistung_bis` = erledigt_datum + 5 Jahre (Bauwerk) oder + 2 Jahre (Lieferung)
+- KI-Agent prueft bei neuer Reparatur an gleicher Adresse: "Liegt noch in Gewaehrleistung!"
+- Alert wenn Frist bald ablaeuft (Kulanz-Entscheidung)
+
+**Tags statt eigener Typ:**
+- `nacharbeit` — Ticket/Tag am bestehenden Auftrag (nach 1. Montage, Restpunkte)
+- `reklamation` — Ticket/Tag am Hauptauftrag
+
+**Ticket-Konzept (A-006):**
+- Nacharbeit + Reklamation sind kleine Vorgaenge am bestehenden Projekt
+- Frage: Eigenes Ticket-System noetig oder kann KI-Agent das betreuen?
+- Siehe A-006 fuer Details
+
+**Noch zu klaeren:**
+- Phasen-Flow pro Typ (welche Phasen werden uebersprungen?)
+- Detail-Ansicht: Eine flexible oder pro Typ angepasst?
+- Migration bestehender `auftraege`-Daten (Reparaturen)
+
+---
+
+## [A-003] Dokument-Kette + Pflicht-Gates
+**Prio:** HOCH | **Bereich:** Architektur | **Status:** KONZEPT BESTAETIGT
+
+**Entscheidung (2026-03-09):** Dokumente werden primaer IM Tool erstellt, externe Docs per KI-Agent zugeordnet.
+
+**Pflicht-Dokumentenkette (aktuell, ohne Budgetangebot):**
+```
+Vollangebot (verbindliches Angebot, §145 BGB)
+  → Auftragsbestaetigung (finale Konditionen, Zahlungsbedingungen, Lieferzeit)
+    → AB unterschrieben vom Kunden = AUFTRAG (Phase wechselt)
+      → Bestellung an Lieferant (erst jetzt erlaubt!)
+        → AB vom Lieferant (eingehend)
+          → Lieferschein
+            → Montage/Abnahme
+              → Rechnung (eigene, ausgehend)
+```
+
+**Spaeter, wenn Budgetangebot live:**
+```
+Budgetangebot (optional, Schaetzung, KEIN Angebot im Sinne BGB)
+  → Vollangebot → AB → AB unterschrieben = AUFTRAG → Bestellung → ...
+```
+
+**Pflicht-Gates (System verhindert Weitergehen ohne Dokument):**
+| Gate | Regel | Grund |
+|------|-------|-------|
+| Kein Auftrag ohne unterschriebene AB | Phase "auftrag" blockiert | Rechtliche Bindung, §150 BGB |
+| Keine Bestellung ohne Auftrag | Phase "bestellt" blockiert | Schutz vor Retouren/Lagerkosten ohne Kundenbindung |
+| Versicherung: Keine Bestellung ohne Abtretungserklaerung | Zusaetzliches Gate fuer typ=versicherung | Ohne Abtretung kein Kostenersatz |
+
+**Rechtlicher Hintergrund (BGB, Werkvertrag §§631 ff):**
+- Budgetangebot = unverbindliche Schaetzung, kein Angebot im Rechtssinn
+- Vollangebot = bindendes Angebot (§145 BGB), bindet JS Fenster
+- Unterschriebenes Angebot WAERE rechtlich schon Vertrag
+- ABER: Geschaeftsregel ist STRENGER → nur unterschriebene AB = Auftrag
+- Grund: AB fixiert finale Konditionen, schuetzt vor Missverstaendnissen
+- Bei Abweichung AB vs. Angebot: AB gilt als neues Angebot (§150 Abs. 2 BGB)
+
+**Dokument-Herkunft:**
+| Dokument | Erstellt wo | Zuordnung |
+|----------|------------|-----------|
+| Budgetangebot | Im Tool | Automatisch am Projekt |
+| Vollangebot | Im Tool | Automatisch am Projekt |
+| AB (eigene) | Im Tool | Automatisch am Projekt |
+| Bestellung | Im Tool | Automatisch am Projekt |
+| Rechnung | Im Tool | Automatisch am Projekt |
+| AB vom Lieferant | Extern (Email/Post) | KI-Agent matched automatisch, manuell als Fallback |
+| Lieferschein | Extern (Lieferung) | KI-Agent matched automatisch, manuell als Fallback |
+| Unterschriebene AB (Ruecklauf) | Extern (Kunde) | KI-Agent matched automatisch, manuell als Fallback |
+| Abtretungserklaerung | Extern (Kunde) | KI-Agent matched automatisch, manuell als Fallback |
+| Altdokumente (Scans) | Extern (Nachzuegler) | KI-Agent matched automatisch, manuell als Fallback |
+
+**Noch zu klaeren:**
+- Abnahme/Montageprotokoll: Gilt Montageschein rechtlich als Abnahme? (Muss geprueft werden)
+- Keine Rechnung ohne Abnahme? (Abhaengig von obiger Klaerung)
+- Wie wird die Kette im UI dargestellt? (Timeline, Checkliste, Fortschrittsbalken?)
+- parent_document_id oder separate Beziehungstabelle fuer Dokument-Verknuepfungen?
+
+---
+
+## [A-004] Positions-System: Versionierung, Einheiten, Nachtraege
+**Prio:** HOCH | **Bereich:** Architektur | **Status:** KONZEPT BESTAETIGT
+
+**Entscheidung (2026-03-09):** Aus DB-Analyse realer Angebote + Praxis-Feedback
+
+### Positions-Struktur
+**Zwei Darstellungs-Modi:**
+- **Aufgegliedert** (Standard, Privatkunden): Fenster, Insektenschutz, Rollladen, Montage einzeln
+- **Gebuendelt** (Ausschreibungen/LV): Fenster + AFB + RP + Montage als eine Position
+
+**Gruppierung nach Produktgruppen** (nicht nach Raeumen):
+- Fenster, Tueren, Rolllaeden, Insektenschutz, Montage, Entsorgung, etc.
+- Heading-Positionen + Subtotals fuer Struktur
+
+**Nummerierung:**
+- Standard: Hierarchisch (1, 1.1, 1.2, 2, 2.1, ...)
+- Flach moeglich (1, 2, 3, ...)
+- Bei Ausschreibungen: **Nummernkreise editierbar** (Kunde gibt Pos.-Nr. vor, bleiben so)
+
+### Versionierung (NIE ueberschreiben!)
+- Angebot aendern = neue **Revision** (V1, V2, V3)
+- Alte Version bleibt erhalten, Status "ersetzt"
+- Diff sichtbar: "V2: Pos 5 entfernt, Pos 8 Rollladen neu"
+- **Bearbeiter merkt nichts** — klickt auf Bearbeiten, System versioniert automatisch im Hintergrund
+- **Kundendokument** zeigt immer nur aktive Version
+- **Interne Ansicht** zeigt volle Historie
+
+### Position aendern nach Auftrag (z.B. Fensterbank-Masse nach Aufmass)
+- Alte Position **stillegen** (REPLACED), neue anlegen
+- Neue referenziert alte (`ersetzt_position_id`)
+- Preisdifferenz automatisch berechnet
+- Haeufiger Fall: Angebot mit Schaetzmass (ca. 300mm Ausladung) → nach Aufmass exaktes Mass (280mm)
+- Angebots-Position V1 (geschaetzt) → V2 (exakt) → Bestell-Position mit Realmass
+
+### Einheiten-Problem (Angebot ≠ Bestellung)
+**Problem:** Angebot in lfm, Bestellung beim Lieferanten in Stueck mit exakten Zuschnitten.
+**Beispiel:** 5 lfm Fensterbank im Angebot → Bestellung: 2x 1,02m + 1x 1,56m + 1x 1,40m
+
+**Loesung:** Bestell-Positionen sind **Kinder** der Angebots-Position:
+```
+Angebots-Position: 5 lfm Fensterbank Alu 300mm
+  └── Bestell-Positionen:
+       ├── 1 St. Fensterbank 1020mm
+       ├── 1 St. Fensterbank 1020mm
+       ├── 1 St. Fensterbank 1560mm
+       └── 1 St. Fensterbank 1400mm
+```
+- Verbindung ueber `angebots_position_id`
+- Summe der Zuschnitte kann von Angebotsmenge abweichen (Verschnitt)
+
+### Nachtraege bei LV-Auftraegen
+**Problem:** LV-Positionen sind fixiert vom Kunden. Beim Aufmass/Montage werden zusaetzliche Arbeiten festgestellt.
+
+**Loesung:** Nachtraege als eigene Dokumente am Projekt:
+```
+LV-Angebot (Positionen vom Kunden, Nummern bleiben)
+  → Nachtrag 1 (nach Aufmass, z.B. zusaetzliche Abdichtung)
+  → Nachtrag 2 (nach Montage, z.B. Sturzertuechtigung)
+  → Rechnung = LV-Positionen + alle genehmigten Nachtraege
+```
+- Jeder Nachtrag braucht **Kundenfreigabe** (Pflicht-Gate!) bevor berechnet werden darf
+- Auf Rechnung sauber getrennt: Hauptauftrag + Nachtrag 1 + Nachtrag 2
+
+### Baunebenkosten (Abzugspositionen bei LV-Auftraegen)
+**Was:** Bauwasser, Baustrom, Toiletten, Krannutzung — vom Auftraggeber/GU abgezogen
+**Problem:** Werden oft vergessen bei Kalkulation → tatsaechlicher Ertrag niedriger als gedacht
+
+**Loesung:**
+- Schon beim Angebot als **Abzugspositionen** hinterlegen
+- Typ: `abzug_baunebenkosten`
+- Fliessen in interne Kalkulation ein (Marge beruecksichtigt Abzuege)
+- Auf Kundendokument nicht sichtbar, aber bei Rechnungsstellung relevant
+- Typisch: X% vom Auftragswert oder Pauschale
+
+### Interne Positionen / Zeiten
+- Muss gesondert besprochen werden (eigenes Backlog-Item)
+- Betrifft: Interne Kalkulation, Zeiterfassung, Material-Kosten
+
+### Noch zu klaeren
+- Margin-Ampel: Von Anfang an oder spaeter?
+- EK-Preise: Woher? WERU-Rabattkondition automatisch oder manuell?
+- Versionierung bei Budgetangebot → Vollangebot Konvertierung
+- Interne Positionen/Zeiten (eigenes Thema)
+
+---
+
+## [A-005] Visualisierung: 3 Ansichten implementieren + Cockpit ueberarbeiten
+**Prio:** HOCH | **Bereich:** Architektur | **Status:** UMSETZUNG (2026-03-09)
+
+**Entscheidung:** Alle 3 Varianten implementieren, Andreas testet live welche am besten funktioniert.
+
+**Feedback zum IST-Zustand:**
+- Cockpit (Bild 8): "Sehr plump, wirkt nicht, zu viel Leerflaechen"
+- Projekte/Kanban (Bild 9): "Wirkt schon eher, aber auch viel Leerflaechen"
+- 11 Kanban-Spalten = zu breit, horizontales Scrollen noetig
+
+**3 Ansichten auf der Projekte-Seite (View-Toggle):**
+
+**Variante 1: Pipeline-View (kompakt, eine Zeile pro Projekt)**
+```
+PRJ-042 Meier | Fenster 4.200€ | ████████░░░ Montagebereit | Team M+M | ⚠ AB fehlt
+PRJ-038 Schmid | Haustuer 8.900€ | ██████████░ Abnahme      | Team C+M |
+```
+- Vorteil: Viele Projekte auf einen Blick, kein horizontales Scrollen
+- Sortierbar nach Phase, Alter, Wert, Team
+- Farbcodierung fuer Alerts
+
+**Variante 2: Gruppierte Tabelle (aufklappbar nach Phase)**
+```
+▼ Montagebereit (3)
+  PRJ-042 | Meier  | 4.200€ | Seit 5 Tagen | Team M+M
+▼ Bestellt — warten auf AB (2)  ⚠
+  PRJ-051 | LSL    | 21.700€ | Seit 8 Tagen | -
+▶ Angebot (5)                    [zugeklappt]
+```
+- Fokus auf relevante Phasen, Rest zugeklappt
+- Phasen mit Alerts automatisch aufgeklappt
+
+**Variante 3: Kanban (existiert bereits, beibehalten)**
+
+**Cockpit-Ueberarbeitung:**
+- Kompakter, weniger Leerflaechen
+- Handlungsbedarf prominenter
+- Pipeline-Chart dichter
+
+---
+
+## [B-009] Terrassendaecher + Wintergaerten
+**Prio:** MITTEL | **Bereich:** Budget | **Migriert aus:** budgetangebote/BACKLOG.md B-001
+
+Budgetangebot V1 deckt nur Fenster/Tueren ab. Spaeter erweitern um Terrassendaecher und Wintergaerten mit eigenen Preismodellen.
+
+---
+
+## [B-010] OCR-Integration fuer Aufmassblaetter
+**Prio:** HOCH | **Bereich:** Budget | **Migriert aus:** budgetangebote/BACKLOG.md B-002
+
+Automatische Extraktion von Massen aus gescannten Aufmassblaettern via Mistral OCR (wie bei Documents). Integration mit budget_inputs.raw_ocr.
+
+---
+
+## [B-011] ML-basierte Preiskalibrierung
+**Prio:** NIEDRIG | **Bereich:** Budget | **Migriert aus:** budgetangebote/BACKLOG.md B-003
+
+Wenn genug Outcome-Daten vorhanden (>100 Conversions), ML-Modell trainieren um Preisparameter automatisch zu optimieren. Nutzt deviation_percent als Loss.
+
+---
+
+## [B-012] Kunde-Historie Dashboard
+**Prio:** MITTEL | **Bereich:** Budget | **Migriert aus:** budgetangebote/BACKLOG.md B-004
+
+UI-Komponente die alle bisherigen Angebote eines Kunden anzeigt mit Trend-Analyse. Urspruenglich via /api/w4a/kunden/:code/angebots-history, spaeter eigene Daten.
+
+---
+
+## [R-003] Fahrzeit-/Cluster-Heuristik
+**Prio:** MITTEL | **Bereich:** Repair | **Migriert aus:** reparaturen/BACKLOG.md B-002
+
+Regel: Termine mit >30 Min Einzelfahrt sind "Tour-Faelle":
+- Bevorzugt um 08:00 ab Lager starten
+- Mit anderen Terminen in gleicher Richtung clustern (ab 2 = Cluster)
+- Benoetigt: Geo-Daten, Fahrzeit-API, Cluster-Algorithmus, Disponenten-UI
+
+---
+
+## [R-004] Wetter-/Hitze-Constraints
+**Prio:** NIEDRIG | **Bereich:** Repair | **Migriert aus:** reparaturen/BACKLOG.md B-003
+
+Aussenjobs (Raffstore, Markise, Aussenabdichtung) haben Wetter-Abhaengigkeiten:
+- Nur bei trocken, >= 5°C
+- Suedseite/Hitze: eher morgens planen
+- Benoetigt: Wetter-API, job_typ (innen/aussen), himmelsrichtung (optional)
+
+---
+
+## [R-005] Outlook-Integration (Kalender-Sync)
+**Prio:** NIEDRIG | **Bereich:** Repair | **Migriert aus:** reparaturen/BACKLOG.md B-004
+
+Pilot soll OHNE Outlook starten. Perspektivisch Outlook als Planungs-Zentrale ABLOESEN.
+Sync kann spaeter OPTIONAL hinzugefuegt werden (Microsoft Graph API, bidirektional).
+
+---
+
+## [R-006] Altes Frontend aufraeumen
+**Prio:** NIEDRIG | **Bereich:** System | **Migriert aus:** reparaturen/BACKLOG.md B-006
+
+3 alte Frontend-Apps existieren: /frontend, /Auftragsmanagement/frontend, /apps/review-tool.
+Neues Dashboard unter /dashboard ersetzt diese. Alte Apps archivieren oder loeschen.
+
+---
+
+## [A-006] Ticket-Konzept: Nacharbeit/Reklamation am Projekt
+**Prio:** MITTEL | **Bereich:** Architektur | **Status:** OFFEN
+
+**Kontext (2026-03-09):**
+Nacharbeit und Reklamation sind kleine Vorgaenge die an einem bestehenden Projekt haengen.
+Sie brauchen keinen eigenen Lifecycle, aber muessen trotzdem nachvollziehbar sein.
+
+**Option A: Eigenes Ticket-System**
+- `projekt_tickets` Tabelle (projekt_id, typ, beschreibung, status, erstellt_am, erledigt_am)
+- Typen: nacharbeit, reklamation, sonstiges
+- Status: offen, in_arbeit, erledigt
+- Sichtbar in ProjektDetail als Liste
+- Vorteil: Klar strukturiert, filterbar ("alle offenen Nacharbeiten")
+- Nachteil: Weitere Tabelle + UI-Aufwand
+
+**Option B: KI-Agent betreut das**
+- Nacharbeit/Reklamation wird als Notiz oder Tag am Projekt erfasst
+- KI-Agent erkennt aus Emails/Notizen: "Das ist eine Reklamation zu PRJ-2026-0042"
+- Agent setzt Tags, erstellt Erinnerungen, trackt Erledigung
+- Kein eigenes Ticket-UI noetig, Agent arbeitet im Hintergrund
+- Vorteil: Weniger UI-Komplexitaet, intelligenter
+- Nachteil: Abhaengig von KI-Qualitaet, weniger strukturiert
+
+**Option C: Hybrid**
+- Einfache Ticket-Struktur in DB (fuer Nachvollziehbarkeit)
+- KI-Agent erstellt Tickets automatisch aus Emails/Notizen
+- Mensch kann manuell Tickets anlegen wenn noetig
+
+**Noch zu klaeren:**
+- Reicht ein einfaches Tag-System oder brauchen Tickets eigene Felder (Frist, Zustaendig)?
+- Wie oft kommen Nacharbeiten/Reklamationen vor? (Volumen bestimmt Aufwand)
+- Braucht man Reports ("Welcher Auftrag hatte die meisten Reklamationen")?
+
+---
+
+## [A-007] Buergschafts-Tracking (Versicherungsbuergschaften)
+**Prio:** HOCH | **Bereich:** Architektur | **Status:** KONZEPT (2026-03-09)
+
+**Kontext:** Bei LV-Auftraegen verlangt der Auftraggeber eine Sicherungsbuergschaft (Gewaehrleistung).
+Diese wird von einer **Versicherung** ausgestellt (z.B. R+V Allgemeine Versicherung AG), NICHT von einer Bank.
+Typisch: 5% vom Auftragswert, unbefristet, erlischt nur mit Rueckgabe an Versicherer.
+
+**Reales Beispiel (aus DB):**
+- R+V Buergschaft Nr. 408 97 576194536 / 000026 PB
+- Auftragssumme: 21.727,67 EUR → Buergschaftssumme: 1.086,38 EUR
+- Selbstschuldnerische Buergschaft zugunsten des Auftraggebers
+- Art der Arbeiten: Innentüren und Montage
+- Unbefristet, verjährt nach Ablauf der Gewaehrleistungsfrist
+
+**DB-Entwurf:**
+```
+buergschaften
+├── id, projekt_id
+├── versicherer: Text (R+V, VHV, etc.)
+├── buergschafts_nr: Text
+├── typ: gewaehrleistung | vertragserfuellung
+├── betrag: Numeric
+├── auftragssumme: Numeric
+├── auftraggeber_name: Text
+├── ort_der_arbeiten: Text
+├── art_der_arbeiten: Text
+├── vertrag_vom: Date
+├── unbefristet: Boolean
+├── status: aktiv | rueckforderung_eingeleitet | zurueck
+├── rueckforderung_am: Date
+├── zurueck_am: Date
+└── created_at
+```
+
+**Alerts:**
+- Gewaehrleistung abgelaufen → "Buergschaft bei Versicherer zurueckfordern!"
+- 6 Monate nach Gewaehrleistungsende immer noch aktiv → DRINGEND (unnoetige Kosten)
+- Uebersicht: "X Buergschaften offen, Gesamtvolumen Y EUR"
+
+**Verknuepfung mit Gewaehrleistung (A-002):**
+- `projekte.gewaehrleistung_bis` = erledigt_datum + 5 Jahre (Bauwerk) oder + 2 Jahre
+- Buergschaft.rueckforderung erst moeglich wenn Gewaehrleistung abgelaufen
+- KI-Agent prueft automatisch und erstellt Alert
+
+---
+
+## [A-008] Interne Positionen / Zeiten
+**Prio:** MITTEL | **Bereich:** Architektur | **Status:** OFFEN
+
+**Muss gesondert besprochen werden.** Betrifft:
+- Interne Kalkulation (Kosten die der Kunde nicht sieht)
+- Zeiterfassung (Montage-Stunden, Fahrtzeit)
+- Material-Kosten (intern vs. was auf Rechnung steht)
+- Zusammenspiel mit Margin-Ampel (EK vs. VK)
+- Abgrenzung zu Baunebenkosten (A-004, Abzugspositionen)
