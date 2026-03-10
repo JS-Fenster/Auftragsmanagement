@@ -164,6 +164,7 @@ export const EXTRACTION_SCHEMA = {
         "Vertrag",
         "Video",
         "Vorlage",
+        "Werbung",
         "Zahlungsavis",
         "Zeichnung",
       ],

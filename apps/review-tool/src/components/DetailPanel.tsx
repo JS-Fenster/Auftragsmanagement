@@ -35,6 +35,7 @@ function PrimaryFilePreview({
   const [loading, setLoading] = useState(!cachedUrl);
   const [error, setError] = useState<string | null>(null);
   const [numPages, setNumPages] = useState<number | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   const isPdf = contentType === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf');
   const isImage = contentType.startsWith('image/');
@@ -47,7 +48,8 @@ function PrimaryFilePreview({
       return;
     }
 
-    let cancelled = false;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15_000);
     let blobUrl: string | null = null;
 
     async function fetchBlob() {
@@ -55,34 +57,36 @@ function PrimaryFilePreview({
         setLoading(true);
         setError(null);
         // Get signed URL (deduplicated in API class)
-        const result = await api.getPreviewUrl(storagePath);
-        if (cancelled) return;
+        const result = await api.getPreviewUrl(storagePath, controller.signal);
+        if (controller.signal.aborted) return;
         // Download blob for instant react-pdf rendering
-        const response = await fetch(result.signed_url);
+        const response = await fetch(result.signed_url, { signal: controller.signal });
         if (!response.ok) {
           const errBody = await response.text().catch(() => '');
           throw new Error(errBody || `HTTP ${response.status}`);
         }
-        if (cancelled) return;
+        if (controller.signal.aborted) return;
         const blob = await response.blob();
         blobUrl = URL.createObjectURL(blob);
-        if (cancelled) { URL.revokeObjectURL(blobUrl); blobUrl = null; return; }
+        if (controller.signal.aborted) { URL.revokeObjectURL(blobUrl); blobUrl = null; return; }
         setSignedUrl(blobUrl);
       } catch (err) {
-        if (!cancelled) {
+        if ((err as Error).name !== 'AbortError') {
           setError(err instanceof Error ? err.message : 'Failed to load preview');
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        clearTimeout(timeoutId);
+        if (!controller.signal.aborted) setLoading(false);
       }
     }
     fetchBlob();
 
     return () => {
-      cancelled = true;
+      controller.abort();
+      clearTimeout(timeoutId);
       if (blobUrl) URL.revokeObjectURL(blobUrl);
     };
-  }, [storagePath, api, cachedUrl]);
+  }, [storagePath, api, cachedUrl, retryCount]);
 
   if (loading) {
     return (
@@ -102,8 +106,14 @@ function PrimaryFilePreview({
       return null;
     }
     return (
-      <div className="bg-red-50 rounded-lg p-4 text-red-600 text-sm">
-        Fehler: {error}
+      <div className="bg-red-50 rounded-lg p-4 text-red-600 text-sm flex items-center justify-between">
+        <span>Fehler: {error}</span>
+        <button
+          onClick={() => setRetryCount(c => c + 1)}
+          className="ml-2 px-2 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded text-xs flex-shrink-0"
+        >
+          Retry
+        </button>
       </div>
     );
   }
@@ -120,16 +130,32 @@ function PrimaryFilePreview({
             {fileName}
           </span>
         </div>
-        {signedUrl && (
-          <a
-            href={signedUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-600 hover:text-blue-800 text-sm flex-shrink-0"
-          >
-            Oeffnen
-          </a>
-        )}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {signedUrl && (
+            <button
+              onClick={() => window.open(signedUrl, '_blank')}
+              className="text-gray-500 hover:text-gray-700"
+              title="Im neuen Tab oeffnen"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+              </svg>
+            </button>
+          )}
+          {signedUrl && (
+            <button
+              onClick={() => {
+                const a = document.createElement('a');
+                a.href = signedUrl;
+                a.download = fileName;
+                a.click();
+              }}
+              className="text-blue-600 hover:text-blue-800 text-sm"
+            >
+              Download
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Preview Content */}

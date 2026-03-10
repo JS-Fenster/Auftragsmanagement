@@ -562,14 +562,17 @@ export default function Dokumente() {
                       <div className="flex flex-col items-center justify-center h-40 text-gray-400">
                         <Eye className="w-8 h-8 mb-2" />
                         <p className="text-sm">Vorschau nicht verfuegbar</p>
-                        <a
-                          href={previewUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          onClick={() => {
+                            const a = document.createElement('a')
+                            a.href = previewUrl
+                            a.download = selectedDoc.dokument_url?.split('/').pop() || 'dokument'
+                            a.click()
+                          }}
                           className="text-sm text-blue-600 hover:underline mt-1 flex items-center gap-1"
                         >
                           <Download className="w-3 h-3" /> Herunterladen
-                        </a>
+                        </button>
                       </div>
                     )}
                   </>

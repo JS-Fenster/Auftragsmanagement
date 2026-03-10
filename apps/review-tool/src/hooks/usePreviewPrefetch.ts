@@ -25,6 +25,7 @@ export function usePreviewPrefetch({
 }: UsePreviewPrefetchOptions) {
   const lastQueueRef = useRef<string[]>([]);
   const lastSelectedIdRef = useRef<string | null>(null);
+  const hoverAbortRef = useRef<AbortController | null>(null);
 
   // ---------------------------------------------------------------------------
   // Prefetch on Queue Load (first N visible docs)
@@ -119,11 +120,18 @@ export function usePreviewPrefetch({
     const doc = documents.find(d => d.id === docId);
     if (!doc) return;
 
+    // Cancel previous hover prefetch
+    hoverAbortRef.current?.abort();
+    const controller = new AbortController();
+    hoverAbortRef.current = controller;
+
     console.log(`[Prefetch] Hover - prefetching doc ${docId}`);
     try {
-      await previewCache.prefetchDocument(doc, api);
+      await previewCache.prefetchDocument(doc, api, controller.signal);
     } catch (err) {
-      console.warn('[Prefetch] Error prefetching on hover:', err);
+      if ((err as Error).name !== 'AbortError') {
+        console.warn('[Prefetch] Error prefetching on hover:', err);
+      }
     }
   }, [api, documents, prefetchMode]);
 

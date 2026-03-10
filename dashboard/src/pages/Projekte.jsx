@@ -79,7 +79,7 @@ export default function Projekte() {
     try {
       let query = supabase
         .from('projekte')
-        .select('*, kontakte(id, firma1, firma2, strasse, plz, ort, kontakt_personen!kontakt_personen_kontakt_id_fkey(vorname, nachname, ist_hauptkontakt))')
+        .select('*, kontakte!projekte_kontakt_id_fkey(id, firma1, firma2, strasse, plz, ort, kontakt_personen!kontakt_personen_kontakt_id_fkey(vorname, nachname, ist_hauptkontakt))')
         .order('updated_at', { ascending: false })
 
       if (filterStatus) query = query.eq('status', filterStatus)
@@ -102,7 +102,7 @@ export default function Projekte() {
   const loadAlerts = useCallback(async () => {
     const { data } = await supabase
       .from('projekte')
-      .select('*, kontakte(firma1, firma2)')
+      .select('*, kontakte!projekte_kontakt_id_fkey(firma1, firma2)')
       .not('status', 'in', '("erledigt","bezahlt","storniert")')
 
     if (!data) return

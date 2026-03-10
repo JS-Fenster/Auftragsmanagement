@@ -180,12 +180,12 @@ export default function Cockpit() {
       const [projekteRes, montagenRes, historieRes] = await Promise.all([
         supabase
           .from('projekte')
-          .select('*, kontakte(id, firma1, firma2, ort, kontakt_personen!kontakt_personen_kontakt_id_fkey(vorname, nachname, ist_hauptkontakt))')
+          .select('*, kontakte!projekte_kontakt_id_fkey(id, firma1, firma2, ort, kontakt_personen!kontakt_personen_kontakt_id_fkey(vorname, nachname, ist_hauptkontakt))')
           .not('status', 'in', '("erledigt","bezahlt","storniert")')
           .order('updated_at', { ascending: false }),
         supabase
           .from('projekte')
-          .select('*, kontakte(id, firma1, firma2, ort, kontakt_personen!kontakt_personen_kontakt_id_fkey(vorname, nachname, ist_hauptkontakt))')
+          .select('*, kontakte!projekte_kontakt_id_fkey(id, firma1, firma2, ort, kontakt_personen!kontakt_personen_kontakt_id_fkey(vorname, nachname, ist_hauptkontakt))')
           .eq('montage_datum', today),
         supabase
           .from('projekt_historie')

@@ -63,7 +63,7 @@
 | G-053 | HOCH | Auftragsm. | Reparatur-Erweiterung: Foto-Upload, Ersatzteil-DB, Dokument-Links |
 | G-054 | MITTEL | Auftragsm. | Auftragsmanagement-Tool: Ueberblick-Dashboard mit KPIs + Charts |
 | G-055 | NIEDRIG | Kategorien | Trendtueren-Konfigurator: Bestellung = Bestellung_Ausgehend (Lieferanten-Bestellung) |
-| G-056 | MITTEL | Kategorien | Neue Dokument-Kategorie "Werbung" (Werbeflyer, Prospekte, Newsletter-Anhaenge) |
+| ~~G-056~~ | ~~ERLEDIGT~~ | ~~Kategorien~~ | ~~Neue Dokument-Kategorie "Werbung" (categories, prompts, schema, DB CHECK, 2026-03-10)~~ |
 | B-009 | MITTEL | Budget | Terrassendaecher + Wintergaerten (eigene Preismodelle) |
 | B-010 | HOCH | Budget | OCR-Integration fuer Aufmassblaetter (Mistral OCR → budget_inputs) |
 | B-011 | NIEDRIG | Budget | ML-basierte Preiskalibrierung (>100 Conversions, deviation_percent) |
@@ -195,106 +195,7 @@ Wenn JS Fenster eine Bestellung aus dem **Trendtueren-Konfigurator** ausloest, w
 
 ---
 
-## [G-056] Neue Dokument-Kategorie "Werbung"
-
-**Prio:** MITTEL | **Bereich:** Kategorien
-**Erstellt:** 2026-03-06
-
-### Beschreibung
-Neue Dokument-Kategorie `Werbung` fuer Werbeflyer, Produktprospekte von Dienstleistern, Software-Werbung, Newsletter-Anhaenge und unaufgeforderte Aktionsangebote.
-
-### Abgrenzung
-- **Spam** = Muell, irrelevant, sofort weg (Fax-Spam, Werbe-Faxe)
-- **Katalog** = gewollte Produktkataloge von Lieferanten (WERU, Schuco etc.)
-- **Werbung** = potenziell interessant, aber kein Katalog - Flyer, Prospekte, Aktionen
-- **Brief_eingehend** = Verbandspost, Rundschreiben (z.B. BVRS)
-
-### Beispiel-Dokumente
-- `CyberRisikoCheck.pdf` - IT-Sicherheits-Werbeflyer (IDI/PHD IT-Systeme)
-- `Alles_am_Pin_und_Einbauort_gespeichert.pdf` - Software-Produktwerbung
-- Newsletter-Anhaenge von Lieferanten mit Aktionen/Neuheiten
-
-### Umsetzung (Kategorie-Checkliste)
-1. `_shared/categories.ts` - Werbung in VALID_DOKUMENT_KATEGORIEN
-2. `process-document/prompts.ts` - Kategorie-Beschreibung im Prompt
-3. `process-document/schema.ts` - Enum erweitern
-4. DB CHECK Constraint erweitern
-5. `admin-review` Frontend Dropdown (constants.js)
-6. Storage-Ordner wird automatisch erstellt
-
----
-
 ## ═══ BACKLOG START ═══
-
----
-
-## [G-052] process-document 2-Stufen-Pipeline + Storage-Verschiebung
-
-**Prioritaet:** HOCH
-**Bereich:** Pipeline / Architektur
-**Erstellt:** 2026-03-06
-
-### Problem
-
-1. **process-document** macht alles in einer Function (~40s): OCR + GPT + Storage + DB
-   - Supabase Edge Function Limit: 150s → max 3 Docs pro Batch
-   - Wenn GPT fehlschlaegt, geht der OCR-Text verloren (muss komplett neu)
-   - Aenderungen am GPT-Prompt koennen OCR-Logik brechen (kaskadierende Fehler)
-2. **Storage-Pfad stimmt nicht nach Review-Korrektur**
-   - process-document legt Datei in Kategorie-Ordner (z.B. `Sonstiges_Dokument/`)
-   - Review korrigiert `kategorie_manual` → DB stimmt, aber Datei bleibt im falschen Ordner
-   - Aktuell kein Mechanismus der Storage-Pfad nachzieht
-
-### Loesung: 3 Komponenten
-
-**A) Stage 1: process-document-ocr (neue Edge Function, ~15-20s)**
-- Download aus Storage + Validierung + File-Hash
-- Duplikat-Check (file_hash + text_hash)
-- Mistral OCR / Office-Extraktion
-- `ocr_text` + `text_hash` in DB speichern
-- Status: `pending_ocr` → `pending_categorize`
-- Fehler: → `error_ocr`
-
-**B) Stage 2: process-document-categorize (neue Edge Function, ~15-20s)**
-- `ocr_text` aus DB lesen (KEIN File-Download, KEIN OCR)
-- GPT Kategorisierung + Feld-Extraktion
-- DB Update (Kategorie, extrahierte Felder)
-- Ruft `move-document-storage` auf (oder inline)
-- Status: `pending_categorize` → `done`
-- Fehler: → `error_gpt`
-
-**C) move-document-storage (neue Edge Function oder in Stage 2 integriert)**
-- Verschiebt Datei von aktuellem Pfad in richtigen Kategorie-Ordner
-- Updated `dokument_url` in DB
-- Wird aufgerufen von:
-  - Stage 2 nach Kategorisierung
-  - admin-review nach `correct` (Kategorie-Korrektur)
-- Idempotent: Wenn Datei schon im richtigen Ordner → noop
-
-### Status-Flow
-
-```
-pending_ocr → pending_categorize → done
-     ↓              ↓
-  error_ocr     error_gpt (OCR-Text bleibt erhalten!)
-```
-
-### Aenderungen noetig
-
-1. **DB:** Neuer Status `pending_categorize` + `error_ocr` + `error_gpt` im processing_status
-2. **process-document:** Aufsplitten in 2 neue Functions
-3. **batch-process-pending:** Zwei getrennte Schleifen (OCR-Batch + Kategorisierungs-Batch)
-4. **admin-review:** Nach `correct` Action → `move-document-storage` aufrufen
-5. **Storage-Strategie:** Neue Docs erstmal in `inbox/` oder direkt im Kategorie-Ordner (wie bisher)
-
-### Vorteile
-
-- Jede Stage <20s → 7 Docs pro Batch statt 3
-- OCR-Text ueberlebt GPT-Fehler (kein erneuter OCR noetig)
-- Prompt-Aenderungen koennen OCR nicht brechen
-- Review-Korrekturen ziehen Storage-Pfad automatisch nach
-- Retry nur die fehlgeschlagene Stage (spart Mistral-Kosten)
-- Verschiedene Modelle/Params pro Stage moeglich
 
 ---
 
@@ -921,19 +822,6 @@ Nach dem Review-Durchlauf pruefen: Welche Kategorien sind zu allgemein und sollt
 
 **Voraussetzung:** K-017 Review muss abgeschlossen sein, damit die Datenbasis stimmt.
 **Reihenfolge:** G-031 (Bereinigung) → G-041 (Workflow-Pipeline)
-
----
-
-## [G-033] Globale Duplikat-Erkennung Email-Anhaenge
-**Prio:** MITTEL | **Aufwand:** 2-4 Std
-
-Aktuell wird file_hash nur innerhalb einer Email geprueft. Wenn derselbe Anhang in einer Weiterleitung ("WG:") nochmal kommt, wird er als neues Dokument angelegt. Beispiel: Hauptwetter_26.pdf kam 2x mit identischem Hash.
-
-**Loesung:**
-- Beim Anlegen eines email_attachment: Globaler Check ob file_hash schon existiert
-- Wenn ja: Dokument als Duplikat markieren oder gar nicht erst anlegen
-- Optional: Referenz auf das Original-Dokument speichern
-- Betrifft: `process-email` bzw. Anhang-Pipeline
 
 ---
 

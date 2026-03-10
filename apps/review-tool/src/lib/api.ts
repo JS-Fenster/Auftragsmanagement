@@ -223,12 +223,12 @@ export class AdminReviewApi {
   }
 
   // Get preview URL (deduplicated: concurrent requests for same path share one promise)
-  async getPreviewUrl(path: string): Promise<PreviewResponse> {
+  async getPreviewUrl(path: string, signal?: AbortSignal): Promise<PreviewResponse> {
     const key = `preview:${path}`;
     const pending = this.pendingRequests.get(key);
     if (pending) return pending as Promise<PreviewResponse>;
 
-    const promise = this.fetch<PreviewResponse>(`/preview?path=${encodeURIComponent(path)}`)
+    const promise = this.fetch<PreviewResponse>(`/preview?path=${encodeURIComponent(path)}`, {}, signal)
       .finally(() => this.pendingRequests.delete(key));
     this.pendingRequests.set(key, promise);
     return promise;

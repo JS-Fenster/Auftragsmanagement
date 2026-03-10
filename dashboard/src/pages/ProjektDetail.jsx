@@ -95,7 +95,7 @@ export default function ProjektDetail() {
   const loadProjekt = useCallback(async () => {
     setLoading(true)
     const [projektRes, posRes, bestRes, histRes, dokRes] = await Promise.all([
-      supabase.from('projekte').select('*, kontakte(id, firma1, firma2, strasse, plz, ort, kontakt_personen!kontakt_personen_kontakt_id_fkey(vorname, nachname, ist_hauptkontakt))').eq('id', id).single(),
+      supabase.from('projekte').select('*, kontakte!projekte_kontakt_id_fkey(id, firma1, firma2, strasse, plz, ort, kontakt_personen!kontakt_personen_kontakt_id_fkey(vorname, nachname, ist_hauptkontakt))').eq('id', id).single(),
       supabase.from('projekt_positionen').select('*').eq('projekt_id', id).order('pos_nr'),
       supabase.from('projekt_bestellungen').select('*').eq('projekt_id', id).order('created_at', { ascending: false }),
       supabase.from('projekt_historie').select('*').eq('projekt_id', id).order('erstellt_am', { ascending: false }),

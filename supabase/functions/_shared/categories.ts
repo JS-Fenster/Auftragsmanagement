@@ -98,6 +98,7 @@ export const VALID_DOKUMENT_KATEGORIEN = [
   "Vertrag",
   "Video",
   "Vorlage",                    // v4.0: Design-Assets, Briefpapier, Logos, Druckvorlagen
+  "Werbung",                    // v4.2: Werbeflyer, Produktprospekte, Newsletter-Anhaenge, Software-Werbung
   "Zahlungsavis",               // v2.2.0: Belastungsanzeige, Lastschrift, Sammelabbuchung
   "Zeichnung",                  // v2.3.0: Technische Zeichnungen, CAD-Zeichnungen
 ];

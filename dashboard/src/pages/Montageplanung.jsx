@@ -41,7 +41,7 @@ export default function Montageplanung() {
     setLoading(true)
     const { data, error } = await supabase
       .from('projekte')
-      .select('*, kontakte(id, firma1, firma2, ort, kontakt_personen!kontakt_personen_kontakt_id_fkey(vorname, nachname, ist_hauptkontakt))')
+      .select('*, kontakte!projekte_kontakt_id_fkey(id, firma1, firma2, ort, kontakt_personen!kontakt_personen_kontakt_id_fkey(vorname, nachname, ist_hauptkontakt))')
       .in('status', ['lieferung_geplant', 'montagebereit', 'erledigt'])
 
     if (error) { console.error(error); setLoading(false); return }

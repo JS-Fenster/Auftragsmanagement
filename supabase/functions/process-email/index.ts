@@ -322,10 +322,10 @@ Antwort im JSON-Format:
         Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
+      // v4.1.2: temperature entfernt - GPT-5.2 (reasoning model) unterstuetzt nur default (1)
       body: JSON.stringify({
         model: "gpt-5.2",
         messages: [{ role: "user", content: prompt }],
-        temperature: 0.3,
         max_completion_tokens: 400,
         reasoning_effort: "medium",
       }),
@@ -333,8 +333,8 @@ Antwort im JSON-Format:
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`[GPT] API error: ${response.status} - ${errorText.substring(0, 200)}`);
-      throw new Error(`GPT API error: ${response.status}`);
+      console.error(`[GPT] API error: ${response.status} - ${errorText.substring(0, 500)}`);
+      throw new Error(`GPT API error: ${response.status} - ${errorText.substring(0, 100)}`);
     }
 
     const data = await response.json();
@@ -343,6 +343,16 @@ Antwort im JSON-Format:
     // v4.0: Detailliertes Logging fuer Debugging
     console.log(`[GPT] Model: gpt-5.2, Response length: ${content.length}`);
     console.log(`[GPT] Raw response (first 500 chars): ${content.substring(0, 500)}`);
+
+    if (!content) {
+      // v4.1.2: Check if response is in a different field (reasoning models)
+      const msgKeys = Object.keys(data.choices?.[0]?.message || {}).join(",");
+      console.error(`[GPT] Empty content! Message keys: ${msgKeys}`);
+      return {
+        kategorie: "Sonstiges",
+        zusammenfassung: betreff || "(GPT: leere Antwort)",
+      };
+    }
 
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
@@ -1019,7 +1029,7 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         service: "process-email",
-        version: "4.1.0",
+        version: "4.1.2",
         status: "ready",
         configured: {
           azure: !!(AZURE_TENANT_ID && AZURE_CLIENT_ID && AZURE_CLIENT_SECRET),

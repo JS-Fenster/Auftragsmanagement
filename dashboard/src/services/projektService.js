@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase'
 
-const KONTAKTE_SELECT = '*, kontakte(id, firma1, firma2, strasse, plz, ort, kontakt_personen!kontakt_personen_kontakt_id_fkey(id, vorname, nachname, ist_hauptkontakt))'
+const KONTAKTE_SELECT = '*, kontakte!projekte_kontakt_id_fkey(id, firma1, firma2, strasse, plz, ort, kontakt_personen!kontakt_personen_kontakt_id_fkey(id, vorname, nachname, ist_hauptkontakt))'
 
 const PRIORITAET_ORDER = { dringend: 0, hoch: 1, normal: 2, niedrig: 3 }
 
@@ -347,7 +347,7 @@ export async function fetchProjektStats() {
 export async function fetchAlerts() {
   const { data: projekte, error } = await supabase
     .from('projekte')
-    .select('*, kontakte(id, firma1, firma2, strasse, plz, ort), projekt_bestellungen(id, status)')
+    .select('*, kontakte!projekte_kontakt_id_fkey(id, firma1, firma2, strasse, plz, ort), projekt_bestellungen(id, status)')
     .in('status', ['angebot', 'bestellt', 'ab_erhalten', 'lieferung_geplant', 'montagebereit'])
   if (error) throw new Error('Fehler beim Laden der Alerts: ' + error.message)
 

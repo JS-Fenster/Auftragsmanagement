@@ -116,8 +116,8 @@ Siehe `docs/Auftragsmanagement_Projektplan.md` fuer Details.
 | Function | Version | Status | Schutzgrund |
 |----------|---------|--------|-------------|
 | `process-document` | v40.0.0 (Wrapper) | STABIL | 2-Stage Pipeline Wrapper (OCR→Kategorisierung), 222 Zeilen (2026-03-09) |
-| `process-document-ocr` | v1.0.0 | STABIL | Stage 1: OCR + Duplikat-Check (G-033) + Upload (2026-03-09) |
-| `process-document-categorize` | v1.0.0 | STABIL | Stage 2: GPT-Kategorisierung + Storage-Move (2026-03-09) |
+| `process-document-ocr` | v1.0.1 | STABIL | Stage 1: OCR + Duplikat-Check (G-033) + kategorie-Copy bei Duplikaten (2026-03-10) |
+| `process-document-categorize` | v1.1.0 | STABIL | Stage 2: GPT-Kategorisierung + Storage-Move + prompt_version Tracking (2026-03-10) |
 | `process-email` | v4.1.1 (Deploy 46) | STABIL | GPT-Kategorisierung + Anhang-Pipeline, kategorie NULL Fix (2026-03-06) |
 | `batch-process-pending` | v2.0.1 | STABIL | 2-Stufen-Pipeline + Race-Condition Guard (2026-03-09) |
 

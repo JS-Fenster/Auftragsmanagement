@@ -283,14 +283,17 @@ Deno.serve(async (req: Request) => {
       if (existingByFileHash) {
         console.log(`[OCR] UPDATE-MODE DUPLIKAT (file_hash): ${existingByFileHash.id} (document_id: ${existingDocumentId})`);
 
-        // Markiere das Update-Dokument als Duplikat
+        // Markiere das Update-Dokument als Duplikat + Kategorie vom Original uebernehmen
         await supabase
           .from("documents")
           .update({
             duplicate_of: existingByFileHash.id,
+            duplicate_type: "exact",
+            kategorie: existingByFileHash.kategorie,
             file_hash: fileHash,
             processing_status: "done",
             processed_at: new Date().toISOString(),
+            kategorisiert_von: "duplicate",
           })
           .eq("id", existingDocumentId);
 

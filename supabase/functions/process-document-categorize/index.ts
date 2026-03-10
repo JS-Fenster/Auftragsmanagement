@@ -1,6 +1,6 @@
 // =============================================================================
 // Process Document - Stage 2: GPT-Kategorisierung + Feld-Extraktion
-// Version: 1.0.0 - 2026-03-09
+// Version: 1.1.0 - 2026-03-10
 // =============================================================================
 // Zweite Stufe der 2-Stufen-Pipeline (G-052):
 // Stage 1 (process-document-ocr): OCR-Extraktion → speichert ocr_text, setzt status=pending_categorize
@@ -24,7 +24,7 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { SYSTEM_PROMPT } from "../process-document/prompts.ts";
+import { SYSTEM_PROMPT, PROMPT_VERSION } from "../process-document/prompts.ts";
 import { canonicalizeKategorie, isValidDokumentKategorie } from "../_shared/categories.ts";
 import {
   ExtractedDocument,
@@ -153,6 +153,7 @@ function buildDatabaseRecord(
     processed_at: now,
     kategorisiert_am: now,
     kategorisiert_von: kategorisiertVon,
+    prompt_version: PROMPT_VERSION,
     // Unterschrift-Felder
     empfang_unterschrift: extracted.empfang_unterschrift,
     unterschrift: extracted.unterschrift,
@@ -215,7 +216,7 @@ function buildDatabaseRecord(
 async function moveStorageFile(
   oldPath: string,
   newPath: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; alreadyMoved?: boolean }> {
   // Supabase Storage hat kein move() - wir machen Download → Upload → Delete
 
   // 1. Download von alter URL
@@ -224,6 +225,16 @@ async function moveStorageFile(
     .download(oldPath);
 
   if (downloadError) {
+    // Pruefen ob die Datei bereits am Ziel liegt (Race Condition: anderer Prozess war schneller)
+    const { data: targetCheck } = await supabase.storage
+      .from("documents")
+      .download(newPath);
+
+    if (targetCheck) {
+      console.log(`[STORAGE] File already at target path (moved by another process): ${newPath}`);
+      return { success: true, alreadyMoved: true };
+    }
+
     return { success: false, error: `Download failed: ${downloadError.message}` };
   }
 
@@ -244,6 +255,13 @@ async function moveStorageFile(
     });
 
   if (uploadError) {
+    // Pruefen ob Datei schon am Ziel existiert (Duplikat = anderer Prozess war schneller)
+    if (uploadError.message?.includes("already exists") || uploadError.message?.includes("Duplicate")) {
+      console.log(`[STORAGE] File already exists at target (race condition): ${newPath}`);
+      // Alte Datei aufraumen
+      await supabase.storage.from("documents").remove([oldPath]);
+      return { success: true, alreadyMoved: true };
+    }
     return { success: false, error: `Upload failed: ${uploadError.message}` };
   }
 
@@ -272,7 +290,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         service: "process-document-categorize",
-        version: "1.0.0",
+        version: "1.0.1",
         status: "ready",
       }),
       {
@@ -317,47 +335,49 @@ Deno.serve(async (req) => {
 
     console.log(`[CATEGORIZE] Starting categorization for document ${documentId}`);
 
-    // 2. Dokument aus DB laden
-    const { data: doc, error: fetchError } = await supabase
-      .from("documents")
-      .select("id, ocr_text, dokument_url, file_hash, text_hash, extraktions_hinweise")
-      .eq("id", documentId)
-      .eq("processing_status", "pending_categorize")
-      .single();
-
-    if (fetchError || !doc) {
-      console.warn(`[CATEGORIZE] Document ${documentId} not found or wrong status: ${fetchError?.message}`);
-      return new Response(
-        JSON.stringify({
-          error: "Document not found or not in pending_categorize status",
-          document_id: documentId,
-        }),
-        { status: 404, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    if (!doc.ocr_text) {
-      return new Response(
-        JSON.stringify({
-          error: "Document has no OCR text - Stage 1 (OCR) must run first",
-          document_id: documentId,
-        }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    // 3. Status auf 'processing' setzen (Lock gegen Doppelverarbeitung)
-    const { error: lockError } = await supabase
+    // 2+3. Atomarer Lock + Dokument laden in einem Schritt
+    // UPDATE mit .select() gibt nur Rows zurueck die tatsaechlich geupdated wurden.
+    // Wenn ein anderer Prozess den Doc bereits claimed hat (status != pending_categorize),
+    // wird 0 Rows zurueckgegeben → wir brechen ab.
+    const { data: doc, error: lockError } = await supabase
       .from("documents")
       .update({ processing_status: "processing" })
       .eq("id", documentId)
-      .eq("processing_status", "pending_categorize"); // Optimistic lock
+      .eq("processing_status", "pending_categorize")
+      .select("id, ocr_text, dokument_url, file_hash, text_hash, extraktions_hinweise")
+      .maybeSingle();
 
     if (lockError) {
       console.error(`[CATEGORIZE] Failed to lock document ${documentId}: ${lockError.message}`);
       return new Response(
         JSON.stringify({ error: "Failed to lock document for processing" }),
         { status: 409, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!doc) {
+      console.warn(`[CATEGORIZE] Document ${documentId} not found or already claimed by another process`);
+      return new Response(
+        JSON.stringify({
+          error: "Document not found or already being processed by another instance",
+          document_id: documentId,
+        }),
+        { status: 409, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!doc.ocr_text) {
+      // Status zuruecksetzen da wir ihn gerade auf 'processing' gesetzt haben
+      await supabase
+        .from("documents")
+        .update({ processing_status: "pending_categorize" })
+        .eq("id", documentId);
+      return new Response(
+        JSON.stringify({
+          error: "Document has no OCR text - Stage 1 (OCR) must run first",
+          document_id: documentId,
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -438,6 +458,7 @@ Deno.serve(async (req) => {
     }
 
     // 7. DB Update (alle extrahierten Felder)
+    console.log(`[CATEGORIZE] DB update for ${documentId}: dokument_url=${dbRecord.dokument_url}, kategorie=${dbRecord.kategorie}`);
     const { error: updateError } = await supabase
       .from("documents")
       .update(dbRecord)

@@ -1,7 +1,12 @@
 // =============================================================================
 // Admin Review API - Review Queue, Labeling, Preview, Stats, Categories
-// Version: 2.1.0 - 2026-02-27
+// Version: 2.2.0 - 2026-03-10
 // =============================================================================
+// Aenderungen v2.2.0:
+// - NEU: Storage Move nach Label-Update (Datei wird in Kategorie-Ordner verschoben)
+// - Pattern: copy -> verify -> delete -> update dokument_url
+// - Fehler beim Move blockieren NICHT das Label-Update (fire-and-forget)
+//
 // Aenderungen v2.1.0:
 // - NEU: kategorie=__null__ Filter (WHERE kategorie IS NULL) fuer Emails ohne Dok-Kategorie
 //
@@ -252,6 +257,9 @@ async function getReviewQueue(params: ReviewQueueParams) {
     );
   }
 
+  // v2.2.0: Duplikate aus der Queue ausfiltern
+  query = query.is("duplicate_of", null);
+
   const { data, error } = await query;
 
   if (error) {
@@ -363,6 +371,80 @@ async function updateLabel(documentId: string, body: LabelUpdateBody) {
     throw new Error(`Update failed: ${error.message}`);
   }
 
+  // v2.2.0: Storage Move - Datei in den richtigen Kategorie-Ordner verschieben
+  const effectiveKategorie = (updateData.kategorie_manual || data.kategorie_manual || data.kategorie) as string | null;
+  const currentUrl = data.dokument_url as string | null;
+
+  if (effectiveKategorie && currentUrl && !currentUrl.startsWith("email://")) {
+    const currentFolder = currentUrl.split("/")[0];
+
+    if (currentFolder !== effectiveKategorie) {
+      const fileName = currentUrl.split("/").slice(1).join("/");
+      const newPath = `${effectiveKategorie}/${fileName}`;
+
+      console.log(`[LABEL] Storage move needed: ${currentUrl} -> ${newPath}`);
+
+      try {
+        // Step 1: Copy to new location
+        const { error: copyError } = await supabase.storage
+          .from("documents")
+          .copy(currentUrl, newPath);
+
+        if (copyError) {
+          // Target already exists is OK (race condition / retry)
+          if (!copyError.message?.includes("already exists") && !copyError.message?.includes("Duplicate")) {
+            console.error(`[LABEL] Storage copy failed: ${copyError.message}`);
+            // Return success anyway - label was updated, move can be retried via move-document
+            return { success: true, document: data, storage_move: { success: false, error: copyError.message } };
+          }
+          console.log(`[LABEL] Target already exists, proceeding: ${newPath}`);
+        }
+
+        // Step 2: Verify target exists
+        const targetFolder = newPath.split("/")[0];
+        const targetFileName = newPath.split("/").slice(1).join("/");
+        const { data: verifyData } = await supabase.storage
+          .from("documents")
+          .list(targetFolder, { search: targetFileName, limit: 1 });
+
+        if (!verifyData || verifyData.length === 0) {
+          console.error(`[LABEL] Storage verify failed - target not found: ${newPath}`);
+          return { success: true, document: data, storage_move: { success: false, error: "verification_failed" } };
+        }
+
+        // Step 3: Delete old file
+        const { error: deleteError } = await supabase.storage
+          .from("documents")
+          .remove([currentUrl]);
+
+        if (deleteError) {
+          console.warn(`[LABEL] Old file delete failed (ghost possible): ${deleteError.message}`);
+        }
+
+        // Step 4: Update dokument_url in DB
+        const { error: urlUpdateError } = await supabase
+          .from("documents")
+          .update({ dokument_url: newPath })
+          .eq("id", documentId);
+
+        if (urlUpdateError) {
+          console.error(`[LABEL] dokument_url update failed: ${urlUpdateError.message}`);
+          return { success: true, document: data, storage_move: { success: false, error: urlUpdateError.message } };
+        }
+
+        console.log(`[LABEL] Storage move complete: ${currentUrl} -> ${newPath}`);
+        data.dokument_url = newPath;
+        return { success: true, document: data, storage_move: { success: true, old_path: currentUrl, new_path: newPath } };
+
+      } catch (moveErr: unknown) {
+        const msg = moveErr instanceof Error ? moveErr.message : String(moveErr);
+        console.error(`[LABEL] Storage move error: ${msg}`);
+        // Label update succeeded, move failed - can be retried
+        return { success: true, document: data, storage_move: { success: false, error: msg } };
+      }
+    }
+  }
+
   return { success: true, document: data };
 }
 
@@ -401,16 +483,17 @@ async function getPreviewUrl(path: string) {
 
 async function getReviewStats() {
   // Use proper count queries (no 1000-row default limit)
+  // v2.2.0: Duplikate aus Stats ausfiltern
   const [
     { count: pendingCount },
     { count: approvedCount },
     { count: correctedCount },
     { count: errorsCount },
   ] = await Promise.all([
-    supabase.from("documents").select("*", { count: "exact", head: true }).eq("review_status", "pending"),
-    supabase.from("documents").select("*", { count: "exact", head: true }).eq("review_status", "approved"),
-    supabase.from("documents").select("*", { count: "exact", head: true }).eq("review_status", "corrected"),
-    supabase.from("documents").select("*", { count: "exact", head: true }).eq("processing_status", "error"),
+    supabase.from("documents").select("*", { count: "exact", head: true }).eq("review_status", "pending").is("duplicate_of", null),
+    supabase.from("documents").select("*", { count: "exact", head: true }).eq("review_status", "approved").is("duplicate_of", null),
+    supabase.from("documents").select("*", { count: "exact", head: true }).eq("review_status", "corrected").is("duplicate_of", null),
+    supabase.from("documents").select("*", { count: "exact", head: true }).eq("processing_status", "error").is("duplicate_of", null),
   ]);
 
   // Suspect counts (last 48h)
@@ -467,7 +550,7 @@ Deno.serve(async (req: Request) => {
       return new Response(
         JSON.stringify({
           service: "admin-review",
-          version: "2.1.0",
+          version: "2.2.0",
           status: "ready",
           configured: {
             supabase: !!(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY),

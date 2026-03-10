@@ -73,6 +73,12 @@
 | [R-057] | 2026-03-09 | REPAIR | PROG | M5: process-document Wrapper v40.0.0 (1247→222 Zeilen) |
 | [R-058] | 2026-03-09 | REPAIR | TEST | M6: Deploy + Tests 5/5 BESTANDEN (Bug-Fix extraktions_qualitaet) |
 | [R-059] | 2026-03-09 | REPAIR | PL | M7: Race-Condition Fix + E2E-Test + Commit+Push |
+| [R-060] | 2026-03-10 | REPAIR | PROG | admin-review v2.2.0: Storage-Move bei Re-Kategorisierung + Duplikat-Filter |
+| [R-061] | 2026-03-10 | REPAIR | PROG | G-056: Neue Kategorie "Werbung" (categories, prompts, schema, DB CHECK) |
+| [R-062] | 2026-03-10 | REPAIR | PROG | process-document-ocr v1.0.1: Duplikat-Check kopiert kategorie vom Original |
+| [R-063] | 2026-03-10 | REPAIR | PROG | Prompt v4.4.0: Backtest-Optimierung (21 Korrekturen, Anti-Sonstiges-Checkliste) |
+| [R-064] | 2026-03-10 | REPAIR | PROG | prompt_version Tracking: DB-Spalte + PROMPT_VERSION Konstante + categorize v1.1.0 |
+| [R-065] | 2026-03-10 | REPAIR | TEST | E2E-Test: Scanner + Email-Attachment - prompt_version=4.4.0 korrekt befuellt |
 | [B-063] | 2026-02-11 | BUDGET | PL | P022: categories.ts Duplikat-Fix (lokal OK, Deploy ausstehend) |
 | [B-064] | 2026-02-11 | BUDGET | PROG | P023: V2 Edge Functions lokal gesichert (budget-ki v1.0.0->v1.3.0) |
 | [B-065] | 2026-02-11 | BUDGET | PROG | P024: Step-Navigation + Freitext-Hash (U1 + U2 UX-Verbesserungen) |

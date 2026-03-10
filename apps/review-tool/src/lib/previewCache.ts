@@ -29,6 +29,9 @@ export type PrefetchMode = 'off' | 'visible' | 'visible+next';
 
 export class PreviewCache {
   private cache = new Map<string, DocumentPreviewCache>();
+  private failedPaths = new Map<string, number>(); // Negative cache with TTL (path → timestamp)
+  private static FAILED_PATH_TTL = 60_000; // Retry failed paths after 60s (transient errors)
+  private static FETCH_TIMEOUT = 15_000; // 15s timeout per fetch
   private maxSize: number;
   private concurrencyLimit: number;
   private activeDownloads = 0;
@@ -188,6 +191,7 @@ export class PreviewCache {
       this.revokeDocumentUrls(docCache);
     }
     this.cache.clear();
+    this.failedPaths = new Map();
   }
 
   /**
@@ -202,24 +206,48 @@ export class PreviewCache {
   // Private Methods
   // ---------------------------------------------------------------------------
 
+  private isPathFailed(storagePath: string): boolean {
+    const failedAt = this.failedPaths.get(storagePath);
+    if (failedAt === undefined) return false;
+    // Expired? Allow retry
+    if (Date.now() - failedAt > PreviewCache.FAILED_PATH_TTL) {
+      this.failedPaths.delete(storagePath);
+      return false;
+    }
+    return true;
+  }
+
   private async fetchAndCache(
     storagePath: string,
     contentType: string,
     api: AdminReviewApi,
     signal?: AbortSignal
   ): Promise<CachedPreview | null> {
+    // Skip paths that recently failed (negative cache with TTL)
+    if (this.isPathFailed(storagePath)) return null;
+
+    // Create a timeout-aware signal that combines caller signal + timeout
+    const timeoutController = new AbortController();
+    const timeoutId = setTimeout(() => timeoutController.abort(), PreviewCache.FETCH_TIMEOUT);
+    const combinedSignal = signal
+      ? this.combineSignals(signal, timeoutController.signal)
+      : timeoutController.signal;
+
     try {
       // Get signed URL (deduplicated in API class)
-      const { signed_url } = await api.getPreviewUrl(storagePath);
+      const { signed_url } = await api.getPreviewUrl(storagePath, combinedSignal);
 
       // Fetch as blob
-      const response = await fetch(signed_url, { signal });
+      const response = await fetch(signed_url, { signal: combinedSignal });
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
 
       const blob = await response.blob();
       const objectUrl = URL.createObjectURL(blob);
+
+      // Success - remove from failed paths if it was there
+      this.failedPaths.delete(storagePath);
 
       return {
         objectUrl,
@@ -230,9 +258,25 @@ export class PreviewCache {
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
         console.warn(`[PreviewCache] Failed to fetch ${storagePath}:`, err);
+        // Add to negative cache with TTL (allows retry after expiry)
+        this.failedPaths.set(storagePath, Date.now());
       }
       return null;
+    } finally {
+      clearTimeout(timeoutId);
     }
+  }
+
+  private combineSignals(...signals: AbortSignal[]): AbortSignal {
+    const controller = new AbortController();
+    for (const signal of signals) {
+      if (signal.aborted) {
+        controller.abort();
+        return controller.signal;
+      }
+      signal.addEventListener('abort', () => controller.abort(), { once: true });
+    }
+    return controller.signal;
   }
 
   private addToCache(docId: string, docCache: DocumentPreviewCache): void {
