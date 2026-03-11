@@ -28,13 +28,13 @@
 ### Sprint-Plan P018-P024
 | # | Prompt | Rolle | Aufgabe | Status |
 |---|--------|-------|---------|--------|
-| 1 | P018 | PROG | Montage-Kalkulation NEU (Stunden + lfm) | **FERTIG (B-059)** |
-| 2 | P019 | PROG | Verglasung-Format fix + HST/PSK als Fenster | **FERTIG (B-060)** |
-| 3 | P020 | PROG | Firmendaten + Preisspanne fix + Netto/Brutto Toggle | **FERTIG (B-061)** |
-| 4 | P021 | TEST | Re-Backtest + UI-Verifikation P018-P020 | **FERTIG (B-062)** |
-| 5 | P022 | PROG | categories.ts Duplikat fix | **LOKAL FERTIG (B-063)** - Deploy ausstehend |
-| 6 | P023 | PROG | V2 Edge Functions lokal sichern | **FERTIG (B-064)** |
-| 7 | P024 | PROG | Step-Navigation + Freitext-Hash | **FERTIG (B-065)** |
+| 1 | P018 | PROG | Montage-Kalkulation NEU (Stunden + lfm) | **FERTIG (AM-0108)** |
+| 2 | P019 | PROG | Verglasung-Format fix + HST/PSK als Fenster | **FERTIG (AM-0109)** |
+| 3 | P020 | PROG | Firmendaten + Preisspanne fix + Netto/Brutto Toggle | **FERTIG (AM-0110)** |
+| 4 | P021 | TEST | Re-Backtest + UI-Verifikation P018-P020 | **FERTIG (AM-0111)** |
+| 5 | P022 | PROG | categories.ts Duplikat fix | **LOKAL FERTIG (AM-0119)** - Deploy ausstehend |
+| 6 | P023 | PROG | V2 Edge Functions lokal sichern | **FERTIG (AM-0120)** |
+| 7 | P024 | PROG | Step-Navigation + Freitext-Hash | **FERTIG (AM-0121)** |
 
 ---
 
@@ -97,4 +97,4 @@
 | 14 | Supabase Auth integrieren | HOCH |
 | 17 | **haustuer-Matching separat behandeln** (544 Pos., 32.7% Median) | **HOCH** |
 | 13 | Automatischer Server-Sync (Cron) | MITTEL |
-| P022 | categories.ts Deploy ausstehend (B-063) | NIEDRIG |
+| P022 | categories.ts Deploy ausstehend (AM-0119) | NIEDRIG |

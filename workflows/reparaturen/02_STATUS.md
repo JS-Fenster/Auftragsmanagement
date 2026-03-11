@@ -51,12 +51,12 @@ batch-process-pending v2:
 
 ## Log-Referenz
 
-- [R-055] PL: G-052 + G-033 Pipeline-Split gestartet (2026-03-09)
-- [R-056] PROG: M2 process-document-ocr v1.0.0 erstellt (2026-03-09)
-- [R-057] PROG: M5 process-document Wrapper v40.0.0 (2026-03-09)
-- [R-058] TEST: M6 Deploy + Tests 5/5 BESTANDEN (2026-03-09)
-- [R-059] PL: M7 Race-Condition Fix + Commit+Push (2026-03-09)
+- [AM-0142] PL: G-052 + G-033 Pipeline-Split gestartet (2026-03-09)
+- [AM-0143] PROG: M2 process-document-ocr v1.0.0 erstellt (2026-03-09)
+- [AM-0144] PROG: M5 process-document Wrapper v40.0.0 (2026-03-09)
+- [AM-0145] TEST: M6 Deploy + Tests 5/5 BESTANDEN (2026-03-09)
+- [AM-0146] PL: M7 Race-Condition Fix + Commit+Push (2026-03-09)
 
 ---
 
-*Vorheriger Sprint: Kontakt-Management (R-048 bis R-054) - ABGESCHLOSSEN*
+*Vorheriger Sprint: Kontakt-Management (AM-0112 bis AM-0118) - ABGESCHLOSSEN*
