@@ -7,9 +7,11 @@
 
 ## Wissensbasis
 
-> **Globale Regeln:** `BOOTSTRAP/CLAUDE.md` + `KB/STANDARDS/code_standards.md`
-> **DB-Wissen:** `../KI_Automation/docs/ERP_Datenbank.md`
+> **Globale Regeln:** [CLAUDE_GLOBAL.md](../../KB/CLAUDE_GLOBAL.md) (via ~/.claude/CLAUDE.md Symlink)
+> **Code-Standards:** [CODE_STANDARDS.md](../../KB/wissen/CODE_STANDARDS.md)
+> **DB-Wissen:** [ERP_DATENBANK.md](../../KB/wissen/ERP_DATENBANK.md)
 > **Projektplan:** `docs/Auftragsmanagement_Projektplan.md`
+> **Log/Learnings/Backlog:** Zentral in [KB/](../../KB/) (Prefix: AM-NNNN)
 
 ---
 
