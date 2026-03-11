@@ -8,6 +8,7 @@
 ## Wissensbasis
 
 > **Globale Regeln:** [CLAUDE_GLOBAL.md](../../KB/CLAUDE_GLOBAL.md) (via ~/.claude/CLAUDE.md Symlink)
+> **Deploy-Regeln:** [SUPABASE_DEPLOY.md](../../KB/wissen/SUPABASE_DEPLOY.md)
 > **Code-Standards:** [CODE_STANDARDS.md](../../KB/wissen/CODE_STANDARDS.md)
 > **DB-Wissen:** [ERP_DATENBANK.md](../../KB/wissen/ERP_DATENBANK.md)
 > **Projektplan:** `docs/Auftragsmanagement_Projektplan.md`
