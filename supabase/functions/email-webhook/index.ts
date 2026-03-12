@@ -537,7 +537,8 @@ async function saveEmailToDatabase(
 
 async function processNotificationInBackground(
   notification: ChangeNotification,
-  postfach: string | undefined // v3.9: E-Mail-Adresse aus Subscription
+  postfach: string | undefined, // v3.9: E-Mail-Adresse aus Subscription
+  dbResource: string | undefined // v3.13: Subscription resource (contains folder name)
 ): Promise<void> {
   // v3.9: CRITICAL - Kein Insert ohne gültiges Postfach!
   // Ohne echte E-Mail-Adresse kann process-email keine Attachments laden
@@ -562,8 +563,9 @@ async function processNotificationInBackground(
     // Get access token
     const accessToken = await getAccessToken();
 
-    // v3.9: postfach kommt jetzt aus Parameter (Subscription), nicht aus Resource
-    const richtung = extractFolderFromResource(notification.resource);
+    // v3.13: richtung aus DB-Resource ableiten (enthaelt Ordnername: sentitems/inbox)
+    // notification.resource hat oft GUID-Format ohne Ordnername -> unbrauchbar
+    const richtung = extractFolderFromResource(dbResource || notification.resource);
 
     console.log(`[BG] Processing email for ${maskedPostfach} (${richtung})`);
 
@@ -861,7 +863,8 @@ Deno.serve(async (req: Request) => {
         }
 
         // v3.9: Store notification with postfach from validation (subscription lookup)
-        validNotifications.push({ notification, postfach: validation.postfach });
+        // v3.13: Also pass dbResource for correct folder/direction detection
+        validNotifications.push({ notification, postfach: validation.postfach, dbResource: validation.dbResource });
       }
 
       // Schedule background processing for all valid notifications
@@ -869,7 +872,8 @@ Deno.serve(async (req: Request) => {
       if (validNotifications.length > 0) {
         const backgroundPromise = Promise.all(
           // v3.9: Pass postfach to background processing
-          validNotifications.map((item) => processNotificationInBackground(item.notification, item.postfach))
+          // v3.13: Pass dbResource for correct direction detection
+          validNotifications.map((item) => processNotificationInBackground(item.notification, item.postfach, item.dbResource))
         );
 
         // @ts-ignore - EdgeRuntime.waitUntil is available in Supabase Edge Functions

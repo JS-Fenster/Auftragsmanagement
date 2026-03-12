@@ -380,9 +380,11 @@ export function DetailPanel({ document: doc, categories, api, onUpdate, onNextDo
               {doc.email_body_html ? 'E-Mail (Original)' : doc.email_body_text ? 'E-Mail Text' : 'Zusammenfassung'}
             </label>
             {doc.email_body_html ? (
-              <div
-                className="bg-white border border-gray-200 rounded-lg p-3 max-h-64 overflow-auto text-sm text-gray-800 [&_img]:max-w-full [&_img]:h-auto [&_table]:border-collapse [&_td]:p-1 [&_a]:text-blue-600 [&_a]:underline"
-                dangerouslySetInnerHTML={{ __html: doc.email_body_html }}
+              <iframe
+                srcDoc={doc.email_body_html}
+                sandbox=""
+                className="w-full h-64 bg-white border border-gray-200 rounded-lg"
+                title="E-Mail Inhalt"
               />
             ) : (
               <div className="bg-gray-50 rounded-lg p-3 max-h-48 overflow-auto">
