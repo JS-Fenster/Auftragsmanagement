@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { MessageCircle, Send, X, Minimize2, Loader2, Trash2, StopCircle } from 'lucide-react'
 import { supabaseUrl, supabaseAnonKey } from '../lib/supabase'
+import ActionConfirmDialog from './ActionConfirmDialog'
 
 const LLM_CHAT_URL = `${supabaseUrl}/functions/v1/llm-chat`
 const ASSISTANT_NAME = 'Jess'
@@ -11,6 +12,7 @@ export default function ChatWidget() {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [pendingAction, setPendingAction] = useState(null) // LLM-011
   const abortRef = useRef(null)
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
@@ -32,6 +34,27 @@ export default function ChatWidget() {
     }
   }
 
+  const callLLM = async (text, confirmAction = null) => {
+    const history = messages.map(m => ({ role: m.role, content: m.content }))
+    const body = { message: text, history }
+    if (confirmAction) body.confirm_action = confirmAction
+
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    const resp = await fetch(LLM_CHAT_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabaseAnonKey}`,
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    })
+
+    return await resp.json()
+  }
+
   const sendMessage = async () => {
     const text = input.trim()
     if (!text || loading) return
@@ -41,26 +64,23 @@ export default function ChatWidget() {
     setInput('')
     setLoading(true)
 
-    const controller = new AbortController()
-    abortRef.current = controller
-
     try {
-      const history = messages.map(m => ({ role: m.role, content: m.content }))
-
-      const resp = await fetch(LLM_CHAT_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseAnonKey}`,
-        },
-        body: JSON.stringify({ message: text, history }),
-        signal: controller.signal,
-      })
-
-      const data = await resp.json()
+      const data = await callLLM(text)
 
       if (data.error) {
         setMessages(prev => [...prev, { role: 'assistant', content: `Fehler: ${data.error}`, isError: true }])
+      } else if (data.pending_actions && data.pending_actions.length > 0) {
+        // LLM-011: Action requires confirmation
+        const action = data.pending_actions[0]
+        setPendingAction({
+          originalMessage: text,
+          toolCallId: action.tool_call_id,
+          name: action.name,
+          args: action.args,
+          description: formatActionDescription(action.name, action.args),
+          details: formatActionDetails(action.name, action.args),
+          readToolCalls: data.tool_calls,
+        })
       } else {
         setMessages(prev => [...prev, {
           role: 'assistant',
@@ -86,6 +106,49 @@ export default function ChatWidget() {
       abortRef.current = null
       setLoading(false)
     }
+  }
+
+  // LLM-011: Handle action confirmation
+  const handleConfirmAction = async () => {
+    if (!pendingAction) return
+    setLoading(true)
+
+    try {
+      const data = await callLLM(pendingAction.originalMessage, {
+        tool_call_id: pendingAction.toolCallId,
+        confirmed: true,
+      })
+
+      setPendingAction(null)
+
+      if (data.error) {
+        setMessages(prev => [...prev, { role: 'assistant', content: `Fehler: ${data.error}`, isError: true }])
+      } else {
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: data.answer || 'Aktion ausgefuehrt.',
+          toolCalls: data.tool_calls,
+        }])
+      }
+    } catch (err) {
+      setPendingAction(null)
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: `Fehler bei Ausfuehrung: ${err.message}`,
+        isError: true,
+      }])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCancelAction = () => {
+    setPendingAction(null)
+    setMessages(prev => [...prev, {
+      role: 'assistant',
+      content: 'Aktion abgebrochen.',
+      isError: true,
+    }])
   }
 
   const handleKeyDown = (e) => {
@@ -217,6 +280,15 @@ export default function ChatWidget() {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* LLM-011: Action Confirmation Dialog */}
+      {pendingAction && (
+        <ActionConfirmDialog
+          action={pendingAction}
+          onConfirm={handleConfirmAction}
+          onCancel={handleCancelAction}
+        />
+      )}
+
       {/* Input */}
       <div className="border-t border-gray-200 px-3 py-2">
         <div className="flex items-end gap-2">
@@ -245,6 +317,32 @@ export default function ChatWidget() {
       </div>
     </div>
   )
+}
+
+// LLM-011: Format action descriptions for confirmation dialog
+function formatActionDescription(name, args) {
+  switch (name) {
+    case 'update_document_kategorie':
+      return `Kategorie aendern auf "${(args.neue_kategorie || '').replace(/_/g, ' ')}"`
+    default:
+      return `Aktion: ${name}`
+  }
+}
+
+function formatActionDetails(name, args) {
+  switch (name) {
+    case 'update_document_kategorie':
+      return [
+        { label: 'Dokument-ID', value: (args.document_id || '').substring(0, 8) + '...' },
+        { label: 'Neue Kategorie', value: (args.neue_kategorie || '').replace(/_/g, ' ') },
+        { label: 'Grund', value: args.grund || '—' },
+      ]
+    default:
+      return Object.entries(args || {}).map(([k, v]) => ({
+        label: k,
+        value: typeof v === 'string' ? v : JSON.stringify(v),
+      }))
+  }
 }
 
 // Inline formatting: bold, inline code

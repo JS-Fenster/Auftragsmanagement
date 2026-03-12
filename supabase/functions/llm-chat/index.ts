@@ -9,6 +9,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   TOOL_DEFINITIONS,
   SYSTEM_PROMPT,
+  ACTION_TOOLS,
 } from "../_shared/tool-definitions.ts";
 import {
   getCorsHeaders,
@@ -93,6 +94,22 @@ async function executeTool(
       if (error) throw new Error(`search_orders failed`);
       return data;
     }
+    case "update_document_kategorie": {
+      // Action tool: update document category
+      const { data, error } = await supabase
+        .from("documents")
+        .update({
+          kategorie_manual: args.neue_kategorie as string,
+          kategorie_manual_grund: args.grund as string,
+          kategorie_manual_am: new Date().toISOString(),
+          kategorie_manual_von: "jess-assistant",
+        })
+        .eq("id", args.document_id as string)
+        .select("id, email_betreff, kategorie, kategorie_manual")
+        .single();
+      if (error) throw new Error("update_document_kategorie failed");
+      return data;
+    }
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
@@ -144,7 +161,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { message, history = [], context = null } = await req.json();
+    const { message, history = [], context = null, confirm_action = null } = await req.json();
 
     if (!message || typeof message !== "string") {
       return jsonResponse({ error: "message is required" }, 400, corsHeaders);
@@ -189,12 +206,25 @@ Deno.serve(async (req) => {
         }, 200, corsHeaders);
       }
 
-      // Execute tool calls
+      // Execute tool calls — check for action tools that need confirmation
       messages.push(choice.message);
+
+      const pendingActions: Array<{ tool_call_id: string; name: string; args: Record<string, unknown>; description: string }> = [];
 
       for (const toolCall of choice.message.tool_calls) {
         const fnName = toolCall.function.name;
         const fnArgs = JSON.parse(toolCall.function.arguments);
+
+        // LLM-011: Action tools require user confirmation
+        if (ACTION_TOOLS.has(fnName) && !confirm_action) {
+          pendingActions.push({
+            tool_call_id: toolCall.id,
+            name: fnName,
+            args: fnArgs,
+            description: `${fnName}: ${JSON.stringify(fnArgs)}`,
+          });
+          continue;
+        }
 
         let result: unknown;
         try {
@@ -211,6 +241,16 @@ Deno.serve(async (req) => {
           tool_call_id: toolCall.id,
           content: JSON.stringify(result),
         });
+      }
+
+      // If there are pending actions, return them for user confirmation
+      if (pendingActions.length > 0) {
+        return jsonResponse({
+          answer: null,
+          tool_calls: toolCallsLog,
+          pending_actions: pendingActions,
+          model: MODEL,
+        }, 200, corsHeaders);
       }
     }
 

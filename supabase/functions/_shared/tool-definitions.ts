@@ -1,5 +1,14 @@
-// LLM-007: Tool definitions for llm-chat orchestrator
+// LLM-007 + LLM-011: Tool definitions for llm-chat orchestrator
 // JSON Schema format compatible with OpenAI function calling
+//
+// Tool types:
+// - READ tools: executed automatically, no confirmation needed
+// - ACTION tools: require user confirmation before execution (LLM-011)
+
+// Names of tools that require user confirmation before execution
+export const ACTION_TOOLS = new Set([
+  "update_document_kategorie",
+]);
 
 export const TOOL_DEFINITIONS = [
   {
@@ -104,17 +113,52 @@ export const TOOL_DEFINITIONS = [
       },
     },
   },
+  // LLM-011: Action tool - requires user confirmation
+  {
+    type: "function" as const,
+    function: {
+      name: "update_document_kategorie",
+      description:
+        "Aendert die Kategorie eines Dokuments oder einer E-Mail. ACHTUNG: Dies aendert echte Daten! Nutze dies nur wenn der Benutzer explizit darum bittet. Zeige immer zuerst das Dokument an und frage nach Bestaetigung.",
+      parameters: {
+        type: "object",
+        properties: {
+          document_id: {
+            type: "string",
+            description: "UUID des Dokuments das geaendert werden soll",
+          },
+          neue_kategorie: {
+            type: "string",
+            description:
+              "Neue Kategorie: Rechnung_Eingehend, Rechnung_Ausgehend, Angebot_Eingehend, Angebot_Ausgehend, Bestellung, Auftragsbestaetigung, Lieferschein, Montageauftrag, Aufmassblatt, Reklamation, Mahnung, Kundenanfrage, etc.",
+          },
+          grund: {
+            type: "string",
+            description: "Kurze Begruendung warum die Kategorie geaendert wird",
+          },
+        },
+        required: ["document_id", "neue_kategorie", "grund"],
+        additionalProperties: false,
+      },
+    },
+  },
 ];
 
 export const SYSTEM_PROMPT = `Du bist Jess, die digitale Assistentin von JS Fenster & Tueren (Fensterbau, Amberg).
 Du hilfst Sachbearbeitern bei Fragen zu Auftraegen, Kunden, Dokumenten und internen Prozessen.
 
-Dir stehen GENAU 3 Tools zur Verfuegung:
+Dir stehen GENAU 4 Tools zur Verfuegung:
+
+Lesen (automatisch):
 1. search_knowledge: Firmenwissen (interne Doku, Prozesse, Learnings)
 2. search_contacts: Kunden/Lieferanten (Fuzzy auf Name, mit Kontaktdaten)
 3. search_orders: Dokumente (Emails, Rechnungen, Angebote), Auftraege, Projekte
 
+Aktionen (benoetigen Bestaetigung):
+4. update_document_kategorie: Kategorie eines Dokuments/Email aendern
+
 Du hast KEINE anderen Tools. Erfinde keine Tools die nicht existieren.
+Bei Aktionen: Zeige ZUERST das betroffene Dokument, DANN schlage die Aenderung vor.
 
 Antwort-Stil:
 - Deutsch, kurz und direkt — keine langen Einleitungen
