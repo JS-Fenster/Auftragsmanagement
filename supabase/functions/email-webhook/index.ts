@@ -759,6 +759,7 @@ interface ValidationResult {
   valid: boolean;
   reason?: string;
   postfach?: string; // v3.9: E-Mail-Adresse aus Subscription
+  dbResource?: string; // v3.13: Subscription resource (folder name)
 }
 
 async function validateRequest(
@@ -803,7 +804,8 @@ async function validateRequest(
       return { valid: false, reason: result.reason };
     }
     // v3.9: Return postfach for use in email processing
-    return { valid: true, postfach: result.postfach };
+    // v3.13: Also return dbResource for direction detection
+    return { valid: true, postfach: result.postfach, dbResource: result.dbResource };
   }
 
   return { valid: true };
@@ -846,7 +848,7 @@ Deno.serve(async (req: Request) => {
       // Return 202 IMMEDIATELY, process in background (Change 3)
       // This prevents Microsoft Graph from timing out and retrying
       // v3.9: Store notification WITH postfach from subscription lookup
-      const validNotifications: Array<{ notification: ChangeNotification; postfach: string | undefined }> = [];
+      const validNotifications: Array<{ notification: ChangeNotification; postfach: string | undefined; dbResource: string | undefined }> = [];
 
       for (const notification of payload.value || []) {
         // Security check (Change 2 + v3.1 + v3.3 + v3.9 strict validation + postfach lookup)
