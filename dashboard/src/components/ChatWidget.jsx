@@ -1,0 +1,380 @@
+import { useState, useRef, useEffect } from 'react'
+import { MessageCircle, Send, X, Minimize2, Loader2, Trash2, StopCircle } from 'lucide-react'
+import { supabaseUrl, supabaseAnonKey } from '../lib/supabase'
+
+const LLM_CHAT_URL = `${supabaseUrl}/functions/v1/llm-chat`
+const ASSISTANT_NAME = 'Jess'
+const ASSISTANT_AVATAR = '/jess-avatar.png'
+
+export default function ChatWidget() {
+  const [isOpen, setIsOpen] = useState(false)
+  const [messages, setMessages] = useState([])
+  const [input, setInput] = useState('')
+  const [loading, setLoading] = useState(false)
+  const abortRef = useRef(null)
+  const messagesEndRef = useRef(null)
+  const inputRef = useRef(null)
+
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      inputRef.current.focus()
+    }
+  }, [isOpen])
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  const cancelRequest = () => {
+    if (abortRef.current) {
+      abortRef.current.abort()
+      abortRef.current = null
+    }
+  }
+
+  const sendMessage = async () => {
+    const text = input.trim()
+    if (!text || loading) return
+
+    const userMsg = { role: 'user', content: text }
+    setMessages(prev => [...prev, userMsg])
+    setInput('')
+    setLoading(true)
+
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    try {
+      const history = messages.map(m => ({ role: m.role, content: m.content }))
+
+      const resp = await fetch(LLM_CHAT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+        },
+        body: JSON.stringify({ message: text, history }),
+        signal: controller.signal,
+      })
+
+      const data = await resp.json()
+
+      if (data.error) {
+        setMessages(prev => [...prev, { role: 'assistant', content: `Fehler: ${data.error}`, isError: true }])
+      } else {
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: data.answer,
+          toolCalls: data.tool_calls,
+        }])
+      }
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: 'Anfrage abgebrochen.',
+          isError: true,
+        }])
+      } else {
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: `Verbindungsfehler: ${err.message}`,
+          isError: true,
+        }])
+      }
+    } finally {
+      abortRef.current = null
+      setLoading(false)
+    }
+  }
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      sendMessage()
+    }
+  }
+
+  const clearChat = () => {
+    setMessages([])
+  }
+
+  // Floating Button
+  if (!isOpen) {
+    return (
+      <button
+        onClick={() => setIsOpen(true)}
+        className="fixed bottom-6 right-6 z-50 w-16 h-16 rounded-full shadow-md flex items-center justify-center transition-all hover:scale-105 hover:shadow-lg border-2 bg-white"
+        style={{ borderColor: '#FBBA00' }}
+        title={`${ASSISTANT_NAME} oeffnen`}
+      >
+        <img src={ASSISTANT_AVATAR} alt={ASSISTANT_NAME} className="w-12 h-12 rounded-full object-cover" />
+        {messages.length > 0 && (
+          <span className="absolute -top-1 -right-1 w-5 h-5 text-white text-xs rounded-full flex items-center justify-center" style={{ backgroundColor: '#FBBA00' }}>
+            {messages.filter(m => m.role === 'assistant').length}
+          </span>
+        )}
+      </button>
+    )
+  }
+
+  // Chat Panel
+  return (
+    <div className="fixed bottom-6 right-6 z-50 w-[420px] h-[560px] bg-white rounded-xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b-3" style={{ backgroundColor: '#9E9E9E', borderBottomColor: '#FBBA00' }}>
+        <div className="flex items-center gap-2.5">
+          <img src={ASSISTANT_AVATAR} alt={ASSISTANT_NAME} className="w-10 h-10 rounded-full object-cover" />
+          <div>
+            <span className="font-semibold text-sm text-white drop-shadow-sm">{ASSISTANT_NAME}</span>
+            <span className="text-xs ml-1.5 font-medium" style={{ color: '#FBBA00' }}>Beta</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          {messages.length > 0 && (
+            <button onClick={clearChat} className="p-1.5 text-gray-300 hover:text-white hover:bg-gray-600 rounded transition-colors" title="Chat leeren">
+              <Trash2 size={14} />
+            </button>
+          )}
+          <button onClick={() => setIsOpen(false)} className="p-1.5 text-gray-300 hover:text-white hover:bg-gray-600 rounded transition-colors" title="Minimieren">
+            <Minimize2 size={14} />
+          </button>
+          <button onClick={() => { setIsOpen(false); setMessages([]) }} className="p-1.5 text-gray-300 hover:text-white hover:bg-gray-600 rounded transition-colors" title="Schliessen">
+            <X size={14} />
+          </button>
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+        {messages.length === 0 && (
+          <div className="text-center text-gray-400 text-sm mt-8">
+            <img src={ASSISTANT_AVATAR} alt={ASSISTANT_NAME} className="w-16 h-16 rounded-full mx-auto mb-3" />
+            <p className="font-medium text-gray-500">Hallo! Ich bin {ASSISTANT_NAME}. Wie kann ich helfen?</p>
+            <p className="mt-2 text-xs">Beispiele:</p>
+            <div className="mt-2 space-y-1">
+              {[
+                'Kontaktdaten von Mueller',
+                'Offene Projekte mit hoher Prioritaet',
+                'Rechnungen von letzter Woche',
+              ].map(example => (
+                <button
+                  key={example}
+                  onClick={() => { setInput(example); inputRef.current?.focus() }}
+                  className="block mx-auto text-xs hover:underline"
+                  style={{ color: '#4D4D4D' }}
+                >
+                  &quot;{example}&quot;
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {messages.map((msg, i) => (
+          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div
+              className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+                msg.role === 'user'
+                  ? 'bg-blue-600 text-white'
+                  : msg.isError
+                    ? 'bg-red-50 text-red-700 border border-red-200'
+                    : 'bg-gray-100 text-gray-800'
+              }`}
+            >
+              {msg.role === 'assistant' ? (
+                <FormattedMessage content={msg.content} />
+              ) : (
+                <span className="whitespace-pre-wrap">{msg.content}</span>
+              )}
+              {msg.toolCalls && msg.toolCalls.length > 0 && (
+                <div className="mt-2 pt-2 border-t border-gray-200">
+                  <span className="text-xs text-gray-400">
+                    {msg.toolCalls.map(tc => tc.name).join(', ')} abgefragt
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+
+        {loading && (
+          <div className="flex justify-start">
+            <div className="bg-gray-100 rounded-lg px-3 py-2 text-sm text-gray-500 flex items-center gap-2">
+              <Loader2 size={14} className="animate-spin" />
+              Suche und analysiere...
+              <button
+                onClick={cancelRequest}
+                className="ml-2 text-red-400 hover:text-red-600 transition-colors"
+                title="Anfrage abbrechen"
+              >
+                <StopCircle size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input */}
+      <div className="border-t border-gray-200 px-3 py-2">
+        <div className="flex items-end gap-2">
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Frage eingeben..."
+            rows={1}
+            className="flex-1 resize-none border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 max-h-20"
+            style={{ '--tw-ring-color': '#FBBA00' }}
+            disabled={loading}
+          />
+          <button
+            onClick={sendMessage}
+            disabled={!input.trim() || loading}
+            className="p-2 text-white rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            style={{ backgroundColor: '#FBBA00' }}
+            onMouseEnter={e => e.currentTarget.style.backgroundColor = '#E9BA08'}
+            onMouseLeave={e => e.currentTarget.style.backgroundColor = '#FBBA00'}
+          >
+            <Send size={16} />
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Inline formatting: bold, inline code
+function formatInline(text, keyPrefix = '') {
+  // Split by **bold** and `code` patterns
+  return text.split(/(\*\*[^*]+\*\*|`[^`]+`)/).map((part, j) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={`${keyPrefix}-${j}`}>{part.slice(2, -2)}</strong>
+    }
+    if (part.startsWith('`') && part.endsWith('`')) {
+      return <code key={`${keyPrefix}-${j}`} className="bg-gray-200 text-gray-700 px-1 rounded text-xs">{part.slice(1, -1)}</code>
+    }
+    return part
+  })
+}
+
+// Simple markdown-like formatting for assistant messages
+function FormattedMessage({ content }) {
+  if (!content) return null
+
+  const lines = content.split('\n')
+  const elements = []
+  let inTable = false
+  let tableRows = []
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+
+    // Table detection
+    if (line.startsWith('|') && line.endsWith('|')) {
+      if (!inTable) {
+        inTable = true
+        tableRows = []
+      }
+      if (!/^\|[\s-:|]+\|$/.test(line)) {
+        tableRows.push(line.split('|').filter(Boolean).map(c => c.trim()))
+      }
+      continue
+    }
+
+    // End of table
+    if (inTable) {
+      elements.push(<SimpleTable key={`table-${i}`} rows={tableRows} />)
+      inTable = false
+      tableRows = []
+    }
+
+    // Headers
+    if (line.startsWith('### ')) {
+      elements.push(<p key={i} className="font-semibold text-gray-700 mt-1.5">{formatInline(line.slice(4), i)}</p>)
+    } else if (line.startsWith('## ')) {
+      elements.push(<p key={i} className="font-semibold text-gray-800 mt-2">{formatInline(line.slice(3), i)}</p>)
+    } else if (line.startsWith('# ')) {
+      elements.push(<p key={i} className="font-bold text-gray-900 mt-2">{formatInline(line.slice(2), i)}</p>)
+    }
+    // Numbered lists
+    else if (/^\d+[\.\)] /.test(line)) {
+      const match = line.match(/^(\d+[\.\)] )(.*)/)
+      elements.push(
+        <div key={i} className="flex gap-1.5 ml-1">
+          <span className="text-gray-400 flex-shrink-0">{match[1]}</span>
+          <span>{formatInline(match[2], i)}</span>
+        </div>
+      )
+    }
+    // Bullet lists
+    else if (line.startsWith('- ') || line.startsWith('• ')) {
+      elements.push(
+        <div key={i} className="flex gap-1.5 ml-1">
+          <span className="text-gray-400">•</span>
+          <span>{formatInline(line.slice(2), i)}</span>
+        </div>
+      )
+    }
+    // Indented bullet lists
+    else if (line.match(/^\s{2,}[-•] /)) {
+      const text = line.replace(/^\s+[-•] /, '')
+      elements.push(
+        <div key={i} className="flex gap-1.5 ml-4">
+          <span className="text-gray-300">◦</span>
+          <span>{formatInline(text, i)}</span>
+        </div>
+      )
+    }
+    // Empty line
+    else if (line === '') {
+      elements.push(<div key={i} className="h-1" />)
+    }
+    // Regular text with inline formatting
+    else {
+      elements.push(<p key={i} className="whitespace-pre-wrap">{formatInline(line, i)}</p>)
+    }
+  }
+
+  // Flush remaining table
+  if (inTable && tableRows.length > 0) {
+    elements.push(<SimpleTable key="table-end" rows={tableRows} />)
+  }
+
+  return <div className="space-y-0.5">{elements}</div>
+}
+
+function SimpleTable({ rows }) {
+  if (rows.length === 0) return null
+  const [header, ...body] = rows
+
+  return (
+    <div className="overflow-x-auto my-1">
+      <table className="text-xs border-collapse w-full">
+        <thead>
+          <tr>
+            {header.map((cell, i) => (
+              <th key={i} className="border border-gray-200 bg-gray-50 px-2 py-1 text-left font-medium">
+                {cell}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {body.map((row, i) => (
+            <tr key={i}>
+              {row.map((cell, j) => (
+                <td key={j} className="border border-gray-200 px-2 py-1">
+                  {cell}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}

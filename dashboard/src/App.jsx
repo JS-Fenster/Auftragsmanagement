@@ -14,6 +14,7 @@ import Projekte from './pages/Projekte'
 import ProjektDetail from './pages/ProjektDetail'
 import Montageplanung from './pages/Montageplanung'
 import CommandPalette from './components/CommandPalette'
+import ChatWidget from './components/ChatWidget'
 
 const NAV_ITEMS = [
   { to: '/', label: 'Cockpit', icon: LayoutDashboard },
@@ -132,6 +133,7 @@ export default function App() {
           <AppRoutes />
         </main>
         <CommandPalette />
+        <ChatWidget />
       </div>
     )
   }
@@ -143,6 +145,7 @@ export default function App() {
         <AppRoutes />
       </main>
       <CommandPalette />
+      <ChatWidget />
     </div>
   )
 }
