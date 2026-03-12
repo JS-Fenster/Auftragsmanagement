@@ -1,4 +1,4 @@
-// Shared security utilities for Edge Functions
+// Shared security utilities for Edge Functions (v1.1)
 
 // CORS: Only allow requests from our dashboard origin
 const ALLOWED_ORIGINS = [
