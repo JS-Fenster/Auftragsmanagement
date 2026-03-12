@@ -7,17 +7,18 @@
 // Returns: { results: [...], count: number, query: string }
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  getCorsHeaders,
+  checkRateLimit,
+  validateQueryLength,
+  validateISODate,
+  sanitizeError,
+} from "../_shared/security.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
-
-function jsonResponse(body: unknown, status = 200) {
+function jsonResponse(body: unknown, status = 200, corsHeaders: Record<string, string>) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -25,8 +26,16 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
+  }
+
+  // Rate limiting
+  const rateCheck = checkRateLimit(req);
+  if (!rateCheck.allowed) {
+    return jsonResponse({ error: "Rate limit exceeded. Try again in 1 minute." }, 429, corsHeaders);
   }
 
   try {
@@ -44,7 +53,28 @@ Deno.serve(async (req) => {
       return jsonResponse(
         { error: "At least one search parameter is required" },
         400,
+        corsHeaders,
       );
+    }
+
+    // Input validation
+    if (query) {
+      const queryError = validateQueryLength(query);
+      if (queryError) {
+        return jsonResponse({ error: queryError }, 400, corsHeaders);
+      }
+    }
+    if (kunde) {
+      const kundeError = validateQueryLength(kunde, 200);
+      if (kundeError) {
+        return jsonResponse({ error: "kunde parameter too long" }, 400, corsHeaders);
+      }
+    }
+    if (datum_von && !validateISODate(datum_von)) {
+      return jsonResponse({ error: "datum_von must be ISO format (YYYY-MM-DD)" }, 400, corsHeaders);
+    }
+    if (datum_bis && !validateISODate(datum_bis)) {
+      return jsonResponse({ error: "datum_bis must be ISO format (YYYY-MM-DD)" }, 400, corsHeaders);
     }
 
     const maxResults = Math.min(Math.max(limit, 1), 100);
@@ -61,12 +91,12 @@ Deno.serve(async (req) => {
     });
 
     if (error) {
-      throw new Error(`Search failed: ${error.message}`);
+      console.error("search_orders RPC error:", error.message);
+      throw new Error("Search failed");
     }
 
-    return jsonResponse({ results: data, count: data?.length ?? 0, query });
+    return jsonResponse({ results: data, count: data?.length ?? 0, query }, 200, corsHeaders);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return jsonResponse({ error: message }, 500);
+    return jsonResponse({ error: sanitizeError(err) }, 500, corsHeaders);
   }
 });

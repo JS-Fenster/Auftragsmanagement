@@ -10,6 +10,12 @@ import {
   TOOL_DEFINITIONS,
   SYSTEM_PROMPT,
 } from "../_shared/tool-definitions.ts";
+import {
+  getCorsHeaders,
+  checkRateLimit,
+  validateQueryLength,
+  sanitizeError,
+} from "../_shared/security.ts";
 
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
@@ -20,13 +26,7 @@ const VOYAGE_KEY = Deno.env.get("VOYAGE_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
-
-function jsonResponse(body: unknown, status = 200) {
+function jsonResponse(body: unknown, status = 200, corsHeaders: Record<string, string>) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -68,16 +68,16 @@ async function executeTool(
         match_count: (args.top_k as number) || 5,
         filter_path: (args.filter_path as string) || null,
       });
-      if (error) throw new Error(`search_knowledge: ${error.message}`);
+      if (error) throw new Error(`search_knowledge failed`);
       return data;
     }
     case "search_contacts": {
       const { data, error } = await supabase.rpc("search_contacts", {
         search_query: args.query as string,
         filter_typ: (args.typ as string) || null,
-        max_results: (args.limit as number) || 10,
+        max_results: Math.min((args.limit as number) || 10, 50),
       });
-      if (error) throw new Error(`search_contacts: ${error.message}`);
+      if (error) throw new Error(`search_contacts failed`);
       return data;
     }
     case "search_orders": {
@@ -88,9 +88,9 @@ async function executeTool(
         filter_status: (args.status as string) || null,
         filter_datum_von: (args.datum_von as string) || null,
         filter_datum_bis: (args.datum_bis as string) || null,
-        max_results: (args.limit as number) || 20,
+        max_results: Math.min((args.limit as number) || 20, 100),
       });
-      if (error) throw new Error(`search_orders: ${error.message}`);
+      if (error) throw new Error(`search_orders failed`);
       return data;
     }
     default:
@@ -123,22 +123,37 @@ async function callLLM(
 
   if (!resp.ok) {
     const err = await resp.text();
-    throw new Error(`OpenAI API error (${resp.status}): ${err}`);
+    console.error("OpenAI API error:", resp.status, err);
+    throw new Error(`LLM request failed (${resp.status})`);
   }
 
   return await resp.json();
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
+  }
+
+  // Rate limiting (lower for LLM calls — more expensive)
+  const rateCheck = checkRateLimit(req);
+  if (!rateCheck.allowed) {
+    return jsonResponse({ error: "Rate limit exceeded. Try again in 1 minute." }, 429, corsHeaders);
   }
 
   try {
     const { message, history = [], context = null } = await req.json();
 
     if (!message || typeof message !== "string") {
-      return jsonResponse({ error: "message is required" }, 400);
+      return jsonResponse({ error: "message is required" }, 400, corsHeaders);
+    }
+
+    // Input validation
+    const msgError = validateQueryLength(message, 2000);
+    if (msgError) {
+      return jsonResponse({ error: "Message too long (max 2000 characters)" }, 400, corsHeaders);
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
@@ -171,7 +186,7 @@ Deno.serve(async (req) => {
           answer: choice.message.content,
           tool_calls: toolCallsLog,
           model: MODEL,
-        });
+        }, 200, corsHeaders);
       }
 
       // Execute tool calls
@@ -185,7 +200,8 @@ Deno.serve(async (req) => {
         try {
           result = await executeTool(supabase, fnName, fnArgs);
         } catch (err) {
-          result = { error: err instanceof Error ? err.message : "Tool execution failed" };
+          result = { error: "Tool execution failed" };
+          console.error(`Tool ${fnName} error:`, err);
         }
 
         toolCallsLog.push({ name: fnName, args: fnArgs, result });
@@ -206,9 +222,8 @@ Deno.serve(async (req) => {
       answer: finalResponse.choices[0].message.content,
       tool_calls: toolCallsLog,
       model: MODEL,
-    });
+    }, 200, corsHeaders);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return jsonResponse({ error: message }, 500);
+    return jsonResponse({ error: sanitizeError(err) }, 500, corsHeaders);
   }
 });

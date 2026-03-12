@@ -1,0 +1,50 @@
+name: Deploy Edge Functions
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'supabase/functions/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Detect changed functions
+        id: changes
+        run: |
+          # Get list of changed files in supabase/functions/
+          CHANGED=$(git diff --name-only HEAD~1 HEAD -- 'supabase/functions/' 2>/dev/null || echo "")
+
+          # Extract unique function names (folder names under supabase/functions/)
+          # Exclude _shared (not a standalone function)
+          FUNCTIONS=$(echo "$CHANGED" | grep -oP 'supabase/functions/\K[^/]+' | sort -u | grep -v '^_shared$' || echo "")
+
+          # If _shared changed, deploy all functions that import from it
+          if echo "$CHANGED" | grep -q '_shared/'; then
+            FUNCTIONS=$(ls -d supabase/functions/*/index.ts 2>/dev/null | grep -oP 'supabase/functions/\K[^/]+' | grep -v '^_shared$' | sort -u)
+          fi
+
+          echo "functions=$FUNCTIONS" >> $GITHUB_OUTPUT
+          echo "Deploying: $FUNCTIONS"
+
+      - name: Deploy changed functions
+        if: steps.changes.outputs.functions != ''
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          for FUNC in ${{ steps.changes.outputs.functions }}; do
+            echo "Deploying $FUNC..."
+            supabase functions deploy "$FUNC" \
+              --project-ref rsmjgdujlpnydbsfuiek \
+              --no-verify-jwt
+            echo "$FUNC deployed successfully"
+          done
