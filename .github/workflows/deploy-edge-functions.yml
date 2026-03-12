@@ -26,11 +26,11 @@ jobs:
 
           # Extract unique function names (folder names under supabase/functions/)
           # Exclude _shared (not a standalone function)
-          FUNCTIONS=$(echo "$CHANGED" | grep -oP 'supabase/functions/\K[^/]+' | sort -u | grep -v '^_shared$' || echo "")
+          FUNCTIONS=$(echo "$CHANGED" | grep -oP 'supabase/functions/\K[^/]+' | sort -u | grep -v '^_shared$' | tr '\n' ' ' | xargs)
 
           # If _shared changed, deploy all functions that import from it
           if echo "$CHANGED" | grep -q '_shared/'; then
-            FUNCTIONS=$(ls -d supabase/functions/*/index.ts 2>/dev/null | grep -oP 'supabase/functions/\K[^/]+' | grep -v '^_shared$' | sort -u)
+            FUNCTIONS=$(ls -d supabase/functions/*/index.ts 2>/dev/null | grep -oP 'supabase/functions/\K[^/]+' | grep -v '^_shared$' | sort -u | tr '\n' ' ' | xargs)
           fi
 
           echo "functions=$FUNCTIONS" >> $GITHUB_OUTPUT
