@@ -1,8 +1,13 @@
 // =============================================================================
-// Process Email - GPT Categorization + Attachment Handling
-// Version: 4.1.1 - 2026-03-06
+// Process Email - GPT Categorization + .eml Archiving + Attachment Handling
+// Version: 4.2.0 - 2026-03-12
 // =============================================================================
 // Wird von email-webhook aufgerufen nachdem E-Mail in DB gespeichert wurde.
+//
+// v4.2.0 Changes:
+// - NEW: G-004 .eml Archiving - fetches MIME content from Graph API, stores in Supabase Storage
+// - NEW: eml_storage_path + eml_file_hash columns populated on documents table
+// - NEW: SHA-256 hash of .eml for GoBD integrity verification
 //
 // v4.1.1 Changes:
 // - FIX: kategorie "Email_Anhang" → null (CHECK Constraint blockte INSERT seit G-021 am 27.02.)
@@ -1020,6 +1025,96 @@ async function updateEmailCategory(
 }
 
 // =============================================================================
+// v4.2: .eml Archiving (G-004)
+// Fetches raw MIME content from Graph API and stores as .eml in Supabase Storage
+// =============================================================================
+
+async function archiveEmailAsEml(
+  postfach: string,
+  messageId: string,
+  documentId: string,
+  accessToken: string
+): Promise<{ storagePath: string; hash: string } | null> {
+  try {
+    // Fetch MIME content ($value returns raw RFC 822 MIME)
+    const mimeUrl = `https://graph.microsoft.com/v1.0/users/${postfach}/messages/${messageId}/$value`;
+    console.log(`[EML] Fetching MIME content for doc ${documentId}...`);
+
+    const response = await fetch(mimeUrl, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Prefer: 'IdType="ImmutableId"',
+      },
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error(`[EML] MIME fetch failed: ${response.status} - ${errText.substring(0, 200)}`);
+      return null;
+    }
+
+    const mimeBytes = new Uint8Array(await response.arrayBuffer());
+    console.log(`[EML] MIME content: ${mimeBytes.length} bytes`);
+
+    // Calculate SHA-256 hash for integrity
+    const hash = await calculateSHA256(mimeBytes);
+    console.log(`[EML] Hash: ${hash.substring(0, 16)}...`);
+
+    // Storage path: email-eml/YYYY/MM/postfach/messageId.eml
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const safePostfach = sanitizeFileName(postfach);
+    // messageId can be very long, use first 80 chars
+    const safeMessageId = sanitizeFileName(messageId.substring(0, 80));
+    const storagePath = `email-eml/${year}/${month}/${safePostfach}/${safeMessageId}.eml`;
+
+    // Upload to Supabase Storage
+    const { error: uploadError } = await supabase.storage
+      .from("documents")
+      .upload(storagePath, mimeBytes, {
+        contentType: "message/rfc822",
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.error(`[EML] Storage upload failed: ${uploadError.message}`);
+      return null;
+    }
+
+    console.log(`[EML] Archived: ${storagePath}`);
+
+    // Update documents row with eml path and hash
+    const patchResp = await fetch(
+      `${SUPABASE_URL}/rest/v1/documents?id=eq.${documentId}`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          apikey: SUPABASE_SERVICE_ROLE_KEY!,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          eml_storage_path: storagePath,
+          eml_file_hash: hash,
+        }),
+      }
+    );
+
+    if (!patchResp.ok) {
+      const errText = await patchResp.text();
+      console.error(`[EML] DB update failed: ${errText.substring(0, 200)}`);
+      // File was uploaded successfully, just DB update failed - not critical
+    }
+
+    return { storagePath, hash };
+  } catch (err) {
+    console.error(`[EML] Archiving error: ${err}`);
+    return null;
+  }
+}
+
+// =============================================================================
 // Main Handler
 // =============================================================================
 
@@ -1029,7 +1124,7 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         service: "process-email",
-        version: "4.1.2",
+        version: "4.2.0",
         status: "ready",
         configured: {
           azure: !!(AZURE_TENANT_ID && AZURE_CLIENT_ID && AZURE_CLIENT_SECRET),
@@ -1040,6 +1135,7 @@ Deno.serve(async (req: Request) => {
         features: {
           gptReasoningEffort: "medium",  // v4.0
           attachmentUpdateMode: true,     // v4.0
+          emlArchiving: true,             // v4.2 (G-004)
         },
         allowedExtensions: ALLOWED_EXTENSIONS,
         maxAttachmentSize: MAX_ATTACHMENT_SIZE_BYTES,
@@ -1099,7 +1195,26 @@ Deno.serve(async (req: Request) => {
     console.log(`Email category: ${kategorie}`);
     await updateEmailCategory(body.document_id, kategorie, zusammenfassung);
 
-    // Step 2: Process Attachments
+    // Step 2: Archive .eml (G-004)
+    let emlResult: { storagePath: string; hash: string } | null = null;
+    try {
+      const accessTokenForEml = await getAccessToken();
+      emlResult = await archiveEmailAsEml(
+        body.postfach,
+        body.email_message_id,
+        body.document_id,
+        accessTokenForEml
+      );
+      if (emlResult) {
+        console.log(`[EML] Archived successfully: ${emlResult.storagePath}`);
+      } else {
+        console.warn(`[EML] Archiving failed - email not preserved as .eml`);
+      }
+    } catch (emlError) {
+      console.error(`[EML] Archiving error (non-fatal): ${emlError}`);
+    }
+
+    // Step 3: Process Attachments
     let attachmentsProcessed = 0;
     const attachmentHashes: string[] = [];
     // v3.1: Collect attachment metadata for email_anhaenge_meta
@@ -1216,6 +1331,8 @@ Deno.serve(async (req: Request) => {
         document_id: body.document_id,
         kategorie,
         zusammenfassung,
+        eml_archived: !!emlResult,
+        eml_storage_path: emlResult?.storagePath || null,
         attachments_processed: attachmentsProcessed,
         attachment_hashes: attachmentHashes,
         _debug, // v2.8: Debug info

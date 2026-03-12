@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { EMAIL_KATEGORIEN } from '../lib/constants'
 import { format, formatDistanceToNow, isToday, subDays } from 'date-fns'
 import { de } from 'date-fns/locale'
-import { Search, Mail, Paperclip, Clock, Inbox, Filter, ChevronDown, X, FileText, CheckCircle, AlertCircle, Loader } from 'lucide-react'
+import { Search, Mail, Paperclip, Clock, Inbox, Filter, ChevronDown, X, FileText, CheckCircle, AlertCircle, Loader, Download } from 'lucide-react'
 
 const PAGE_SIZE = 50
 
@@ -407,6 +407,21 @@ export default function Emails() {
                     <span className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600">
                       {selectedEmail.kategorie}
                     </span>
+                  )}
+                  {selectedEmail.eml_storage_path && (
+                    <button
+                      onClick={async () => {
+                        const { data } = await supabase.storage
+                          .from('documents')
+                          .createSignedUrl(selectedEmail.eml_storage_path, 60)
+                        if (data?.signedUrl) window.open(data.signedUrl, '_blank')
+                      }}
+                      className="flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                      title="Original .eml herunterladen"
+                    >
+                      <Download className="w-3 h-3" />
+                      .eml
+                    </button>
                   )}
                 </div>
               </div>
