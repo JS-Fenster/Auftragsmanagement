@@ -2,6 +2,7 @@
 
 // CORS: Only allow requests from our dashboard origin
 const ALLOWED_ORIGINS = [
+  "http://localhost:3000",       // Dashboard dev server
   "http://localhost:5173",       // Vite dev server
   "http://localhost:4173",       // Vite preview
   "https://js-fenster.de",
@@ -10,7 +11,13 @@ const ALLOWED_ORIGINS = [
 
 export function getCorsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get("origin") || "";
+  // If origin matches allowlist, echo it back. Otherwise use first allowed origin.
+  // Note: requests without Origin header (server-to-server, curl) get default origin.
   const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  // Log rejected origins for debugging
+  if (origin && !ALLOWED_ORIGINS.includes(origin)) {
+    console.warn(`[CORS] Rejected origin: ${origin}`);
+  }
 
   return {
     "Access-Control-Allow-Origin": allowedOrigin,
