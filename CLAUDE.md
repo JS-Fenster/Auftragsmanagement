@@ -131,6 +131,31 @@ Siehe `docs/Auftragsmanagement_Projektplan.md` fuer Details.
 4. Bei Bedarf: Erst auf Supabase Branch testen
 5. Stabiler Stand gesichert als Git Tag: `process-document-v39-stable`
 
+---
+
+## Edge Function Security (PFLICHT)
+
+> **Globale Regeln:** Siehe [CLAUDE_GLOBAL.md](../../KB/CLAUDE_GLOBAL.md) → Sicherheitsregeln (KRITISCH)
+
+**Jede Edge Function MUSS** die shared Security-Utilities aus `_shared/security.ts` verwenden:
+
+```typescript
+import { getCorsHeaders, checkRateLimit, validateQueryLength, sanitizeError } from "../_shared/security.ts";
+```
+
+| Utility | Zweck | Standard |
+|---------|-------|----------|
+| `getCorsHeaders(req)` | CORS-Allowlist (localhost, js-fenster.de) | Pflicht |
+| `checkRateLimit(req)` | IP-basiertes Rate Limiting | 30 req/min |
+| `validateQueryLength(q, max?)` | Query-Laenge begrenzen | 500 chars |
+| `validateISODate(d)` | Datums-Format pruefen | YYYY-MM-DD |
+| `sanitizeError(err)` | DB-Details nicht an Client leaken | Pflicht |
+
+**VERBOTEN in neuen Edge Functions:**
+- `"Access-Control-Allow-Origin": "*"` — immer `getCorsHeaders(req)` verwenden
+- DB-Fehlermeldungen direkt an Client: `throw new Error(error.message)` — immer `sanitizeError()` verwenden
+- Unbegrenzte `max_results` — immer `Math.min(user_limit, MAX)` deckeln
+
 **Checkliste bei Kategorie-Aenderungen (PFLICHT):**
 > **Hintergrund:** Am 27.02.2026 hat eine CHECK Constraint auf `documents.kategorie` dazu gefuehrt,
 > dass `process-email` keine Anhang-Dokumente mehr erstellen konnte (140 Anhaenge verloren ueber 9 Tage).
