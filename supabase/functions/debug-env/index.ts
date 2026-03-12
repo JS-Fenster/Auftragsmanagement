@@ -1,6 +1,6 @@
 // =============================================================================
 // Debug Env - Analyse der Edge Runtime Environment Variables
-// Version: 1.0 - 2026-01-15
+// Version: 1.0.1 - 2026-03-12 (test: auto-deploy action)
 // =============================================================================
 // Minimal-Function zur Diagnose von Secret-Injection in Edge Runtime.
 // WICHTIG: Loggt NIEMALS echte Secrets, nur Metadaten!
