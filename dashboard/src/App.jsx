@@ -15,6 +15,7 @@ import ProjektDetail from './pages/ProjektDetail'
 import Montageplanung from './pages/Montageplanung'
 import CommandPalette from './components/CommandPalette'
 import ChatWidget from './components/ChatWidget'
+import NotificationBell from './components/NotificationBell'
 
 const NAV_ITEMS = [
   { to: '/', label: 'Cockpit', icon: LayoutDashboard },
@@ -93,6 +94,7 @@ function Sidebar() {
             Ctrl+K
           </kbd>
         </button>
+        <NotificationBell />
       </div>
       <div className="p-4 border-t border-gray-200 text-xs text-gray-400">
         Dashboard v2.0
