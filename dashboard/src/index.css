@@ -40,11 +40,15 @@
   --input-border: #D1D5DB;
   --input-border-focus: #FAB20B;
 
-  /* Status (semantic - same in both modes) */
-  --color-danger: #DC2626;
-  --color-warning: #F59E0B;
-  --color-success: #10B981;
-  --color-info: #3B82F6;
+  /* Status */
+  --danger: #DC2626;
+  --warning: #F59E0B;
+  --success: #10B981;
+  --info: #3B82F6;
+  --success-light: #ECFDF5;
+  --success-dark: #065F46;
+  --warning-light: #FFFBEB;
+  --warning-dark: #92400E;
 }
 
 /* Dark mode (predefined - activate via .dark on <html>) */
@@ -77,6 +81,11 @@
   --input-bg: #1E293B;
   --input-border: #475569;
   --input-border-focus: #FBBF24;
+
+  --success-light: #064E3B;
+  --success-dark: #A7F3D0;
+  --warning-light: #451A03;
+  --warning-dark: #FDE68A;
 }
 
 /* ===== Tailwind v4 Theme Extension ===== */
@@ -109,4 +118,13 @@
   --color-input-bg: var(--input-bg);
   --color-input-border: var(--input-border);
   --color-input-border-focus: var(--input-border-focus);
+
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-success: var(--success);
+  --color-info: var(--info);
+  --color-success-light: var(--success-light);
+  --color-success-dark: var(--success-dark);
+  --color-warning-light: var(--warning-light);
+  --color-warning-dark: var(--warning-dark);
 }

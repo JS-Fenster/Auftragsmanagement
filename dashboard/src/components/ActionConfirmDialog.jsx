@@ -36,8 +36,8 @@ export default function ActionConfirmDialog({ action, onConfirm, onCancel }) {
       >
         {/* Icon + Title */}
         <div className="flex items-start gap-3 mb-3">
-          <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: '#FFF3CD' }}>
-            <AlertTriangle className="w-5 h-5" style={{ color: '#FBBA00' }} />
+          <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 bg-brand-light">
+            <AlertTriangle className="w-5 h-5 text-brand" />
           </div>
           <div>
             <h3 className="font-semibold text-text-primary text-sm">
@@ -73,8 +73,7 @@ export default function ActionConfirmDialog({ action, onConfirm, onCancel }) {
           <button
             onClick={handleConfirm}
             disabled={executing}
-            className="px-3 py-1.5 text-sm text-white rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50"
-            style={{ backgroundColor: executing ? '#9E9E9E' : '#FBBA00' }}
+            className={`px-3 py-1.5 text-sm text-btn-primary-text rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50 ${executing ? 'bg-text-muted' : 'bg-brand hover:bg-brand-hover'}`}
           >
             {executing ? (
               <>Wird ausgefuehrt...</>

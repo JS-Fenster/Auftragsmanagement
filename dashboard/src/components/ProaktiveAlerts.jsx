@@ -16,11 +16,8 @@ const SEVERITY_STYLES = {
 export default function ProaktiveAlerts({ alerts = [], onClickAlert }) {
   if (!alerts.length) {
     return (
-      <div
-        className="flex items-center gap-2 rounded-lg p-3"
-        style={{ backgroundColor: '#ECFDF5', color: '#065F46' }}
-      >
-        <CheckCircle size={18} style={{ color: '#10B981' }} />
+      <div className="flex items-center gap-2 rounded-lg p-3 bg-success-light text-success-dark">
+        <CheckCircle size={18} className="text-success" />
         <span className="text-sm font-medium">Alles im Griff - keine offenen Warnungen</span>
       </div>
     )

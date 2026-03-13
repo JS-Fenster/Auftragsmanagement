@@ -159,8 +159,7 @@ export default function CommandPalette() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center pt-[20vh]"
-      style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}
+      className="fixed inset-0 z-50 flex items-start justify-center pt-[20vh] bg-black/40"
       onClick={() => setOpen(false)}
     >
       <div

@@ -83,7 +83,7 @@ function MontageTeamCard({ team, montagen, onNavigate }) {
   return (
     <div className="bg-surface-card rounded-lg shadow-sm border border-border-default p-3">
       <div className="flex items-center gap-2 mb-2">
-        <Users size={16} style={{ color: '#10B981' }} />
+        <Users size={16} className="text-success" />
         <h4 className="font-semibold text-sm text-text-primary">{TEAMS_MAP[team] || team}</h4>
         <span className="text-xs text-text-muted ml-auto">{montagen.length} Montage{montagen.length !== 1 ? 'n' : ''}</span>
       </div>
@@ -150,8 +150,8 @@ function HistorieItem({ entry, onNavigate }) {
       onClick={() => entry.projekt_id && onNavigate(entry.projekt_id)}
       className="flex items-start gap-3 cursor-pointer hover:bg-surface-main rounded-lg px-2 py-1.5 -mx-3"
     >
-      <div className="mt-0.5 shrink-0 w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: '#F3F4F6' }}>
-        <Icon size={14} style={{ color: '#6B7280' }} />
+      <div className="mt-0.5 shrink-0 w-6 h-6 rounded-full flex items-center justify-center bg-surface-hover">
+        <Icon size={14} className="text-text-secondary" />
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-sm text-text-primary truncate">{text}</p>
@@ -308,13 +308,13 @@ export default function Cockpit() {
         </h2>
         {alerts.length === 0 ? (
           <div
-            className="flex items-center gap-3 rounded-lg p-3 shadow-sm"
-            style={{ backgroundColor: '#ECFDF5', borderLeft: '4px solid #10B981' }}
+            className="flex items-center gap-3 rounded-lg p-3 shadow-sm bg-success-light"
+            style={{ borderLeft: '4px solid var(--success)' }}
           >
-            <CheckCircle size={20} style={{ color: '#10B981' }} />
+            <CheckCircle size={20} className="text-success" />
             <div>
-              <p className="font-semibold text-sm" style={{ color: '#065F46' }}>Alles im Griff</p>
-              <p className="text-xs" style={{ color: '#047857' }}>Keine offenen Aktionen</p>
+              <p className="font-semibold text-sm text-success-dark">Alles im Griff</p>
+              <p className="text-xs text-success-dark/80">Keine offenen Aktionen</p>
             </div>
           </div>
         ) : (

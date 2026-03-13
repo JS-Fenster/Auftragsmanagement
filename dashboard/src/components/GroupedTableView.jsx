@@ -167,8 +167,7 @@ export default function GroupedTableView({ projekte, alerts, onProjektClick }) {
                       <span className="flex-shrink-0 flex items-center justify-center" style={{ width: 28 }}>
                         {alert && (
                           <AlertTriangle
-                            className="w-4 h-4"
-                            style={{ color: alert.severity === 'critical' ? '#DC2626' : '#F59E0B' }}
+                            className={`w-4 h-4 ${alert.severity === 'critical' ? 'text-danger' : 'text-warning'}`}
                           />
                         )}
                       </span>

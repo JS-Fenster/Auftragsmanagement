@@ -167,13 +167,12 @@ export default function ChatWidget() {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 z-50 w-16 h-16 rounded-full shadow-md flex items-center justify-center transition-all hover:scale-105 hover:shadow-lg border-2 bg-surface-card"
-        style={{ borderColor: '#FBBA00' }}
+        className="fixed bottom-6 right-6 z-50 w-16 h-16 rounded-full shadow-md flex items-center justify-center transition-all hover:scale-105 hover:shadow-lg border-2 border-brand bg-surface-card"
         title={`${ASSISTANT_NAME} oeffnen`}
       >
         <img src={ASSISTANT_AVATAR} alt={ASSISTANT_NAME} className="w-12 h-12 rounded-full object-cover" />
         {messages.length > 0 && (
-          <span className="absolute -top-1 -right-1 w-5 h-5 text-white text-xs rounded-full flex items-center justify-center" style={{ backgroundColor: '#FBBA00' }}>
+          <span className="absolute -top-1 -right-1 w-5 h-5 text-btn-primary-text text-xs rounded-full flex items-center justify-center bg-brand">
             {messages.filter(m => m.role === 'assistant').length}
           </span>
         )}
@@ -185,12 +184,12 @@ export default function ChatWidget() {
   return (
     <div className="fixed bottom-6 right-6 z-50 w-[420px] h-[560px] bg-surface-card rounded-xl shadow-2xl border border-border-default flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b-3" style={{ backgroundColor: '#9E9E9E', borderBottomColor: '#FBBA00' }}>
+      <div className="flex items-center justify-between px-4 py-3 border-b-3 border-b-brand" style={{ backgroundColor: '#9E9E9E' }}>
         <div className="flex items-center gap-2.5">
           <img src={ASSISTANT_AVATAR} alt={ASSISTANT_NAME} className="w-10 h-10 rounded-full object-cover" />
           <div>
             <span className="font-semibold text-sm text-white drop-shadow-sm">{ASSISTANT_NAME}</span>
-            <span className="text-xs ml-1.5 font-medium" style={{ color: '#FBBA00' }}>Beta</span>
+            <span className="text-xs ml-1.5 font-medium text-brand">Beta</span>
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -224,8 +223,7 @@ export default function ChatWidget() {
                 <button
                   key={example}
                   onClick={() => { setInput(example); inputRef.current?.focus() }}
-                  className="block mx-auto text-xs hover:underline"
-                  style={{ color: '#4D4D4D' }}
+                  className="block mx-auto text-xs hover:underline text-text-primary"
                 >
                   &quot;{example}&quot;
                 </button>
@@ -299,17 +297,13 @@ export default function ChatWidget() {
             onKeyDown={handleKeyDown}
             placeholder="Frage eingeben..."
             rows={1}
-            className="flex-1 resize-none border border-border-default rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 max-h-20"
-            style={{ '--tw-ring-color': '#FBBA00' }}
+            className="flex-1 resize-none border border-border-default rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand max-h-20"
             disabled={loading}
           />
           <button
             onClick={sendMessage}
             disabled={!input.trim() || loading}
-            className="p-2 text-white rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            style={{ backgroundColor: '#FBBA00' }}
-            onMouseEnter={e => e.currentTarget.style.backgroundColor = '#E9BA08'}
-            onMouseLeave={e => e.currentTarget.style.backgroundColor = '#FBBA00'}
+            className="p-2 text-btn-primary-text rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors bg-brand hover:bg-brand-hover"
           >
             <Send size={16} />
           </button>

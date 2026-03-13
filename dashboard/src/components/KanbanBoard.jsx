@@ -58,19 +58,16 @@ function KanbanCard({ projekt, onProjektClick, isDragging, alerts, onDragStart }
         onDragStart(projekt.id)
       }}
       onClick={() => onProjektClick?.(projekt.id)}
-      className="rounded-lg border bg-surface-card p-3 cursor-grab active:cursor-grabbing transition-shadow hover:shadow-md"
-      style={{
-        opacity: isDragging ? 0.4 : 1,
-        borderColor: '#E5E7EB',
-      }}
+      className="rounded-lg border border-border-default bg-surface-card p-3 cursor-grab active:cursor-grabbing transition-shadow hover:shadow-md"
+      style={{ opacity: isDragging ? 0.4 : 1 }}
     >
       <div className="flex items-start justify-between gap-1 mb-1.5">
-        <span className="text-xs" style={{ color: '#9CA3AF' }}>
+        <span className="text-xs text-text-muted">
           {projekt.projekt_nummer}
         </span>
         <div className="flex items-center gap-1">
-          {hasAlert && <AlertTriangle size={14} style={{ color: '#F59E0B' }} />}
-          <GripVertical size={14} style={{ color: '#D1D5DB' }} />
+          {hasAlert && <AlertTriangle size={14} className="text-warning" />}
+          <GripVertical size={14} className="text-border-default" />
         </div>
       </div>
 
@@ -83,12 +80,12 @@ function KanbanCard({ projekt, onProjektClick, isDragging, alerts, onDragStart }
         </span>
       )}
 
-      <p className="text-sm font-semibold truncate mb-1.5" style={{ color: '#111827' }}>
+      <p className="text-sm font-semibold truncate mb-1.5 text-text-primary">
         {kundeName}
       </p>
 
       {wert != null && (
-        <p className="text-xs font-medium mb-1" style={{ color: '#374151' }}>
+        <p className="text-xs font-medium mb-1 text-text-secondary">
           {formatEuro(wert)}
         </p>
       )}
@@ -107,8 +104,7 @@ function KanbanCard({ projekt, onProjektClick, isDragging, alerts, onDragStart }
       {teamLabel && (
         <div className="mt-1.5">
           <span
-            className="inline-flex items-center gap-1 rounded text-xs px-1.5 py-0.5"
-            style={{ backgroundColor: '#F3F4F6', color: '#4B5563' }}
+            className="inline-flex items-center gap-1 rounded text-xs px-1.5 py-0.5 bg-surface-hover text-text-secondary"
           >
             <User size={10} />
             {teamLabel}
@@ -167,7 +163,7 @@ function KanbanColumn({ column, dragOverColumn, onDragOver, onDrop, onDragLeave,
           />
         ))}
         {column.projekte.length === 0 && (
-          <p className="text-xs text-center py-6" style={{ color: '#9CA3AF' }}>
+          <p className="text-xs text-center py-6 text-text-muted">
             Keine Projekte
           </p>
         )}
