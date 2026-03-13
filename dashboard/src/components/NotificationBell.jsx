@@ -26,6 +26,7 @@ export default function NotificationBell() {
   const [showArchive, setShowArchive] = useState(false)
   const [loading, setLoading] = useState(true)
   const panelRef = useRef(null)
+  const buttonRef = useRef(null)
 
   const unreadCount = notifications.filter(n => !n.read && !n.archived).length
   const readCount = notifications.filter(n => n.read && !n.archived).length
@@ -88,6 +89,7 @@ export default function NotificationBell() {
     <div className="relative" ref={panelRef}>
       {/* Bell Button */}
       <button
+        ref={buttonRef}
         onClick={() => setOpen(prev => !prev)}
         className="flex items-center gap-2 px-4 py-2.5 mx-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors w-full text-left relative cursor-pointer"
       >
@@ -102,7 +104,7 @@ export default function NotificationBell() {
 
       {/* Dropdown Panel */}
       {open && (
-        <div className="fixed w-96 bg-white border border-gray-200 rounded-xl shadow-xl z-50 flex flex-col max-h-[calc(100vh-72px)]" style={{ left: '232px', bottom: '56px' }}>
+        <div className="absolute left-full top-0 ml-2 w-96 bg-white border border-gray-200 rounded-xl shadow-xl z-50 flex flex-col min-h-[200px] max-h-[calc(100vh-100px)]">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
             <h3 className="text-sm font-semibold text-gray-900">
