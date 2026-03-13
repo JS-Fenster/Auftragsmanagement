@@ -15,6 +15,7 @@
 // =============================================================================
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { notify } from "../_shared/notify.ts";
 
 // Environment variables
 const AZURE_TENANT_ID = Deno.env.get("AZURE_TENANT_ID");
@@ -119,6 +120,14 @@ async function getAccessToken(): Promise<string> {
     } else if (errorCode === "AADSTS50126") {
       console.error("[TOKEN] Diagnosis: Invalid credentials");
     }
+    await notify({
+      type: "error",
+      severity: "high",
+      source: "renew_subscriptions",
+      title: "Azure Token-Abruf fehlgeschlagen",
+      body: `Fehlercode: ${errorCode || "unbekannt"}. Subscription-Erneuerung blockiert.`,
+      metadata: { error_code: errorCode },
+    });
     throw new Error(`Failed to get access token: ${errorCode || error.substring(0, 100)}`);
   }
 
@@ -355,12 +364,28 @@ Deno.serve(async (req: Request) => {
             postfach: sub.email_postfach,
             status: "not_found",
           });
+          await notify({
+            type: "error",
+            severity: "high",
+            source: "renew_subscriptions",
+            title: `Subscription nicht gefunden: ${sub.email_postfach}`,
+            body: "Subscription existiert nicht mehr in Graph API. Neu erstellen erforderlich.",
+            metadata: { subscription_id: sub.subscription_id, postfach: sub.email_postfach },
+          });
         } else {
           await updateSubscriptionInDb(sub.subscription_id, sub.expires_at, errorMsg);
           results.subscriptions.push({
             id: sub.subscription_id,
             postfach: sub.email_postfach,
             status: "error",
+          });
+          await notify({
+            type: "warning",
+            severity: "high",
+            source: "renew_subscriptions",
+            title: `Subscription-Erneuerung fehlgeschlagen: ${sub.email_postfach}`,
+            body: errorMsg.substring(0, 500),
+            metadata: { subscription_id: sub.subscription_id, postfach: sub.email_postfach },
           });
         }
 
@@ -379,6 +404,14 @@ Deno.serve(async (req: Request) => {
     );
   } catch (error) {
     console.error(`Renewal job failed: ${error}`);
+    await notify({
+      type: "error",
+      severity: "critical",
+      source: "renew_subscriptions",
+      title: "Subscription-Erneuerung komplett fehlgeschlagen",
+      body: `Job-Fehler: ${(error instanceof Error ? error.message : String(error)).substring(0, 500)}`,
+      metadata: { checked: results.checked, renewed: results.renewed, failed: results.failed },
+    });
     return new Response(
       JSON.stringify({
         status: "error",

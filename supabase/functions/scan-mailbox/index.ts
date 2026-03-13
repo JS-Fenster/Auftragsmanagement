@@ -55,6 +55,7 @@
 // ============================================================================
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { notify } from "../_shared/notify.ts";
 
 // Environment variables
 const AZURE_TENANT_ID = Deno.env.get("AZURE_TENANT_ID");
@@ -155,6 +156,14 @@ async function getAccessToken(): Promise<string> {
     } else if (errorCode === "AADSTS50126") {
       console.error("[TOKEN] Diagnosis: Invalid credentials");
     }
+    await notify({
+      type: "error",
+      severity: "high",
+      source: "scan_mailbox",
+      title: "Azure Token-Abruf fehlgeschlagen",
+      body: `Fehlercode: ${errorCode || "unbekannt"}. Graph API nicht erreichbar.`,
+      metadata: { error_code: errorCode },
+    });
     throw new Error(`Failed to get access token: ${errorCode || error.substring(0, 100)}`);
   }
 
@@ -667,6 +676,14 @@ Deno.serve(async (req: Request) => {
     );
   } catch (error) {
     console.error(`Scan error: ${error}`);
+    await notify({
+      type: "error",
+      severity: "medium",
+      source: "scan_mailbox",
+      title: "Mailbox-Scan fehlgeschlagen",
+      body: String(error).substring(0, 500),
+      metadata: { mailbox, folder },
+    });
     return new Response(
       JSON.stringify({ error: String(error) }),
       { status: 500, headers: { "Content-Type": "application/json" } }

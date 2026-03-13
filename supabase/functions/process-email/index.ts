@@ -40,6 +40,7 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { notify } from "../_shared/notify.ts";
 
 // Environment variables
 const AZURE_TENANT_ID = Deno.env.get("AZURE_TENANT_ID");
@@ -255,6 +256,14 @@ async function getAccessToken(): Promise<string> {
     } else if (errorCode === "AADSTS50126") {
       console.error("[TOKEN] Diagnosis: Invalid credentials");
     }
+    await notify({
+      type: "error",
+      severity: "high",
+      source: "process_email",
+      title: "Azure Token-Abruf fehlgeschlagen",
+      body: `Fehlercode: ${errorCode || "unbekannt"}. E-Mail-Verarbeitung blockiert.`,
+      metadata: { error_code: errorCode },
+    });
     throw new Error(`Failed to get access token: ${errorCode || error.substring(0, 100)}`);
   }
 
@@ -339,6 +348,14 @@ Antwort im JSON-Format:
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`[GPT] API error: ${response.status} - ${errorText.substring(0, 500)}`);
+      await notify({
+        type: "warning",
+        severity: "high",
+        source: "process_email",
+        title: `GPT API Fehler: HTTP ${response.status}`,
+        body: `E-Mail-Kategorisierung fehlgeschlagen. Betreff: "${betreff.substring(0, 100)}". Fallback auf "Sonstiges".`,
+        metadata: { http_status: response.status, betreff: betreff.substring(0, 100) },
+      });
       throw new Error(`GPT API error: ${response.status} - ${errorText.substring(0, 100)}`);
     }
 
@@ -1341,6 +1358,13 @@ Deno.serve(async (req: Request) => {
     );
   } catch (error) {
     console.error(`Process-email error: ${error}`);
+    await notify({
+      type: "error",
+      severity: "high",
+      source: "process_email",
+      title: "E-Mail-Verarbeitung fehlgeschlagen",
+      body: String(error).substring(0, 500),
+    });
     try {
       const body = await req.clone().json();
       if (body?.document_id) {
