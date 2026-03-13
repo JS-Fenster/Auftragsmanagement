@@ -31,7 +31,7 @@ export default function ActionConfirmDialog({ action, onConfirm, onCancel }) {
       onClick={onCancel}
     >
       <div
-        className="bg-white rounded-xl shadow-2xl p-5 max-w-sm m-4 w-full"
+        className="bg-surface-card rounded-xl shadow-2xl p-5 max-w-sm m-4 w-full"
         onClick={e => e.stopPropagation()}
       >
         {/* Icon + Title */}
@@ -40,10 +40,10 @@ export default function ActionConfirmDialog({ action, onConfirm, onCancel }) {
             <AlertTriangle className="w-5 h-5" style={{ color: '#FBBA00' }} />
           </div>
           <div>
-            <h3 className="font-semibold text-gray-900 text-sm">
+            <h3 className="font-semibold text-text-primary text-sm">
               Aktion ausfuehren?
             </h3>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-xs text-text-secondary mt-0.5">
               {action.description}
             </p>
           </div>
@@ -51,11 +51,11 @@ export default function ActionConfirmDialog({ action, onConfirm, onCancel }) {
 
         {/* Details */}
         {action.details && action.details.length > 0 && (
-          <div className="bg-gray-50 rounded-lg p-3 mb-4 space-y-1.5">
+          <div className="bg-surface-main rounded-lg p-3 mb-4 space-y-1.5">
             {action.details.map((d, i) => (
               <div key={i} className="flex justify-between text-xs">
-                <span className="text-gray-500">{d.label}</span>
-                <span className="text-gray-800 font-medium">{d.value}</span>
+                <span className="text-text-secondary">{d.label}</span>
+                <span className="text-text-primary font-medium">{d.value}</span>
               </div>
             ))}
           </div>
@@ -66,7 +66,7 @@ export default function ActionConfirmDialog({ action, onConfirm, onCancel }) {
           <button
             onClick={onCancel}
             disabled={executing}
-            className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+            className="px-3 py-1.5 text-sm text-text-secondary hover:bg-surface-hover rounded-lg transition-colors disabled:opacity-50"
           >
             Abbrechen
           </button>

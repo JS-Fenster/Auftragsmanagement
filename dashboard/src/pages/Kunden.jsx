@@ -41,7 +41,7 @@ function SourceBadge({ hasErp }) {
 function RoleBadge({ rolle }) {
   if (!rolle) return null
   return (
-    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-surface-hover text-text-secondary">
       {rolle}
     </span>
   )
@@ -67,7 +67,7 @@ function KundeLieferantBadge({ istKunde, istLieferant }) {
   return (
     <>
       {istKunde && (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-brand-light text-brand-dark">
           Kunde
         </span>
       )}
@@ -128,11 +128,11 @@ function ExpandableSection({ title, icon: Icon, count, color, defaultOpen, loadi
   const [open, setOpen] = useState(defaultOpen ?? false)
 
   return (
-    <div className="border-t border-gray-100">
-      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-gray-50 transition-colors">
-        {open ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
-        <Icon className="w-4 h-4 text-gray-500" />
-        <span className="font-medium text-sm text-gray-700">{title}</span>
+    <div className="border-t border-border-light">
+      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-surface-main transition-colors">
+        {open ? <ChevronDown className="w-4 h-4 text-text-muted" /> : <ChevronRight className="w-4 h-4 text-text-muted" />}
+        <Icon className="w-4 h-4 text-text-secondary" />
+        <span className="font-medium text-sm text-text-primary">{title}</span>
         <span
           className="text-xs font-semibold px-2 py-0.5 rounded-full ml-auto"
           style={{ backgroundColor: (color || '#6B7280') + '18', color: color || '#6B7280' }}
@@ -145,12 +145,12 @@ function ExpandableSection({ title, icon: Icon, count, color, defaultOpen, loadi
           {extLoading ? (
             <div className="flex items-center gap-2 py-3">
               <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-              <span className="text-sm text-gray-400">Laden...</span>
+              <span className="text-sm text-text-muted">Laden...</span>
             </div>
           ) : extData && extData.length > 0 ? (
             renderItems(extData)
           ) : (
-            <p className="text-sm text-gray-400 py-2">Keine Eintraege</p>
+            <p className="text-sm text-text-muted py-2">Keine Eintraege</p>
           )}
         </div>
       )}
@@ -183,9 +183,9 @@ function AddDetailForm({ personId, onSaved, onCancel }) {
   }
 
   return (
-    <div className="flex items-center gap-2 mt-2 p-2 bg-gray-50 rounded-lg">
+    <div className="flex items-center gap-2 mt-2 p-2 bg-surface-main rounded-lg">
       <select value={typ} onChange={e => setTyp(e.target.value)}
-        className="text-xs border border-gray-200 rounded px-2 py-1.5 bg-white">
+        className="text-xs border border-border-default rounded px-2 py-1.5 bg-surface-card">
         <option value="telefon">Telefon</option>
         <option value="email">E-Mail</option>
         <option value="fax">Fax</option>
@@ -193,16 +193,16 @@ function AddDetailForm({ personId, onSaved, onCancel }) {
       </select>
       <input value={label} onChange={e => setLabel(e.target.value)}
         placeholder="Label (z.B. Mobil privat)"
-        className="text-xs border border-gray-200 rounded px-2 py-1.5 w-32" />
+        className="text-xs border border-border-default rounded px-2 py-1.5 w-32" />
       <input value={wert} onChange={e => setWert(e.target.value)}
         placeholder="Wert"
-        className="text-xs border border-gray-200 rounded px-2 py-1.5 flex-1" />
+        className="text-xs border border-border-default rounded px-2 py-1.5 flex-1" />
       <button onClick={handleSave} disabled={saving || !wert.trim()}
-        className="p-1.5 rounded bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed">
+        className="p-1.5 rounded bg-brand-light0 text-white hover:bg-btn-primary disabled:opacity-50 disabled:cursor-not-allowed">
         <Check className="w-3.5 h-3.5" />
       </button>
-      <button onClick={onCancel} className="p-1.5 rounded hover:bg-gray-200">
-        <X className="w-3.5 h-3.5 text-gray-500" />
+      <button onClick={onCancel} className="p-1.5 rounded hover:bg-surface-hover">
+        <X className="w-3.5 h-3.5 text-text-secondary" />
       </button>
     </div>
   )
@@ -233,29 +233,29 @@ function AddPersonForm({ kontaktId, onSaved, onCancel }) {
   }
 
   return (
-    <div className="p-3 bg-blue-50 rounded-lg mt-3">
-      <p className="text-xs font-medium text-blue-700 mb-2">Neue Person hinzufuegen</p>
+    <div className="p-3 bg-brand-light rounded-lg mt-3">
+      <p className="text-xs font-medium text-brand-dark mb-2">Neue Person hinzufuegen</p>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <select value={anrede} onChange={e => setAnrede(e.target.value)}
-          className="text-xs border border-gray-200 rounded px-2 py-1.5 bg-white">
+          className="text-xs border border-border-default rounded px-2 py-1.5 bg-surface-card">
           <option value="">Anrede...</option>
           <option value="Herr">Herr</option>
           <option value="Frau">Frau</option>
         </select>
         <input value={vorname} onChange={e => setVorname(e.target.value)}
           placeholder="Vorname"
-          className="text-xs border border-gray-200 rounded px-2 py-1.5" />
+          className="text-xs border border-border-default rounded px-2 py-1.5" />
         <input value={nachname} onChange={e => setNachname(e.target.value)}
           placeholder="Nachname *"
-          className="text-xs border border-gray-200 rounded px-2 py-1.5" />
+          className="text-xs border border-border-default rounded px-2 py-1.5" />
         <input value={rolle} onChange={e => setRolle(e.target.value)}
           placeholder="Rolle (z.B. Ehepartner)"
-          className="text-xs border border-gray-200 rounded px-2 py-1.5" />
+          className="text-xs border border-border-default rounded px-2 py-1.5" />
       </div>
       <div className="flex justify-end gap-2 mt-2">
-        <button onClick={onCancel} className="text-xs px-3 py-1.5 rounded hover:bg-blue-100 text-blue-700">Abbrechen</button>
+        <button onClick={onCancel} className="text-xs px-3 py-1.5 rounded hover:bg-brand-light text-brand-dark">Abbrechen</button>
         <button onClick={handleSave} disabled={saving || !nachname.trim()}
-          className="text-xs px-3 py-1.5 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50">
+          className="text-xs px-3 py-1.5 rounded bg-btn-primary text-white hover:bg-btn-primary-hover disabled:opacity-50">
           {saving ? 'Speichere...' : 'Speichern'}
         </button>
       </div>
@@ -347,19 +347,19 @@ function NeuerKontaktModal({ onClose, onCreated }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/40" />
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+      <div className="relative bg-surface-card rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}>
-        <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between rounded-t-xl z-10">
-          <h2 className="text-lg font-bold text-gray-900">Neuer Kontakt</h2>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5 text-gray-400" /></button>
+        <div className="sticky top-0 bg-surface-card border-b border-border-light px-6 py-4 flex items-center justify-between rounded-t-xl z-10">
+          <h2 className="text-lg font-bold text-text-primary">Neuer Kontakt</h2>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-surface-hover"><X className="w-5 h-5 text-text-muted" /></button>
         </div>
 
         <div className="px-6 py-4 space-y-4">
           {/* Typ */}
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Typ</label>
+            <label className="block text-xs font-medium text-text-secondary mb-1">Typ</label>
             <select value={typ} onChange={e => setTyp(e.target.value)}
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white">
+              className="w-full text-sm border border-border-default rounded-lg px-3 py-2 bg-surface-card">
               <option value="privat">Privat</option>
               <option value="gewerbe">Gewerbe</option>
               <option value="oeffentlich">Oeffentlich</option>
@@ -369,82 +369,82 @@ function NeuerKontaktModal({ onClose, onCreated }) {
           {/* Firma */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Firma 1</label>
+              <label className="block text-xs font-medium text-text-secondary mb-1">Firma 1</label>
               <input value={firma1} onChange={e => setFirma1(e.target.value)}
-                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2" />
+                className="w-full text-sm border border-border-default rounded-lg px-3 py-2" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Firma 2</label>
+              <label className="block text-xs font-medium text-text-secondary mb-1">Firma 2</label>
               <input value={firma2} onChange={e => setFirma2(e.target.value)}
-                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2" />
+                className="w-full text-sm border border-border-default rounded-lg px-3 py-2" />
             </div>
           </div>
 
           {/* Adresse */}
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Strasse</label>
+            <label className="block text-xs font-medium text-text-secondary mb-1">Strasse</label>
             <input value={strasse} onChange={e => setStrasse(e.target.value)}
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2" />
+              className="w-full text-sm border border-border-default rounded-lg px-3 py-2" />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">PLZ</label>
+              <label className="block text-xs font-medium text-text-secondary mb-1">PLZ</label>
               <input value={plz} onChange={e => setPlz(e.target.value)}
-                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2" />
+                className="w-full text-sm border border-border-default rounded-lg px-3 py-2" />
             </div>
             <div className="col-span-2">
-              <label className="block text-xs font-medium text-gray-600 mb-1">Ort</label>
+              <label className="block text-xs font-medium text-text-secondary mb-1">Ort</label>
               <input value={ort} onChange={e => setOrt(e.target.value)}
-                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2" />
+                className="w-full text-sm border border-border-default rounded-lg px-3 py-2" />
             </div>
           </div>
 
           {/* Checkboxen */}
           <div className="flex gap-6">
-            <label className="flex items-center gap-2 text-sm text-gray-700">
+            <label className="flex items-center gap-2 text-sm text-text-primary">
               <input type="checkbox" checked={istKunde} onChange={e => setIstKunde(e.target.checked)}
-                className="rounded border-gray-300" />
+                className="rounded border-border-default" />
               Ist Kunde
             </label>
-            <label className="flex items-center gap-2 text-sm text-gray-700">
+            <label className="flex items-center gap-2 text-sm text-text-primary">
               <input type="checkbox" checked={istLieferant} onChange={e => setIstLieferant(e.target.checked)}
-                className="rounded border-gray-300" />
+                className="rounded border-border-default" />
               Ist Lieferant
             </label>
           </div>
 
           {/* Erste Person */}
           <div className="border-t pt-4">
-            <p className="text-xs font-medium text-gray-600 mb-2">Erste Kontaktperson</p>
+            <p className="text-xs font-medium text-text-secondary mb-2">Erste Kontaktperson</p>
             <div className="grid grid-cols-3 gap-3">
               <select value={anrede} onChange={e => setAnrede(e.target.value)}
-                className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white">
+                className="text-sm border border-border-default rounded-lg px-3 py-2 bg-surface-card">
                 <option value="">Anrede...</option>
                 <option value="Herr">Herr</option>
                 <option value="Frau">Frau</option>
               </select>
               <input value={vorname} onChange={e => setVorname(e.target.value)} placeholder="Vorname"
-                className="text-sm border border-gray-200 rounded-lg px-3 py-2" />
+                className="text-sm border border-border-default rounded-lg px-3 py-2" />
               <input value={nachname} onChange={e => setNachname(e.target.value)} placeholder="Nachname"
-                className="text-sm border border-gray-200 rounded-lg px-3 py-2" />
+                className="text-sm border border-border-default rounded-lg px-3 py-2" />
             </div>
           </div>
 
           {/* Erster Kontaktweg */}
           <div className="border-t pt-4">
-            <p className="text-xs font-medium text-gray-600 mb-2">Erster Kontaktweg</p>
+            <p className="text-xs font-medium text-text-secondary mb-2">Erster Kontaktweg</p>
             <div className="grid grid-cols-3 gap-3">
               <select value={detailTyp} onChange={e => setDetailTyp(e.target.value)}
-                className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white">
+                className="text-sm border border-border-default rounded-lg px-3 py-2 bg-surface-card">
                 <option value="telefon">Telefon</option>
                 <option value="email">E-Mail</option>
                 <option value="fax">Fax</option>
                 <option value="website">Website</option>
               </select>
               <input value={detailLabel} onChange={e => setDetailLabel(e.target.value)} placeholder="Label (optional)"
-                className="text-sm border border-gray-200 rounded-lg px-3 py-2" />
+                className="text-sm border border-border-default rounded-lg px-3 py-2" />
               <input value={detailWert} onChange={e => setDetailWert(e.target.value)} placeholder="Wert (Nr./Adresse)"
-                className="text-sm border border-gray-200 rounded-lg px-3 py-2" />
+                className="text-sm border border-border-default rounded-lg px-3 py-2" />
             </div>
           </div>
 
@@ -453,10 +453,10 @@ function NeuerKontaktModal({ onClose, onCreated }) {
           )}
         </div>
 
-        <div className="sticky bottom-0 bg-white border-t border-gray-100 px-6 py-3 flex justify-end gap-3 rounded-b-xl">
-          <button onClick={onClose} className="text-sm px-4 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Abbrechen</button>
+        <div className="sticky bottom-0 bg-surface-card border-t border-border-light px-6 py-3 flex justify-end gap-3 rounded-b-xl">
+          <button onClick={onClose} className="text-sm px-4 py-2 rounded-lg hover:bg-surface-hover text-text-primary">Abbrechen</button>
           <button onClick={handleCreate} disabled={saving}
-            className="text-sm px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50">
+            className="text-sm px-4 py-2 rounded-lg bg-btn-primary text-white hover:bg-btn-primary-hover disabled:opacity-50">
             {saving ? 'Erstelle...' : 'Kontakt anlegen'}
           </button>
         </div>
@@ -597,10 +597,10 @@ function KontaktDetailModal({ kontaktId, onClose }) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
         <div className="absolute inset-0 bg-black/40" />
-        <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-5xl p-12 flex items-center justify-center"
+        <div className="relative bg-surface-card rounded-xl shadow-2xl w-full max-w-5xl p-12 flex items-center justify-center"
           onClick={e => e.stopPropagation()}>
           <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <span className="ml-3 text-sm text-gray-500">Lade Kontakt...</span>
+          <span className="ml-3 text-sm text-text-secondary">Lade Kontakt...</span>
         </div>
       </div>
     )
@@ -626,27 +626,27 @@ function KontaktDetailModal({ kontaktId, onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/40" />
 
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto"
+      <div className="relative bg-surface-card rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}>
 
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-start justify-between rounded-t-xl z-10">
+        <div className="sticky top-0 bg-surface-card border-b border-border-light px-6 py-4 flex items-start justify-between rounded-t-xl z-10">
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-xl font-bold text-gray-900">{displayName}</h2>
+              <h2 className="text-xl font-bold text-text-primary">{displayName}</h2>
               <SourceBadge hasErp={hasErp} />
               <KundeLieferantBadge istKunde={kontakt.ist_kunde} istLieferant={kontakt.ist_lieferant} />
               <TypBadge typ={kontakt.typ} />
             </div>
             {kontakt.kundennummer && (
-              <p className="text-sm text-gray-500 mt-0.5">Kundennr. {kontakt.kundennummer}</p>
+              <p className="text-sm text-text-secondary mt-0.5">Kundennr. {kontakt.kundennummer}</p>
             )}
             {hasErp && (
-              <p className="text-xs text-gray-400 mt-0.5">ERP-Code: {kontakt.erp_kunden_code}</p>
+              <p className="text-xs text-text-muted mt-0.5">ERP-Code: {kontakt.erp_kunden_code}</p>
             )}
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 transition-colors">
-            <X className="w-5 h-5 text-gray-400" />
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-surface-hover transition-colors">
+            <X className="w-5 h-5 text-text-muted" />
           </button>
         </div>
 
@@ -661,16 +661,16 @@ function KontaktDetailModal({ kontaktId, onClose }) {
         {/* Stammdaten */}
         <div className="px-6 py-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-gray-700">Stammdaten</h3>
+            <h3 className="text-sm font-semibold text-text-primary">Stammdaten</h3>
             {!editStamm ? (
-              <button onClick={startEditStamm} className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800">
+              <button onClick={startEditStamm} className="flex items-center gap-1 text-xs text-brand hover:text-blue-800">
                 <Edit3 className="w-3.5 h-3.5" /> Bearbeiten
               </button>
             ) : (
               <div className="flex gap-2">
-                <button onClick={() => setEditStamm(false)} className="text-xs text-gray-500 hover:text-gray-700">Abbrechen</button>
+                <button onClick={() => setEditStamm(false)} className="text-xs text-text-secondary hover:text-text-primary">Abbrechen</button>
                 <button onClick={saveStamm} disabled={stammSaving}
-                  className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50">
+                  className="flex items-center gap-1 text-xs text-brand hover:text-blue-800 disabled:opacity-50">
                   <Save className="w-3.5 h-3.5" /> {stammSaving ? 'Speichere...' : 'Speichern'}
                 </button>
               </div>
@@ -680,44 +680,44 @@ function KontaktDetailModal({ kontaktId, onClose }) {
           {editStamm ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Firma 1</label>
+                <label className="block text-xs text-text-secondary mb-1">Firma 1</label>
                 <input value={stammForm.firma1} onChange={e => setStammForm(f => ({ ...f, firma1: e.target.value }))}
-                  className="w-full text-sm border border-gray-200 rounded px-3 py-1.5" />
+                  className="w-full text-sm border border-border-default rounded px-3 py-1.5" />
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Firma 2</label>
+                <label className="block text-xs text-text-secondary mb-1">Firma 2</label>
                 <input value={stammForm.firma2} onChange={e => setStammForm(f => ({ ...f, firma2: e.target.value }))}
-                  className="w-full text-sm border border-gray-200 rounded px-3 py-1.5" />
+                  className="w-full text-sm border border-border-default rounded px-3 py-1.5" />
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-xs text-gray-500 mb-1">Strasse</label>
+                <label className="block text-xs text-text-secondary mb-1">Strasse</label>
                 <input value={stammForm.strasse} onChange={e => setStammForm(f => ({ ...f, strasse: e.target.value }))}
-                  className="w-full text-sm border border-gray-200 rounded px-3 py-1.5" />
+                  className="w-full text-sm border border-border-default rounded px-3 py-1.5" />
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">PLZ</label>
+                <label className="block text-xs text-text-secondary mb-1">PLZ</label>
                 <input value={stammForm.plz} onChange={e => setStammForm(f => ({ ...f, plz: e.target.value }))}
-                  className="w-full text-sm border border-gray-200 rounded px-3 py-1.5" />
+                  className="w-full text-sm border border-border-default rounded px-3 py-1.5" />
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Ort</label>
+                <label className="block text-xs text-text-secondary mb-1">Ort</label>
                 <input value={stammForm.ort} onChange={e => setStammForm(f => ({ ...f, ort: e.target.value }))}
-                  className="w-full text-sm border border-gray-200 rounded px-3 py-1.5" />
+                  className="w-full text-sm border border-border-default rounded px-3 py-1.5" />
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-xs text-gray-500 mb-1">Hinweis</label>
+                <label className="block text-xs text-text-secondary mb-1">Hinweis</label>
                 <input value={stammForm.hinweis_kontakt} onChange={e => setStammForm(f => ({ ...f, hinweis_kontakt: e.target.value }))}
-                  className="w-full text-sm border border-gray-200 rounded px-3 py-1.5" placeholder="Hinweis zum Kontakt" />
+                  className="w-full text-sm border border-border-default rounded px-3 py-1.5" placeholder="Hinweis zum Kontakt" />
               </div>
               <div className="sm:col-span-2 flex gap-6 pt-1">
-                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <label className="flex items-center gap-2 text-sm text-text-primary cursor-pointer">
                   <input type="checkbox" checked={stammForm.ist_kunde} onChange={e => setStammForm(f => ({ ...f, ist_kunde: e.target.checked }))}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    className="rounded border-border-default text-brand focus:ring-brand" />
                   Kunde
                 </label>
-                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <label className="flex items-center gap-2 text-sm text-text-primary cursor-pointer">
                   <input type="checkbox" checked={stammForm.ist_lieferant} onChange={e => setStammForm(f => ({ ...f, ist_lieferant: e.target.checked }))}
-                    className="rounded border-gray-300 text-purple-600 focus:ring-purple-500" />
+                    className="rounded border-border-default text-purple-600 focus:ring-purple-500" />
                   Lieferant
                 </label>
               </div>
@@ -725,14 +725,14 @@ function KontaktDetailModal({ kontaktId, onClose }) {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
               {kontakt.firma1 && (
-                <div className="flex items-center gap-2 text-gray-700">
-                  <Building2 className="w-4 h-4 text-gray-400 shrink-0" />
+                <div className="flex items-center gap-2 text-text-primary">
+                  <Building2 className="w-4 h-4 text-text-muted shrink-0" />
                   <span>{kontakt.firma1}{kontakt.firma2 ? ` / ${kontakt.firma2}` : ''}</span>
                 </div>
               )}
               {(kontakt.strasse || kontakt.plz || kontakt.ort) && (
-                <div className="flex items-center gap-2 text-gray-700">
-                  <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
+                <div className="flex items-center gap-2 text-text-primary">
+                  <MapPin className="w-4 h-4 text-text-muted shrink-0" />
                   <span>{[kontakt.strasse, [kontakt.plz, kontakt.ort].filter(Boolean).join(' ')].filter(Boolean).join(', ')}</span>
                 </div>
               )}
@@ -741,8 +741,8 @@ function KontaktDetailModal({ kontaktId, onClose }) {
         </div>
 
         {/* Kontaktpersonen */}
-        <div className="px-6 py-4 border-t border-gray-100">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Kontaktpersonen ({(kontakt.kontakt_personen || []).length})</h3>
+        <div className="px-6 py-4 border-t border-border-light">
+          <h3 className="text-sm font-semibold text-text-primary mb-3">Kontaktpersonen ({(kontakt.kontakt_personen || []).length})</h3>
 
           <div className="space-y-4">
             {(kontakt.kontakt_personen || []).map(person => {
@@ -750,14 +750,14 @@ function KontaktDetailModal({ kontaktId, onClose }) {
               const details = person.kontakt_details || []
 
               return (
-                <div key={person.id} className="bg-gray-50 rounded-lg p-3">
+                <div key={person.id} className="bg-surface-main rounded-lg p-3">
                   {/* Person header */}
                   <div className="flex items-center gap-2 mb-2">
                     {person.ist_hauptkontakt && <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />}
-                    <span className="font-medium text-sm text-gray-800">{fullName || '(Unbenannt)'}</span>
+                    <span className="font-medium text-sm text-text-primary">{fullName || '(Unbenannt)'}</span>
                     <RoleBadge rolle={person.rolle} />
                     {person.hinweis && (
-                      <span className="text-xs text-gray-500 italic ml-2">({person.hinweis})</span>
+                      <span className="text-xs text-text-secondary italic ml-2">({person.hinweis})</span>
                     )}
                   </div>
 
@@ -768,9 +768,9 @@ function KontaktDetailModal({ kontaktId, onClose }) {
                         const DIcon = DETAIL_TYPE_ICON[d.typ] || Phone
                         return (
                           <div key={d.id} className="flex items-center gap-2 text-sm group">
-                            <DIcon className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                            <span className="text-xs text-gray-500 w-20 shrink-0">{d.label}</span>
-                            <span className="text-gray-700">{d.wert}</span>
+                            <DIcon className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                            <span className="text-xs text-text-secondary w-20 shrink-0">{d.label}</span>
+                            <span className="text-text-primary">{d.wert}</span>
                             {d.ist_primaer && <Star className="w-3 h-3 text-yellow-500 fill-yellow-500 shrink-0" />}
                             <button onClick={() => deleteDetail(d.id)}
                               className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-red-100 transition-opacity ml-auto">
@@ -787,7 +787,7 @@ function KontaktDetailModal({ kontaktId, onClose }) {
                     <AddDetailForm personId={person.id} onSaved={() => { setAddingDetailFor(null); loadKontakt() }} onCancel={() => setAddingDetailFor(null)} />
                   ) : (
                     <button onClick={() => setAddingDetailFor(person.id)}
-                      className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 mt-2 ml-6">
+                      className="flex items-center gap-1 text-xs text-brand hover:text-blue-800 mt-2 ml-6">
                       <Plus className="w-3 h-3" /> Kontaktweg hinzufuegen
                     </button>
                   )}
@@ -801,7 +801,7 @@ function KontaktDetailModal({ kontaktId, onClose }) {
             <AddPersonForm kontaktId={kontakt.id} onSaved={() => { setAddingPerson(false); loadKontakt() }} onCancel={() => setAddingPerson(false)} />
           ) : (
             <button onClick={() => setAddingPerson(true)}
-              className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 mt-3">
+              className="flex items-center gap-1 text-sm text-brand hover:text-blue-800 mt-3">
               <UserPlus className="w-4 h-4" /> Person hinzufuegen
             </button>
           )}
@@ -810,27 +810,27 @@ function KontaktDetailModal({ kontaktId, onClose }) {
         {/* Summary Cards */}
         {hasErp && !relLoading && (
           <div className="px-6 pb-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="bg-gray-50 rounded-lg px-3 py-2">
-              <p className="text-xs text-gray-500">Projekte</p>
-              <p className="text-lg font-bold text-gray-900">{projekte.length}</p>
+            <div className="bg-surface-main rounded-lg px-3 py-2">
+              <p className="text-xs text-text-secondary">Projekte</p>
+              <p className="text-lg font-bold text-text-primary">{projekte.length}</p>
             </div>
-            <div className="bg-gray-50 rounded-lg px-3 py-2">
-              <p className="text-xs text-gray-500">Angebotswert</p>
+            <div className="bg-surface-main rounded-lg px-3 py-2">
+              <p className="text-xs text-text-secondary">Angebotswert</p>
               <p className="text-lg font-bold text-green-700">{formatEur(totalAngebotswert)}</p>
             </div>
-            <div className="bg-gray-50 rounded-lg px-3 py-2">
-              <p className="text-xs text-gray-500">Rechnungen</p>
+            <div className="bg-surface-main rounded-lg px-3 py-2">
+              <p className="text-xs text-text-secondary">Rechnungen</p>
               <p className="text-lg font-bold text-green-700">{formatEur(totalRechnungswert)}</p>
             </div>
             {offeneRechnungen.length > 0 ? (
-              <div className="bg-gray-50 rounded-lg px-3 py-2">
-                <p className="text-xs text-gray-500">Offene Rechnungen</p>
+              <div className="bg-surface-main rounded-lg px-3 py-2">
+                <p className="text-xs text-text-secondary">Offene Rechnungen</p>
                 <p className="text-lg font-bold text-red-600">{offeneRechnungen.length}</p>
               </div>
             ) : (
-              <div className="bg-gray-50 rounded-lg px-3 py-2">
-                <p className="text-xs text-gray-500">Offene Rechnungen</p>
-                <p className="text-lg font-bold text-gray-400">0</p>
+              <div className="bg-surface-main rounded-lg px-3 py-2">
+                <p className="text-xs text-text-secondary">Offene Rechnungen</p>
+                <p className="text-lg font-bold text-text-muted">0</p>
               </div>
             )}
           </div>
@@ -850,16 +850,16 @@ function KontaktDetailModal({ kontaktId, onClose }) {
               renderItems={(items) => (
                 <div className="space-y-1">
                   {items.map(a => (
-                    <div key={a.id} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-gray-50 text-sm">
+                    <div key={a.id} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-surface-main text-sm">
                       <div className="flex items-center gap-2 min-w-0">
                         <StatusBadge status={a.status} />
-                        <span className="text-gray-700 font-medium truncate">{a.beschreibung || a.auftragstyp || '–'}</span>
-                        {a.adresse_ort && <span className="text-gray-400 text-xs">· {a.adresse_ort}</span>}
+                        <span className="text-text-primary font-medium truncate">{a.beschreibung || a.auftragstyp || '–'}</span>
+                        {a.adresse_ort && <span className="text-text-muted text-xs">· {a.adresse_ort}</span>}
                       </div>
                       <div className="flex items-center gap-3 shrink-0 ml-2 text-xs">
-                        {a.termin_sv1 && <span className="text-gray-600">SV1: {formatDate(a.termin_sv1)}</span>}
-                        {a.termin_sv2 && <span className="text-gray-600">SV2: {formatDate(a.termin_sv2)}</span>}
-                        <span className="text-gray-400">{formatDate(a.erstellt_am)}</span>
+                        {a.termin_sv1 && <span className="text-text-secondary">SV1: {formatDate(a.termin_sv1)}</span>}
+                        {a.termin_sv2 && <span className="text-text-secondary">SV2: {formatDate(a.termin_sv2)}</span>}
+                        <span className="text-text-muted">{formatDate(a.erstellt_am)}</span>
                       </div>
                     </div>
                   ))}
@@ -878,15 +878,15 @@ function KontaktDetailModal({ kontaktId, onClose }) {
               renderItems={(items) => (
                 <div className="space-y-1">
                   {items.map(p => (
-                    <div key={p.code} className="py-2 px-3 rounded-lg hover:bg-gray-50 text-sm">
+                    <div key={p.code} className="py-2 px-3 rounded-lg hover:bg-surface-main text-sm">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className="font-mono text-xs text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">{p.nummer}</span>
-                          <span className="font-medium text-gray-700 truncate">{p.name}</span>
+                          <span className="font-mono text-xs text-text-secondary bg-surface-hover px-1.5 py-0.5 rounded">{p.nummer}</span>
+                          <span className="font-medium text-text-primary truncate">{p.name}</span>
                         </div>
-                        <span className="text-gray-400 text-xs shrink-0 ml-2">{formatDate(p.datum)}</span>
+                        <span className="text-text-muted text-xs shrink-0 ml-2">{formatDate(p.datum)}</span>
                       </div>
-                      {p.notiz && <p className="text-xs text-gray-500 mt-1 ml-16 truncate">{p.notiz}</p>}
+                      {p.notiz && <p className="text-xs text-text-secondary mt-1 ml-16 truncate">{p.notiz}</p>}
                     </div>
                   ))}
                 </div>
@@ -905,24 +905,24 @@ function KontaktDetailModal({ kontaktId, onClose }) {
                   {items.map(a => {
                     const projekt = projektMap[a.projekt_code]
                     return (
-                      <div key={a.code} className="py-2 px-3 rounded-lg hover:bg-gray-50 text-sm">
+                      <div key={a.code} className="py-2 px-3 rounded-lg hover:bg-surface-main text-sm">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2 min-w-0">
                             {a.auftrags_datum ? (
                               <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-50 text-green-700">Auftrag</span>
                             ) : (
-                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">Angebot</span>
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-surface-hover text-text-secondary">Angebot</span>
                             )}
-                            {a.nummer && <span className="font-mono text-xs text-gray-500">{a.nummer}</span>}
-                            {projekt && <span className="text-gray-500 truncate text-xs">· {projekt.nummer}</span>}
+                            {a.nummer && <span className="font-mono text-xs text-text-secondary">{a.nummer}</span>}
+                            {projekt && <span className="text-text-secondary truncate text-xs">· {projekt.nummer}</span>}
                           </div>
                           <div className="flex items-center gap-3 shrink-0 ml-2 text-xs">
-                            <span className="text-gray-700 font-medium">{formatEur(a.wert)}</span>
+                            <span className="text-text-primary font-medium">{formatEur(a.wert)}</span>
                             {a.auftrags_datum && <span className="text-green-600">Beauftragt {formatDate(a.auftrags_datum)}</span>}
-                            <span className="text-gray-400">{formatDate(a.datum)}</span>
+                            <span className="text-text-muted">{formatDate(a.datum)}</span>
                           </div>
                         </div>
-                        {projekt && <p className="text-xs text-gray-400 mt-0.5 ml-16 truncate">{projekt.name}</p>}
+                        {projekt && <p className="text-xs text-text-muted mt-0.5 ml-16 truncate">{projekt.name}</p>}
                       </div>
                     )
                   })}
@@ -946,10 +946,10 @@ function KontaktDetailModal({ kontaktId, onClose }) {
                     const offenerBetrag = ra ? (Number(ra.r_betrag) || 0) - (Number(ra.bez_summe) || 0) : 0
                     const projekt = projektMap[r.projekt_code]
                     return (
-                      <div key={r.code} className={`py-2 px-3 rounded-lg hover:bg-gray-50 text-sm ${istOffen ? 'bg-red-50/50' : ''}`}>
+                      <div key={r.code} className={`py-2 px-3 rounded-lg hover:bg-surface-main text-sm ${istOffen ? 'bg-red-50/50' : ''}`}>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2 min-w-0">
-                            <span className="font-mono text-xs text-gray-500">{r.nummer}</span>
+                            <span className="font-mono text-xs text-text-secondary">{r.nummer}</span>
                             {istOffen && (
                               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
                                 <AlertTriangle className="w-3 h-3" />
@@ -957,12 +957,12 @@ function KontaktDetailModal({ kontaktId, onClose }) {
                                 {ra.mahnstufe > 0 && ` · Mahnstufe ${ra.mahnstufe}`}
                               </span>
                             )}
-                            {projekt && <span className="text-gray-400 text-xs truncate">· {projekt.nummer}</span>}
+                            {projekt && <span className="text-text-muted text-xs truncate">· {projekt.nummer}</span>}
                           </div>
                           <div className="flex items-center gap-3 shrink-0 ml-2 text-xs">
-                            <span className="text-gray-700 font-medium">{formatEur(r.bruttowert || r.wert)}</span>
-                            {r.zahlbar_bis && <span className={istOffen && new Date(r.zahlbar_bis) < new Date() ? 'text-red-500 font-medium' : 'text-gray-400'}>Faellig {formatDate(r.zahlbar_bis)}</span>}
-                            <span className="text-gray-400">{formatDate(r.datum)}</span>
+                            <span className="text-text-primary font-medium">{formatEur(r.bruttowert || r.wert)}</span>
+                            {r.zahlbar_bis && <span className={istOffen && new Date(r.zahlbar_bis) < new Date() ? 'text-red-500 font-medium' : 'text-text-muted'}>Faellig {formatDate(r.zahlbar_bis)}</span>}
+                            <span className="text-text-muted">{formatDate(r.datum)}</span>
                           </div>
                         </div>
                       </div>
@@ -984,14 +984,14 @@ function KontaktDetailModal({ kontaktId, onClose }) {
                   {items.map(b => {
                     const projekt = projektMap[b.projekt_code]
                     return (
-                      <div key={b.code} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-gray-50 text-sm">
+                      <div key={b.code} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-surface-main text-sm">
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className="font-mono text-xs text-gray-500">{b.nummer}</span>
-                          {projekt && <span className="text-gray-500 text-xs truncate">· {projekt.nummer} – {projekt.name}</span>}
+                          <span className="font-mono text-xs text-text-secondary">{b.nummer}</span>
+                          {projekt && <span className="text-text-secondary text-xs truncate">· {projekt.nummer} – {projekt.name}</span>}
                         </div>
                         <div className="flex items-center gap-3 shrink-0 ml-2 text-xs">
-                          <span className="text-gray-700 font-medium">{formatEur(b.wert)}</span>
-                          <span className="text-gray-400">{formatDate(b.datum)}</span>
+                          <span className="text-text-primary font-medium">{formatEur(b.wert)}</span>
+                          <span className="text-text-muted">{formatDate(b.datum)}</span>
                         </div>
                       </div>
                     )
@@ -1109,32 +1109,32 @@ export default function Kunden() {
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Kontakte</h1>
-          <p className="text-gray-500 mt-1">Kunden und Kontakte durchsuchen</p>
+          <h1 className="text-2xl font-bold text-text-primary">Kontakte</h1>
+          <p className="text-text-secondary mt-1">Kunden und Kontakte durchsuchen</p>
         </div>
         <button onClick={() => setShowNeuerKontakt(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium shadow-sm">
+          className="flex items-center gap-2 px-4 py-2.5 bg-btn-primary text-white rounded-lg hover:bg-btn-primary-hover transition-colors text-sm font-medium shadow-sm">
           <Plus className="w-4 h-4" /> Neuer Kontakt
         </button>
       </div>
 
       {/* Search */}
-      <div className="sticky top-0 z-10 bg-white pb-4">
+      <div className="sticky top-0 z-10 bg-surface-card pb-4">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
           <input
             type="text"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             placeholder="Firma, Name, Ort, PLZ, Telefon oder E-Mail suchen... (min. 2 Zeichen)"
-            className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+            className="w-full pl-10 pr-4 py-3 rounded-xl border border-border-default bg-surface-card text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent shadow-sm"
           />
           {searchTerm && (
             <button
               onClick={() => setSearchTerm('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-gray-100"
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-surface-hover"
             >
-              <X className="w-4 h-4 text-gray-400" />
+              <X className="w-4 h-4 text-text-muted" />
             </button>
           )}
         </div>
@@ -1144,21 +1144,21 @@ export default function Kunden() {
       {loading ? (
         <div className="flex items-center justify-center py-20">
           <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <span className="ml-3 text-sm text-gray-500">Suche...</span>
+          <span className="ml-3 text-sm text-text-secondary">Suche...</span>
         </div>
       ) : debouncedTerm.length < 2 ? (
-        <div className="text-center py-20 text-gray-400">
+        <div className="text-center py-20 text-text-muted">
           <Search className="w-12 h-12 mx-auto mb-3 opacity-30" />
           <p>Suchbegriff eingeben um Kontakte zu finden</p>
         </div>
       ) : results.length === 0 ? (
-        <div className="text-center py-20 text-gray-400">
+        <div className="text-center py-20 text-text-muted">
           <User className="w-12 h-12 mx-auto mb-3 opacity-30" />
           <p>Keine Kontakte gefunden fuer &ldquo;{debouncedTerm}&rdquo;</p>
         </div>
       ) : (
         <>
-          <p className="text-sm text-gray-500 mb-3">{results.length} Ergebnis{results.length !== 1 ? 'se' : ''}</p>
+          <p className="text-sm text-text-secondary mb-3">{results.length} Ergebnis{results.length !== 1 ? 'se' : ''}</p>
           <div className="grid gap-3">
             {results.map(k => {
               const displayName = getDisplayName(k)
@@ -1172,17 +1172,17 @@ export default function Kunden() {
                 <div
                   key={k.id}
                   onClick={() => setSelectedKontaktId(k.id)}
-                  className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow cursor-pointer"
+                  className="bg-surface-card rounded-lg shadow-sm border border-border-light p-4 hover:shadow-md transition-shadow cursor-pointer"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="font-semibold text-gray-900 truncate">{displayName}</span>
+                        <span className="font-semibold text-text-primary truncate">{displayName}</span>
                         <SourceBadge hasErp={hasErp} />
                         <KundeLieferantBadge istKunde={k.ist_kunde} istLieferant={k.ist_lieferant} />
                       </div>
-                      {k.firma2 && <p className="text-sm text-gray-500 truncate">{k.firma2}</p>}
-                      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-sm text-gray-500">
+                      {k.firma2 && <p className="text-sm text-text-secondary truncate">{k.firma2}</p>}
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-sm text-text-secondary">
                         {adresse && (
                           <span className="flex items-center gap-1">
                             <MapPin className="w-3.5 h-3.5" />

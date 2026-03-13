@@ -103,15 +103,15 @@ export default function PipelineView({ projekte, alerts, onProjektClick }) {
     <div>
       {/* Sort controls */}
       <div className="flex items-center gap-1 mb-2">
-        <span className="text-xs text-gray-400 mr-1">Sortieren:</span>
+        <span className="text-xs text-text-muted mr-1">Sortieren:</span>
         {SORT_OPTIONS.map(opt => (
           <button
             key={opt.key}
             onClick={() => setSortKey(opt.key)}
             className={`px-2 py-0.5 text-xs rounded transition-colors ${
               sortKey === opt.key
-                ? 'bg-blue-100 text-blue-700 font-medium'
-                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                ? 'bg-brand-light text-brand-dark font-medium'
+                : 'bg-surface-hover text-text-secondary hover:bg-surface-hover'
             }`}
           >
             {opt.label}
@@ -120,7 +120,7 @@ export default function PipelineView({ projekte, alerts, onProjektClick }) {
       </div>
 
       {/* List */}
-      <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <div className="border border-border-default rounded-lg overflow-hidden">
         {sorted.map(p => {
           const days = daysInPhase(p)
           const alertSeverity = alertMap[p.id]
@@ -130,7 +130,7 @@ export default function PipelineView({ projekte, alerts, onProjektClick }) {
             <div
               key={p.id}
               onClick={() => onProjektClick(p.id)}
-              className="flex items-center px-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+              className="flex items-center px-3 hover:bg-surface-main cursor-pointer border-b border-border-light last:border-b-0"
               style={{ height: 40 }}
             >
               {/* Alert dot */}
@@ -148,17 +148,17 @@ export default function PipelineView({ projekte, alerts, onProjektClick }) {
               </div>
 
               {/* Projekt-Nr */}
-              <div className="font-mono text-xs text-gray-500 flex-shrink-0" style={{ width: 90 }}>
+              <div className="font-mono text-xs text-text-secondary flex-shrink-0" style={{ width: 90 }}>
                 {p.projekt_nr || '–'}
               </div>
 
               {/* Kunde */}
-              <div className="flex-1 min-w-0 text-sm font-medium text-gray-900 truncate pr-2">
+              <div className="flex-1 min-w-0 text-sm font-medium text-text-primary truncate pr-2">
                 {kontaktName(p.kontakte)}
               </div>
 
               {/* Wert */}
-              <div className="text-xs text-gray-600 text-right flex-shrink-0" style={{ width: 100 }}>
+              <div className="text-xs text-text-secondary text-right flex-shrink-0" style={{ width: 100 }}>
                 {formatEuro(wert)}
               </div>
 
@@ -173,7 +173,7 @@ export default function PipelineView({ projekte, alerts, onProjektClick }) {
               </div>
 
               {/* Team */}
-              <div className="text-xs text-gray-500 flex-shrink-0 truncate" style={{ width: 80 }}>
+              <div className="text-xs text-text-secondary flex-shrink-0 truncate" style={{ width: 80 }}>
                 {TEAMS_MAP[p.montage_team] || '–'}
               </div>
 
@@ -189,7 +189,7 @@ export default function PipelineView({ projekte, alerts, onProjektClick }) {
         })}
 
         {(!projekte || projekte.length === 0) && (
-          <div className="text-center text-sm text-gray-400 py-8">
+          <div className="text-center text-sm text-text-muted py-8">
             Keine Projekte vorhanden
           </div>
         )}

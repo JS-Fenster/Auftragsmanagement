@@ -58,7 +58,7 @@ function KanbanCard({ projekt, onProjektClick, isDragging, alerts, onDragStart }
         onDragStart(projekt.id)
       }}
       onClick={() => onProjektClick?.(projekt.id)}
-      className="rounded-lg border bg-white p-3 cursor-grab active:cursor-grabbing transition-shadow hover:shadow-md"
+      className="rounded-lg border bg-surface-card p-3 cursor-grab active:cursor-grabbing transition-shadow hover:shadow-md"
       style={{
         opacity: isDragging ? 0.4 : 1,
         borderColor: '#E5E7EB',

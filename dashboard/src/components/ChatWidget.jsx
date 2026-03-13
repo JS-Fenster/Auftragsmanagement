@@ -167,7 +167,7 @@ export default function ChatWidget() {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 z-50 w-16 h-16 rounded-full shadow-md flex items-center justify-center transition-all hover:scale-105 hover:shadow-lg border-2 bg-white"
+        className="fixed bottom-6 right-6 z-50 w-16 h-16 rounded-full shadow-md flex items-center justify-center transition-all hover:scale-105 hover:shadow-lg border-2 bg-surface-card"
         style={{ borderColor: '#FBBA00' }}
         title={`${ASSISTANT_NAME} oeffnen`}
       >
@@ -183,7 +183,7 @@ export default function ChatWidget() {
 
   // Chat Panel
   return (
-    <div className="fixed bottom-6 right-6 z-50 w-[420px] h-[560px] bg-white rounded-xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden">
+    <div className="fixed bottom-6 right-6 z-50 w-[420px] h-[560px] bg-surface-card rounded-xl shadow-2xl border border-border-default flex flex-col overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b-3" style={{ backgroundColor: '#9E9E9E', borderBottomColor: '#FBBA00' }}>
         <div className="flex items-center gap-2.5">
@@ -195,14 +195,14 @@ export default function ChatWidget() {
         </div>
         <div className="flex items-center gap-1">
           {messages.length > 0 && (
-            <button onClick={clearChat} className="p-1.5 text-gray-300 hover:text-white hover:bg-gray-600 rounded transition-colors" title="Chat leeren">
+            <button onClick={clearChat} className="p-1.5 text-text-muted hover:text-white hover:bg-gray-600 rounded transition-colors" title="Chat leeren">
               <Trash2 size={14} />
             </button>
           )}
-          <button onClick={() => setIsOpen(false)} className="p-1.5 text-gray-300 hover:text-white hover:bg-gray-600 rounded transition-colors" title="Minimieren">
+          <button onClick={() => setIsOpen(false)} className="p-1.5 text-text-muted hover:text-white hover:bg-gray-600 rounded transition-colors" title="Minimieren">
             <Minimize2 size={14} />
           </button>
-          <button onClick={() => { setIsOpen(false); setMessages([]) }} className="p-1.5 text-gray-300 hover:text-white hover:bg-gray-600 rounded transition-colors" title="Schliessen">
+          <button onClick={() => { setIsOpen(false); setMessages([]) }} className="p-1.5 text-text-muted hover:text-white hover:bg-gray-600 rounded transition-colors" title="Schliessen">
             <X size={14} />
           </button>
         </div>
@@ -211,9 +211,9 @@ export default function ChatWidget() {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {messages.length === 0 && (
-          <div className="text-center text-gray-400 text-sm mt-8">
+          <div className="text-center text-text-muted text-sm mt-8">
             <img src={ASSISTANT_AVATAR} alt={ASSISTANT_NAME} className="w-16 h-16 rounded-full mx-auto mb-3" />
-            <p className="font-medium text-gray-500">Hallo! Ich bin {ASSISTANT_NAME}. Wie kann ich helfen?</p>
+            <p className="font-medium text-text-secondary">Hallo! Ich bin {ASSISTANT_NAME}. Wie kann ich helfen?</p>
             <p className="mt-2 text-xs">Beispiele:</p>
             <div className="mt-2 space-y-1">
               {[
@@ -239,10 +239,10 @@ export default function ChatWidget() {
             <div
               className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
                 msg.role === 'user'
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-btn-primary text-white'
                   : msg.isError
                     ? 'bg-red-50 text-red-700 border border-red-200'
-                    : 'bg-gray-100 text-gray-800'
+                    : 'bg-surface-hover text-text-primary'
               }`}
             >
               {msg.role === 'assistant' ? (
@@ -251,8 +251,8 @@ export default function ChatWidget() {
                 <span className="whitespace-pre-wrap">{msg.content}</span>
               )}
               {msg.toolCalls && msg.toolCalls.length > 0 && (
-                <div className="mt-2 pt-2 border-t border-gray-200">
-                  <span className="text-xs text-gray-400">
+                <div className="mt-2 pt-2 border-t border-border-default">
+                  <span className="text-xs text-text-muted">
                     {msg.toolCalls.map(tc => tc.name).join(', ')} abgefragt
                   </span>
                 </div>
@@ -263,7 +263,7 @@ export default function ChatWidget() {
 
         {loading && (
           <div className="flex justify-start">
-            <div className="bg-gray-100 rounded-lg px-3 py-2 text-sm text-gray-500 flex items-center gap-2">
+            <div className="bg-surface-hover rounded-lg px-3 py-2 text-sm text-text-secondary flex items-center gap-2">
               <Loader2 size={14} className="animate-spin" />
               Suche und analysiere...
               <button
@@ -290,7 +290,7 @@ export default function ChatWidget() {
       )}
 
       {/* Input */}
-      <div className="border-t border-gray-200 px-3 py-2">
+      <div className="border-t border-border-default px-3 py-2">
         <div className="flex items-end gap-2">
           <textarea
             ref={inputRef}
@@ -299,7 +299,7 @@ export default function ChatWidget() {
             onKeyDown={handleKeyDown}
             placeholder="Frage eingeben..."
             rows={1}
-            className="flex-1 resize-none border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 max-h-20"
+            className="flex-1 resize-none border border-border-default rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 max-h-20"
             style={{ '--tw-ring-color': '#FBBA00' }}
             disabled={loading}
           />
@@ -353,7 +353,7 @@ function formatInline(text, keyPrefix = '') {
       return <strong key={`${keyPrefix}-${j}`}>{part.slice(2, -2)}</strong>
     }
     if (part.startsWith('`') && part.endsWith('`')) {
-      return <code key={`${keyPrefix}-${j}`} className="bg-gray-200 text-gray-700 px-1 rounded text-xs">{part.slice(1, -1)}</code>
+      return <code key={`${keyPrefix}-${j}`} className="bg-surface-hover text-text-primary px-1 rounded text-xs">{part.slice(1, -1)}</code>
     }
     return part
   })
@@ -392,18 +392,18 @@ function FormattedMessage({ content }) {
 
     // Headers
     if (line.startsWith('### ')) {
-      elements.push(<p key={i} className="font-semibold text-gray-700 mt-1.5">{formatInline(line.slice(4), i)}</p>)
+      elements.push(<p key={i} className="font-semibold text-text-primary mt-1.5">{formatInline(line.slice(4), i)}</p>)
     } else if (line.startsWith('## ')) {
-      elements.push(<p key={i} className="font-semibold text-gray-800 mt-2">{formatInline(line.slice(3), i)}</p>)
+      elements.push(<p key={i} className="font-semibold text-text-primary mt-2">{formatInline(line.slice(3), i)}</p>)
     } else if (line.startsWith('# ')) {
-      elements.push(<p key={i} className="font-bold text-gray-900 mt-2">{formatInline(line.slice(2), i)}</p>)
+      elements.push(<p key={i} className="font-bold text-text-primary mt-2">{formatInline(line.slice(2), i)}</p>)
     }
     // Numbered lists
     else if (/^\d+[\.\)] /.test(line)) {
       const match = line.match(/^(\d+[\.\)] )(.*)/)
       elements.push(
         <div key={i} className="flex gap-1.5 ml-1">
-          <span className="text-gray-400 flex-shrink-0">{match[1]}</span>
+          <span className="text-text-muted flex-shrink-0">{match[1]}</span>
           <span>{formatInline(match[2], i)}</span>
         </div>
       )
@@ -412,7 +412,7 @@ function FormattedMessage({ content }) {
     else if (line.startsWith('- ') || line.startsWith('• ')) {
       elements.push(
         <div key={i} className="flex gap-1.5 ml-1">
-          <span className="text-gray-400">•</span>
+          <span className="text-text-muted">•</span>
           <span>{formatInline(line.slice(2), i)}</span>
         </div>
       )
@@ -422,7 +422,7 @@ function FormattedMessage({ content }) {
       const text = line.replace(/^\s+[-•] /, '')
       elements.push(
         <div key={i} className="flex gap-1.5 ml-4">
-          <span className="text-gray-300">◦</span>
+          <span className="text-text-muted">◦</span>
           <span>{formatInline(text, i)}</span>
         </div>
       )
@@ -455,7 +455,7 @@ function SimpleTable({ rows }) {
         <thead>
           <tr>
             {header.map((cell, i) => (
-              <th key={i} className="border border-gray-200 bg-gray-50 px-2 py-1 text-left font-medium">
+              <th key={i} className="border border-border-default bg-surface-main px-2 py-1 text-left font-medium">
                 {cell}
               </th>
             ))}
@@ -465,7 +465,7 @@ function SimpleTable({ rows }) {
           {body.map((row, i) => (
             <tr key={i}>
               {row.map((cell, j) => (
-                <td key={j} className="border border-gray-200 px-2 py-1">
+                <td key={j} className="border border-border-default px-2 py-1">
                   {cell}
                 </td>
               ))}

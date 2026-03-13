@@ -203,8 +203,8 @@ export default function Dokumente() {
     if (!value) return null
     return (
       <div key={label} className="flex justify-between py-1">
-        <span className="text-gray-500 text-sm">{label}</span>
-        <span className="text-gray-900 text-sm text-right max-w-[60%] break-words">{value}</span>
+        <span className="text-text-secondary text-sm">{label}</span>
+        <span className="text-text-primary text-sm text-right max-w-[60%] break-words">{value}</span>
       </div>
     )
   }
@@ -212,10 +212,10 @@ export default function Dokumente() {
   const Section = ({ title, sectionKey, children }) => {
     const open = expandedSections[sectionKey]
     return (
-      <div className="border-b border-gray-100 last:border-0">
+      <div className="border-b border-border-light last:border-0">
         <button
           onClick={() => toggleSection(sectionKey)}
-          className="flex items-center justify-between w-full py-3 text-sm font-medium text-gray-700 hover:text-gray-900"
+          className="flex items-center justify-between w-full py-3 text-sm font-medium text-text-primary hover:text-text-primary"
         >
           {title}
           {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
@@ -233,23 +233,23 @@ export default function Dokumente() {
   ]
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] bg-white">
+    <div className="flex h-[calc(100vh-4rem)] bg-surface-card">
       {/* Left Panel */}
-      <div className="w-[60%] flex flex-col border-r border-gray-200">
+      <div className="w-[60%] flex flex-col border-r border-border-default">
         {/* Search */}
-        <div className="p-4 border-b border-gray-200 space-y-3">
+        <div className="p-4 border-b border-border-default space-y-3">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
             <input
               type="text"
               placeholder="Dokumente durchsuchen..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-8 py-2 border border-border-default rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
             />
             {searchTerm && (
               <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2">
-                <X className="w-4 h-4 text-gray-400 hover:text-gray-600" />
+                <X className="w-4 h-4 text-text-muted hover:text-text-secondary" />
               </button>
             )}
           </div>
@@ -259,7 +259,7 @@ export default function Dokumente() {
             <select
               value={kategorie}
               onChange={(e) => setKategorie(e.target.value)}
-              className="text-xs border border-gray-300 rounded-md px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="text-xs border border-border-default rounded-md px-2 py-1.5 bg-surface-card focus:outline-none focus:ring-1 focus:ring-brand"
             >
               <option value="">Alle Kategorien</option>
               {DOKUMENT_KATEGORIEN.map(k => (
@@ -270,7 +270,7 @@ export default function Dokumente() {
             <select
               value={quelle}
               onChange={(e) => setQuelle(e.target.value)}
-              className="text-xs border border-gray-300 rounded-md px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="text-xs border border-border-default rounded-md px-2 py-1.5 bg-surface-card focus:outline-none focus:ring-1 focus:ring-brand"
             >
               <option value="">Alle Quellen</option>
               {DOKUMENT_QUELLEN.map(q => (
@@ -281,7 +281,7 @@ export default function Dokumente() {
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
-              className="text-xs border border-gray-300 rounded-md px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="text-xs border border-border-default rounded-md px-2 py-1.5 bg-surface-card focus:outline-none focus:ring-1 focus:ring-brand"
             >
               <option value="">Alle Status</option>
               {PROCESSING_STATUS.map(s => (
@@ -298,14 +298,14 @@ export default function Dokumente() {
                 onClick={() => setZeitraum(z.value)}
                 className={`text-xs px-3 py-1 rounded-full transition-colors ${
                   zeitraum === z.value
-                    ? 'bg-blue-100 text-blue-700 font-medium'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'bg-brand-light text-brand-dark font-medium'
+                    : 'bg-surface-hover text-text-secondary hover:bg-surface-hover'
                 }`}
               >
                 {z.label}
               </button>
             ))}
-            <span className="ml-auto text-xs text-gray-400 self-center">
+            <span className="ml-auto text-xs text-text-muted self-center">
               {totalCount.toLocaleString('de-DE')} Dokumente
             </span>
           </div>
@@ -315,10 +315,10 @@ export default function Dokumente() {
         <div className="flex-1 overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center h-40">
-              <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
+              <Loader2 className="w-6 h-6 text-brand animate-spin" />
             </div>
           ) : documents.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-40 text-gray-400">
+            <div className="flex flex-col items-center justify-center h-40 text-text-muted">
               <FileText className="w-10 h-10 mb-2" />
               <p className="text-sm">Keine Dokumente gefunden</p>
             </div>
@@ -336,8 +336,8 @@ export default function Dokumente() {
                   <button
                     key={doc.id}
                     onClick={() => setSelectedId(doc.id)}
-                    className={`w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors ${
-                      selected ? 'bg-blue-50 border-l-4 border-l-blue-500' : 'border-l-4 border-l-transparent'
+                    className={`w-full text-left px-4 py-3 border-b border-border-light hover:bg-surface-main transition-colors ${
+                      selected ? 'bg-brand-light border-l-4 border-l-blue-500' : 'border-l-4 border-l-transparent'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -357,10 +357,10 @@ export default function Dokumente() {
                             title={doc.processing_status}
                           />
                         </div>
-                        <p className="text-sm font-medium text-gray-900 truncate">{title}</p>
-                        <p className="text-xs text-gray-500 truncate">{subtitle}</p>
+                        <p className="text-sm font-medium text-text-primary truncate">{title}</p>
+                        <p className="text-xs text-text-secondary truncate">{subtitle}</p>
                       </div>
-                      <span className="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">
+                      <span className="text-xs text-text-muted whitespace-nowrap flex-shrink-0">
                         {doc.created_at ? format(new Date(doc.created_at), 'dd.MM.yyyy HH:mm', { locale: de }) : ''}
                       </span>
                     </div>
@@ -372,7 +372,7 @@ export default function Dokumente() {
                   <button
                     onClick={loadMore}
                     disabled={loadingMore}
-                    className="text-sm text-blue-600 hover:text-blue-800 font-medium disabled:opacity-50"
+                    className="text-sm text-brand hover:text-blue-800 font-medium disabled:opacity-50"
                   >
                     {loadingMore ? (
                       <span className="flex items-center justify-center gap-2">
@@ -390,14 +390,14 @@ export default function Dokumente() {
       {/* Right Panel: Preview */}
       <div className="w-[40%] overflow-y-auto">
         {!selectedId ? (
-          <div className="flex flex-col items-center justify-center h-full text-gray-400">
+          <div className="flex flex-col items-center justify-center h-full text-text-muted">
             <FileText className="w-16 h-16 mb-4" />
             <p className="text-lg font-medium">Dokument auswaehlen</p>
             <p className="text-sm mt-1">Klicken Sie links auf ein Dokument</p>
           </div>
         ) : loadingDetail ? (
           <div className="flex items-center justify-center h-full">
-            <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+            <Loader2 className="w-8 h-8 text-brand animate-spin" />
           </div>
         ) : selectedDoc ? (
           <div className="p-6 space-y-5">
@@ -415,53 +415,53 @@ export default function Dokumente() {
                     {(selectedDoc.kategorie_manual || selectedDoc.kategorie).replace(/_/g, ' ')}
                   </span>
                 )}
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-text-muted">
                   {selectedDoc.created_at
                     ? format(new Date(selectedDoc.created_at), 'dd.MM.yyyy HH:mm', { locale: de })
                     : ''}
                 </span>
               </div>
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-text-primary">
                 {selectedDoc.betreff || selectedDoc.email_betreff || 'Ohne Titel'}
               </h2>
               {selectedDoc.inhalt_zusammenfassung && (
-                <p className="text-sm text-gray-600 mt-1">{selectedDoc.inhalt_zusammenfassung}</p>
+                <p className="text-sm text-text-secondary mt-1">{selectedDoc.inhalt_zusammenfassung}</p>
               )}
             </div>
 
             {/* Email Meta */}
             {selectedDoc.source === 'email' && (selectedDoc.email_von_name || selectedDoc.email_von_email || selectedDoc.email_an_email) && (
-              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 space-y-1.5">
+              <div className="border border-border-default rounded-lg p-4 bg-surface-main space-y-1.5">
                 <div className="flex items-center gap-2 mb-2">
-                  <Mail className="w-4 h-4 text-gray-500" />
-                  <span className="text-sm font-medium text-gray-700">E-Mail Details</span>
+                  <Mail className="w-4 h-4 text-text-secondary" />
+                  <span className="text-sm font-medium text-text-primary">E-Mail Details</span>
                 </div>
                 {(selectedDoc.email_von_name || selectedDoc.email_von_email) && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Von</span>
-                    <span className="text-gray-900 text-right">
+                    <span className="text-text-secondary">Von</span>
+                    <span className="text-text-primary text-right">
                       {selectedDoc.email_von_name && <span className="font-medium">{selectedDoc.email_von_name}</span>}
                       {selectedDoc.email_von_name && selectedDoc.email_von_email && ' '}
-                      {selectedDoc.email_von_email && <span className="text-gray-500">&lt;{selectedDoc.email_von_email}&gt;</span>}
+                      {selectedDoc.email_von_email && <span className="text-text-secondary">&lt;{selectedDoc.email_von_email}&gt;</span>}
                     </span>
                   </div>
                 )}
                 {selectedDoc.email_an_email && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">An</span>
-                    <span className="text-gray-900 text-right">{selectedDoc.email_an_email}</span>
+                    <span className="text-text-secondary">An</span>
+                    <span className="text-text-primary text-right">{selectedDoc.email_an_email}</span>
                   </div>
                 )}
                 {selectedDoc.email_betreff && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Betreff</span>
-                    <span className="text-gray-900 text-right max-w-[60%] break-words">{selectedDoc.email_betreff}</span>
+                    <span className="text-text-secondary">Betreff</span>
+                    <span className="text-text-primary text-right max-w-[60%] break-words">{selectedDoc.email_betreff}</span>
                   </div>
                 )}
                 {selectedDoc.email_kategorie && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">E-Mail Kategorie</span>
-                    <span className="text-gray-900">{selectedDoc.email_kategorie.replace(/_/g, ' ')}</span>
+                    <span className="text-text-secondary">E-Mail Kategorie</span>
+                    <span className="text-text-primary">{selectedDoc.email_kategorie.replace(/_/g, ' ')}</span>
                   </div>
                 )}
               </div>
@@ -469,19 +469,19 @@ export default function Dokumente() {
 
             {/* Email Body */}
             {selectedDoc.email_body_text && (
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
-                <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-200">
-                  <span className="text-sm font-medium text-gray-700">E-Mail Inhalt</span>
+              <div className="border border-border-default rounded-lg overflow-hidden">
+                <div className="px-4 py-2.5 bg-surface-main border-b border-border-default">
+                  <span className="text-sm font-medium text-text-primary">E-Mail Inhalt</span>
                 </div>
                 <div className="p-4">
-                  <pre className={`text-sm text-gray-700 whitespace-pre-wrap font-sans ${!emailBodyExpanded ? 'max-h-[300px] overflow-y-auto' : ''}`}>
+                  <pre className={`text-sm text-text-primary whitespace-pre-wrap font-sans ${!emailBodyExpanded ? 'max-h-[300px] overflow-y-auto' : ''}`}>
                     {emailBodyExpanded ? selectedDoc.email_body_text : selectedDoc.email_body_text.slice(0, 2000)}
                     {!emailBodyExpanded && selectedDoc.email_body_text.length > 2000 && '...'}
                   </pre>
                   {selectedDoc.email_body_text.length > 2000 && (
                     <button
                       onClick={() => setEmailBodyExpanded(!emailBodyExpanded)}
-                      className="text-xs text-blue-600 hover:underline mt-2"
+                      className="text-xs text-brand hover:underline mt-2"
                     >
                       {emailBodyExpanded ? 'Weniger anzeigen' : 'Vollstaendig anzeigen'}
                     </button>
@@ -492,10 +492,10 @@ export default function Dokumente() {
 
             {/* Email Attachments */}
             {selectedDoc.email_anhaenge_meta && selectedDoc.email_anhaenge_meta.length > 0 && (
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
-                <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
-                  <Paperclip className="w-4 h-4 text-gray-500" />
-                  <span className="text-sm font-medium text-gray-700">
+              <div className="border border-border-default rounded-lg overflow-hidden">
+                <div className="px-4 py-2.5 bg-surface-main border-b border-border-default flex items-center gap-2">
+                  <Paperclip className="w-4 h-4 text-text-secondary" />
+                  <span className="text-sm font-medium text-text-primary">
                     Anhaenge ({selectedDoc.email_anhaenge_meta.length})
                   </span>
                 </div>
@@ -516,20 +516,20 @@ export default function Dokumente() {
                           console.error('Anhang-URL fehlgeschlagen:', e)
                         }
                       }}
-                      className="w-full text-left px-4 py-2.5 hover:bg-gray-50 flex items-center justify-between gap-3 transition-colors"
+                      className="w-full text-left px-4 py-2.5 hover:bg-surface-main flex items-center justify-between gap-3 transition-colors"
                     >
                       <div className="flex items-center gap-2 min-w-0">
-                        <FileText className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                        <span className="text-sm text-gray-900 truncate">{att.name}</span>
+                        <FileText className="w-4 h-4 text-text-muted flex-shrink-0" />
+                        <span className="text-sm text-text-primary truncate">{att.name}</span>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-text-muted">
                           {att.size ? (att.size < 1024 * 1024
                             ? `${Math.round(att.size / 1024)} KB`
                             : `${(att.size / (1024 * 1024)).toFixed(1)} MB`
                           ) : ''}
                         </span>
-                        <Download className="w-3.5 h-3.5 text-gray-400" />
+                        <Download className="w-3.5 h-3.5 text-text-muted" />
                       </div>
                     </button>
                   ))}
@@ -539,10 +539,10 @@ export default function Dokumente() {
 
             {/* Preview */}
             {selectedDoc.dokument_url && !selectedDoc.dokument_url.startsWith('email://') && (
-              <div className="border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
+              <div className="border border-border-default rounded-lg overflow-hidden bg-surface-main">
                 {loadingPreview ? (
                   <div className="flex items-center justify-center h-64">
-                    <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
+                    <Loader2 className="w-6 h-6 text-brand animate-spin" />
                   </div>
                 ) : previewUrl ? (
                   <>
@@ -559,7 +559,7 @@ export default function Dokumente() {
                         className="w-full h-auto max-h-[500px] object-contain"
                       />
                     ) : (
-                      <div className="flex flex-col items-center justify-center h-40 text-gray-400">
+                      <div className="flex flex-col items-center justify-center h-40 text-text-muted">
                         <Eye className="w-8 h-8 mb-2" />
                         <p className="text-sm">Vorschau nicht verfuegbar</p>
                         <button
@@ -569,7 +569,7 @@ export default function Dokumente() {
                             a.download = selectedDoc.dokument_url?.split('/').pop() || 'dokument'
                             a.click()
                           }}
-                          className="text-sm text-blue-600 hover:underline mt-1 flex items-center gap-1"
+                          className="text-sm text-brand hover:underline mt-1 flex items-center gap-1"
                         >
                           <Download className="w-3 h-3" /> Herunterladen
                         </button>
@@ -577,7 +577,7 @@ export default function Dokumente() {
                     )}
                   </>
                 ) : (
-                  <div className="flex items-center justify-center h-40 text-gray-400">
+                  <div className="flex items-center justify-center h-40 text-text-muted">
                     <p className="text-sm">Vorschau konnte nicht geladen werden</p>
                   </div>
                 )}
@@ -585,7 +585,7 @@ export default function Dokumente() {
             )}
 
             {/* Extracted Details */}
-            <div className="border border-gray-200 rounded-lg px-4">
+            <div className="border border-border-default rounded-lg px-4">
               <Section title="Aussteller" sectionKey="aussteller">
                 {renderDetailField('Firma', selectedDoc.aussteller_firma)}
                 {renderDetailField('Name', selectedDoc.aussteller_name)}
@@ -622,16 +622,16 @@ export default function Dokumente() {
 
             {/* OCR Text */}
             {selectedDoc.ocr_text && (
-              <div className="border border-gray-200 rounded-lg px-4">
+              <div className="border border-border-default rounded-lg px-4">
                 <Section title="OCR-Text" sectionKey="ocr">
-                  <div className={`text-xs text-gray-700 font-mono whitespace-pre-wrap ${!ocrExpanded ? 'max-h-60 overflow-y-auto' : ''}`}>
+                  <div className={`text-xs text-text-primary font-mono whitespace-pre-wrap ${!ocrExpanded ? 'max-h-60 overflow-y-auto' : ''}`}>
                     {ocrExpanded ? selectedDoc.ocr_text : selectedDoc.ocr_text.slice(0, 500)}
                     {!ocrExpanded && selectedDoc.ocr_text.length > 500 && '...'}
                   </div>
                   {selectedDoc.ocr_text.length > 500 && (
                     <button
                       onClick={() => setOcrExpanded(!ocrExpanded)}
-                      className="text-xs text-blue-600 hover:underline mt-2"
+                      className="text-xs text-brand hover:underline mt-2"
                     >
                       {ocrExpanded ? 'Weniger anzeigen' : 'Vollstaendig anzeigen'}
                     </button>
@@ -641,7 +641,7 @@ export default function Dokumente() {
             )}
 
             {/* Meta */}
-            <div className="border border-gray-200 rounded-lg px-4">
+            <div className="border border-border-default rounded-lg px-4">
               <Section title="Meta-Informationen" sectionKey="meta">
                 {renderDetailField('Quelle', selectedDoc.source)}
                 {renderDetailField('Status', selectedDoc.processing_status)}

@@ -1,5 +1,6 @@
 import { Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom'
-import { FolderKanban, CalendarDays, ArrowLeft, Home, Search, LayoutDashboard } from 'lucide-react'
+import { FolderKanban, CalendarDays, ArrowLeft, Home, Search, LayoutDashboard, Moon, Sun } from 'lucide-react'
+import { useState, useEffect } from 'react'
 import { useIsStandalone } from './hooks/usePopout'
 import Cockpit from './pages/Cockpit'
 import Uebersicht from './pages/Uebersicht'
@@ -44,26 +45,39 @@ function StandaloneHeader() {
   const pageTitle = PAGE_TITLES[basePath] || PAGE_TITLES[location.pathname] || 'JS Fenster'
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2 border-b bg-white">
-      <button onClick={() => window.close()} className="text-gray-400 hover:text-gray-600">
+    <div className="flex items-center gap-3 px-4 py-2 border-b border-border-default bg-surface-sidebar">
+      <button onClick={() => window.close()} className="text-text-muted hover:text-text-secondary">
         <ArrowLeft size={18} />
       </button>
-      <button onClick={() => window.location.href = '/'} className="text-gray-400 hover:text-gray-600">
+      <button onClick={() => window.location.href = '/'} className="text-text-muted hover:text-text-secondary">
         <Home size={18} />
       </button>
-      <span className="text-sm font-medium text-gray-700">{pageTitle}</span>
+      <span className="text-sm font-medium text-text-primary">{pageTitle}</span>
       <div className="flex-1" />
-      <span className="text-xs text-gray-400">JS Fenster</span>
+      <span className="text-xs text-text-muted">JS Fenster</span>
     </div>
   )
 }
 
+function useDarkMode() {
+  const [dark, setDark] = useState(() => localStorage.getItem('theme') === 'dark')
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', dark)
+    localStorage.setItem('theme', dark ? 'dark' : 'light')
+  }, [dark])
+
+  return [dark, () => setDark(prev => !prev)]
+}
+
 function Sidebar() {
+  const [dark, toggleDark] = useDarkMode()
+
   return (
-    <nav className="w-56 bg-white border-r border-gray-200 flex flex-col">
-      <div className="p-4 border-b border-gray-200">
-        <h1 className="text-lg font-bold text-gray-900">JS Fenster</h1>
-        <p className="text-xs text-gray-500">Auftragsmanagement</p>
+    <nav className="w-56 bg-surface-sidebar border-r border-border-default flex flex-col">
+      <div className="px-4 pt-4 pb-3 border-b border-border-default">
+        <img src="/js-logo.svg" alt="J.S. Fenster & Tueren" className="w-44 dark:brightness-200" />
+        <p className="text-xs text-text-muted mt-1.5 pl-0.5">Auftragsmanagement</p>
       </div>
       <div className="flex-1 py-2">
         {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
@@ -74,8 +88,8 @@ function Sidebar() {
             className={({ isActive }) =>
               `flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors ${
                 isActive
-                  ? 'bg-blue-50 text-blue-700 font-medium'
-                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                  ? 'bg-nav-active-bg text-nav-active-text font-medium'
+                  : 'text-text-secondary hover:bg-nav-hover-bg hover:text-nav-hover-text'
               }`
             }
           >
@@ -83,21 +97,27 @@ function Sidebar() {
             {label}
           </NavLink>
         ))}
-        {/* Cmd+K Hint - klickbar */}
         <button
           onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))}
-          className="flex items-center gap-3 px-4 py-2.5 mx-2 mt-4 text-sm text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors w-full text-left"
+          className="flex items-center gap-3 px-4 py-2.5 mx-2 mt-4 text-sm text-text-muted hover:text-text-secondary hover:bg-nav-hover-bg rounded-lg transition-colors w-full text-left"
         >
           <Search size={18} />
           <span>Suche</span>
-          <kbd className="ml-auto text-xs bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded border border-gray-200">
+          <kbd className="ml-auto text-xs bg-surface-hover text-text-muted px-1.5 py-0.5 rounded border border-border-default">
             Ctrl+K
           </kbd>
         </button>
         <NotificationBell />
       </div>
-      <div className="p-4 border-t border-gray-200 text-xs text-gray-400">
-        Dashboard v2.0
+      <div className="p-4 border-t border-border-default flex items-center justify-between">
+        <span className="text-xs text-text-muted">Dashboard v2.0</span>
+        <button
+          onClick={toggleDark}
+          className="p-1.5 rounded-md text-text-muted hover:text-text-secondary hover:bg-surface-hover transition-colors cursor-pointer"
+          title={dark ? 'Light Mode' : 'Dark Mode'}
+        >
+          {dark ? <Sun size={14} /> : <Moon size={14} />}
+        </button>
       </div>
     </nav>
   )
@@ -129,7 +149,7 @@ export default function App() {
 
   if (isStandalone) {
     return (
-      <div className="flex flex-col h-screen bg-gray-50">
+      <div className="flex flex-col h-screen bg-surface-main">
         <StandaloneHeader />
         <main className="flex-1 overflow-auto">
           <AppRoutes />
@@ -141,7 +161,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-surface-main">
       <Sidebar />
       <main className="flex-1 overflow-auto">
         <AppRoutes />

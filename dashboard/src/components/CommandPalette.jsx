@@ -164,12 +164,12 @@ export default function CommandPalette() {
       onClick={() => setOpen(false)}
     >
       <div
-        className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden"
+        className="bg-surface-card rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         {/* Search input */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200">
-          <Search size={18} className="text-gray-400 shrink-0" />
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-border-default">
+          <Search size={18} className="text-text-muted shrink-0" />
           <input
             ref={inputRef}
             type="text"
@@ -179,7 +179,7 @@ export default function CommandPalette() {
             placeholder="Suche oder Aktion..."
             className="flex-1 text-sm outline-none bg-transparent placeholder-gray-400"
           />
-          <kbd className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] font-medium text-gray-400 bg-gray-100 rounded border border-gray-200">
+          <kbd className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] font-medium text-text-muted bg-surface-hover rounded border border-border-default">
             Esc
           </kbd>
         </div>
@@ -187,11 +187,11 @@ export default function CommandPalette() {
         {/* Results */}
         <div ref={listRef} className="max-h-[340px] overflow-y-auto py-1">
           {loading && (
-            <div className="px-4 py-3 text-xs text-gray-400">Suche...</div>
+            <div className="px-4 py-3 text-xs text-text-muted">Suche...</div>
           )}
 
           {!loading && !hasResults && query.length >= 2 && (
-            <div className="px-4 py-6 text-center text-sm text-gray-400">
+            <div className="px-4 py-6 text-center text-sm text-text-muted">
               Keine Ergebnisse gefunden
             </div>
           )}
@@ -199,7 +199,7 @@ export default function CommandPalette() {
           {/* Projekte section */}
           {results.projekte.length > 0 && (
             <>
-              <div className="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+              <div className="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-text-muted">
                 Projekte
               </div>
               {results.projekte.map((p, i) => {
@@ -210,15 +210,15 @@ export default function CommandPalette() {
                   <div
                     key={`p-${p.id}`}
                     data-selected={isSelected}
-                    className={`flex items-center gap-3 px-3 py-2 cursor-pointer ${isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                    className={`flex items-center gap-3 px-3 py-2 cursor-pointer ${isSelected ? 'bg-brand-light' : 'hover:bg-surface-main'}`}
                     onClick={() => handleSelect({ type: 'projekt', ...p })}
                     onMouseEnter={() => setSelectedIndex(idx)}
                   >
-                    <FolderKanban size={16} className="text-gray-400 shrink-0" />
+                    <FolderKanban size={16} className="text-text-muted shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <span className="text-sm text-gray-700 truncate">
+                      <span className="text-sm text-text-primary truncate">
                         {p.projekt_nummer && (
-                          <span className="font-medium text-gray-500 mr-1.5">{p.projekt_nummer}</span>
+                          <span className="font-medium text-text-secondary mr-1.5">{p.projekt_nummer}</span>
                         )}
                         {p.titel || 'Ohne Titel'}
                       </span>
@@ -234,7 +234,7 @@ export default function CommandPalette() {
                         {statusConf.label}
                       </span>
                     )}
-                    <ArrowRight size={14} className="text-gray-300 shrink-0" />
+                    <ArrowRight size={14} className="text-text-muted shrink-0" />
                   </div>
                 )
               })}
@@ -244,7 +244,7 @@ export default function CommandPalette() {
           {/* Kontakte section */}
           {results.kontakte.length > 0 && (
             <>
-              <div className="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+              <div className="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-text-muted">
                 Kunden
               </div>
               {results.kontakte.map((k, i) => {
@@ -255,16 +255,16 @@ export default function CommandPalette() {
                   <div
                     key={`k-${k.id}`}
                     data-selected={isSelected}
-                    className={`flex items-center gap-3 px-3 py-2 cursor-pointer ${isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                    className={`flex items-center gap-3 px-3 py-2 cursor-pointer ${isSelected ? 'bg-brand-light' : 'hover:bg-surface-main'}`}
                     onClick={() => handleSelect({ type: 'kontakt', ...k })}
                     onMouseEnter={() => setSelectedIndex(idx)}
                   >
-                    <Users size={16} className="text-gray-400 shrink-0" />
-                    <div className="flex-1 min-w-0 text-sm text-gray-700 truncate">
+                    <Users size={16} className="text-text-muted shrink-0" />
+                    <div className="flex-1 min-w-0 text-sm text-text-primary truncate">
                       {displayName || 'Unbenannt'}
-                      {k.ort && <span className="text-gray-400 ml-1.5">- {k.ort}</span>}
+                      {k.ort && <span className="text-text-muted ml-1.5">- {k.ort}</span>}
                     </div>
-                    <ArrowRight size={14} className="text-gray-300 shrink-0" />
+                    <ArrowRight size={14} className="text-text-muted shrink-0" />
                   </div>
                 )
               })}
@@ -274,7 +274,7 @@ export default function CommandPalette() {
           {/* Actions section */}
           {results.actions.length > 0 && (
             <>
-              <div className="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+              <div className="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-text-muted">
                 Aktionen
               </div>
               {results.actions.map((a, i) => {
@@ -285,13 +285,13 @@ export default function CommandPalette() {
                   <div
                     key={`a-${a.id}`}
                     data-selected={isSelected}
-                    className={`flex items-center gap-3 px-3 py-2 cursor-pointer ${isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                    className={`flex items-center gap-3 px-3 py-2 cursor-pointer ${isSelected ? 'bg-brand-light' : 'hover:bg-surface-main'}`}
                     onClick={() => handleSelect({ type: 'action', ...a })}
                     onMouseEnter={() => setSelectedIndex(idx)}
                   >
-                    <Icon size={16} className="text-gray-400 shrink-0" />
-                    <span className="flex-1 text-sm text-gray-700">{a.label}</span>
-                    <ArrowRight size={14} className="text-gray-300 shrink-0" />
+                    <Icon size={16} className="text-text-muted shrink-0" />
+                    <span className="flex-1 text-sm text-text-primary">{a.label}</span>
+                    <ArrowRight size={14} className="text-text-muted shrink-0" />
                   </div>
                 )
               })}
@@ -300,7 +300,7 @@ export default function CommandPalette() {
         </div>
 
         {/* Footer hint */}
-        <div className="flex items-center gap-3 px-4 py-2 border-t border-gray-100 text-[11px] text-gray-400">
+        <div className="flex items-center gap-3 px-4 py-2 border-t border-border-light text-[11px] text-text-muted">
           <span><kbd className="font-medium">↑↓</kbd> Navigation</span>
           <span><kbd className="font-medium">↵</kbd> Oeffnen</span>
           <span><kbd className="font-medium">Esc</kbd> Schliessen</span>

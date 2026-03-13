@@ -91,7 +91,7 @@ export default function GroupedTableView({ projekte, alerts, onProjektClick }) {
   }
 
   return (
-    <div className="border rounded-lg overflow-hidden bg-white">
+    <div className="border rounded-lg overflow-hidden bg-surface-card">
       {ALL_PHASES.map(phase => {
         const items = grouped[phase]
         if (!items || items.length === 0) return null
@@ -107,19 +107,19 @@ export default function GroupedTableView({ projekte, alerts, onProjektClick }) {
             {/* Group Header */}
             <button
               onClick={() => togglePhase(phase)}
-              className="w-full flex items-center justify-between px-3 bg-gray-50 border-b hover:bg-gray-100 transition-colors cursor-pointer"
+              className="w-full flex items-center justify-between px-3 bg-surface-main border-b hover:bg-surface-hover transition-colors cursor-pointer"
               style={{ height: 36 }}
             >
               <div className="flex items-center gap-2">
                 {isCollapsed
-                  ? <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                  : <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  ? <ChevronRight className="w-4 h-4 text-text-muted flex-shrink-0" />
+                  : <ChevronDown className="w-4 h-4 text-text-muted flex-shrink-0" />
                 }
                 <span
                   className="flex-shrink-0 rounded-full"
                   style={{ width: 8, height: 8, backgroundColor: phaseInfo.color }}
                 />
-                <span className="text-sm font-semibold text-gray-700">{phaseInfo.label}</span>
+                <span className="text-sm font-semibold text-text-primary">{phaseInfo.label}</span>
                 <span
                   className="text-xs font-medium rounded-full px-2 py-0.5"
                   style={{ backgroundColor: phaseInfo.color, color: '#fff' }}
@@ -127,7 +127,7 @@ export default function GroupedTableView({ projekte, alerts, onProjektClick }) {
                   {items.length}
                 </span>
               </div>
-              <span className="text-xs text-gray-500">{formatEuro(groupWert)}</span>
+              <span className="text-xs text-text-secondary">{formatEuro(groupWert)}</span>
             </button>
 
             {/* Group Body */}
@@ -141,16 +141,16 @@ export default function GroupedTableView({ projekte, alerts, onProjektClick }) {
                     <div
                       key={p.id}
                       onClick={() => onProjektClick(p.id)}
-                      className="flex items-center px-3 border-b hover:bg-gray-50 cursor-pointer"
+                      className="flex items-center px-3 border-b hover:bg-surface-main cursor-pointer"
                       style={{ height: 36 }}
                     >
-                      <span className="font-mono text-xs text-gray-500 flex-shrink-0" style={{ width: 90 }}>
+                      <span className="font-mono text-xs text-text-secondary flex-shrink-0" style={{ width: 90 }}>
                         {p.projekt_nr || '–'}
                       </span>
-                      <span className="flex-1 text-sm font-medium text-gray-900 truncate min-w-0">
+                      <span className="flex-1 text-sm font-medium text-text-primary truncate min-w-0">
                         {kontaktName(p.kontakt)}
                       </span>
-                      <span className="text-xs text-gray-600 text-right flex-shrink-0" style={{ width: 100 }}>
+                      <span className="text-xs text-text-secondary text-right flex-shrink-0" style={{ width: 100 }}>
                         {formatEuro(p.wert)}
                       </span>
                       <span

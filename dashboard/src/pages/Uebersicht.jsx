@@ -5,19 +5,19 @@ import { format, formatDistanceToNow } from 'date-fns'
 import { de } from 'date-fns/locale'
 import { ClipboardList, FileText, Mail, Users, AlertTriangle, CheckCircle, XCircle, Clock } from 'lucide-react'
 
-function KpiCard({ icon: Icon, label, value, loading, color = 'text-blue-600', bgColor = 'bg-blue-50' }) {
+function KpiCard({ icon: Icon, label, value, loading, color = 'text-brand', bgColor = 'bg-brand-light' }) {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+    <div className="bg-surface-card rounded-xl shadow-sm border border-border-default p-6">
       <div className="flex items-center gap-4">
         <div className={`${bgColor} rounded-lg p-3`}>
           <Icon className={`w-6 h-6 ${color}`} />
         </div>
         <div>
-          <p className="text-sm text-gray-500">{label}</p>
+          <p className="text-sm text-text-secondary">{label}</p>
           {loading ? (
-            <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1" />
+            <div className="h-8 w-16 bg-surface-hover rounded animate-pulse mt-1" />
           ) : (
-            <p className="text-2xl font-bold text-gray-900">{value}</p>
+            <p className="text-2xl font-bold text-text-primary">{value}</p>
           )}
         </div>
       </div>
@@ -34,7 +34,7 @@ function StatusDot({ active }) {
 function ProcessingBadge({ label, count, color }) {
   return (
     <div className="flex items-center justify-between py-2">
-      <span className="text-sm text-gray-600">{label}</span>
+      <span className="text-sm text-text-secondary">{label}</span>
       <span
         className="text-sm font-semibold px-2.5 py-0.5 rounded-full"
         style={{ backgroundColor: color + '20', color }}
@@ -193,8 +193,8 @@ export default function Uebersicht() {
     <div className="p-6 space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Übersicht</h2>
-        <p className="text-gray-500 mt-1">Dashboard &amp; Systemstatus</p>
+        <h2 className="text-2xl font-bold text-text-primary">Übersicht</h2>
+        <p className="text-text-secondary mt-1">Dashboard &amp; Systemstatus</p>
       </div>
 
       {/* Error */}
@@ -207,23 +207,23 @@ export default function Uebersicht() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-4 gap-4">
-        <KpiCard icon={ClipboardList} label="Offene Aufträge" value={kpis.offeneAuftraege} loading={loading} color="text-gray-600" bgColor="bg-gray-100" />
-        <KpiCard icon={FileText} label="Dokumente gesamt" value={kpis.dokumente} loading={loading} color="text-gray-600" bgColor="bg-gray-100" />
-        <KpiCard icon={Mail} label="E-Mails heute" value={kpis.emailsHeute} loading={loading} color="text-gray-600" bgColor="bg-gray-100" />
-        <KpiCard icon={Users} label="Kunden gesamt" value={kpis.kunden} loading={loading} color="text-gray-600" bgColor="bg-gray-100" />
+        <KpiCard icon={ClipboardList} label="Offene Aufträge" value={kpis.offeneAuftraege} loading={loading} color="text-text-secondary" bgColor="bg-surface-hover" />
+        <KpiCard icon={FileText} label="Dokumente gesamt" value={kpis.dokumente} loading={loading} color="text-text-secondary" bgColor="bg-surface-hover" />
+        <KpiCard icon={Mail} label="E-Mails heute" value={kpis.emailsHeute} loading={loading} color="text-text-secondary" bgColor="bg-surface-hover" />
+        <KpiCard icon={Users} label="Kunden gesamt" value={kpis.kunden} loading={loading} color="text-text-secondary" bgColor="bg-surface-hover" />
       </div>
 
       {/* System Health */}
       <div className="grid grid-cols-2 gap-4">
         {/* E-Mail Pipeline */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">E-Mail Pipeline</h3>
+        <div className="bg-surface-card rounded-xl shadow-sm border border-border-default p-6">
+          <h3 className="text-lg font-semibold text-text-primary mb-4">E-Mail Pipeline</h3>
           {loading ? (
             <div className="space-y-3">
-              {[1, 2].map(i => <div key={i} className="h-10 bg-gray-100 rounded animate-pulse" />)}
+              {[1, 2].map(i => <div key={i} className="h-10 bg-surface-hover rounded animate-pulse" />)}
             </div>
           ) : subscriptions.length === 0 ? (
-            <p className="text-sm text-gray-500">Keine E-Mail-Subscriptions konfiguriert.</p>
+            <p className="text-sm text-text-secondary">Keine E-Mail-Subscriptions konfiguriert.</p>
           ) : (
             <div className="space-y-3">
               {subscriptions.map(sub => {
@@ -231,12 +231,12 @@ export default function Uebersicht() {
                 const expiresAt = sub.expires_at ? new Date(sub.expires_at) : null
                 const isHealthy = sub.is_active && (!expiresAt || expiresAt > now)
                 return (
-                  <div key={sub.id} className="flex items-center justify-between py-2 px-3 rounded-lg bg-gray-50">
+                  <div key={sub.id} className="flex items-center justify-between py-2 px-3 rounded-lg bg-surface-main">
                     <div className="flex items-center gap-3">
                       <StatusDot active={isHealthy} />
-                      <span className="text-sm font-medium text-gray-700">{sub.email_postfach || 'Unbekannt'}</span>
+                      <span className="text-sm font-medium text-text-primary">{sub.email_postfach || 'Unbekannt'}</span>
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-text-secondary">
                       {expiresAt ? (
                         <>Läuft ab: {formatDistanceToNow(expiresAt, { locale: de, addSuffix: true })}</>
                       ) : (
@@ -251,11 +251,11 @@ export default function Uebersicht() {
         </div>
 
         {/* Verarbeitung */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Verarbeitung</h3>
+        <div className="bg-surface-card rounded-xl shadow-sm border border-border-default p-6">
+          <h3 className="text-lg font-semibold text-text-primary mb-4">Verarbeitung</h3>
           {loading ? (
             <div className="space-y-3">
-              {[1, 2, 3].map(i => <div key={i} className="h-8 bg-gray-100 rounded animate-pulse" />)}
+              {[1, 2, 3].map(i => <div key={i} className="h-8 bg-surface-hover rounded animate-pulse" />)}
             </div>
           ) : (
             <div className="divide-y divide-gray-100">
@@ -291,18 +291,18 @@ export default function Uebersicht() {
       )}
 
       {/* Letzte Aktivitäten */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Letzte Aktivitäten</h3>
+      <div className="bg-surface-card rounded-xl shadow-sm border border-border-default p-6">
+        <h3 className="text-lg font-semibold text-text-primary mb-4">Letzte Aktivitäten</h3>
         {loading ? (
           <div className="space-y-3">
-            {[1, 2, 3, 4, 5].map(i => <div key={i} className="h-10 bg-gray-100 rounded animate-pulse" />)}
+            {[1, 2, 3, 4, 5].map(i => <div key={i} className="h-10 bg-surface-hover rounded animate-pulse" />)}
           </div>
         ) : aktivitaeten.length === 0 ? (
-          <p className="text-sm text-gray-500">Noch keine Aktivitäten vorhanden.</p>
+          <p className="text-sm text-text-secondary">Noch keine Aktivitäten vorhanden.</p>
         ) : (
           <table className="w-full">
             <thead>
-              <tr className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <tr className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider">
                 <th className="pb-3 pr-4 w-12">Typ</th>
                 <th className="pb-3 pr-4">Beschreibung</th>
                 <th className="pb-3 text-right">Datum</th>
@@ -310,16 +310,16 @@ export default function Uebersicht() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {aktivitaeten.map((item, idx) => (
-                <tr key={idx} className="hover:bg-gray-50">
+                <tr key={idx} className="hover:bg-surface-main">
                   <td className="py-3 pr-4">
                     {item.typ === 'auftrag' ? (
-                      <ClipboardList className="w-4 h-4 text-gray-400" />
+                      <ClipboardList className="w-4 h-4 text-text-muted" />
                     ) : (
-                      <Mail className="w-4 h-4 text-gray-400" />
+                      <Mail className="w-4 h-4 text-text-muted" />
                     )}
                   </td>
                   <td className="py-3 pr-4">
-                    <span className="text-sm text-gray-900">{item.beschreibung}</span>
+                    <span className="text-sm text-text-primary">{item.beschreibung}</span>
                     {item.status && AUFTRAG_STATUS[item.status] && (
                       <span
                         className="ml-2 text-xs px-2 py-0.5 rounded-full font-medium"
@@ -332,7 +332,7 @@ export default function Uebersicht() {
                       </span>
                     )}
                   </td>
-                  <td className="py-3 text-right text-sm text-gray-500">
+                  <td className="py-3 text-right text-sm text-text-secondary">
                     {formatDistanceToNow(new Date(item.datum), { locale: de, addSuffix: true })}
                   </td>
                 </tr>

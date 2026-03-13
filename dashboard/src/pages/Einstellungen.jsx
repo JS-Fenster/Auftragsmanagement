@@ -62,19 +62,19 @@ function OptionEditor({ kategorie, label }) {
     load()
   }
 
-  if (loading) return <div className="py-8 text-center text-gray-400">Laden…</div>
+  if (loading) return <div className="py-8 text-center text-text-muted">Laden…</div>
 
   return (
     <div>
-      <h3 className="text-lg font-semibold text-gray-800 mb-4">{label}</h3>
+      <h3 className="text-lg font-semibold text-text-primary mb-4">{label}</h3>
 
-      <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-200">
+      <div className="bg-surface-card rounded-lg border border-border-default divide-y divide-gray-200">
         {items.map((item) => (
           <div key={item.id} className="flex items-center gap-3 px-4 py-3 group">
             {editingId === item.id ? (
               <>
                 <input
-                  className="flex-1 border border-blue-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 border border-blue-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
                   value={editValues.wert}
                   onChange={(e) => setEditValues(v => ({ ...v, wert: e.target.value }))}
                   onKeyDown={(e) => e.key === 'Enter' && saveEdit(item.id)}
@@ -82,7 +82,7 @@ function OptionEditor({ kategorie, label }) {
                 />
                 <input
                   type="number"
-                  className="w-20 border border-blue-300 rounded px-2 py-1 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-20 border border-blue-300 rounded px-2 py-1 text-sm text-center focus:outline-none focus:ring-2 focus:ring-brand"
                   value={editValues.sortierung}
                   onChange={(e) => setEditValues(v => ({ ...v, sortierung: parseInt(e.target.value) || 0 }))}
                   onKeyDown={(e) => e.key === 'Enter' && saveEdit(item.id)}
@@ -96,32 +96,32 @@ function OptionEditor({ kategorie, label }) {
                 </button>
                 <button
                   onClick={() => setEditingId(null)}
-                  className="p-1.5 text-gray-400 hover:bg-gray-100 rounded"
+                  className="p-1.5 text-text-muted hover:bg-surface-hover rounded"
                 >
                   <X size={16} />
                 </button>
               </>
             ) : (
               <>
-                <span className="flex-1 text-sm text-gray-800 cursor-pointer border border-transparent hover:border-dashed hover:border-gray-300 rounded px-2 py-1 -mx-2"
+                <span className="flex-1 text-sm text-text-primary cursor-pointer border border-transparent hover:border-dashed hover:border-border-default rounded px-2 py-1 -mx-2"
                   onClick={() => startEdit(item)}
                 >
                   {item.wert}
                 </span>
-                <span className="text-xs text-gray-400 w-16 text-center cursor-pointer border border-transparent hover:border-dashed hover:border-gray-300 rounded px-2 py-1"
+                <span className="text-xs text-text-muted w-16 text-center cursor-pointer border border-transparent hover:border-dashed hover:border-border-default rounded px-2 py-1"
                   onClick={() => startEdit(item)}
                 >
                   #{item.sortierung}
                 </span>
                 <button
                   onClick={() => startEdit(item)}
-                  className="p-1.5 text-gray-300 opacity-0 group-hover:opacity-100 hover:text-blue-500 rounded transition-opacity"
+                  className="p-1.5 text-text-muted opacity-0 group-hover:opacity-100 hover:text-brand rounded transition-opacity"
                 >
                   <Edit2 size={14} />
                 </button>
                 <button
                   onClick={() => deleteItem(item.id)}
-                  className="p-1.5 text-gray-300 opacity-0 group-hover:opacity-100 hover:text-red-500 rounded transition-opacity"
+                  className="p-1.5 text-text-muted opacity-0 group-hover:opacity-100 hover:text-red-500 rounded transition-opacity"
                 >
                   <Trash2 size={14} />
                 </button>
@@ -131,14 +131,14 @@ function OptionEditor({ kategorie, label }) {
         ))}
 
         {items.length === 0 && (
-          <div className="px-4 py-6 text-center text-sm text-gray-400">Keine Einträge vorhanden</div>
+          <div className="px-4 py-6 text-center text-sm text-text-muted">Keine Einträge vorhanden</div>
         )}
       </div>
 
       {/* Add new */}
       <div className="flex items-center gap-2 mt-4">
         <input
-          className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="flex-1 border border-border-default rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand"
           placeholder={`Neuen ${label.replace(/en$/, '')} hinzufügen…`}
           value={newValue}
           onChange={(e) => setNewValue(e.target.value)}
@@ -147,7 +147,7 @@ function OptionEditor({ kategorie, label }) {
         <button
           onClick={addItem}
           disabled={saving || !newValue.trim()}
-          className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-btn-primary text-white text-sm font-medium rounded-lg hover:bg-btn-primary-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           <Plus size={16} />
           Hinzufügen
@@ -176,7 +176,7 @@ function EmailSubscriptions() {
   }, [])
 
   const getStatus = (sub) => {
-    if (!sub.is_active) return { label: 'Inaktiv', color: 'bg-gray-100 text-gray-600' }
+    if (!sub.is_active) return { label: 'Inaktiv', color: 'bg-surface-hover text-text-secondary' }
     if (sub.expires_at && new Date(sub.expires_at) < new Date()) return { label: 'Abgelaufen', color: 'bg-red-100 text-red-700' }
     return { label: 'Aktiv', color: 'bg-green-100 text-green-700' }
   }
@@ -185,47 +185,47 @@ function EmailSubscriptions() {
     const s = getStatus(sub)
     if (s.label === 'Aktiv') return <CheckCircle size={14} className="text-green-600" />
     if (s.label === 'Abgelaufen') return <AlertCircle size={14} className="text-red-600" />
-    return <XCircle size={14} className="text-gray-400" />
+    return <XCircle size={14} className="text-text-muted" />
   }
 
-  if (loading) return <div className="py-8 text-center text-gray-400">Laden…</div>
+  if (loading) return <div className="py-8 text-center text-text-muted">Laden…</div>
 
   return (
     <div>
-      <h3 className="text-lg font-semibold text-gray-800 mb-4">E-Mail Subscriptions</h3>
-      <p className="text-sm text-gray-500 mb-4">Subscriptions werden automatisch über Edge Functions verwaltet.</p>
+      <h3 className="text-lg font-semibold text-text-primary mb-4">E-Mail Subscriptions</h3>
+      <p className="text-sm text-text-secondary mb-4">Subscriptions werden automatisch über Edge Functions verwaltet.</p>
 
-      <div className="bg-white rounded-lg border border-gray-200 overflow-x-auto">
+      <div className="bg-surface-card rounded-lg border border-border-default overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200 text-sm">
-          <thead className="bg-gray-50">
+          <thead className="bg-surface-main">
             <tr>
-              <th className="px-4 py-3 text-left font-medium text-gray-500">Postfach</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-500">Resource</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-500">Status</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-500">Ablaufdatum</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-500">Letzter Renewal</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-500">Letzter Fehler</th>
+              <th className="px-4 py-3 text-left font-medium text-text-secondary">Postfach</th>
+              <th className="px-4 py-3 text-left font-medium text-text-secondary">Resource</th>
+              <th className="px-4 py-3 text-left font-medium text-text-secondary">Status</th>
+              <th className="px-4 py-3 text-left font-medium text-text-secondary">Ablaufdatum</th>
+              <th className="px-4 py-3 text-left font-medium text-text-secondary">Letzter Renewal</th>
+              <th className="px-4 py-3 text-left font-medium text-text-secondary">Letzter Fehler</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
             {subs.map((sub) => {
               const status = getStatus(sub)
               return (
-                <tr key={sub.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-800">{sub.email_postfach}</td>
-                  <td className="px-4 py-3 text-gray-600">{sub.resource}</td>
+                <tr key={sub.id} className="hover:bg-surface-main">
+                  <td className="px-4 py-3 font-medium text-text-primary">{sub.email_postfach}</td>
+                  <td className="px-4 py-3 text-text-secondary">{sub.resource}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${status.color}`}>
                       <StatusIcon sub={sub} />
                       {status.label}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-600">
+                  <td className="px-4 py-3 text-text-secondary">
                     {sub.expires_at ? format(new Date(sub.expires_at), 'dd.MM.yyyy HH:mm', { locale: de }) : '–'}
                   </td>
-                  <td className="px-4 py-3 text-gray-600">
+                  <td className="px-4 py-3 text-text-secondary">
                     {sub.last_renewal_at ? (
-                      <span className="inline-flex items-center gap-1 text-gray-500">
+                      <span className="inline-flex items-center gap-1 text-text-secondary">
                         <Clock size={13} />
                         {formatDistanceToNow(new Date(sub.last_renewal_at), { locale: de, addSuffix: true })}
                       </span>
@@ -237,14 +237,14 @@ function EmailSubscriptions() {
                         {sub.last_error}
                       </span>
                     ) : (
-                      <span className="text-gray-300">–</span>
+                      <span className="text-text-muted">–</span>
                     )}
                   </td>
                 </tr>
               )
             })}
             {subs.length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Keine Subscriptions vorhanden</td></tr>
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-text-muted">Keine Subscriptions vorhanden</td></tr>
             )}
           </tbody>
         </table>
@@ -284,31 +284,31 @@ function SystemTab() {
     setSaving(false)
   }
 
-  if (loading) return <div className="py-8 text-center text-gray-400">Laden…</div>
+  if (loading) return <div className="py-8 text-center text-text-muted">Laden…</div>
 
   return (
     <div className="space-y-8">
       {/* App Config */}
       <div>
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">App-Konfiguration</h3>
-        <div className="bg-white rounded-lg border border-gray-200 overflow-x-auto">
+        <h3 className="text-lg font-semibold text-text-primary mb-4">App-Konfiguration</h3>
+        <div className="bg-surface-card rounded-lg border border-border-default overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 text-sm">
-            <thead className="bg-gray-50">
+            <thead className="bg-surface-main">
               <tr>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Key</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Value</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Aktualisiert</th>
+                <th className="px-4 py-3 text-left font-medium text-text-secondary">Key</th>
+                <th className="px-4 py-3 text-left font-medium text-text-secondary">Value</th>
+                <th className="px-4 py-3 text-left font-medium text-text-secondary">Aktualisiert</th>
                 <th className="px-4 py-3 w-16"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {config.map((item) => (
-                <tr key={item.key} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-mono text-xs text-gray-700">{item.key}</td>
+                <tr key={item.key} className="hover:bg-surface-main">
+                  <td className="px-4 py-3 font-mono text-xs text-text-primary">{item.key}</td>
                   <td className="px-4 py-3">
                     {editingKey === item.key ? (
                       <input
-                        className="w-full border border-blue-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full border border-blue-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
                         value={editValue}
                         onChange={(e) => setEditValue(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && saveConfig(item.key)}
@@ -317,14 +317,14 @@ function SystemTab() {
                       />
                     ) : (
                       <span
-                        className="text-gray-800 cursor-pointer border border-transparent hover:border-dashed hover:border-gray-300 rounded px-2 py-1 -mx-2 block truncate max-w-md"
+                        className="text-text-primary cursor-pointer border border-transparent hover:border-dashed hover:border-border-default rounded px-2 py-1 -mx-2 block truncate max-w-md"
                         onClick={() => startEdit(item)}
                       >
-                        {item.value || <span className="text-gray-300 italic">leer</span>}
+                        {item.value || <span className="text-text-muted italic">leer</span>}
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-xs text-gray-400">
+                  <td className="px-4 py-3 text-xs text-text-muted">
                     {item.updated_at ? format(new Date(item.updated_at), 'dd.MM.yyyy HH:mm', { locale: de }) : '–'}
                   </td>
                   <td className="px-4 py-3">
@@ -333,7 +333,7 @@ function SystemTab() {
                         <Save size={15} />
                       </button>
                     ) : (
-                      <button onClick={() => startEdit(item)} className="p-1 text-gray-300 hover:text-blue-500 rounded">
+                      <button onClick={() => startEdit(item)} className="p-1 text-text-muted hover:text-brand rounded">
                         <Edit2 size={15} />
                       </button>
                     )}
@@ -341,7 +341,7 @@ function SystemTab() {
                 </tr>
               ))}
               {config.length === 0 && (
-                <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-400">Keine Konfiguration vorhanden</td></tr>
+                <tr><td colSpan={4} className="px-4 py-8 text-center text-text-muted">Keine Konfiguration vorhanden</td></tr>
               )}
             </tbody>
           </table>
@@ -372,15 +372,15 @@ export default function Einstellungen() {
     <div className="p-6 max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <Settings2 size={24} className="text-gray-400" />
+        <Settings2 size={24} className="text-text-muted" />
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Einstellungen</h2>
-          <p className="text-sm text-gray-500">Systemkonfiguration und Optionen verwalten</p>
+          <h2 className="text-2xl font-bold text-text-primary">Einstellungen</h2>
+          <p className="text-sm text-text-secondary">Systemkonfiguration und Optionen verwalten</p>
         </div>
       </div>
 
       {/* Tab Navigation */}
-      <div className="border-b border-gray-200 mb-6">
+      <div className="border-b border-border-default mb-6">
         <nav className="flex gap-0 -mb-px">
           {TABS.map((tab) => {
             const Icon = tab.icon
@@ -391,8 +391,8 @@ export default function Einstellungen() {
                 onClick={() => setActiveTab(tab.key)}
                 className={`inline-flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                   active
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-blue-500 text-brand'
+                    : 'border-transparent text-text-secondary hover:text-text-primary hover:border-border-default'
                 }`}
               >
                 <Icon size={16} />

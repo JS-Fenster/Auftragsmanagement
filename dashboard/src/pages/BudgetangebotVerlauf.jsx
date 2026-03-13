@@ -21,8 +21,8 @@ import {
 // ── Constants ────────────────────────────────────────────
 
 const STATUS_CONFIG = {
-  entwurf: { label: 'Entwurf', bg: 'bg-gray-100', text: 'text-gray-700', dot: 'bg-gray-400' },
-  versendet: { label: 'Versendet', bg: 'bg-blue-100', text: 'text-blue-700', dot: 'bg-blue-500' },
+  entwurf: { label: 'Entwurf', bg: 'bg-surface-hover', text: 'text-text-primary', dot: 'bg-gray-400' },
+  versendet: { label: 'Versendet', bg: 'bg-brand-light', text: 'text-brand-dark', dot: 'bg-brand-light0' },
   angenommen: { label: 'Angenommen', bg: 'bg-green-100', text: 'text-green-700', dot: 'bg-green-500' },
   abgelehnt: { label: 'Abgelehnt', bg: 'bg-red-100', text: 'text-red-700', dot: 'bg-red-500' },
 }
@@ -245,14 +245,14 @@ export default function BudgetangebotVerlauf() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Budgetangebote</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-2xl font-bold text-text-primary">Budgetangebote</h1>
+          <p className="text-sm text-text-secondary mt-1">
             {totalCount} Angebot{totalCount !== 1 ? 'e' : ''} gesamt
           </p>
         </div>
         <button
           onClick={() => navigate('/budgetangebot')}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-btn-primary text-white text-sm font-medium rounded-lg hover:bg-btn-primary-hover transition-colors shadow-sm"
         >
           <Plus className="w-4 h-4" />
           Neues Budgetangebot
@@ -260,14 +260,14 @@ export default function BudgetangebotVerlauf() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+      <div className="bg-surface-card rounded-lg shadow-sm border border-border-default p-4 mb-6">
         <div className="flex flex-col sm:flex-row gap-4">
           {/* Search */}
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
             <input
               type="text"
-              className="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-border-default rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
               placeholder="Nach Kunde oder Projekt suchen..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
@@ -276,9 +276,9 @@ export default function BudgetangebotVerlauf() {
 
           {/* Status Filter */}
           <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-gray-400" />
+            <Filter className="w-4 h-4 text-text-muted" />
             <select
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="border border-border-default rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
             >
@@ -301,22 +301,22 @@ export default function BudgetangebotVerlauf() {
       )}
 
       {/* Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-surface-card rounded-lg shadow-sm border border-border-default overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-16">
-            <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
-            <span className="ml-3 text-sm text-gray-500">Lade Angebote...</span>
+            <Loader2 className="w-6 h-6 animate-spin text-brand" />
+            <span className="ml-3 text-sm text-text-secondary">Lade Angebote...</span>
           </div>
         ) : angebote.length === 0 ? (
           <div className="text-center py-16">
-            <FileText className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-            <p className="text-sm text-gray-500">
+            <FileText className="w-12 h-12 mx-auto mb-3 text-text-muted" />
+            <p className="text-sm text-text-secondary">
               {searchTerm || statusFilter ? 'Keine Angebote gefunden' : 'Noch keine Budgetangebote erstellt'}
             </p>
             {!searchTerm && !statusFilter && (
               <button
                 onClick={() => navigate('/budgetangebot')}
-                className="mt-4 inline-flex items-center gap-2 px-4 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                className="mt-4 inline-flex items-center gap-2 px-4 py-2 text-sm text-brand hover:text-brand-dark hover:bg-brand-light rounded-lg transition-colors"
               >
                 <Plus className="w-4 h-4" />
                 Erstes Budgetangebot erstellen
@@ -328,7 +328,7 @@ export default function BudgetangebotVerlauf() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
+                  <tr className="bg-surface-main text-left text-xs font-medium text-text-secondary uppercase tracking-wider border-b border-border-default">
                     <th className="px-4 py-3">Datum</th>
                     <th className="px-4 py-3">Kunde</th>
                     <th className="px-4 py-3">Projekt</th>
@@ -340,30 +340,30 @@ export default function BudgetangebotVerlauf() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {angebote.map(a => (
-                    <tr key={a.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={a.id} className="hover:bg-surface-main transition-colors">
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2 text-gray-600">
-                          <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                        <div className="flex items-center gap-2 text-text-secondary">
+                          <Calendar className="w-3.5 h-3.5 text-text-muted" />
                           <span>{formatDate(a.erstellt_am)}</span>
                         </div>
-                        <div className="text-xs text-gray-400 mt-0.5 pl-5.5">
+                        <div className="text-xs text-text-muted mt-0.5 pl-5.5">
                           {formatDateTime(a.aktualisiert_am) !== formatDateTime(a.erstellt_am) && (
                             <span>Aktualisiert: {formatDateTime(a.aktualisiert_am)}</span>
                           )}
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="font-medium text-gray-900">{a.kontakt_name || '-'}</span>
+                        <span className="font-medium text-text-primary">{a.kontakt_name || '-'}</span>
                       </td>
-                      <td className="px-4 py-3 text-gray-600 max-w-[200px] truncate">
+                      <td className="px-4 py-3 text-text-secondary max-w-[200px] truncate">
                         {a.projekt_bezeichnung || '-'}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
-                          <Euro className="w-3.5 h-3.5 text-gray-400" />
-                          <span className="font-semibold text-gray-900">{formatEuro(a.brutto_summe)}</span>
+                          <Euro className="w-3.5 h-3.5 text-text-muted" />
+                          <span className="font-semibold text-text-primary">{formatEuro(a.brutto_summe)}</span>
                         </div>
-                        <div className="text-xs text-gray-400 mt-0.5">
+                        <div className="text-xs text-text-muted mt-0.5">
                           Netto: {formatEuro(a.netto_summe)}
                         </div>
                       </td>
@@ -372,7 +372,7 @@ export default function BudgetangebotVerlauf() {
                         {/* Quick status change dropdown on hover */}
                         <div className="mt-1">
                           <select
-                            className="text-xs border border-gray-200 rounded px-1.5 py-0.5 text-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                            className="text-xs border border-border-default rounded px-1.5 py-0.5 text-text-secondary focus:outline-none focus:ring-1 focus:ring-brand cursor-pointer"
                             value={a.status}
                             onChange={e => handleStatusChange(a.id, e.target.value)}
                           >
@@ -383,14 +383,14 @@ export default function BudgetangebotVerlauf() {
                           </select>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-gray-500 text-center">
+                      <td className="px-4 py-3 text-text-secondary text-center">
                         v{a.version || 1}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
                           <button
                             onClick={() => navigate(`/budgetangebot?id=${a.id}`)}
-                            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            className="p-1.5 text-text-muted hover:text-brand hover:bg-brand-light rounded-lg transition-colors"
                             title="Angebot oeffnen/bearbeiten"
                           >
                             <Pencil className="w-4 h-4" />
@@ -398,7 +398,7 @@ export default function BudgetangebotVerlauf() {
                           {!a.projekt_id ? (
                             <button
                               onClick={() => setConvertId(a.id)}
-                              className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                              className="p-1.5 text-text-muted hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                               title="Als Projekt anlegen"
                             >
                               <FolderKanban className="w-4 h-4" />
@@ -414,7 +414,7 @@ export default function BudgetangebotVerlauf() {
                           )}
                           <button
                             onClick={() => setDeleteId(a.id)}
-                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            className="p-1.5 text-text-muted hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                             title="Angebot loeschen"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -429,22 +429,22 @@ export default function BudgetangebotVerlauf() {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
-                <div className="text-sm text-gray-500">
+              <div className="flex items-center justify-between px-4 py-3 border-t border-border-default">
+                <div className="text-sm text-text-secondary">
                   Seite {page + 1} von {totalPages}
                 </div>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setPage(p => Math.max(0, p - 1))}
                     disabled={page === 0}
-                    className="p-1.5 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed rounded-lg hover:bg-gray-100 transition-colors"
+                    className="p-1.5 text-text-muted hover:text-text-secondary disabled:opacity-30 disabled:cursor-not-allowed rounded-lg hover:bg-surface-hover transition-colors"
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
                     disabled={page >= totalPages - 1}
-                    className="p-1.5 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed rounded-lg hover:bg-gray-100 transition-colors"
+                    className="p-1.5 text-text-muted hover:text-text-secondary disabled:opacity-30 disabled:cursor-not-allowed rounded-lg hover:bg-surface-hover transition-colors"
                   >
                     <ChevronRight className="w-4 h-4" />
                   </button>
@@ -458,15 +458,15 @@ export default function BudgetangebotVerlauf() {
       {/* Delete Confirmation Modal */}
       {deleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setDeleteId(null)}>
-          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm m-4" onClick={e => e.stopPropagation()}>
-            <h3 className="text-base font-semibold text-gray-900 mb-2">Angebot loeschen?</h3>
-            <p className="text-sm text-gray-600 mb-6">
+          <div className="bg-surface-card rounded-xl shadow-2xl p-6 max-w-sm m-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-base font-semibold text-text-primary mb-2">Angebot loeschen?</h3>
+            <p className="text-sm text-text-secondary mb-6">
               Dieses Budgetangebot wird unwiderruflich geloescht. Moechten Sie fortfahren?
             </p>
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={() => setDeleteId(null)}
-                className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                className="px-4 py-2 text-sm text-text-secondary hover:bg-surface-hover rounded-lg transition-colors"
               >
                 Abbrechen
               </button>
@@ -484,17 +484,17 @@ export default function BudgetangebotVerlauf() {
       {/* Convert Confirmation Modal */}
       {convertId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setConvertId(null)}>
-          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm m-4" onClick={e => e.stopPropagation()}>
+          <div className="bg-surface-card rounded-xl shadow-2xl p-6 max-w-sm m-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
                 <FolderKanban className="w-5 h-5 text-green-600" />
               </div>
-              <h3 className="text-base font-semibold text-gray-900">Als Projekt anlegen?</h3>
+              <h3 className="text-base font-semibold text-text-primary">Als Projekt anlegen?</h3>
             </div>
-            <p className="text-sm text-gray-600 mb-1">
+            <p className="text-sm text-text-secondary mb-1">
               Aus diesem Budgetangebot wird ein neues Projekt erstellt.
             </p>
-            <ul className="text-xs text-gray-500 mb-6 space-y-1 ml-4 list-disc">
+            <ul className="text-xs text-text-secondary mb-6 space-y-1 ml-4 list-disc">
               <li>Positionen werden uebernommen (kopiert)</li>
               <li>Projekt startet im Status &quot;Angebot&quot;</li>
               <li>Budgetangebot wird als &quot;Angenommen&quot; markiert</li>
@@ -502,7 +502,7 @@ export default function BudgetangebotVerlauf() {
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={() => setConvertId(null)}
-                className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                className="px-4 py-2 text-sm text-text-secondary hover:bg-surface-hover rounded-lg transition-colors"
               >
                 Abbrechen
               </button>

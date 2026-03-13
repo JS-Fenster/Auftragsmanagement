@@ -542,10 +542,10 @@ export default function Budgetangebot() {
     <div className="p-6 max-w-6xl mx-auto">
       {/* Loading Overlay fuer Angebot laden */}
       {loadingAngebot && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-surface-card/80">
           <div className="text-center">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-3" />
-            <p className="text-sm text-gray-600">Angebot wird geladen...</p>
+            <Loader2 className="w-8 h-8 animate-spin text-brand mx-auto mb-3" />
+            <p className="text-sm text-text-secondary">Angebot wird geladen...</p>
           </div>
         </div>
       )}
@@ -553,10 +553,10 @@ export default function Budgetangebot() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-2xl font-bold text-text-primary">
             {savedAngebotId ? 'Budgetangebot bearbeiten' : 'Budgetangebot erstellen'}
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-text-secondary mt-1">
             {savedAngebotId
               ? 'Gespeichertes Angebot wird bearbeitet.'
               : 'Beschreiben Sie die gewuenschten Fenster und Tueren im Freitext. Die KI erstellt daraus ein vollstaendiges Budgetangebot mit Preisen.'
@@ -565,7 +565,7 @@ export default function Budgetangebot() {
         </div>
         <button
           onClick={() => navigate('/budgetangebot-verlauf')}
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-600 border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm text-text-secondary border border-border-default hover:bg-surface-main rounded-lg transition-colors"
         >
           <History className="w-4 h-4" />
           Alle Angebote

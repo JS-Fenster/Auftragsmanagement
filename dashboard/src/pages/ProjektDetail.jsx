@@ -360,12 +360,12 @@ export default function ProjektDetail() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/projekte')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-            <ArrowLeft className="h-5 w-5 text-gray-600" />
+          <button onClick={() => navigate('/projekte')} className="p-2 hover:bg-surface-hover rounded-lg transition-colors">
+            <ArrowLeft className="h-5 w-5 text-text-secondary" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">{projekt.projekt_nummer}</h1>
-            {projekt.titel && <p className="text-sm text-gray-500 mt-0.5">{projekt.titel}</p>}
+            <h1 className="text-2xl font-bold text-text-primary">{projekt.projekt_nummer}</h1>
+            {projekt.titel && <p className="text-sm text-text-secondary mt-0.5">{projekt.titel}</p>}
           </div>
           <StatusBadge status={projekt.status} size="md" />
           {projekt.typ && projekt.typ !== 'auftrag' && PROJEKT_TYPEN[projekt.typ] && (
@@ -388,16 +388,16 @@ export default function ProjektDetail() {
         <div className="flex items-center gap-2">
           {editing ? (
             <>
-              <button onClick={() => setEditing(false)} className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+              <button onClick={() => setEditing(false)} className="px-3 py-1.5 text-sm text-text-secondary hover:bg-surface-hover rounded-lg transition-colors">
                 Abbrechen
               </button>
-              <button onClick={handleSave} className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1.5">
+              <button onClick={handleSave} className="px-3 py-1.5 text-sm bg-btn-primary text-white rounded-lg hover:bg-btn-primary-hover transition-colors flex items-center gap-1.5">
                 <Save className="h-4 w-4" /> Speichern
               </button>
             </>
           ) : (
             <>
-              <button onClick={startEditing} className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-1.5">
+              <button onClick={startEditing} className="px-3 py-1.5 text-sm text-text-secondary hover:bg-surface-hover rounded-lg transition-colors flex items-center gap-1.5">
                 <Edit2 className="h-4 w-4" /> Bearbeiten
               </button>
               <button onClick={handleDelete} className="px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1.5">
@@ -405,7 +405,7 @@ export default function ProjektDetail() {
               </button>
               <button
                 onClick={() => window.open(`/projekte/${id}?standalone=1`, '_blank', 'width=1200,height=800')}
-                className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+                className="flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary"
                 title="In neuem Fenster oeffnen"
               >
                 <ExternalLink size={16} />
@@ -420,16 +420,16 @@ export default function ProjektDetail() {
         {/* LEFT: 2/3 */}
         <div className="lg:col-span-2 space-y-6">
           {/* Stammdaten */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="px-5 py-3 border-b border-gray-200">
-              <h2 className="font-semibold text-gray-900">Stammdaten</h2>
+          <div className="bg-surface-card rounded-lg shadow-sm border border-border-default">
+            <div className="px-5 py-3 border-b border-border-default">
+              <h2 className="font-semibold text-text-primary">Stammdaten</h2>
             </div>
             <div className="p-5 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Field label="Titel" value={projekt.titel} editing={editing} editValue={editData.titel} onChange={v => setEditData(d => ({ ...d, titel: v }))} />
                 <div>
-                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Kunde</span>
-                  <p className="mt-1 text-sm text-gray-900">
+                  <span className="text-xs font-medium text-text-secondary uppercase tracking-wide">Kunde</span>
+                  <p className="mt-1 text-sm text-text-primary">
                     {kontakt ? (kontakt.firma1 || (() => { const hp = kontakt.kontakt_personen?.find(p => p.ist_hauptkontakt) || kontakt.kontakt_personen?.[0]; return hp ? `${hp.vorname || ''} ${hp.nachname || ''}`.trim() : '-' })()) : '-'}
                   </p>
                 </div>
@@ -443,8 +443,8 @@ export default function ProjektDetail() {
                 </div>
               ) : (
                 <div>
-                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Einsatzort</span>
-                  <p className="mt-1 text-sm text-gray-900">
+                  <span className="text-xs font-medium text-text-secondary uppercase tracking-wide">Einsatzort</span>
+                  <p className="mt-1 text-sm text-text-primary">
                     {adresse.strasse ? `${adresse.strasse}, ${adresse.plz} ${adresse.ort}` : '-'}
                   </p>
                 </div>
@@ -460,20 +460,20 @@ export default function ProjektDetail() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {projekt.gewaehrleistung_bis && (
                     <div>
-                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Gewährleistung bis</span>
-                      <p className="mt-1 text-sm text-gray-900">{formatDate(projekt.gewaehrleistung_bis)}</p>
+                      <span className="text-xs font-medium text-text-secondary uppercase tracking-wide">Gewährleistung bis</span>
+                      <p className="mt-1 text-sm text-text-primary">{formatDate(projekt.gewaehrleistung_bis)}</p>
                     </div>
                   )}
                   {projekt.rechnungsempfaenger_kontakt_id && projekt.rechnungsempfaenger_kontakt_id !== projekt.kontakt_id && (
                     <div>
-                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Rechnungsempfänger</span>
-                      <p className="mt-1 text-sm text-gray-900 italic">Abweichend (ID: {projekt.rechnungsempfaenger_kontakt_id.slice(0,8)}...)</p>
+                      <span className="text-xs font-medium text-text-secondary uppercase tracking-wide">Rechnungsempfänger</span>
+                      <p className="mt-1 text-sm text-text-primary italic">Abweichend (ID: {projekt.rechnungsempfaenger_kontakt_id.slice(0,8)}...)</p>
                     </div>
                   )}
                 </div>
               )}
 
-              <div className="border-t border-gray-100 pt-4">
+              <div className="border-t border-border-light pt-4">
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {DATE_FIELDS.map(f => (
                     <Field key={f.key} label={f.label} value={formatDate(projekt[f.key])} editing={editing} editValue={editData[f.key]} onChange={v => setEditData(d => ({ ...d, [f.key]: v }))} type="date" />
@@ -507,15 +507,15 @@ export default function ProjektDetail() {
             const hasTransitions = forward.length > 0 || backward.length > 0 || sonder.length > 0 || resume
             if (!hasTransitions) return null
             return (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-                <div className="px-5 py-3 border-b border-gray-200">
-                  <h2 className="font-semibold text-gray-900">Status aendern</h2>
+              <div className="bg-surface-card rounded-lg shadow-sm border border-border-default">
+                <div className="px-5 py-3 border-b border-border-default">
+                  <h2 className="font-semibold text-text-primary">Status aendern</h2>
                 </div>
                 <div className="p-5 space-y-3">
                   {/* Resume from Sonder-Status */}
                   {resume && (
                     <div className="flex items-center gap-3">
-                      <span className="text-xs text-gray-500 uppercase tracking-wide">Fortsetzen:</span>
+                      <span className="text-xs text-text-secondary uppercase tracking-wide">Fortsetzen:</span>
                       <button
                         onClick={() => handleStatusChange(resume)}
                         className="px-4 py-2 rounded-full text-sm font-medium transition-all hover:scale-105"
@@ -565,8 +565,8 @@ export default function ProjektDetail() {
                   )}
                   {/* Sonder-Status */}
                   {sonder.length > 0 && (
-                    <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
-                      <span className="text-xs text-gray-500 uppercase tracking-wide">Sonder:</span>
+                    <div className="flex items-center gap-3 pt-2 border-t border-border-light">
+                      <span className="text-xs text-text-secondary uppercase tracking-wide">Sonder:</span>
                       {sonder.map(status => {
                         const phase = PROJEKT_PHASEN[status]
                         return (
@@ -586,57 +586,57 @@ export default function ProjektDetail() {
           })()}
 
           {/* Bestellungen */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="px-5 py-3 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="font-semibold text-gray-900 flex items-center gap-2">
-                <Package className="h-4 w-4 text-gray-400" /> Bestellungen
+          <div className="bg-surface-card rounded-lg shadow-sm border border-border-default">
+            <div className="px-5 py-3 border-b border-border-default flex items-center justify-between">
+              <h2 className="font-semibold text-text-primary flex items-center gap-2">
+                <Package className="h-4 w-4 text-text-muted" /> Bestellungen
               </h2>
-              <button onClick={() => setShowNewBestellung(true)} className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1">
+              <button onClick={() => setShowNewBestellung(true)} className="text-sm text-brand hover:text-brand-dark flex items-center gap-1">
                 <Plus className="h-4 w-4" /> Neue Bestellung
               </button>
             </div>
             <div className="p-5">
               {showNewBestellung && (
-                <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200 space-y-3">
+                <div className="mb-4 p-4 bg-brand-light rounded-lg border border-blue-200 space-y-3">
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     <div>
-                      <label className="text-xs font-medium text-gray-500">Bestell-Nr.</label>
-                      <input type="text" value={newBestellung.bestell_nummer} onChange={e => setNewBestellung(d => ({ ...d, bestell_nummer: e.target.value }))} className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="z.B. B-2026-001" />
+                      <label className="text-xs font-medium text-text-secondary">Bestell-Nr.</label>
+                      <input type="text" value={newBestellung.bestell_nummer} onChange={e => setNewBestellung(d => ({ ...d, bestell_nummer: e.target.value }))} className="mt-1 w-full rounded-lg border border-border-default px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent" placeholder="z.B. B-2026-001" />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-gray-500">Lieferant *</label>
-                      <input type="text" value={newBestellung.lieferant_name} onChange={e => setNewBestellung(d => ({ ...d, lieferant_name: e.target.value }))} className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="z.B. WERU" />
+                      <label className="text-xs font-medium text-text-secondary">Lieferant *</label>
+                      <input type="text" value={newBestellung.lieferant_name} onChange={e => setNewBestellung(d => ({ ...d, lieferant_name: e.target.value }))} className="mt-1 w-full rounded-lg border border-border-default px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent" placeholder="z.B. WERU" />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-gray-500">Bestell-Datum</label>
-                      <input type="date" value={newBestellung.bestell_datum} onChange={e => setNewBestellung(d => ({ ...d, bestell_datum: e.target.value }))} className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                      <label className="text-xs font-medium text-text-secondary">Bestell-Datum</label>
+                      <input type="date" value={newBestellung.bestell_datum} onChange={e => setNewBestellung(d => ({ ...d, bestell_datum: e.target.value }))} className="mt-1 w-full rounded-lg border border-border-default px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent" />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-gray-500">Wert</label>
-                      <input type="number" value={newBestellung.bestell_wert} onChange={e => setNewBestellung(d => ({ ...d, bestell_wert: e.target.value }))} className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="0.00" step="0.01" />
+                      <label className="text-xs font-medium text-text-secondary">Wert</label>
+                      <input type="number" value={newBestellung.bestell_wert} onChange={e => setNewBestellung(d => ({ ...d, bestell_wert: e.target.value }))} className="mt-1 w-full rounded-lg border border-border-default px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent" placeholder="0.00" step="0.01" />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="text-xs font-medium text-gray-500">Notizen</label>
-                      <input type="text" value={newBestellung.notizen} onChange={e => setNewBestellung(d => ({ ...d, notizen: e.target.value }))} className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Optionale Notizen..." />
+                      <label className="text-xs font-medium text-text-secondary">Notizen</label>
+                      <input type="text" value={newBestellung.notizen} onChange={e => setNewBestellung(d => ({ ...d, notizen: e.target.value }))} className="mt-1 w-full rounded-lg border border-border-default px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent" placeholder="Optionale Notizen..." />
                     </div>
                   </div>
                   <div className="flex gap-2 justify-end">
-                    <button onClick={() => { setShowNewBestellung(false); setNewBestellung({ bestell_nummer: '', lieferant_name: '', bestell_datum: new Date().toISOString().split('T')[0], ab_nummer: '', liefertermin_geplant: '', bestell_wert: '', notizen: '' }) }} className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                    <button onClick={() => { setShowNewBestellung(false); setNewBestellung({ bestell_nummer: '', lieferant_name: '', bestell_datum: new Date().toISOString().split('T')[0], ab_nummer: '', liefertermin_geplant: '', bestell_wert: '', notizen: '' }) }} className="px-3 py-1.5 text-sm text-text-secondary hover:bg-surface-hover rounded-lg transition-colors">
                       Abbrechen
                     </button>
-                    <button onClick={handleCreateBestellung} disabled={!newBestellung.lieferant_name.trim()} className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5">
+                    <button onClick={handleCreateBestellung} disabled={!newBestellung.lieferant_name.trim()} className="px-3 py-1.5 text-sm bg-btn-primary text-white rounded-lg hover:bg-btn-primary-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5">
                       <Save className="h-4 w-4" /> Speichern
                     </button>
                   </div>
                 </div>
               )}
               {bestellungen.length === 0 && !showNewBestellung ? (
-                <p className="text-sm text-gray-400">Keine Bestellungen vorhanden.</p>
+                <p className="text-sm text-text-muted">Keine Bestellungen vorhanden.</p>
               ) : bestellungen.length > 0 && (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-gray-100 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
+                      <tr className="border-b border-border-light text-left text-xs font-medium text-text-secondary uppercase tracking-wide">
                         <th className="pb-2 pr-4">Bestell-Nr.</th>
                         <th className="pb-2 pr-4">Lieferant</th>
                         <th className="pb-2 pr-4">Datum</th>
@@ -649,7 +649,7 @@ export default function ProjektDetail() {
                       {bestellungen.map(b => {
                         const bStatus = BESTELL_STATUS[b.status]
                         return (
-                          <tr key={b.id} className="border-b border-gray-50 hover:bg-gray-50">
+                          <tr key={b.id} className="border-b border-gray-50 hover:bg-surface-main">
                             <td className="py-2 pr-4 font-medium">{b.bestell_nummer || '-'}</td>
                             <td className="py-2 pr-4">{b.lieferant_name || '-'}</td>
                             <td className="py-2 pr-4">{formatDate(b.bestell_datum)}</td>
@@ -673,12 +673,12 @@ export default function ProjektDetail() {
           </div>
 
           {/* Dokumente (A-003) */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="px-5 py-3 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="font-semibold text-gray-900 flex items-center gap-2">
-                <Link2 className="h-4 w-4 text-gray-400" /> Dokumente
+          <div className="bg-surface-card rounded-lg shadow-sm border border-border-default">
+            <div className="px-5 py-3 border-b border-border-default flex items-center justify-between">
+              <h2 className="font-semibold text-text-primary flex items-center gap-2">
+                <Link2 className="h-4 w-4 text-text-muted" /> Dokumente
               </h2>
-              <button onClick={() => setShowLinkDokument(true)} className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1">
+              <button onClick={() => setShowLinkDokument(true)} className="text-sm text-brand hover:text-brand-dark flex items-center gap-1">
                 <Plus className="h-4 w-4" /> Verknuepfen
               </button>
             </div>
@@ -700,32 +700,32 @@ export default function ProjektDetail() {
 
               {/* Link-Dokument Formular */}
               {showLinkDokument && (
-                <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200 space-y-3">
+                <div className="mb-4 p-4 bg-brand-light rounded-lg border border-blue-200 space-y-3">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs font-medium text-gray-500">Dokument suchen</label>
+                      <label className="text-xs font-medium text-text-secondary">Dokument suchen</label>
                       <input
                         type="text" value={linkDocSearch}
                         onChange={e => { setLinkDocSearch(e.target.value); searchDocuments(e.target.value) }}
-                        className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="mt-1 w-full rounded-lg border border-border-default px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
                         placeholder="Dateiname eingeben..."
                       />
                       {linkDocResults.length > 0 && (
-                        <ul className="mt-1 bg-white border rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                        <ul className="mt-1 bg-surface-card border rounded-lg shadow-lg max-h-40 overflow-y-auto">
                           {linkDocResults.map(doc => (
                             <li key={doc.id} onClick={() => handleLinkDokument(doc.id)}
-                              className="px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer flex justify-between">
+                              className="px-3 py-2 text-sm hover:bg-brand-light cursor-pointer flex justify-between">
                               <span className="truncate">{doc.dateiname}</span>
-                              <span className="text-xs text-gray-400 ml-2">{doc.kategorie}</span>
+                              <span className="text-xs text-text-muted ml-2">{doc.kategorie}</span>
                             </li>
                           ))}
                         </ul>
                       )}
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-gray-500">Dokument-Typ</label>
+                      <label className="text-xs font-medium text-text-secondary">Dokument-Typ</label>
                       <select value={linkDocTyp} onChange={e => setLinkDocTyp(e.target.value)}
-                        className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm bg-white">
+                        className="mt-1 w-full rounded-lg border border-border-default px-3 py-1.5 text-sm bg-surface-card">
                         {Object.entries(PROJEKT_DOKUMENT_TYPEN).map(([key, typ]) => (
                           <option key={key} value={key}>{typ.label}</option>
                         ))}
@@ -734,7 +734,7 @@ export default function ProjektDetail() {
                   </div>
                   <div className="flex justify-end">
                     <button onClick={() => { setShowLinkDokument(false); setLinkDocSearch(''); setLinkDocResults([]) }}
-                      className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">
+                      className="px-3 py-1.5 text-sm text-text-secondary hover:bg-surface-hover rounded-lg">
                       Abbrechen
                     </button>
                   </div>
@@ -743,23 +743,23 @@ export default function ProjektDetail() {
 
               {/* Dokumente-Liste */}
               {dokumente.length === 0 && !showLinkDokument ? (
-                <p className="text-sm text-gray-400">Keine Dokumente verknuepft.</p>
+                <p className="text-sm text-text-muted">Keine Dokumente verknuepft.</p>
               ) : dokumente.length > 0 && (
                 <div className="space-y-2">
                   {dokumente.map(d => (
-                    <div key={d.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 group">
+                    <div key={d.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-surface-main group">
                       <div className="flex items-center gap-3 min-w-0">
-                        <FileText className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                        <FileText className="h-4 w-4 text-text-muted flex-shrink-0" />
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">{d.documents?.dateiname || 'Unbekannt'}</p>
-                          <p className="text-xs text-gray-400">
+                          <p className="text-sm font-medium text-text-primary truncate">{d.documents?.dateiname || 'Unbekannt'}</p>
+                          <p className="text-xs text-text-muted">
                             {PROJEKT_DOKUMENT_TYPEN[d.dokument_typ]?.label || d.dokument_typ}
                             {d.ist_pflicht && <span className="ml-1 text-amber-600 font-medium">Pflicht</span>}
                           </p>
                         </div>
                       </div>
                       <button onClick={() => handleUnlinkDokument(d.id)}
-                        className="p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="p-1 text-text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                         title="Verknuepfung entfernen">
                         <Unlink className="h-4 w-4" />
                       </button>
@@ -771,15 +771,15 @@ export default function ProjektDetail() {
           </div>
 
           {/* Notizen */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="px-5 py-3 border-b border-gray-200">
-              <h2 className="font-semibold text-gray-900 flex items-center gap-2">
-                <FileText className="h-4 w-4 text-gray-400" /> Notizen
+          <div className="bg-surface-card rounded-lg shadow-sm border border-border-default">
+            <div className="px-5 py-3 border-b border-border-default">
+              <h2 className="font-semibold text-text-primary flex items-center gap-2">
+                <FileText className="h-4 w-4 text-text-muted" /> Notizen
               </h2>
             </div>
             <div className="p-5 space-y-4">
               {projekt.notizen && (
-                <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans bg-gray-50 rounded-lg p-4">{projekt.notizen}</pre>
+                <pre className="text-sm text-text-primary whitespace-pre-wrap font-sans bg-surface-main rounded-lg p-4">{projekt.notizen}</pre>
               )}
               <div className="flex gap-2">
                 <textarea
@@ -787,12 +787,12 @@ export default function ProjektDetail() {
                   onChange={e => setNewNotiz(e.target.value)}
                   placeholder="Neue Notiz..."
                   rows={2}
-                  className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  className="flex-1 rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent resize-none"
                 />
                 <button
                   onClick={handleAddNotiz}
                   disabled={!newNotiz.trim()}
-                  className="self-end px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                  className="self-end px-3 py-2 text-sm bg-btn-primary text-white rounded-lg hover:bg-btn-primary-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
                 >
                   <Plus className="h-4 w-4" /> Hinzufuegen
                 </button>
@@ -803,15 +803,15 @@ export default function ProjektDetail() {
 
         {/* RIGHT: Timeline 1/3 */}
         <div className="space-y-6">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="px-5 py-3 border-b border-gray-200">
-              <h2 className="font-semibold text-gray-900 flex items-center gap-2">
-                <Clock className="h-4 w-4 text-gray-400" /> Historie
+          <div className="bg-surface-card rounded-lg shadow-sm border border-border-default">
+            <div className="px-5 py-3 border-b border-border-default">
+              <h2 className="font-semibold text-text-primary flex items-center gap-2">
+                <Clock className="h-4 w-4 text-text-muted" /> Historie
               </h2>
             </div>
             <div className="p-5">
               {historie.length === 0 ? (
-                <p className="text-sm text-gray-400">Noch keine Eintraege.</p>
+                <p className="text-sm text-text-muted">Noch keine Eintraege.</p>
               ) : (
                 <div className="relative space-y-0">
                   {historie.map((entry, idx) => {
@@ -821,7 +821,7 @@ export default function ProjektDetail() {
                       <div key={entry.id} className="relative flex gap-3 pb-6">
                         {/* Vertical line */}
                         {!isLast && (
-                          <div className="absolute left-[7px] top-4 bottom-0 w-px bg-gray-200" />
+                          <div className="absolute left-[7px] top-4 bottom-0 w-px bg-surface-hover" />
                         )}
                         {/* Dot */}
                         <div className="relative z-10 flex-shrink-0 mt-0.5">
@@ -829,25 +829,25 @@ export default function ProjektDetail() {
                         </div>
                         {/* Content */}
                         <div className="min-w-0 flex-1">
-                          <p className="text-xs text-gray-400">{formatRelativeTime(entry.erstellt_am)}</p>
+                          <p className="text-xs text-text-muted">{formatRelativeTime(entry.erstellt_am)}</p>
                           {entry.aktion === 'status_change' ? (
-                            <p className="text-sm text-gray-700 mt-0.5">
+                            <p className="text-sm text-text-primary mt-0.5">
                               Status: <span className="font-medium">{PROJEKT_PHASEN[entry.alter_wert]?.label || entry.alter_wert}</span>
-                              {' '}<ChevronRight className="inline h-3 w-3 text-gray-400" />{' '}
+                              {' '}<ChevronRight className="inline h-3 w-3 text-text-muted" />{' '}
                               <span className="font-medium">{PROJEKT_PHASEN[entry.neuer_wert]?.label || entry.neuer_wert}</span>
                             </p>
                           ) : entry.aktion === 'notiz' ? (
-                            <p className="text-sm text-gray-700 mt-0.5">{entry.neuer_wert}</p>
+                            <p className="text-sm text-text-primary mt-0.5">{entry.neuer_wert}</p>
                           ) : (
-                            <p className="text-sm text-gray-700 mt-0.5">
-                              <span className="text-gray-500">{entry.feld}:</span>{' '}
-                              {entry.alter_wert && <span className="line-through text-gray-400">{entry.alter_wert}</span>}
+                            <p className="text-sm text-text-primary mt-0.5">
+                              <span className="text-text-secondary">{entry.feld}:</span>{' '}
+                              {entry.alter_wert && <span className="line-through text-text-muted">{entry.alter_wert}</span>}
                               {entry.alter_wert && ' '}
                               <span className="font-medium">{entry.neuer_wert || '-'}</span>
                             </p>
                           )}
                           {entry.erstellt_von && (
-                            <p className="text-xs text-gray-400 mt-0.5">{entry.erstellt_von}</p>
+                            <p className="text-xs text-text-muted mt-0.5">{entry.erstellt_von}</p>
                           )}
                         </div>
                       </div>
@@ -861,20 +861,20 @@ export default function ProjektDetail() {
       </div>
 
       {/* Positionen (full width) - A-004 erweitert */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="px-5 py-3 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="font-semibold text-gray-900 flex items-center gap-2">
-            <Wrench className="h-4 w-4 text-gray-400" /> Positionen
+      <div className="bg-surface-card rounded-lg shadow-sm border border-border-default">
+        <div className="px-5 py-3 border-b border-border-default flex items-center justify-between">
+          <h2 className="font-semibold text-text-primary flex items-center gap-2">
+            <Wrench className="h-4 w-4 text-text-muted" /> Positionen
           </h2>
         </div>
         <div className="p-5">
           {positionen.length === 0 ? (
-            <p className="text-sm text-gray-400">Keine Positionen vorhanden.</p>
+            <p className="text-sm text-text-muted">Keine Positionen vorhanden.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-100 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  <tr className="border-b border-border-light text-left text-xs font-medium text-text-secondary uppercase tracking-wide">
                     <th className="pb-2 pr-4">Pos</th>
                     <th className="pb-2 pr-4">Bezeichnung</th>
                     <th className="pb-2 pr-4">Typ</th>
@@ -894,32 +894,32 @@ export default function ProjektDetail() {
                     .map(pos => {
                       if (pos.ist_ueberschrift) {
                         return (
-                          <tr key={pos.id} className="bg-gray-50">
-                            <td className="py-2 pr-4 text-gray-500">{pos.pos_nr}</td>
-                            <td colSpan={10} className="py-2 font-bold text-gray-700">{pos.bezeichnung || pos.gruppe || '-'}</td>
+                          <tr key={pos.id} className="bg-surface-main">
+                            <td className="py-2 pr-4 text-text-secondary">{pos.pos_nr}</td>
+                            <td colSpan={10} className="py-2 font-bold text-text-primary">{pos.bezeichnung || pos.gruppe || '-'}</td>
                           </tr>
                         )
                       }
                       const isAlt = pos.ist_alternativ
                       const isNachtrag = pos.ist_nachtrag
                       return (
-                        <tr key={pos.id} className={`border-b border-gray-50 hover:bg-gray-50 ${isAlt ? 'opacity-50' : ''} ${isNachtrag ? 'bg-blue-50/30' : ''}`}>
-                          <td className="py-2 pr-4 text-gray-500">
+                        <tr key={pos.id} className={`border-b border-gray-50 hover:bg-surface-main ${isAlt ? 'opacity-50' : ''} ${isNachtrag ? 'bg-brand-light/30' : ''}`}>
+                          <td className="py-2 pr-4 text-text-secondary">
                             {pos.pos_nr}
                             {pos.version > 1 && (
-                              <span className="ml-1 text-xs px-1 py-0.5 rounded bg-blue-100 text-blue-700">V{pos.version}</span>
+                              <span className="ml-1 text-xs px-1 py-0.5 rounded bg-brand-light text-brand-dark">V{pos.version}</span>
                             )}
                           </td>
                           <td className="py-2 pr-4 font-medium">
                             {pos.bezeichnung || '-'}
-                            {isAlt && <span className="ml-1 text-xs text-gray-400">(Alternativ)</span>}
-                            {isNachtrag && <span className="ml-1 text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">NT {pos.nachtrag_nr || ''}</span>}
+                            {isAlt && <span className="ml-1 text-xs text-text-muted">(Alternativ)</span>}
+                            {isNachtrag && <span className="ml-1 text-xs px-1.5 py-0.5 rounded bg-brand-light text-brand-dark">NT {pos.nachtrag_nr || ''}</span>}
                           </td>
                           <td className="py-2 pr-4">{pos.typ || '-'}</td>
                           <td className="py-2 pr-4 text-right">{pos.breite_mm || '-'}</td>
                           <td className="py-2 pr-4 text-right">{pos.hoehe_mm || '-'}</td>
                           <td className="py-2 pr-4 text-right">{pos.menge ?? '-'}</td>
-                          <td className="py-2 pr-4 text-xs text-gray-500">{POSITIONS_EINHEITEN[pos.einheit]?.short || pos.einheit || '-'}</td>
+                          <td className="py-2 pr-4 text-xs text-text-secondary">{POSITIONS_EINHEITEN[pos.einheit]?.short || pos.einheit || '-'}</td>
                           <td className="py-2 pr-4 text-right">{formatEuro(pos.einzelpreis)}</td>
                           <td className="py-2 pr-4 text-right">{formatEuro(pos.vk_preis)}</td>
                           <td className="py-2 pr-4 text-right font-medium">{isAlt ? '-' : formatEuro(pos.gesamtpreis)}</td>
@@ -930,7 +930,7 @@ export default function ProjektDetail() {
                 </tbody>
                 {positionen.filter(p => p.status !== 'REPLACED' && !p.ist_ueberschrift && !p.ist_alternativ).length > 0 && (
                   <tfoot>
-                    <tr className="border-t border-gray-200 font-semibold">
+                    <tr className="border-t border-border-default font-semibold">
                       <td colSpan={9} className="py-2 pr-4 text-right">Summe</td>
                       <td className="py-2 pr-4 text-right">
                         {formatEuro(positionen.filter(p => p.status !== 'REPLACED' && !p.ist_ueberschrift && !p.ist_alternativ).reduce((sum, p) => sum + (p.gesamtpreis || 0), 0))}
@@ -938,7 +938,7 @@ export default function ProjektDetail() {
                       <td />
                     </tr>
                     {positionen.some(p => p.ist_nachtrag && p.status !== 'REPLACED') && (
-                      <tr className="font-semibold text-blue-700">
+                      <tr className="font-semibold text-brand-dark">
                         <td colSpan={9} className="py-1 pr-4 text-right text-sm">davon Nachträge</td>
                         <td className="py-1 pr-4 text-right text-sm">
                           {formatEuro(positionen.filter(p => p.ist_nachtrag && p.status !== 'REPLACED' && !p.ist_alternativ).reduce((sum, p) => sum + (p.gesamtpreis || 0), 0))}
@@ -962,9 +962,9 @@ function WertCell({ label, value, diff }) {
   const hasDiff = diff != null && diff !== 0
   return (
     <div className="flex flex-col">
-      <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</span>
+      <span className="text-xs font-medium text-text-secondary uppercase tracking-wide">{label}</span>
       <div className="flex items-baseline gap-2 mt-1">
-        <span className="text-sm font-semibold text-gray-900">{hasValue ? formatEuro(value) : '-'}</span>
+        <span className="text-sm font-semibold text-text-primary">{hasValue ? formatEuro(value) : '-'}</span>
         {hasDiff && (
           <span className="text-xs font-medium" style={{ color: diff > 0 ? '#16A34A' : '#DC2626' }}>
             {diff > 0 ? '+' : ''}{formatEuro(diff)}
@@ -978,16 +978,16 @@ function WertCell({ label, value, diff }) {
 function Field({ label, value, editing, editValue, onChange, type = 'text' }) {
   return (
     <div>
-      <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</span>
+      <span className="text-xs font-medium text-text-secondary uppercase tracking-wide">{label}</span>
       {editing ? (
         <input
           type={type}
           value={editValue ?? ''}
           onChange={e => onChange(e.target.value)}
-          className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="mt-1 w-full rounded-lg border border-border-default px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
         />
       ) : (
-        <p className="mt-1 text-sm text-gray-900">{value || '-'}</p>
+        <p className="mt-1 text-sm text-text-primary">{value || '-'}</p>
       )}
     </div>
   )

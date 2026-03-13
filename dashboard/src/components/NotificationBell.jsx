@@ -91,7 +91,7 @@ export default function NotificationBell() {
       <button
         ref={buttonRef}
         onClick={() => setOpen(prev => !prev)}
-        className="flex items-center gap-2 px-4 py-2.5 mx-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors w-full text-left relative cursor-pointer"
+        className="flex items-center gap-2 px-4 py-2.5 mx-2 text-sm text-text-muted hover:text-text-secondary hover:bg-nav-hover-bg rounded-lg transition-colors w-full text-left relative cursor-pointer"
       >
         <Bell size={18} />
         <span>Meldungen</span>
@@ -104,17 +104,17 @@ export default function NotificationBell() {
 
       {/* Dropdown Panel */}
       {open && (
-        <div className="fixed w-96 bg-white border border-gray-200 rounded-xl shadow-xl z-50 flex flex-col min-h-[200px]" style={{ left: '232px', top: '16px', maxHeight: 'calc(100vh - 32px)' }}>
+        <div className="fixed w-96 bg-surface-card border border-border-default rounded-xl shadow-xl z-50 flex flex-col min-h-[200px]" style={{ left: '232px', top: '16px', maxHeight: 'calc(100vh - 32px)' }}>
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
-            <h3 className="text-sm font-semibold text-gray-900">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border-light shrink-0">
+            <h3 className="text-sm font-semibold text-text-primary">
               {showArchive ? 'Archiv' : 'Meldungen'}
             </h3>
             <div className="flex items-center gap-3">
               {!showArchive && unreadCount > 0 && (
                 <button
                   onClick={markAllAsRead}
-                  className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
+                  className="flex items-center gap-1 text-xs font-medium text-brand hover:text-brand-hover transition-colors cursor-pointer"
                   title="Alle als gelesen markieren"
                 >
                   <CheckCheck size={14} />
@@ -124,7 +124,7 @@ export default function NotificationBell() {
               {!showArchive && readCount > 0 && (
                 <button
                   onClick={archiveRead}
-                  className="flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors cursor-pointer"
+                  className="flex items-center gap-1 text-xs font-medium text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
                   title="Gelesene archivieren"
                 >
                   <Archive size={14} />
@@ -134,7 +134,7 @@ export default function NotificationBell() {
               <button
                 onClick={() => setShowArchive(prev => !prev)}
                 className={`flex items-center gap-1 text-xs font-medium transition-colors cursor-pointer ${
-                  showArchive ? 'text-blue-600 hover:text-blue-800' : 'text-gray-400 hover:text-gray-600'
+                  showArchive ? 'text-brand hover:text-brand-hover' : 'text-gray-400 hover:text-gray-600'
                 }`}
                 title={showArchive ? 'Aktuelle anzeigen' : 'Archiv anzeigen'}
               >
@@ -142,7 +142,7 @@ export default function NotificationBell() {
               </button>
               <button
                 onClick={() => setOpen(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                className="text-text-muted hover:text-text-secondary transition-colors cursor-pointer"
               >
                 <X size={16} />
               </button>
@@ -152,9 +152,9 @@ export default function NotificationBell() {
           {/* Notification List */}
           <div className="flex-1 overflow-y-auto">
             {loading ? (
-              <div className="p-8 text-center text-sm text-gray-400">Laden...</div>
+              <div className="p-8 text-center text-sm text-text-muted">Laden...</div>
             ) : visibleNotifications.length === 0 ? (
-              <div className="p-8 text-center text-sm text-gray-400">
+              <div className="p-8 text-center text-sm text-text-muted">
                 {showArchive ? 'Kein Archiv vorhanden' : 'Keine Meldungen'}
               </div>
             ) : (
@@ -166,10 +166,10 @@ export default function NotificationBell() {
                   <div
                     key={n.id}
                     onClick={() => !n.read && markAsRead(n.id)}
-                    className={`flex items-start gap-3 px-4 py-3 border-b border-gray-50 transition-colors ${
+                    className={`flex items-start gap-3 px-4 py-3 border-b border-border-light transition-colors ${
                       n.read
                         ? 'opacity-50'
-                        : 'bg-blue-50/30 hover:bg-blue-50/50 cursor-pointer'
+                        : 'bg-brand-light/30 hover:bg-brand-light/50 cursor-pointer'
                     }`}
                   >
                     <div
@@ -179,20 +179,20 @@ export default function NotificationBell() {
                       <Icon size={14} style={{ color: config.color }} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{n.title}</p>
+                      <p className="text-sm font-medium text-text-primary truncate">{n.title}</p>
                       {n.body && (
-                        <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.body}</p>
+                        <p className="text-xs text-text-secondary mt-0.5 line-clamp-2">{n.body}</p>
                       )}
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs text-gray-400">{timeAgo(n.created_at)}</span>
-                        <span className="text-xs text-gray-300">|</span>
-                        <span className="text-xs text-gray-400">{n.source}</span>
+                        <span className="text-xs text-text-muted">{timeAgo(n.created_at)}</span>
+                        <span className="text-xs text-border-default">|</span>
+                        <span className="text-xs text-text-muted">{n.source}</span>
                         {n.metadata?.run_url && (
                           <a
                             href={n.metadata.run_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-xs text-blue-500 hover:text-blue-700 flex items-center gap-0.5"
+                            className="text-xs text-brand hover:text-brand-hover flex items-center gap-0.5"
                             onClick={e => e.stopPropagation()}
                           >
                             <ExternalLink size={10} />
@@ -204,7 +204,7 @@ export default function NotificationBell() {
                     {!n.read && !showArchive && (
                       <button
                         onClick={e => { e.stopPropagation(); markAsRead(n.id) }}
-                        className="mt-1 p-1.5 text-blue-400 hover:text-blue-600 hover:bg-blue-100 rounded-md transition-colors shrink-0 cursor-pointer"
+                        className="mt-1 p-1.5 text-brand hover:text-brand-hover hover:bg-brand-light rounded-md transition-colors shrink-0 cursor-pointer"
                         title="Als gelesen markieren"
                       >
                         <Check size={16} strokeWidth={2.5} />

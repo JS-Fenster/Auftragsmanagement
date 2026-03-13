@@ -68,10 +68,10 @@ export function StepZusammenfassung({
   return (
     <div className="space-y-6">
       {/* Firmendaten + Netto/Brutto Toggle */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-surface-card rounded-lg shadow-sm border border-border-default p-6">
         <div className="flex items-center justify-between">
-          <div className="text-sm text-gray-500">
-            <span className="font-semibold text-gray-900">{FIRMA_INFO.firma}</span>
+          <div className="text-sm text-text-secondary">
+            <span className="font-semibold text-text-primary">{FIRMA_INFO.firma}</span>
             <span className="mx-2">|</span>
             {FIRMA_INFO.strasse}, {FIRMA_INFO.plz_ort}
             <span className="mx-2">|</span>
@@ -79,18 +79,18 @@ export function StepZusammenfassung({
           </div>
           <button
             onClick={() => setShowNetto(!showNetto)}
-            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors hover:bg-gray-50"
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors hover:bg-surface-main"
           >
             {showNetto ? 'Netto' : 'Brutto'}
-            <span className="text-xs text-gray-400">klick zum Wechseln</span>
+            <span className="text-xs text-text-muted">klick zum Wechseln</span>
           </button>
         </div>
       </div>
 
       {/* Price Summary Card */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h3 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <Euro className="w-5 h-5 text-blue-600" />
+      <div className="bg-surface-card rounded-lg shadow-sm border border-border-default p-6">
+        <h3 className="text-base font-semibold text-text-primary mb-4 flex items-center gap-2">
+          <Euro className="w-5 h-5 text-brand" />
           Preiszusammenfassung ({displayLabel})
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -101,58 +101,58 @@ export function StepZusammenfassung({
               <>
                 {(breakdown.fenster > 0 || positionenNetto > 0) && (
                   <div className="flex items-center justify-between py-1">
-                    <span className="text-sm text-gray-600">Fenster/Tueren</span>
-                    <span className="text-sm text-gray-900">{formatPreis(breakdown.fenster || positionenNetto, showNetto, { isNetto: true })}</span>
+                    <span className="text-sm text-text-secondary">Fenster/Tueren</span>
+                    <span className="text-sm text-text-primary">{formatPreis(breakdown.fenster || positionenNetto, showNetto, { isNetto: true })}</span>
                   </div>
                 )}
                 {breakdown.zubehoer > 0 && (
                   <div className="flex items-center justify-between py-1">
-                    <span className="text-sm text-gray-600">Zubehoer</span>
-                    <span className="text-sm text-gray-900">{formatPreis(breakdown.zubehoer, showNetto, { isNetto: true })}</span>
+                    <span className="text-sm text-text-secondary">Zubehoer</span>
+                    <span className="text-sm text-text-primary">{formatPreis(breakdown.zubehoer, showNetto, { isNetto: true })}</span>
                   </div>
                 )}
                 {/* Zusatzleistungen einzeln anzeigen (B-007 Fix) */}
                 {(parseFloat(montageData.montage) || 0) > 0 && (
                   <div className="flex items-center justify-between py-1">
-                    <span className="text-sm text-gray-600">Montage</span>
-                    <span className="text-sm text-gray-900">{formatPreis(montageData.montage, showNetto, { isNetto: true })}</span>
+                    <span className="text-sm text-text-secondary">Montage</span>
+                    <span className="text-sm text-text-primary">{formatPreis(montageData.montage, showNetto, { isNetto: true })}</span>
                   </div>
                 )}
                 {(parseFloat(montageData.demontage) || 0) > 0 && (
                   <div className="flex items-center justify-between py-1">
-                    <span className="text-sm text-gray-600">Demontage</span>
-                    <span className="text-sm text-gray-900">{formatPreis(montageData.demontage, showNetto, { isNetto: true })}</span>
+                    <span className="text-sm text-text-secondary">Demontage</span>
+                    <span className="text-sm text-text-primary">{formatPreis(montageData.demontage, showNetto, { isNetto: true })}</span>
                   </div>
                 )}
                 {(parseFloat(montageData.entsorgung) || 0) > 0 && (
                   <div className="flex items-center justify-between py-1">
-                    <span className="text-sm text-gray-600">Entsorgung</span>
-                    <span className="text-sm text-gray-900">{formatPreis(montageData.entsorgung, showNetto, { isNetto: true })}</span>
+                    <span className="text-sm text-text-secondary">Entsorgung</span>
+                    <span className="text-sm text-text-primary">{formatPreis(montageData.entsorgung, showNetto, { isNetto: true })}</span>
                   </div>
                 )}
                 {breakdown.montage > 0 && !montageKosten && (
                   <div className="flex items-center justify-between py-1">
-                    <span className="text-sm text-gray-600">Montage/Demontage</span>
-                    <span className="text-sm text-gray-900">{formatPreis(breakdown.montage, showNetto, { isNetto: true })}</span>
+                    <span className="text-sm text-text-secondary">Montage/Demontage</span>
+                    <span className="text-sm text-text-primary">{formatPreis(breakdown.montage, showNetto, { isNetto: true })}</span>
                   </div>
                 )}
-                <div className="border-t border-gray-100 my-1" />
+                <div className="border-t border-border-light my-1" />
               </>
             )}
 
             <div className="flex items-center justify-between py-2">
-              <span className="text-sm text-gray-600">Netto</span>
-              <span className="text-sm font-semibold text-gray-900">{formatEuro(netto)}</span>
+              <span className="text-sm text-text-secondary">Netto</span>
+              <span className="text-sm font-semibold text-text-primary">{formatEuro(netto)}</span>
             </div>
             {!showNetto && (
               <>
                 <div className="flex items-center justify-between py-2">
-                  <span className="text-sm text-gray-600">MwSt. (19%)</span>
-                  <span className="text-sm text-gray-700">{formatEuro(mwst)}</span>
+                  <span className="text-sm text-text-secondary">MwSt. (19%)</span>
+                  <span className="text-sm text-text-primary">{formatEuro(mwst)}</span>
                 </div>
-                <div className="border-t border-gray-200 pt-3 flex items-center justify-between">
-                  <span className="text-sm font-semibold text-gray-900">Brutto</span>
-                  <span className="text-lg font-bold text-gray-900">{formatEuro(brutto)}</span>
+                <div className="border-t border-border-default pt-3 flex items-center justify-between">
+                  <span className="text-sm font-semibold text-text-primary">Brutto</span>
+                  <span className="text-lg font-bold text-text-primary">{formatEuro(brutto)}</span>
                 </div>
               </>
             )}
@@ -166,15 +166,15 @@ export function StepZusammenfassung({
             </div>
 
             {/* Price Range +-15% */}
-            <div className="bg-gray-50 rounded-lg p-3">
-              <p className="text-xs font-medium text-gray-500 mb-1">Preisspanne ({displayLabel}, {'\u00b1'}15%)</p>
-              <p className="text-sm font-semibold text-gray-900">
+            <div className="bg-surface-main rounded-lg p-3">
+              <p className="text-xs font-medium text-text-secondary mb-1">Preisspanne ({displayLabel}, {'\u00b1'}15%)</p>
+              <p className="text-sm font-semibold text-text-primary">
                 {formatEuro(showNetto ? preisVon / (1 + MWST_SATZ) : preisVon)} {'\u2013'} {formatEuro(showNetto ? preisBis / (1 + MWST_SATZ) : preisBis)}
               </p>
             </div>
 
             {/* Position count */}
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-text-secondary">
               {editedPositions.length} Position{editedPositions.length !== 1 ? 'en' : ''}
             </div>
           </div>
@@ -183,15 +183,15 @@ export function StepZusammenfassung({
 
       {/* Montage V2 Details */}
       {(workBreakdown.montage || workBreakdown.entsorgung || workBreakdown.material) && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">Montage-Details</h3>
+        <div className="bg-surface-card rounded-lg shadow-sm border border-border-default p-6">
+          <h3 className="text-sm font-semibold text-text-primary mb-3">Montage-Details</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {workBreakdown.montage > 0 && (
-              <div className="bg-blue-50 rounded-lg p-3">
-                <p className="text-xs text-blue-600 font-medium">Arbeitsstunden</p>
+              <div className="bg-brand-light rounded-lg p-3">
+                <p className="text-xs text-brand font-medium">Arbeitsstunden</p>
                 <p className="text-sm font-semibold text-blue-900">{formatPreis(workBreakdown.montage, showNetto, { decimals: 2, isNetto: true })}</p>
                 {workDetails?.montage && (
-                  <p className="text-xs text-blue-700 mt-1">
+                  <p className="text-xs text-brand-dark mt-1">
                     {workDetails.montage.stunden_gesamt?.toFixed(1)} Std {'\u00d7'} {toDisplayValue(workDetails.montage.stundensatz, showNetto, true).toFixed(2)} EUR/Std
                   </p>
                 )}
@@ -238,14 +238,14 @@ export function StepZusammenfassung({
 
       {/* Missing Info */}
       {fehlendeInfos.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-5">
+        <div className="bg-brand-light border border-blue-200 rounded-lg p-5">
           <h4 className="text-sm font-semibold text-blue-800 mb-2 flex items-center gap-2">
             <AlertTriangle className="w-4 h-4" />
             Fehlende Informationen
           </h4>
           <ul className="space-y-1">
             {fehlendeInfos.map((f, i) => (
-              <li key={i} className="text-sm text-blue-700 flex items-start gap-2">
+              <li key={i} className="text-sm text-brand-dark flex items-start gap-2">
                 <span className="text-blue-400 mt-0.5 shrink-0">&bull;</span>
                 {f}
               </li>
@@ -279,7 +279,7 @@ export function StepZusammenfassung({
       {/* Actions */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <button
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm text-text-secondary hover:text-text-primary hover:bg-surface-hover rounded-lg transition-colors"
           onClick={onBack}
         >
           <ArrowLeft className="w-4 h-4" />
@@ -287,7 +287,7 @@ export function StepZusammenfassung({
         </button>
         <div className="flex items-center gap-3">
           <button
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-600 border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm text-text-secondary border border-border-default hover:bg-surface-main rounded-lg transition-colors"
             onClick={onReset}
           >
             <RotateCcw className="w-4 h-4" />

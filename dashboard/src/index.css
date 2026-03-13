@@ -1,1 +1,112 @@
 @import "tailwindcss";
+
+/* ===== JS Fenster Brand Theme ===== */
+/* CSS Custom Properties for Light/Dark mode switching */
+/* Dark mode: add .dark to <html>, variables auto-swap */
+
+:root {
+  /* Brand */
+  --brand: #FAB20B;
+  --brand-hover: #E09E00;
+  --brand-light: #FEF3C7;
+  --brand-dark: #92400E;
+
+  /* Surfaces */
+  --surface-main: #F9FAFB;
+  --surface-sidebar: #FFFFFF;
+  --surface-card: #FFFFFF;
+  --surface-hover: #F3F4F6;
+
+  /* Borders */
+  --border-default: #E5E7EB;
+  --border-light: #F3F4F6;
+
+  /* Text */
+  --text-primary: #111827;
+  --text-secondary: #6B7280;
+  --text-muted: #9CA3AF;
+
+  /* Nav */
+  --nav-active-bg: #FEF3C7;
+  --nav-active-text: #4A4A48;
+  --nav-hover-bg: #F3F4F6;
+  --nav-hover-text: #111827;
+
+  /* Interactive */
+  --btn-primary: #FAB20B;
+  --btn-primary-hover: #E09E00;
+  --btn-primary-text: #FFFFFF;
+  --input-bg: #FFFFFF;
+  --input-border: #D1D5DB;
+  --input-border-focus: #FAB20B;
+
+  /* Status (semantic - same in both modes) */
+  --color-danger: #DC2626;
+  --color-warning: #F59E0B;
+  --color-success: #10B981;
+  --color-info: #3B82F6;
+}
+
+/* Dark mode (predefined - activate via .dark on <html>) */
+.dark {
+  --brand: #FBBF24;
+  --brand-hover: #FCD34D;
+  --brand-light: #422006;
+  --brand-dark: #FDE68A;
+
+  --surface-main: #0F172A;
+  --surface-sidebar: #0B1120;
+  --surface-card: #1E293B;
+  --surface-hover: #334155;
+
+  --border-default: #1E293B;
+  --border-light: #334155;
+
+  --text-primary: #F1F5F9;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+
+  --nav-active-bg: #44443F;
+  --nav-active-text: #FBBF24;
+  --nav-hover-bg: #1E293B;
+  --nav-hover-text: #F1F5F9;
+
+  --btn-primary: #FBBF24;
+  --btn-primary-hover: #FCD34D;
+  --btn-primary-text: #422006;
+  --input-bg: #1E293B;
+  --input-border: #475569;
+  --input-border-focus: #FBBF24;
+}
+
+/* ===== Tailwind v4 Theme Extension ===== */
+@theme {
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-light: var(--brand-light);
+  --color-brand-dark: var(--brand-dark);
+
+  --color-surface-main: var(--surface-main);
+  --color-surface-sidebar: var(--surface-sidebar);
+  --color-surface-card: var(--surface-card);
+  --color-surface-hover: var(--surface-hover);
+
+  --color-border-default: var(--border-default);
+  --color-border-light: var(--border-light);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+
+  --color-nav-active-bg: var(--nav-active-bg);
+  --color-nav-active-text: var(--nav-active-text);
+  --color-nav-hover-bg: var(--nav-hover-bg);
+  --color-nav-hover-text: var(--nav-hover-text);
+
+  --color-btn-primary: var(--btn-primary);
+  --color-btn-primary-hover: var(--btn-primary-hover);
+  --color-btn-primary-text: var(--btn-primary-text);
+  --color-input-bg: var(--input-bg);
+  --color-input-border: var(--input-border);
+  --color-input-border-focus: var(--input-border-focus);
+}

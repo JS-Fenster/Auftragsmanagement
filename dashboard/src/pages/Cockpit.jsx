@@ -54,19 +54,18 @@ const HISTORIE_ICONS = {
 // -- Sub-Components --------------------------------------------------------
 
 function AlertCard({ alert, onClick }) {
-  const borderColor = alert.severity === 'danger' ? '#DC2626' : '#F59E0B'
-  const bgColor = alert.severity === 'danger' ? '#FEF2F2' : '#FFFBEB'
+  const borderColor = alert.severity === 'danger' ? '#DC2626' : '#FAB20B'
   const ActionIcon = alert.action.icon
 
   return (
     <div
       onClick={onClick}
-      className="flex items-center justify-between rounded-lg shadow-sm cursor-pointer hover:shadow-md transition-shadow"
-      style={{ backgroundColor: bgColor, borderLeft: `4px solid ${borderColor}`, padding: '8px 12px' }}
+      className="flex items-center justify-between bg-surface-card border border-border-default rounded-lg shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+      style={{ borderLeft: `4px solid ${borderColor}`, padding: '8px 12px' }}
     >
       <div className="min-w-0 flex-1">
-        <p className="font-semibold text-gray-900 text-sm truncate">{alert.title}</p>
-        <p className="text-xs text-gray-500 mt-0.5">{alert.subtitle}</p>
+        <p className="font-semibold text-text-primary text-sm truncate">{alert.title}</p>
+        <p className="text-xs text-text-secondary mt-0.5">{alert.subtitle}</p>
       </div>
       <button
         onClick={e => { e.stopPropagation() }}
@@ -82,22 +81,22 @@ function AlertCard({ alert, onClick }) {
 
 function MontageTeamCard({ team, montagen, onNavigate }) {
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+    <div className="bg-surface-card rounded-lg shadow-sm border border-border-default p-3">
       <div className="flex items-center gap-2 mb-2">
         <Users size={16} style={{ color: '#10B981' }} />
-        <h4 className="font-semibold text-sm text-gray-900">{TEAMS_MAP[team] || team}</h4>
-        <span className="text-xs text-gray-400 ml-auto">{montagen.length} Montage{montagen.length !== 1 ? 'n' : ''}</span>
+        <h4 className="font-semibold text-sm text-text-primary">{TEAMS_MAP[team] || team}</h4>
+        <span className="text-xs text-text-muted ml-auto">{montagen.length} Montage{montagen.length !== 1 ? 'n' : ''}</span>
       </div>
       <div className="space-y-2">
         {montagen.map(p => (
           <div
             key={p.id}
             onClick={() => onNavigate(p.id)}
-            className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 rounded px-2 py-1.5 -mx-2"
+            className="flex items-center gap-2 text-sm cursor-pointer hover:bg-surface-main rounded px-2 py-1.5 -mx-2"
           >
-            <span className="font-medium text-gray-700 truncate">{kundeName(p)}</span>
-            {kundeOrt(p) && <span className="text-xs text-gray-400 shrink-0">{kundeOrt(p)}</span>}
-            <span className="text-xs text-gray-300 ml-auto shrink-0">{p.projekt_nummer}</span>
+            <span className="font-medium text-text-primary truncate">{kundeName(p)}</span>
+            {kundeOrt(p) && <span className="text-xs text-text-muted shrink-0">{kundeOrt(p)}</span>}
+            <span className="text-xs text-text-muted ml-auto shrink-0">{p.projekt_nummer}</span>
           </div>
         ))}
       </div>
@@ -112,8 +111,8 @@ function PipelineBar({ phase, data, maxWert }) {
 
   return (
     <div className="flex items-center gap-3 text-sm">
-      <span className="w-24 text-right text-xs font-medium text-gray-600 shrink-0">{status.label}</span>
-      <div className="flex-1 h-5 bg-gray-100 rounded-md overflow-hidden relative">
+      <span className="w-24 text-right text-xs font-medium text-text-secondary shrink-0">{status.label}</span>
+      <div className="flex-1 h-5 bg-surface-hover rounded-md overflow-hidden relative">
         <div
           className="h-full rounded-md flex items-center transition-all duration-500"
           style={{ width: `${width}%`, backgroundColor: status.color }}
@@ -128,7 +127,7 @@ function PipelineBar({ phase, data, maxWert }) {
           </span>
         )}
       </div>
-      <span className="w-24 text-xs text-gray-500 shrink-0 text-right">{formatEuro(data.wert)}</span>
+      <span className="w-24 text-xs text-text-secondary shrink-0 text-right">{formatEuro(data.wert)}</span>
     </div>
   )
 }
@@ -149,16 +148,16 @@ function HistorieItem({ entry, onNavigate }) {
   return (
     <div
       onClick={() => entry.projekt_id && onNavigate(entry.projekt_id)}
-      className="flex items-start gap-3 cursor-pointer hover:bg-gray-50 rounded-lg px-2 py-1.5 -mx-3"
+      className="flex items-start gap-3 cursor-pointer hover:bg-surface-main rounded-lg px-2 py-1.5 -mx-3"
     >
       <div className="mt-0.5 shrink-0 w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: '#F3F4F6' }}>
         <Icon size={14} style={{ color: '#6B7280' }} />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm text-gray-800 truncate">{text}</p>
-        {titel && <p className="text-xs text-gray-400 truncate">{titel}</p>}
+        <p className="text-sm text-text-primary truncate">{text}</p>
+        {titel && <p className="text-xs text-text-muted truncate">{titel}</p>}
       </div>
-      <span className="text-xs text-gray-400 shrink-0 whitespace-nowrap">{timeAgo(entry.erstellt_am)}</span>
+      <span className="text-xs text-text-muted shrink-0 whitespace-nowrap">{timeAgo(entry.erstellt_am)}</span>
     </div>
   )
 }
@@ -286,7 +285,7 @@ export default function Cockpit() {
   // -- Render
   if (loading) {
     return (
-      <div className="p-6 flex items-center gap-3 text-gray-400">
+      <div className="p-6 flex items-center gap-3 text-text-muted">
         <Clock size={20} className="animate-spin" />
         <span>Cockpit wird geladen...</span>
       </div>
@@ -297,13 +296,13 @@ export default function Cockpit() {
     <div className="p-4 max-w-7xl mx-auto space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Cockpit</h1>
-        <span className="text-sm text-gray-500">{dateStr}</span>
+        <h1 className="text-2xl font-bold text-text-primary">Cockpit</h1>
+        <span className="text-sm text-text-secondary">{dateStr}</span>
       </div>
 
       {/* Sektion 1: Jetzt handeln */}
       <section>
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+        <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-2">
           <AlertTriangle size={14} />
           Jetzt handeln
         </h2>
@@ -331,12 +330,12 @@ export default function Cockpit() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Heute Montagen */}
         <section>
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-2">
             <Calendar size={14} />
             Heute Montagen
           </h2>
           {montagen.length === 0 ? (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center text-sm text-gray-400">
+            <div className="bg-surface-card rounded-lg shadow-sm border border-border-default p-4 text-center text-sm text-text-muted">
               Keine Montagen geplant
             </div>
           ) : (
@@ -351,13 +350,13 @@ export default function Cockpit() {
         {/* Pipeline */}
         <section>
           <div className="flex items-center justify-between mb-2">
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider flex items-center gap-2">
               <TrendingUp size={14} />
               Pipeline
             </h2>
-            <span className="text-sm font-bold text-gray-700">{formatEuro(totalWert)}</span>
+            <span className="text-sm font-bold text-text-primary">{formatEuro(totalWert)}</span>
           </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 space-y-1">
+          <div className="bg-surface-card rounded-lg shadow-sm border border-border-default p-3 space-y-1">
             {DISPLAY_PHASES.map(phase => (
               <PipelineBar key={phase} phase={phase} data={pipeline[phase]} maxWert={maxWert} />
             ))}
@@ -367,16 +366,16 @@ export default function Cockpit() {
 
       {/* Sektion 4: Letzte Aktivitaet */}
       <section>
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+        <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-2">
           <Clock size={14} />
           Letzte Aktivitaet
         </h2>
         {historie.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center text-sm text-gray-400">
+          <div className="bg-surface-card rounded-lg shadow-sm border border-border-default p-4 text-center text-sm text-text-muted">
             Noch keine Aktivitaeten
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+          <div className="bg-surface-card rounded-lg shadow-sm border border-border-default p-3">
             <div className="divide-y divide-gray-100">
               {historie.map(entry => (
                 <HistorieItem key={entry.id} entry={entry} onNavigate={goToProjekt} />

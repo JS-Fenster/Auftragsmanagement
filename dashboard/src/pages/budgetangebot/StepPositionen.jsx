@@ -51,13 +51,13 @@ export function StepPositionen({ editedPositions, setEditedPositions, onBack, on
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h3 className="text-base font-semibold text-gray-900">
+      <div className="bg-surface-card rounded-lg shadow-sm border border-border-default overflow-hidden">
+        <div className="px-6 py-4 border-b border-border-default flex items-center justify-between">
+          <h3 className="text-base font-semibold text-text-primary">
             Positionen ({editedPositions.length})
           </h3>
-          <div className="text-sm text-gray-500">
-            Netto: <span className="font-semibold text-gray-900">{formatEuro(netto)}</span>
+          <div className="text-sm text-text-secondary">
+            Netto: <span className="font-semibold text-text-primary">{formatEuro(netto)}</span>
           </div>
         </div>
 
@@ -65,7 +65,7 @@ export function StepPositionen({ editedPositions, setEditedPositions, onBack, on
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
+              <tr className="bg-surface-main text-left text-xs font-medium text-text-secondary uppercase tracking-wider border-b border-border-default">
                 <th className="px-4 py-3 w-12">Pos</th>
                 <th className="px-4 py-3">Raum</th>
                 <th className="px-4 py-3">Typ</th>
@@ -80,8 +80,8 @@ export function StepPositionen({ editedPositions, setEditedPositions, onBack, on
             </thead>
             <tbody className="divide-y divide-gray-100">
               {editedPositions.map((pos, idx) => (
-                <tr key={pos._id || idx} className="hover:bg-gray-50 transition-colors group">
-                  <td className="px-4 py-2 text-gray-500 font-mono text-xs">{idx + 1}</td>
+                <tr key={pos._id || idx} className="hover:bg-surface-main transition-colors group">
+                  <td className="px-4 py-2 text-text-secondary font-mono text-xs">{idx + 1}</td>
                   <td className="px-4 py-2">
                     <EditableCell
                       value={pos.raum}
@@ -104,7 +104,7 @@ export function StepPositionen({ editedPositions, setEditedPositions, onBack, on
                         {pos.zubehoer.map((z, zi) => (
                           <span
                             key={zi}
-                            className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100"
+                            className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-brand-light text-brand-dark border border-blue-100"
                           >
                             {typeof z === 'string' ? z : z.bezeichnung || z.typ || 'Zubehoer'}
                           </span>
@@ -144,12 +144,12 @@ export function StepPositionen({ editedPositions, setEditedPositions, onBack, on
                       className="w-24"
                     />
                   </td>
-                  <td className="px-4 py-2 font-semibold text-gray-900">
+                  <td className="px-4 py-2 font-semibold text-text-primary">
                     {formatEuro(pos.gesamtpreis)}
                   </td>
                   <td className="px-4 py-2">
                     <button
-                      className="text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                      className="text-text-muted hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
                       onClick={() => deletePosition(idx)}
                       title="Position loeschen"
                     >
@@ -163,9 +163,9 @@ export function StepPositionen({ editedPositions, setEditedPositions, onBack, on
         </div>
 
         {/* Add position button */}
-        <div className="px-6 py-4 border-t border-gray-200">
+        <div className="px-6 py-4 border-t border-border-default">
           <button
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm text-brand hover:text-brand-dark hover:bg-brand-light rounded-lg transition-colors"
             onClick={addPosition}
           >
             <Plus className="w-4 h-4" />
@@ -177,14 +177,14 @@ export function StepPositionen({ editedPositions, setEditedPositions, onBack, on
       {/* Navigation */}
       <div className="flex items-center justify-between">
         <button
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm text-text-secondary hover:text-text-primary hover:bg-surface-hover rounded-lg transition-colors"
           onClick={onBack}
         >
           <ArrowLeft className="w-4 h-4" />
           Zurueck zur Eingabe
         </button>
         <button
-          className="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          className="inline-flex items-center gap-2 px-6 py-2.5 bg-btn-primary text-white text-sm font-medium rounded-lg hover:bg-btn-primary-hover disabled:opacity-50 transition-colors"
           disabled={editedPositions.length === 0}
           onClick={onNext}
         >

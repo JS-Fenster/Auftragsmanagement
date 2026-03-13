@@ -50,7 +50,7 @@ function StatCard({ label, count, color, active, onClick }) {
       }}
     >
       <span className="text-2xl font-bold" style={{ color }}>{count}</span>
-      <span className="text-xs text-gray-500 mt-0.5 whitespace-nowrap">{label}</span>
+      <span className="text-xs text-text-secondary mt-0.5 whitespace-nowrap">{label}</span>
     </button>
   )
 }
@@ -202,52 +202,52 @@ export default function Projekte() {
   // ── Render ───────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-surface-main">
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-6">
 
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Projekte</h1>
+          <h1 className="text-2xl font-bold text-text-primary">Projekte</h1>
           <div className="flex items-center gap-2">
             {/* View Toggle */}
-            <div className="flex bg-white border rounded-lg overflow-hidden">
+            <div className="flex bg-surface-card border rounded-lg overflow-hidden">
               <button
                 onClick={() => setView('kanban')}
-                className={`p-2 ${view === 'kanban' ? 'bg-blue-50 text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+                className={`p-2 ${view === 'kanban' ? 'bg-brand-light text-brand' : 'text-text-muted hover:text-text-secondary'}`}
                 title="Kanban-Ansicht"
               >
                 <LayoutGrid size={18} />
               </button>
               <button
                 onClick={() => setView('pipeline')}
-                className={`p-2 ${view === 'pipeline' ? 'bg-blue-50 text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+                className={`p-2 ${view === 'pipeline' ? 'bg-brand-light text-brand' : 'text-text-muted hover:text-text-secondary'}`}
                 title="Pipeline-Ansicht"
               >
                 <Rows3 size={18} />
               </button>
               <button
                 onClick={() => setView('grouped')}
-                className={`p-2 ${view === 'grouped' ? 'bg-blue-50 text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+                className={`p-2 ${view === 'grouped' ? 'bg-brand-light text-brand' : 'text-text-muted hover:text-text-secondary'}`}
                 title="Gruppierte Ansicht"
               >
                 <Layers size={18} />
               </button>
               <button
                 onClick={() => setView('tabelle')}
-                className={`p-2 ${view === 'tabelle' ? 'bg-blue-50 text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+                className={`p-2 ${view === 'tabelle' ? 'bg-brand-light text-brand' : 'text-text-muted hover:text-text-secondary'}`}
                 title="Tabellen-Ansicht"
               >
                 <List size={18} />
               </button>
             </div>
 
-            <button onClick={() => { loadProjekte(); loadAlerts() }} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-white" title="Aktualisieren">
+            <button onClick={() => { loadProjekte(); loadAlerts() }} className="p-2 text-text-muted hover:text-text-secondary rounded-lg hover:bg-surface-card" title="Aktualisieren">
               <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
             </button>
 
             <button
               onClick={() => setShowNewModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+              className="flex items-center gap-2 px-4 py-2 bg-btn-primary text-white rounded-lg hover:bg-btn-primary-hover text-sm font-medium"
             >
               <Plus size={16} /> Neues Projekt
             </button>
@@ -257,30 +257,30 @@ export default function Projekte() {
         {/* Search & Filters */}
         <div className="flex flex-col sm:flex-row gap-3 mb-4">
           <div className="relative flex-1 max-w-md">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
             <input
               type="text"
               placeholder="Suche nach Titel, Projekt-Nr..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand"
             />
           </div>
           <div className="flex gap-2 items-center">
-            <Filter size={16} className="text-gray-400" />
-            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="border rounded-lg px-3 py-2 text-sm bg-white">
+            <Filter size={16} className="text-text-muted" />
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="border rounded-lg px-3 py-2 text-sm bg-surface-card">
               <option value="">Alle Status</option>
               {Object.entries(PROJEKT_PHASEN).map(([key, phase]) => (
                 <option key={key} value={key}>{phase.label}</option>
               ))}
             </select>
-            <select value={filterTyp} onChange={e => setFilterTyp(e.target.value)} className="border rounded-lg px-3 py-2 text-sm bg-white">
+            <select value={filterTyp} onChange={e => setFilterTyp(e.target.value)} className="border rounded-lg px-3 py-2 text-sm bg-surface-card">
               <option value="">Alle Typen</option>
               {Object.entries(PROJEKT_TYPEN).map(([key, typ]) => (
                 <option key={key} value={key}>{typ.label}</option>
               ))}
             </select>
-            <select value={filterPrio} onChange={e => setFilterPrio(e.target.value)} className="border rounded-lg px-3 py-2 text-sm bg-white">
+            <select value={filterPrio} onChange={e => setFilterPrio(e.target.value)} className="border rounded-lg px-3 py-2 text-sm bg-surface-card">
               <option value="">Alle Prioritäten</option>
               <option value="dringend">Dringend</option>
               <option value="hoch">Hoch</option>
@@ -322,13 +322,13 @@ export default function Projekte() {
 
         {/* Main Content */}
         {loading ? (
-          <div className="flex items-center justify-center py-20 text-gray-400">
+          <div className="flex items-center justify-center py-20 text-text-muted">
             <RefreshCw size={24} className="animate-spin mr-3" /> Projekte werden geladen...
           </div>
         ) : projekte.length === 0 ? (
-          <div className="text-center py-20 text-gray-400">
+          <div className="text-center py-20 text-text-muted">
             <p className="text-lg mb-2">Keine Projekte gefunden</p>
-            {hasFilters && <button onClick={clearFilters} className="text-blue-500 hover:underline text-sm">Filter zurücksetzen</button>}
+            {hasFilters && <button onClick={clearFilters} className="text-brand hover:underline text-sm">Filter zurücksetzen</button>}
           </div>
         ) : view === 'kanban' ? (
           <KanbanBoard
@@ -383,13 +383,13 @@ function TableView({ projekte, onRowClick }) {
     return sortAsc ? cmp : -cmp
   })
 
-  const thClass = 'px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700 select-none'
+  const thClass = 'px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider cursor-pointer hover:text-text-primary select-none'
   const arrow = field => sortField === field ? (sortAsc ? ' ▲' : ' ▼') : ''
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border overflow-x-auto">
+    <div className="bg-surface-card rounded-lg shadow-sm border overflow-x-auto">
       <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
+        <thead className="bg-surface-main">
           <tr>
             <th className={thClass} onClick={() => handleSort('projekt_nummer')}>Projekt-Nr{arrow('projekt_nummer')}</th>
             <th className={thClass} onClick={() => handleSort('titel')}>Titel{arrow('titel')}</th>
@@ -405,15 +405,15 @@ function TableView({ projekte, onRowClick }) {
             <tr
               key={p.id}
               onClick={() => onRowClick(p.id)}
-              className="hover:bg-gray-50 cursor-pointer transition-colors"
+              className="hover:bg-surface-main cursor-pointer transition-colors"
             >
-              <td className="px-4 py-3 text-sm font-mono text-gray-600">{p.projekt_nummer || '–'}</td>
-              <td className="px-4 py-3 text-sm font-medium text-gray-900 max-w-[300px] truncate">{p.titel || '–'}</td>
-              <td className="px-4 py-3 text-sm text-gray-600">{kontaktName(p.kontakte)}</td>
+              <td className="px-4 py-3 text-sm font-mono text-text-secondary">{p.projekt_nummer || '–'}</td>
+              <td className="px-4 py-3 text-sm font-medium text-text-primary max-w-[300px] truncate">{p.titel || '–'}</td>
+              <td className="px-4 py-3 text-sm text-text-secondary">{kontaktName(p.kontakte)}</td>
               <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
               <td className="px-4 py-3"><PrioritaetBadge prioritaet={p.prioritaet} /></td>
-              <td className="px-4 py-3 text-sm text-gray-600">{formatCurrency(p.angebots_wert)}</td>
-              <td className="px-4 py-3 text-sm text-gray-400">{formatDate(p.updated_at)}</td>
+              <td className="px-4 py-3 text-sm text-text-secondary">{formatCurrency(p.angebots_wert)}</td>
+              <td className="px-4 py-3 text-sm text-text-muted">{formatDate(p.updated_at)}</td>
             </tr>
           ))}
         </tbody>
@@ -475,47 +475,47 @@ function NewProjectModal({ onClose, onCreated }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 p-6" onClick={e => e.stopPropagation()}>
+      <div className="bg-surface-card rounded-xl shadow-xl w-full max-w-lg mx-4 p-6" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-semibold text-gray-900">Neues Projekt</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+          <h2 className="text-lg font-semibold text-text-primary">Neues Projekt</h2>
+          <button onClick={onClose} className="text-text-muted hover:text-text-secondary"><X size={20} /></button>
         </div>
 
         <div className="space-y-4">
           {/* Titel */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Titel *</label>
+            <label className="block text-sm font-medium text-text-primary mb-1">Titel *</label>
             <input
               type="text" value={titel} onChange={e => setTitel(e.target.value)} autoFocus
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
               placeholder="z.B. Fenster EFH Meier, Köln"
             />
           </div>
 
           {/* Kontakt */}
           <div className="relative">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Kunde</label>
+            <label className="block text-sm font-medium text-text-primary mb-1">Kunde</label>
             {selectedKontakt ? (
-              <div className="flex items-center gap-2 border rounded-lg px-3 py-2 bg-blue-50">
+              <div className="flex items-center gap-2 border rounded-lg px-3 py-2 bg-brand-light">
                 <span className="text-sm flex-1">{kontaktName(selectedKontakt)}{selectedKontakt.ort ? ` (${selectedKontakt.ort})` : ''}</span>
-                <button onClick={() => { setSelectedKontakt(null); setKontaktSuche('') }} className="text-gray-400 hover:text-red-500"><X size={16} /></button>
+                <button onClick={() => { setSelectedKontakt(null); setKontaktSuche('') }} className="text-text-muted hover:text-red-500"><X size={16} /></button>
               </div>
             ) : (
               <input
                 type="text" value={kontaktSuche} onChange={e => setKontaktSuche(e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
                 placeholder="Firma oder Name eingeben..."
               />
             )}
             {kontaktResults.length > 0 && !selectedKontakt && (
-              <ul className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+              <ul className="absolute z-10 w-full mt-1 bg-surface-card border rounded-lg shadow-lg max-h-48 overflow-y-auto">
                 {kontaktResults.map(k => (
                   <li key={k.id}
                     onClick={() => { setSelectedKontakt(k); setKontaktResults([]); setKontaktSuche('') }}
-                    className="px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer"
+                    className="px-3 py-2 text-sm hover:bg-brand-light cursor-pointer"
                   >
                     <span className="font-medium">{kontaktName(k)}</span>
-                    {k.ort && <span className="text-gray-400 ml-2">{k.ort}</span>}
+                    {k.ort && <span className="text-text-muted ml-2">{k.ort}</span>}
                   </li>
                 ))}
               </ul>
@@ -525,16 +525,16 @@ function NewProjectModal({ onClose, onCreated }) {
           {/* Status + Prio */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <select value={status} onChange={e => setStatus(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm bg-white">
+              <label className="block text-sm font-medium text-text-primary mb-1">Status</label>
+              <select value={status} onChange={e => setStatus(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm bg-surface-card">
                 {Object.entries(PROJEKT_PHASEN).map(([key, phase]) => (
                   <option key={key} value={key}>{phase.label}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Priorität</label>
-              <select value={prioritaet} onChange={e => setPrioritaet(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm bg-white">
+              <label className="block text-sm font-medium text-text-primary mb-1">Priorität</label>
+              <select value={prioritaet} onChange={e => setPrioritaet(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm bg-surface-card">
                 <option value="niedrig">Niedrig</option>
                 <option value="normal">Normal</option>
                 <option value="hoch">Hoch</option>
@@ -545,20 +545,20 @@ function NewProjectModal({ onClose, onCreated }) {
 
           {/* Angebotswert */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Angebotswert (EUR)</label>
+            <label className="block text-sm font-medium text-text-primary mb-1">Angebotswert (EUR)</label>
             <input
               type="number" value={angebots_wert} onChange={e => setAngebotswert(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
               placeholder="0.00" min="0" step="0.01"
             />
           </div>
 
           {/* Notizen */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Notizen</label>
+            <label className="block text-sm font-medium text-text-primary mb-1">Notizen</label>
             <textarea
               value={notizen} onChange={e => setNotizen(e.target.value)} rows={3}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none"
               placeholder="Optionale Notizen..."
             />
           </div>
@@ -566,11 +566,11 @@ function NewProjectModal({ onClose, onCreated }) {
 
         {/* Actions */}
         <div className="flex justify-end gap-3 mt-6">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Abbrechen</button>
+          <button onClick={onClose} className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary">Abbrechen</button>
           <button
             onClick={handleSave}
             disabled={!titel.trim() || saving}
-            className="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-5 py-2 bg-btn-primary text-white rounded-lg text-sm font-medium hover:bg-btn-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? 'Wird erstellt...' : 'Projekt erstellen'}
           </button>

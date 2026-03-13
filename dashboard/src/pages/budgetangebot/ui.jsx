@@ -32,9 +32,9 @@ export function StepIndicator({ currentStep, maxVisitedStep, onStepClick }) {
               disabled={!isClickable}
               className={`flex items-center gap-2 px-2 py-1 rounded-lg transition-all ${
                 isActive
-                  ? 'bg-blue-50'
+                  ? 'bg-brand-light'
                   : isClickable
-                    ? 'hover:bg-gray-100 cursor-pointer'
+                    ? 'hover:bg-surface-hover cursor-pointer'
                     : 'cursor-not-allowed'
               }`}
               title={isClickable ? `Zu "${s.label}" springen` : 'Noch nicht freigeschaltet'}
@@ -42,12 +42,12 @@ export function StepIndicator({ currentStep, maxVisitedStep, onStepClick }) {
               <div
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-all ${
                   isActive
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-btn-primary text-white'
                     : isCompleted
                       ? 'bg-green-600 text-white'
                       : isClickable
                         ? 'bg-gray-300 text-white'
-                        : 'bg-gray-200 text-gray-400'
+                        : 'bg-surface-hover text-text-muted'
                 }`}
               >
                 {isCompleted ? <Check className="w-4 h-4" /> : s.num}
@@ -55,12 +55,12 @@ export function StepIndicator({ currentStep, maxVisitedStep, onStepClick }) {
               <span
                 className={`text-sm hidden sm:inline ${
                   isActive
-                    ? 'text-blue-700 font-medium'
+                    ? 'text-brand-dark font-medium'
                     : isCompleted
                       ? 'text-green-700 font-medium'
                       : isClickable
-                        ? 'text-gray-600'
-                        : 'text-gray-400'
+                        ? 'text-text-secondary'
+                        : 'text-text-muted'
                 }`}
               >
                 {s.label}
@@ -69,7 +69,7 @@ export function StepIndicator({ currentStep, maxVisitedStep, onStepClick }) {
             {idx < steps.length - 1 && (
               <div
                 className={`w-8 lg:w-16 h-0.5 mx-2 transition-colors ${
-                  currentStep > s.num ? 'bg-green-400' : 'bg-gray-200'
+                  currentStep > s.num ? 'bg-green-400' : 'bg-surface-hover'
                 }`}
               />
             )}
@@ -118,7 +118,7 @@ export function EditableCell({ value, onChange, type = 'text', className = '' })
       <div className="flex items-center gap-1">
         <input
           type={type === 'number' ? 'number' : 'text'}
-          className={`border border-blue-300 rounded px-2 py-1 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500 ${className}`}
+          className={`border border-blue-300 rounded px-2 py-1 text-sm w-full focus:outline-none focus:ring-2 focus:ring-brand ${className}`}
           value={draft}
           onChange={e => setDraft(e.target.value)}
           onKeyDown={e => {
@@ -130,7 +130,7 @@ export function EditableCell({ value, onChange, type = 'text', className = '' })
         <button onClick={commit} className="text-green-600 hover:text-green-700 shrink-0">
           <Check className="w-4 h-4" />
         </button>
-        <button onClick={cancel} className="text-gray-400 hover:text-gray-600 shrink-0">
+        <button onClick={cancel} className="text-text-muted hover:text-text-secondary shrink-0">
           <X className="w-4 h-4" />
         </button>
       </div>
@@ -139,11 +139,11 @@ export function EditableCell({ value, onChange, type = 'text', className = '' })
 
   return (
     <div
-      className={`cursor-pointer group flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-50 transition-colors ${className}`}
+      className={`cursor-pointer group flex items-center gap-1 px-2 py-1 rounded hover:bg-brand-light transition-colors ${className}`}
       onClick={() => { setDraft(String(value ?? '')); setEditing(true) }}
     >
       <span className="text-sm">{type === 'number' && typeof value === 'number' ? value.toLocaleString('de-DE') : (value || '\u2013')}</span>
-      <Pencil className="w-3 h-3 text-gray-300 group-hover:text-blue-500 transition-colors shrink-0" />
+      <Pencil className="w-3 h-3 text-text-muted group-hover:text-brand transition-colors shrink-0" />
     </div>
   )
 }

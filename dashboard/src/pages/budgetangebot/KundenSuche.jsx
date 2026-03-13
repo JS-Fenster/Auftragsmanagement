@@ -142,25 +142,25 @@ export function KundenSuchModal({ onSelect, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[80vh] flex flex-col m-4" onClick={e => e.stopPropagation()}>
+      <div className="bg-surface-card rounded-xl shadow-2xl w-full max-w-3xl max-h-[80vh] flex flex-col m-4" onClick={e => e.stopPropagation()}>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
-            <Users className="w-5 h-5 text-blue-600" />
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border-default">
+          <h3 className="text-base font-semibold text-text-primary flex items-center gap-2">
+            <Users className="w-5 h-5 text-brand" />
             Kunde suchen
           </h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+          <button onClick={onClose} className="text-text-muted hover:text-text-secondary transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Search */}
-        <div className="px-6 py-3 border-b border-gray-100">
+        <div className="px-6 py-3 border-b border-border-light">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
             <input
               type="text"
-              className="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-border-default rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
               placeholder="Name, Firma, Telefon oder E-Mail suchen..."
               value={term}
               onChange={e => setTerm(e.target.value)}
@@ -173,20 +173,20 @@ export function KundenSuchModal({ onSelect, onClose }) {
         <div className="flex-1 overflow-y-auto">
           {loading && (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
-              <span className="ml-2 text-sm text-gray-500">Suche...</span>
+              <Loader2 className="w-5 h-5 animate-spin text-brand" />
+              <span className="ml-2 text-sm text-text-secondary">Suche...</span>
             </div>
           )}
           {!loading && results.length === 0 && term.length >= 2 && (
-            <div className="text-center py-8 text-sm text-gray-500">Keine Kunden gefunden</div>
+            <div className="text-center py-8 text-sm text-text-secondary">Keine Kunden gefunden</div>
           )}
           {!loading && results.length === 0 && term.length < 2 && (
-            <div className="text-center py-8 text-sm text-gray-400">Mindestens 2 Zeichen eingeben</div>
+            <div className="text-center py-8 text-sm text-text-muted">Mindestens 2 Zeichen eingeben</div>
           )}
           {!loading && results.length > 0 && (
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                <tr className="bg-surface-main text-left text-xs font-medium text-text-secondary uppercase tracking-wider border-b">
                   <th className="px-4 py-2">Name</th>
                   <th className="px-4 py-2">Firma</th>
                   <th className="px-4 py-2">Ort</th>
@@ -198,14 +198,14 @@ export function KundenSuchModal({ onSelect, onClose }) {
                 {results.map(r => (
                   <tr
                     key={r.kontakt_id}
-                    className="hover:bg-blue-50 cursor-pointer transition-colors"
+                    className="hover:bg-brand-light cursor-pointer transition-colors"
                     onClick={() => onSelect(r)}
                   >
-                    <td className="px-4 py-2 font-medium text-gray-900">{r.display_name || '-'}</td>
-                    <td className="px-4 py-2 text-gray-600">{r.firma || '-'}</td>
-                    <td className="px-4 py-2 text-gray-600">{r.ort || '-'}</td>
-                    <td className="px-4 py-2 text-gray-600">{r.telefon || '-'}</td>
-                    <td className="px-4 py-2 text-gray-600 truncate max-w-[180px]">{r.email || '-'}</td>
+                    <td className="px-4 py-2 font-medium text-text-primary">{r.display_name || '-'}</td>
+                    <td className="px-4 py-2 text-text-secondary">{r.firma || '-'}</td>
+                    <td className="px-4 py-2 text-text-secondary">{r.ort || '-'}</td>
+                    <td className="px-4 py-2 text-text-secondary">{r.telefon || '-'}</td>
+                    <td className="px-4 py-2 text-text-secondary truncate max-w-[180px]">{r.email || '-'}</td>
                   </tr>
                 ))}
               </tbody>

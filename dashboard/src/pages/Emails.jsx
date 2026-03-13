@@ -9,22 +9,22 @@ const PAGE_SIZE = 50
 
 const STATUS_COLORS = {
   done: { dot: 'bg-green-500', text: 'text-green-700' },
-  queued: { dot: 'bg-gray-400', text: 'text-gray-600' },
-  processing: { dot: 'bg-blue-400', text: 'text-blue-700' },
+  queued: { dot: 'bg-gray-400', text: 'text-text-secondary' },
+  processing: { dot: 'bg-blue-400', text: 'text-brand-dark' },
   pending_ocr: { dot: 'bg-amber-400', text: 'text-amber-700' },
   error: { dot: 'bg-red-500', text: 'text-red-700' },
 }
 
 const KATEGORIE_COLORS = [
-  'bg-blue-100 text-blue-800',
+  'bg-brand-light text-blue-800',
   'bg-green-100 text-green-800',
   'bg-amber-100 text-amber-800',
   'bg-red-100 text-red-800',
-  'bg-gray-200 text-gray-800',
+  'bg-surface-hover text-text-primary',
 ]
 
 function kategorieColor(kat) {
-  if (!kat) return 'bg-gray-100 text-gray-600'
+  if (!kat) return 'bg-surface-hover text-text-secondary'
   let hash = 0
   for (let i = 0; i < kat.length; i++) hash = kat.charCodeAt(i) + ((hash << 5) - hash)
   return KATEGORIE_COLORS[Math.abs(hash) % KATEGORIE_COLORS.length]
@@ -182,33 +182,33 @@ export default function Emails() {
   return (
     <div className="flex flex-col h-full">
       {/* Pipeline Status Bar */}
-      <div className="flex items-center gap-4 px-6 py-2 bg-gray-50 border-b border-gray-200 text-sm">
+      <div className="flex items-center gap-4 px-6 py-2 bg-surface-main border-b border-border-default text-sm">
         <div className="flex items-center gap-1.5">
           <CheckCircle className="w-4 h-4 text-green-600" />
           <span className="text-green-700 font-medium">{stats.done}</span>
-          <span className="text-gray-500">verarbeitet</span>
+          <span className="text-text-secondary">verarbeitet</span>
         </div>
-        <span className="text-gray-300">|</span>
+        <span className="text-text-muted">|</span>
         <div className="flex items-center gap-1.5">
           <Loader className="w-4 h-4 text-yellow-600" />
           <span className="text-yellow-700 font-medium">{stats.queued}</span>
-          <span className="text-gray-500">in Warteschlange</span>
+          <span className="text-text-secondary">in Warteschlange</span>
         </div>
-        <span className="text-gray-300">|</span>
+        <span className="text-text-muted">|</span>
         <div className="flex items-center gap-1.5">
           <AlertCircle className="w-4 h-4 text-red-600" />
           <span className="text-red-700 font-medium">{stats.error}</span>
-          <span className="text-gray-500">Fehler</span>
+          <span className="text-text-secondary">Fehler</span>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3 px-6 py-3 border-b border-gray-200 bg-white">
+      <div className="flex flex-wrap items-center gap-3 px-6 py-3 border-b border-border-default bg-surface-card">
         {/* Postfach */}
         <select
           value={filterPostfach}
           onChange={e => setFilterPostfach(e.target.value)}
-          className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="text-sm border border-border-default rounded-lg px-3 py-1.5 bg-surface-card text-text-primary focus:ring-2 focus:ring-brand focus:border-brand"
         >
           <option value="">Alle Postfächer</option>
           {postfaecher.map(p => (
@@ -220,7 +220,7 @@ export default function Emails() {
         <select
           value={filterKategorie}
           onChange={e => setFilterKategorie(e.target.value)}
-          className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="text-sm border border-border-default rounded-lg px-3 py-1.5 bg-surface-card text-text-primary focus:ring-2 focus:ring-brand focus:border-brand"
         >
           <option value="">Alle Kategorien</option>
           {EMAIL_KATEGORIEN.map(k => (
@@ -229,7 +229,7 @@ export default function Emails() {
         </select>
 
         {/* Zeitraum */}
-        <div className="flex rounded-lg border border-gray-300 overflow-hidden">
+        <div className="flex rounded-lg border border-border-default overflow-hidden">
           {[
             { key: 'heute', label: 'Heute' },
             { key: '7tage', label: '7 Tage' },
@@ -241,9 +241,9 @@ export default function Emails() {
               onClick={() => setFilterZeitraum(z.key)}
               className={`px-3 py-1.5 text-sm font-medium transition-colors ${
                 filterZeitraum === z.key
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-600 hover:bg-gray-50'
-              } ${z.key !== 'heute' ? 'border-l border-gray-300' : ''}`}
+                  ? 'bg-btn-primary text-white'
+                  : 'bg-surface-card text-text-secondary hover:bg-surface-main'
+              } ${z.key !== 'heute' ? 'border-l border-border-default' : ''}`}
             >
               {z.label}
             </button>
@@ -252,16 +252,16 @@ export default function Emails() {
 
         {/* Search */}
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
           <input
             type="text"
             placeholder="Betreff, Absender durchsuchen..."
             value={debouncedSearch}
             onChange={e => setDebouncedSearch(e.target.value)}
-            className="w-full pl-9 pr-8 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full pl-9 pr-8 py-1.5 text-sm border border-border-default rounded-lg focus:ring-2 focus:ring-brand focus:border-brand"
           />
           {debouncedSearch && (
-            <button onClick={() => setDebouncedSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+            <button onClick={() => setDebouncedSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary">
               <X className="w-4 h-4" />
             </button>
           )}
@@ -271,15 +271,15 @@ export default function Emails() {
       {/* Two-panel layout */}
       <div className="flex flex-1 min-h-0">
         {/* Left: Email List (55%) */}
-        <div className="w-[55%] border-r border-gray-200 flex flex-col min-h-0">
+        <div className="w-[55%] border-r border-border-default flex flex-col min-h-0">
           <div className="flex-1 overflow-y-auto">
             {loading && emails.length === 0 ? (
-              <div className="flex items-center justify-center py-20 text-gray-400">
+              <div className="flex items-center justify-center py-20 text-text-muted">
                 <Loader className="w-5 h-5 animate-spin mr-2" />
                 <span>E-Mails werden geladen...</span>
               </div>
             ) : emails.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+              <div className="flex flex-col items-center justify-center py-20 text-text-muted">
                 <Inbox className="w-10 h-10 mb-2" />
                 <span>Keine E-Mails gefunden</span>
               </div>
@@ -289,18 +289,18 @@ export default function Emails() {
                   <button
                     key={email.id}
                     onClick={() => setSelectedId(email.id)}
-                    className={`w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-blue-50 transition-colors ${
-                      selectedId === email.id ? 'bg-blue-50 border-l-3 border-l-blue-600' : ''
+                    className={`w-full text-left px-4 py-3 border-b border-border-light hover:bg-brand-light transition-colors ${
+                      selectedId === email.id ? 'bg-brand-light border-l-3 border-l-blue-600' : ''
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 mb-0.5">
-                          <span className="text-sm font-medium text-gray-900 truncate">
+                          <span className="text-sm font-medium text-text-primary truncate">
                             {email.email_von_name || email.email_von_email || 'Unbekannt'}
                           </span>
                           {email.email_hat_anhaenge && (
-                            <span className="flex items-center gap-0.5 text-gray-400">
+                            <span className="flex items-center gap-0.5 text-text-muted">
                               <Paperclip className="w-3.5 h-3.5" />
                               {email.email_anhaenge_count > 0 && (
                                 <span className="text-xs">{email.email_anhaenge_count}</span>
@@ -308,7 +308,7 @@ export default function Emails() {
                             </span>
                           )}
                         </div>
-                        <div className="text-sm text-gray-700 truncate">
+                        <div className="text-sm text-text-primary truncate">
                           {email.email_betreff
                             ? email.email_betreff.length > 80
                               ? email.email_betreff.slice(0, 80) + '...'
@@ -322,13 +322,13 @@ export default function Emails() {
                             </span>
                           )}
                           {email.email_postfach && (
-                            <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-surface-hover text-text-secondary">
                               {email.email_postfach}
                             </span>
                           )}
                         </div>
                       </div>
-                      <div className="text-xs text-gray-400 whitespace-nowrap shrink-0">
+                      <div className="text-xs text-text-muted whitespace-nowrap shrink-0">
                         {formatDate(email.email_empfangen_am)}
                       </div>
                     </div>
@@ -340,7 +340,7 @@ export default function Emails() {
                     <button
                       onClick={() => loadEmails(false)}
                       disabled={loading}
-                      className="text-sm text-blue-600 hover:text-blue-800 font-medium disabled:text-gray-400"
+                      className="text-sm text-brand hover:text-blue-800 font-medium disabled:text-text-muted"
                     >
                       {loading ? (
                         <span className="flex items-center justify-center gap-1">
@@ -358,14 +358,14 @@ export default function Emails() {
         </div>
 
         {/* Right: Email Detail (45%) */}
-        <div className="w-[45%] flex flex-col min-h-0 overflow-y-auto bg-white">
+        <div className="w-[45%] flex flex-col min-h-0 overflow-y-auto bg-surface-card">
           {loadingDetail ? (
-            <div className="flex items-center justify-center h-full text-gray-400">
+            <div className="flex items-center justify-center h-full text-text-muted">
               <Loader className="w-5 h-5 animate-spin mr-2" />
               <span>Laden...</span>
             </div>
           ) : !selectedEmail ? (
-            <div className="flex flex-col items-center justify-center h-full text-gray-400">
+            <div className="flex flex-col items-center justify-center h-full text-text-muted">
               <Mail className="w-12 h-12 mb-3" />
               <span className="text-lg">E-Mail auswaehlen</span>
             </div>
@@ -373,19 +373,19 @@ export default function Emails() {
             <div className="p-6 space-y-5">
               {/* Header */}
               <div>
-                <h2 className="text-lg font-semibold text-gray-900 mb-2">
+                <h2 className="text-lg font-semibold text-text-primary mb-2">
                   {selectedEmail.email_betreff || '(Kein Betreff)'}
                 </h2>
-                <div className="space-y-1 text-sm text-gray-600">
+                <div className="space-y-1 text-sm text-text-secondary">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-gray-700">Von:</span>
+                    <span className="font-medium text-text-primary">Von:</span>
                     <span>{selectedEmail.email_von_name}</span>
                     {selectedEmail.email_von_email && (
-                      <span className="text-gray-400">&lt;{selectedEmail.email_von_email}&gt;</span>
+                      <span className="text-text-muted">&lt;{selectedEmail.email_von_email}&gt;</span>
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-gray-700">Empfangen:</span>
+                    <span className="font-medium text-text-primary">Empfangen:</span>
                     <span>
                       {selectedEmail.email_empfangen_am
                         ? format(new Date(selectedEmail.email_empfangen_am), "dd.MM.yyyy 'um' HH:mm 'Uhr'", { locale: de })
@@ -393,7 +393,7 @@ export default function Emails() {
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-gray-700">Postfach:</span>
+                    <span className="font-medium text-text-primary">Postfach:</span>
                     <span>{selectedEmail.email_postfach || '—'}</span>
                   </div>
                 </div>
@@ -404,7 +404,7 @@ export default function Emails() {
                     </span>
                   )}
                   {selectedEmail.kategorie && selectedEmail.kategorie !== selectedEmail.email_kategorie && (
-                    <span className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600">
+                    <span className="text-xs px-2 py-0.5 rounded bg-surface-hover text-text-secondary">
                       {selectedEmail.kategorie}
                     </span>
                   )}
@@ -416,7 +416,7 @@ export default function Emails() {
                           .createSignedUrl(selectedEmail.eml_storage_path, 60)
                         if (data?.signedUrl) window.open(data.signedUrl, '_blank')
                       }}
-                      className="flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                      className="flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-brand-light text-brand hover:bg-brand-light transition-colors"
                       title="Original .eml herunterladen"
                     >
                       <Download className="w-3 h-3" />
@@ -428,9 +428,9 @@ export default function Emails() {
 
               {/* Body */}
               <div>
-                <h3 className="text-sm font-medium text-gray-700 mb-2">Inhalt</h3>
+                <h3 className="text-sm font-medium text-text-primary mb-2">Inhalt</h3>
                 {selectedEmail.email_body_text ? (
-                  <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto border border-gray-200">
+                  <pre className="text-sm text-text-primary whitespace-pre-wrap font-sans bg-surface-main rounded-lg p-4 max-h-96 overflow-y-auto border border-border-default">
                     {selectedEmail.email_body_text}
                   </pre>
                 ) : selectedEmail.email_body_html ? (
@@ -438,14 +438,14 @@ export default function Emails() {
                     HTML-Body vorhanden (Text nicht extrahiert)
                   </div>
                 ) : (
-                  <div className="text-sm text-gray-400 italic">Kein Inhalt verfuegbar</div>
+                  <div className="text-sm text-text-muted italic">Kein Inhalt verfuegbar</div>
                 )}
               </div>
 
               {/* Attachments */}
               {selectedEmail.email_hat_anhaenge && (
                 <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-1.5">
+                  <h3 className="text-sm font-medium text-text-primary mb-2 flex items-center gap-1.5">
                     <Paperclip className="w-4 h-4" />
                     Anhaenge ({attachments.length})
                   </h3>
@@ -454,12 +454,12 @@ export default function Emails() {
                       {attachments.map(att => (
                         <div
                           key={att.id}
-                          className="flex items-center gap-3 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
+                          className="flex items-center gap-3 px-3 py-2 bg-surface-main rounded-lg border border-border-default hover:bg-surface-hover transition-colors cursor-pointer"
                           onClick={() => att.dokument_url && window.open(att.dokument_url, '_blank')}
                         >
-                          <FileText className="w-4 h-4 text-gray-500 shrink-0" />
+                          <FileText className="w-4 h-4 text-text-secondary shrink-0" />
                           <div className="min-w-0 flex-1">
-                            <div className="text-sm text-gray-800 truncate">{att.betreff || 'Unbenannt'}</div>
+                            <div className="text-sm text-text-primary truncate">{att.betreff || 'Unbenannt'}</div>
                           </div>
                           {(att.kategorie_manual || att.kategorie) && (
                             <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${kategorieColor(att.kategorie_manual || att.kategorie)}`}>
@@ -471,28 +471,28 @@ export default function Emails() {
                       ))}
                     </div>
                   ) : (
-                    <div className="text-sm text-gray-400 italic">Keine Anhaenge zugeordnet</div>
+                    <div className="text-sm text-text-muted italic">Keine Anhaenge zugeordnet</div>
                   )}
                 </div>
               )}
 
               {/* Meta */}
-              <div className="border-t border-gray-200 pt-4">
-                <h3 className="text-sm font-medium text-gray-700 mb-2">Details</h3>
-                <div className="grid grid-cols-2 gap-2 text-xs text-gray-500">
+              <div className="border-t border-border-default pt-4">
+                <h3 className="text-sm font-medium text-text-primary mb-2">Details</h3>
+                <div className="grid grid-cols-2 gap-2 text-xs text-text-secondary">
                   <div>
-                    <span className="font-medium text-gray-600">Status:</span>{' '}
+                    <span className="font-medium text-text-secondary">Status:</span>{' '}
                     <span className={STATUS_COLORS[selectedEmail.processing_status]?.text || ''}>
                       {selectedEmail.processing_status || '—'}
                     </span>
                   </div>
                   <div>
-                    <span className="font-medium text-gray-600">Postfach:</span>{' '}
+                    <span className="font-medium text-text-secondary">Postfach:</span>{' '}
                     {selectedEmail.email_postfach || '—'}
                   </div>
                   {selectedEmail.email_message_id && (
                     <div className="col-span-2">
-                      <span className="font-medium text-gray-600">Message-ID:</span>{' '}
+                      <span className="font-medium text-text-secondary">Message-ID:</span>{' '}
                       <span className="font-mono break-all">
                         {selectedEmail.email_message_id.length > 60
                           ? selectedEmail.email_message_id.slice(0, 60) + '...'

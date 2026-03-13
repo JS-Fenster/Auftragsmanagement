@@ -19,9 +19,9 @@ export function StepVorschau({ documentHtml, documentUrl, onReset, onSave, saveL
   return (
     <div className="space-y-6">
       {/* Preview Card */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+      <div className="bg-surface-card rounded-lg shadow-sm border border-border-default overflow-hidden">
+        <div className="px-6 py-4 border-b border-border-default flex items-center justify-between">
+          <h3 className="text-base font-semibold text-text-primary flex items-center gap-2">
             <FileText className="w-5 h-5 text-green-600" />
             Angebots-Vorschau
           </h3>
@@ -43,8 +43,8 @@ export function StepVorschau({ documentHtml, documentUrl, onReset, onSave, saveL
             />
           </div>
         ) : (
-          <div className="p-12 text-center text-gray-500">
-            <FileText className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+          <div className="p-12 text-center text-text-secondary">
+            <FileText className="w-12 h-12 mx-auto mb-3 text-text-muted" />
             <p className="text-sm">Keine Vorschau verfuegbar</p>
           </div>
         )}
@@ -67,7 +67,7 @@ export function StepVorschau({ documentHtml, documentUrl, onReset, onSave, saveL
       {/* Actions */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <button
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-600 border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm text-text-secondary border border-border-default hover:bg-surface-main rounded-lg transition-colors"
           onClick={onReset}
         >
           <RotateCcw className="w-4 h-4" />
@@ -96,14 +96,14 @@ export function StepVorschau({ documentHtml, documentUrl, onReset, onSave, saveL
               href={documentUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-btn-primary text-white text-sm font-medium rounded-lg hover:bg-btn-primary-hover transition-colors shadow-sm"
             >
               <Download className="w-4 h-4" />
               PDF herunterladen
             </a>
           )}
           <button
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm text-gray-700 border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors"
+            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm text-text-primary border border-border-default hover:bg-surface-main rounded-lg transition-colors"
             onClick={() => {
               // Placeholder for future email functionality
               alert('E-Mail-Versand wird in einer zukuenftigen Version implementiert.')
