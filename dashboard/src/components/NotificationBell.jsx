@@ -76,7 +76,7 @@ export default function NotificationBell() {
       {/* Bell Button */}
       <button
         onClick={() => setOpen(prev => !prev)}
-        className="flex items-center gap-2 px-4 py-2.5 mx-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors w-full text-left relative"
+        className="flex items-center gap-2 px-4 py-2.5 mx-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors w-full text-left relative cursor-pointer"
       >
         <Bell size={18} />
         <span>Meldungen</span>
@@ -89,15 +89,15 @@ export default function NotificationBell() {
 
       {/* Dropdown Panel */}
       {open && (
-        <div className="absolute left-full bottom-0 ml-2 w-96 bg-white border border-gray-200 rounded-xl shadow-xl z-50 flex flex-col max-h-[480px]">
+        <div className="fixed w-96 bg-white border border-gray-200 rounded-xl shadow-xl z-50 flex flex-col max-h-[calc(100vh-72px)]" style={{ left: '232px', bottom: '56px' }}>
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
             <h3 className="text-sm font-semibold text-gray-900">Meldungen</h3>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               {unreadCount > 0 && (
                 <button
                   onClick={markAllAsRead}
-                  className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 transition-colors"
+                  className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
                   title="Alle als gelesen markieren"
                 >
                   <CheckCheck size={14} />
@@ -106,7 +106,7 @@ export default function NotificationBell() {
               )}
               <button
                 onClick={() => setOpen(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
+                className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
               >
                 <X size={16} />
               </button>
@@ -127,8 +127,11 @@ export default function NotificationBell() {
                 return (
                   <div
                     key={n.id}
+                    onClick={() => !n.read && markAsRead(n.id)}
                     className={`flex items-start gap-3 px-4 py-3 border-b border-gray-50 transition-colors ${
-                      n.read ? 'opacity-60' : 'bg-blue-50/30'
+                      n.read
+                        ? 'opacity-50'
+                        : 'bg-blue-50/30 hover:bg-blue-50/50 cursor-pointer'
                     }`}
                   >
                     <div
@@ -162,11 +165,11 @@ export default function NotificationBell() {
                     </div>
                     {!n.read && (
                       <button
-                        onClick={() => markAsRead(n.id)}
-                        className="mt-0.5 p-1 text-gray-300 hover:text-blue-500 transition-colors shrink-0"
+                        onClick={e => { e.stopPropagation(); markAsRead(n.id) }}
+                        className="mt-1 p-1.5 text-blue-400 hover:text-blue-600 hover:bg-blue-100 rounded-md transition-colors shrink-0 cursor-pointer"
                         title="Als gelesen markieren"
                       >
-                        <Check size={14} />
+                        <Check size={16} strokeWidth={2.5} />
                       </button>
                     )}
                   </div>
