@@ -29,7 +29,17 @@ CREATE POLICY "anon_insert_notifications" ON public.notifications
   FOR INSERT TO anon
   WITH CHECK (true);
 
--- authenticated can SELECT + UPDATE (dashboard reads and marks as read)
+-- anon can SELECT + UPDATE (dashboard has no auth, uses anon key)
+CREATE POLICY "anon_select_notifications" ON public.notifications
+  FOR SELECT TO anon
+  USING (true);
+
+CREATE POLICY "anon_update_notifications" ON public.notifications
+  FOR UPDATE TO anon
+  USING (true)
+  WITH CHECK (true);
+
+-- authenticated can SELECT + UPDATE
 CREATE POLICY "authenticated_select_notifications" ON public.notifications
   FOR SELECT TO authenticated
   USING (true);
