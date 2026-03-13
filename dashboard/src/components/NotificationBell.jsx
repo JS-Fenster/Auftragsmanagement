@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Bell, X, Check, CheckCheck, AlertTriangle, AlertCircle, Info, CheckCircle, ExternalLink } from 'lucide-react'
+import { Bell, X, Check, CheckCheck, AlertTriangle, AlertCircle, Info, CheckCircle, ExternalLink, Archive, RotateCcw } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 const TYPE_CONFIG = {
@@ -23,17 +23,23 @@ function timeAgo(dateStr) {
 export default function NotificationBell() {
   const [notifications, setNotifications] = useState([])
   const [open, setOpen] = useState(false)
+  const [showArchive, setShowArchive] = useState(false)
   const [loading, setLoading] = useState(true)
   const panelRef = useRef(null)
 
-  const unreadCount = notifications.filter(n => !n.read).length
+  const unreadCount = notifications.filter(n => !n.read && !n.archived).length
+  const readCount = notifications.filter(n => n.read && !n.archived).length
+
+  const visibleNotifications = notifications.filter(n =>
+    showArchive ? n.archived : !n.archived
+  )
 
   const fetchNotifications = useCallback(async () => {
     const { data, error } = await supabase
       .from('notifications')
       .select('*')
       .order('created_at', { ascending: false })
-      .limit(30)
+      .limit(50)
 
     if (!error && data) {
       setNotifications(data)
@@ -65,10 +71,17 @@ export default function NotificationBell() {
   }
 
   async function markAllAsRead() {
-    const unreadIds = notifications.filter(n => !n.read).map(n => n.id)
+    const unreadIds = notifications.filter(n => !n.read && !n.archived).map(n => n.id)
     if (!unreadIds.length) return
     await supabase.from('notifications').update({ read: true }).in('id', unreadIds)
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+    setNotifications(prev => prev.map(n => unreadIds.includes(n.id) ? { ...n, read: true } : n))
+  }
+
+  async function archiveRead() {
+    const readIds = notifications.filter(n => n.read && !n.archived).map(n => n.id)
+    if (!readIds.length) return
+    await supabase.from('notifications').update({ archived: true }).in('id', readIds)
+    setNotifications(prev => prev.map(n => readIds.includes(n.id) ? { ...n, archived: true } : n))
   }
 
   return (
@@ -92,9 +105,11 @@ export default function NotificationBell() {
         <div className="fixed w-96 bg-white border border-gray-200 rounded-xl shadow-xl z-50 flex flex-col max-h-[calc(100vh-72px)]" style={{ left: '232px', bottom: '56px' }}>
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
-            <h3 className="text-sm font-semibold text-gray-900">Meldungen</h3>
+            <h3 className="text-sm font-semibold text-gray-900">
+              {showArchive ? 'Archiv' : 'Meldungen'}
+            </h3>
             <div className="flex items-center gap-3">
-              {unreadCount > 0 && (
+              {!showArchive && unreadCount > 0 && (
                 <button
                   onClick={markAllAsRead}
                   className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
@@ -104,6 +119,25 @@ export default function NotificationBell() {
                   Alle gelesen
                 </button>
               )}
+              {!showArchive && readCount > 0 && (
+                <button
+                  onClick={archiveRead}
+                  className="flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors cursor-pointer"
+                  title="Gelesene archivieren"
+                >
+                  <Archive size={14} />
+                  Archivieren
+                </button>
+              )}
+              <button
+                onClick={() => setShowArchive(prev => !prev)}
+                className={`flex items-center gap-1 text-xs font-medium transition-colors cursor-pointer ${
+                  showArchive ? 'text-blue-600 hover:text-blue-800' : 'text-gray-400 hover:text-gray-600'
+                }`}
+                title={showArchive ? 'Aktuelle anzeigen' : 'Archiv anzeigen'}
+              >
+                {showArchive ? <RotateCcw size={14} /> : <Archive size={14} />}
+              </button>
               <button
                 onClick={() => setOpen(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
@@ -117,10 +151,12 @@ export default function NotificationBell() {
           <div className="flex-1 overflow-y-auto">
             {loading ? (
               <div className="p-8 text-center text-sm text-gray-400">Laden...</div>
-            ) : notifications.length === 0 ? (
-              <div className="p-8 text-center text-sm text-gray-400">Keine Meldungen</div>
+            ) : visibleNotifications.length === 0 ? (
+              <div className="p-8 text-center text-sm text-gray-400">
+                {showArchive ? 'Kein Archiv vorhanden' : 'Keine Meldungen'}
+              </div>
             ) : (
-              notifications.map(n => {
+              visibleNotifications.map(n => {
                 const config = TYPE_CONFIG[n.type] || TYPE_CONFIG.info
                 const Icon = config.icon
 
@@ -163,7 +199,7 @@ export default function NotificationBell() {
                         )}
                       </div>
                     </div>
-                    {!n.read && (
+                    {!n.read && !showArchive && (
                       <button
                         onClick={e => { e.stopPropagation(); markAsRead(n.id) }}
                         className="mt-1 p-1.5 text-blue-400 hover:text-blue-600 hover:bg-blue-100 rounded-md transition-colors shrink-0 cursor-pointer"

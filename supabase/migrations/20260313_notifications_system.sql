@@ -12,8 +12,12 @@ CREATE TABLE IF NOT EXISTS public.notifications (
   body TEXT,
   metadata JSONB DEFAULT '{}',
   read BOOLEAN NOT NULL DEFAULT false,
+  archived BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Index for active (non-archived) notifications
+CREATE INDEX IF NOT EXISTS idx_notifications_active ON public.notifications (archived, read, created_at DESC) WHERE archived = false;
 
 -- Index for unread notifications (most common query)
 CREATE INDEX IF NOT EXISTS idx_notifications_unread ON public.notifications (read, created_at DESC) WHERE read = false;
