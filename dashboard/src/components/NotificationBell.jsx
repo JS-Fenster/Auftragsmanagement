@@ -104,7 +104,7 @@ export default function NotificationBell() {
 
       {/* Dropdown Panel */}
       {open && (
-        <div className="absolute left-full top-0 ml-2 w-96 bg-white border border-gray-200 rounded-xl shadow-xl z-50 flex flex-col min-h-[200px] max-h-[calc(100vh-100px)]">
+        <div className="fixed w-96 bg-white border border-gray-200 rounded-xl shadow-xl z-50 flex flex-col min-h-[200px]" style={{ left: '232px', top: '16px', maxHeight: 'calc(100vh - 32px)' }}>
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
             <h3 className="text-sm font-semibold text-gray-900">
