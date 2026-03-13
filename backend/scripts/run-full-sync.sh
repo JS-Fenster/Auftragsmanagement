@@ -81,5 +81,11 @@ node scripts/build-leistungsverzeichnis.js $FLAGS
 
 echo ""
 echo "======================================================================"
+echo "  [5/5] HEALTH CHECK"
+echo "======================================================================"
+node scripts/sync-healthcheck.js || echo "[WARN] Health Check hat Probleme gemeldet"
+
+echo ""
+echo "======================================================================"
 echo "  FULL SYNC ABGESCHLOSSEN - $(date '+%Y-%m-%d %H:%M:%S')"
 echo "======================================================================"
