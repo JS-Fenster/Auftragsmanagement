@@ -21,6 +21,7 @@ import {
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 const MODEL = "gpt-5.2"; // GPT-5.x: no temperature/top_p/max_tokens
+const REASONING_EFFORT = "low"; // "high"/"medium" leak reasoning, omitting causes newline garbage
 const VOYAGE_URL = "https://api.voyageai.com/v1/embeddings";
 const VOYAGE_KEY = Deno.env.get("VOYAGE_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -29,20 +30,27 @@ const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 // Clean leaked reasoning artifacts from LLM response text
 function cleanResponse(text: string | null): string | null {
   if (!text) return text;
+  // Strip leading whitespace/newlines (reasoning hidden as blank lines)
+  let cleanText = text.replace(/^\s+/, "");
+  // Remove leading JSON snippets (leaked tool call attempts)
+  cleanText = cleanText.replace(/^\{[^}]*\}\s*/g, "");
+  // Remove "Oops" / error hallucinations about tools
+  cleanText = cleanText.replace(/^Oops\..*?\n/gm, "");
   // Cut at first obvious reasoning leak pattern
   const leakPatterns = [
     /\n(?:Ok|Stop|Let's|Need|I (?:should|must|will|think|can)|Hmm|No\.|Proceed|Here|Ah)\b[^.!?]*(?:tool|call|function|search|invoke|execute|send|craft|commit|channel|JSON)/i,
     /\nto=functions\./,
     /\n\{\"(?:query|tool)/,
   ];
-  let cleanText = text;
   for (const pattern of leakPatterns) {
     const match = cleanText.match(pattern);
     if (match?.index !== undefined) {
       cleanText = cleanText.substring(0, match.index).trim();
     }
   }
-  return cleanText || text;
+  // Final trim
+  cleanText = cleanText.trim();
+  return cleanText || null;
 }
 
 function jsonResponse(body: unknown, status = 200, corsHeaders: Record<string, string>) {
@@ -141,6 +149,7 @@ async function callLLM(
   const body: Record<string, unknown> = {
     model: MODEL,
     messages,
+    reasoning_effort: REASONING_EFFORT,
   };
   if (tools && tools.length > 0) {
     body.tools = tools;
