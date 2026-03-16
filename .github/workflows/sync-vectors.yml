@@ -1,0 +1,62 @@
+name: Sync Vectors
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - '**/*.md'
+      - '**/*.ts'
+      - '**/*.sql'
+      - '**/*.py'
+      - '**/*.toml'
+      - '.vector-sync.json'
+
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: JS-Fenster/KB
+          path: _kb
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install httpx python-dotenv
+
+      - name: Validate secrets
+        env:
+          VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          MISSING=""
+          [ -z "$VOYAGE_API_KEY" ] && MISSING="${MISSING} VOYAGE_API_KEY"
+          [ -z "$SUPABASE_URL" ] && MISSING="${MISSING} SUPABASE_URL"
+          [ -z "$SUPABASE_SERVICE_KEY" ] && MISSING="${MISSING} SUPABASE_SERVICE_KEY"
+          if [ -n "$MISSING" ]; then
+            echo "ERROR: Missing secrets:${MISSING}"
+            exit 1
+          fi
+          echo "All secrets present."
+
+      - name: Run vector sync
+        env:
+          VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        # REPO_NAME: Replace with your repo name (must match .vector-sync.json repo_name)
+        run: |
+          python _kb/scripts/sync_vectors.py \
+            --repo-root . \
+            --config .vector-sync.json \
+            --repo-name "${REPO_NAME:-$(jq -r .repo_name .vector-sync.json)}"

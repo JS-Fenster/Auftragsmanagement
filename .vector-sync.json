@@ -1,0 +1,18 @@
+{
+  "repo_name": "Auftragsmanagement",
+  "projekt": "AM",
+  "include": [
+    "*.md",
+    "docs/**/*.md",
+    "workflows/**/*.md",
+    "supabase/functions/*/index.ts",
+    "supabase/functions/_shared/*.ts",
+    "supabase/migrations/*.sql",
+    "sync/README.md"
+  ],
+  "exclude": [
+    "node_modules/**",
+    "dist/**",
+    "dashboard/src/**"
+  ]
+}
