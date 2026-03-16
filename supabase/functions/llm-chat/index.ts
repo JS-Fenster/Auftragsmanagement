@@ -20,12 +20,30 @@ import {
 
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
-const MODEL = "gpt-5.2"; // GPT-5.x: only reasoning_effort, no temperature/top_p/max_tokens
-const REASONING_EFFORT = "medium"; // "high" leaks reasoning into output + causes loops
+const MODEL = "gpt-5.2"; // GPT-5.x: no temperature/top_p/max_tokens
 const VOYAGE_URL = "https://api.voyageai.com/v1/embeddings";
 const VOYAGE_KEY = Deno.env.get("VOYAGE_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+// Clean leaked reasoning artifacts from LLM response text
+function cleanResponse(text: string | null): string | null {
+  if (!text) return text;
+  // Cut at first obvious reasoning leak pattern
+  const leakPatterns = [
+    /\n(?:Ok|Stop|Let's|Need|I (?:should|must|will|think|can)|Hmm|No\.|Proceed|Here|Ah)\b[^.!?]*(?:tool|call|function|search|invoke|execute|send|craft|commit|channel|JSON)/i,
+    /\nto=functions\./,
+    /\n\{\"(?:query|tool)/,
+  ];
+  let cleanText = text;
+  for (const pattern of leakPatterns) {
+    const match = cleanText.match(pattern);
+    if (match?.index !== undefined) {
+      cleanText = cleanText.substring(0, match.index).trim();
+    }
+  }
+  return cleanText || text;
+}
 
 function jsonResponse(body: unknown, status = 200, corsHeaders: Record<string, string>) {
   return new Response(JSON.stringify(body), {
@@ -115,7 +133,7 @@ async function executeTool(
   }
 }
 
-// Call OpenAI API (GPT-5.x rules: only reasoning_effort, no temperature/top_p/max_tokens)
+// Call OpenAI API (GPT-5.x rules: no temperature/top_p/max_tokens)
 async function callLLM(
   messages: Array<{ role: string; content: string }>,
   tools?: typeof TOOL_DEFINITIONS,
@@ -123,7 +141,6 @@ async function callLLM(
   const body: Record<string, unknown> = {
     model: MODEL,
     messages,
-    reasoning_effort: REASONING_EFFORT,
   };
   if (tools && tools.length > 0) {
     body.tools = tools;
@@ -188,8 +205,8 @@ Deno.serve(async (req) => {
       { role: "user", content: message },
     ];
 
-    // Tool execution loop (max 3 rounds to prevent infinite loops)
-    const MAX_ROUNDS = 3;
+    // Tool execution loop (max 2 rounds — more causes reasoning loops)
+    const MAX_ROUNDS = 2;
     const toolCallsLog: Array<{ name: string; args: unknown; result: unknown }> = [];
 
     for (let round = 0; round < MAX_ROUNDS; round++) {
@@ -202,7 +219,7 @@ Deno.serve(async (req) => {
       // No tool calls — return final answer
       if (choice.finish_reason !== "tool_calls" || !choice.message.tool_calls) {
         return jsonResponse({
-          answer: choice.message.content,
+          answer: cleanResponse(choice.message.content),
           tool_calls: toolCallsLog,
           model: MODEL,
         }, 200, corsHeaders);
@@ -269,7 +286,7 @@ Deno.serve(async (req) => {
       messages as Array<{ role: string; content: string }>,
     );
     return jsonResponse({
-      answer: finalResponse.choices[0].message.content,
+      answer: cleanResponse(finalResponse.choices[0].message.content),
       tool_calls: toolCallsLog,
       model: MODEL,
     }, 200, corsHeaders);
