@@ -175,10 +175,12 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-    // Build message array
+    // Build message array with current timestamp so Jess knows "today"
+    const now = new Date().toLocaleString("de-DE", { timeZone: "Europe/Berlin" });
+    const systemWithDate = `${SYSTEM_PROMPT}\n\nAktuelles Datum und Uhrzeit (Europe/Berlin): ${now}`;
     const systemContent = context
-      ? `${SYSTEM_PROMPT}\n\nZusaetzlicher Kontext:\n${context}`
-      : SYSTEM_PROMPT;
+      ? `${systemWithDate}\n\nZusaetzlicher Kontext:\n${context}`
+      : systemWithDate;
 
     const messages: Array<{ role: string; content: string | null; tool_calls?: unknown[]; tool_call_id?: string }> = [
       { role: "system", content: systemContent },
@@ -207,7 +209,15 @@ Deno.serve(async (req) => {
       }
 
       // Execute tool calls — check for action tools that need confirmation
-      messages.push(choice.message);
+      // Strip reasoning_content (output-only field, causes 400 if sent back)
+      const assistantMsg: Record<string, unknown> = {
+        role: "assistant",
+        content: choice.message.content ?? null,
+      };
+      if (choice.message.tool_calls) {
+        assistantMsg.tool_calls = choice.message.tool_calls;
+      }
+      messages.push(assistantMsg as typeof messages[0]);
 
       const pendingActions: Array<{ tool_call_id: string; name: string; args: Record<string, unknown>; description: string }> = [];
 
@@ -264,6 +274,7 @@ Deno.serve(async (req) => {
       model: MODEL,
     }, 200, corsHeaders);
   } catch (err) {
+    console.error("llm-chat fatal:", err instanceof Error ? err.message : err);
     return jsonResponse({ error: sanitizeError(err) }, 500, corsHeaders);
   }
 });
