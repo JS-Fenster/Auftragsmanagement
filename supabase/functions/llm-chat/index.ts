@@ -30,27 +30,19 @@ const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 // Clean leaked reasoning artifacts from LLM response text
 function cleanResponse(text: string | null): string | null {
   if (!text) return text;
-  // Strip leading whitespace/newlines (reasoning hidden as blank lines)
+  // Strip leading whitespace/newlines
   let cleanText = text.replace(/^\s+/, "");
-  // Remove leading JSON snippets (leaked tool call attempts)
-  cleanText = cleanText.replace(/^\{[^}]*\}\s*/g, "");
-  // Remove "Oops" / error hallucinations about tools
-  cleanText = cleanText.replace(/^Oops\..*?\n/gm, "");
-  // Cut at first obvious reasoning leak pattern
-  const leakPatterns = [
-    /\n(?:Ok|Stop|Let's|Need|I (?:should|must|will|think|can)|Hmm|No\.|Proceed|Here|Ah)\b[^.!?]*(?:tool|call|function|search|invoke|execute|send|craft|commit|channel|JSON)/i,
-    /\nto=functions\./,
-    /\n\{\"(?:query|tool)/,
-  ];
-  for (const pattern of leakPatterns) {
-    const match = cleanText.match(pattern);
-    if (match?.index !== undefined) {
-      cleanText = cleanText.substring(0, match.index).trim();
-    }
+  // Cut at 3+ consecutive newlines (reasoning leak always starts there)
+  const tripleNewline = cleanText.search(/\n{3,}/);
+  if (tripleNewline > 0) {
+    cleanText = cleanText.substring(0, tripleNewline);
   }
-  // Final trim
-  cleanText = cleanText.trim();
-  return cleanText || null;
+  // Remove any remaining English reasoning fragments at the end
+  cleanText = cleanText.replace(/\n(?:Ok|Stop|Let's|Need|Oops|I (?:should|must|will|think)|Hmm|Proceed)[\s\S]*$/i, "");
+  // Remove trailing JSON/tool-call artifacts
+  cleanText = cleanText.replace(/\n?\{\"(?:query|tool)[\s\S]*$/g, "");
+  cleanText = cleanText.replace(/\nto=functions\.[\s\S]*$/g, "");
+  return cleanText.trim() || null;
 }
 
 function jsonResponse(body: unknown, status = 200, corsHeaders: Record<string, string>) {
