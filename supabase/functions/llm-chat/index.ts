@@ -21,7 +21,7 @@ import {
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 const MODEL = "gpt-5.2"; // GPT-5.x: only reasoning_effort, no temperature/top_p/max_tokens
-const REASONING_EFFORT = "high"; // "medium" struggles with multi-turn tool use
+const REASONING_EFFORT = "medium"; // "high" leaks reasoning into output + causes loops
 const VOYAGE_URL = "https://api.voyageai.com/v1/embeddings";
 const VOYAGE_KEY = Deno.env.get("VOYAGE_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
