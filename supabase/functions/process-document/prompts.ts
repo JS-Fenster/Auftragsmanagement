@@ -2,10 +2,20 @@
 // Process Document - System Prompt fuer Dokument-Kategorisierung + Extraktion
 // Version: 4.5.0 - 2026-03-17
 // =============================================================================
-// Aenderungen v4.5.0 (Review 17.03.2026, 3 Fehlklassifikationen):
+// Aenderungen v4.5.0 (Review 17.03.2026, 16 manuelle Korrekturen seit v4.4.0):
 // - FIX: Reklamation → Retoure_Ausgehend bei Retourenschein + Einlieferungsbeleg
 // - FIX: Kundenunterlage → Werbung bei unaufgeforderten Produkt-Exposes von Haendlern
-// - NEU: Few-Shot-Beispiele 26 (Retourenschein+Reklamationsschein) + 27 (Fahrzeug-Expose)
+// - FIX: Anfrage_Eingehend massiv erweitert (Fachunternehmererklaerungen, Baubeschreibungen,
+//   Kundenfotos mit Massen, Kundennotizen mit Kontaktdaten)
+// - FIX: Vertrag vs Anfrage_Eingehend Abgrenzung (Baubeschreibung ≠ Vertrag)
+// - FIX: Notiz vs Anfrage_Eingehend vs Aufmassblatt ("Notiz" im Titel ≠ Kategorie Notiz)
+// - FIX: Personalunterlagen um Mitarbeiter-Benefits erweitert (E-Bike, Pauschalversteuerung)
+// - FIX: Werbung vs Spam Abgrenzung (Fax-Spam von unbekannten Absendern)
+// - FIX: Werbung vs Vorlage (eigene Firmen-Assets = Vorlage)
+// - FIX: Bild bei reinen Bild-PDFs ohne Text (nicht Produktdatenblatt)
+// - FIX: Abholauftrag mit "Grund der Ruecklieferung" → Retoure_Ausgehend (nicht Lieferschein)
+// - FIX: Mehrseitige Scans → primaere Seite bestimmt Kategorie
+// - NEU: Few-Shot-Beispiele 26-35 (10 neue)
 //
 // Aenderungen v4.4.0 (Backtest 06.03-10.03, 21 Korrekturen / 228 Dokumente = 9.2%):
 // - FIX: Sonstiges_Dokument Anti-Catch-All-Regeln massiv verstaerkt (15 von 21 Fehlern)
@@ -154,12 +164,19 @@ Anfrage VON einem Kunden/Externen AN J.S. Fenster. Der Kunde/Externe moechte ein
 - INKLUSIVE: Ausgefuellte Anfrageformulare (auch wenn sie Formular-Charakter haben → Anfrage_Eingehend!)
 - INKLUSIVE: Bauplaene/Zeichnungen MIT handschriftlichen Angebotsnotizen → der primaere Zweck ist die Anfrage, die Zeichnung ist nur Beilage
 - INKLUSIVE: "AUFFORDERUNG ZUR ABGABE EINES ANGEBOTES", Vergabedaten, Vergabeeinheit, Abgabetermin, Ausschreibungstexte von Generalunternehmern
-- INKLUSIVE: Kundennotizen mit ☑ Termin / ☑ Angebot Checkbox und Reparatur-/Montage-Details (Kunde fragt nach Leistung!)
+- INKLUSIVE: Kundennotizen/"Kundennotiz" mit Kundenkontaktdaten (Name, Adresse, Telefon) und Produkt-/Leistungsanfrage (Lamelle, Fenster, Tuer etc.) → Anfrage_Eingehend, NICHT Notiz!
+- INKLUSIVE: Baubeschreibungen / Leistungsbeschreibungen / Bau- und Leistungsbeschreibungen fuer Bauprojekte → beschreiben Anforderungen an Fenster/Tueren, JS Fenster soll Angebot abgeben. KEIN Vertrag (keine Unterschriften, keine bindende Vereinbarung)!
+- INKLUSIVE: Blanko-Formulare/Erklaerungen die VON Kunden/Architekten/Bauherren geschickt werden und von JS Fenster ausgefuellt werden muessen (z.B. Fachunternehmererklaerung, QNG-Formulare, Unbedenklichkeitsbescheinigung) → Teil eines Anfrage-/Projektpakets
+- INKLUSIVE: Kundenfotos mit Masstabellen oder handschriftlichen Massen (Breite/Hoehe-Angaben) → Kunde schickt Masse fuer Angebot
 - ACHTUNG: Angebotsaufforderungen/Ausschreibungen sind Anfrage_Eingehend, KEINE Bauplaene und NICHT Sonstiges_Dokument!
 - ACHTUNG RICHTUNG: Wenn ein EXTERNER bei JS Fenster nach einem Angebot fragt = Anfrage_EINGEHEND. "Ausgehend" bedeutet JS Fenster fragt selbst bei Lieferanten.
+- ACHTUNG MEHRSEITIGE SCANS: Wenn Seite 1 eine Kundenanfrage/Terminnotiz ist und Seite 2 ein Lieferschein als Referenz, zaehlt die PRIMAERE Seite → Anfrage_Eingehend!
 - NICHT: Reklamation (die beinhaltet Beschwerde/Maengel)
 - NICHT: Anfrage_Ausgehend (JS Fenster fragt bei Lieferanten)
-- NICHT: Notiz (Kundennotiz mit Terminwunsch/Angebotswunsch ist eine Anfrage, keine reine Notiz!)
+- NICHT: Notiz (Kundennotiz mit Kontaktdaten + Produktanfrage ist eine Anfrage, keine reine Notiz!)
+- NICHT: Vertrag (Baubeschreibungen/Leistungsbeschreibungen OHNE Unterschriften/bindende Klauseln sind Anfrage, kein Vertrag!)
+- NICHT: Anleitung (Fachunternehmererklaerungen/QNG-Formulare als Teil eines Projektpakets sind Anfrage, keine Anleitung!)
+- NICHT: Bild (Kundenfotos MIT Massen/Tabellen sind Anfrage, nicht Bild!)
 
 ## Angebot_Ausgehend
 Preisangebot VON J.S. Fenster AN einen Kunden. J.S. Fenster ist der Aussteller.
@@ -175,6 +192,7 @@ Preisangebot VON einem Lieferanten AN J.S. Fenster. Der Lieferant bietet uns etw
 Bedienungsanleitungen, Montageanleitungen, technische Handbuecher, Einbauanweisungen.
 - Typische Merkmale: "Anleitung", "Montageanleitung", "Bedienungsanleitung", "Einbauanweisung", Schritt-fuer-Schritt-Anweisungen, Abbildungen mit Nummern
 - NICHT: Produktdatenblatt (reine technische Daten ohne Anleitungscharakter)
+- NICHT: Anfrage_Eingehend (Fachunternehmererklaerungen, QNG-Anforderungskataloge, Formulare die JS Fenster ausfuellen soll → Teil eines Anfrage-/Projektpakets!)
 
 ## Aufmassblatt
 Aufmass-Dokumentation, Masslisten, Vermessungsprotokolle von Baustellen.
@@ -183,6 +201,8 @@ Aufmass-Dokumentation, Masslisten, Vermessungsprotokolle von Baustellen.
 - ACHTUNG: Dokumente mit "Aufmaßblatt" oder "Aufmass" im Titel sind IMMER Aufmassblatt, NIEMALS Skizze! Aufmassblaetter sind standardisierte Erfassungsformulare mit Masstabellen. "Skizze" dagegen sind FREIE handgezeichnete technische Zeichnungen OHNE Formularstruktur.
 - ACHTUNG: Aufmassblaetter haben oft NIEDRIGE OCR-Qualitaet (Handschrift, Tabellen). Auch wenn der Text fragmentarisch ist - wenn "Aufmaßblatt", "Aufmass" oder typische Feld-Header (AFB, IFB, Rollo, Gurtaustritt) erkennbar sind → Aufmassblatt!
 - ACHTUNG: Outlook-Terminausdrucke mit "Bestellaufmass" oder "Angebotsaufmass" im Betreff gefolgt von handschriftlichen Massen → Aufmassblatt, NICHT Notiz!
+- ACHTUNG: Handnotizen auf Hersteller-Notizblock (Weru, Schueco etc.) mit Skizze/Zeichnung und Masse/Material (z.B. "X 300 Schrauben", "Fuer oben") → Aufmassblatt, NICHT Notiz! Das Wort "Notizen" im Header aendert nichts.
+- INKLUSIVE: Screenshots/Fotos mit Produktkonfigurations-Details (Ausfuehrung + Farbe + Glastyp) fuer einen bestimmten Auftrag → Aufmassblatt (z.B. "Cubo, Farbe Umbra, VSG 10mm")
 - NICHT: Skizze (freie Handzeichnung OHNE Formularstruktur und OHNE "Aufmaßblatt"-Header)
 - NICHT: Bauplan (der hat Massstab und Planstand)
 - NICHT: Sonstiges_Dokument (auch bei niedriger OCR-Qualitaet!)
@@ -242,8 +262,10 @@ Bestellung/PO VOM KUNDEN an J.S. Fenster. Wir sind der Lieferant, der Kunde best
 Fotos von Baustellen, Fenstern, Schaeden, Produkten, Beschlaegen, Etiketten. Kein Text oder nur minimaler Text.
 - Typische Merkmale: Kaum OCR-Text, Bilddatei (.jpg, .jpeg, .png), Foto-Metadaten
 - WICHTIG: Wenn der OCR-Text weniger als 50 Zeichen umfasst UND kein eindeutiges Dokument-Keyword erkennbar ist → Bild!
+- WICHTIG: PDFs die NUR Bildreferenzen enthalten (img-0.jpeg, img-1.jpeg...) und KEINEN lesbaren Text → Bild, NICHT Produktdatenblatt! Ein Produktdatenblatt braucht tatsaechlichen technischen Text.
 - WICHTIG: Fotos von Produktetiketten (CE-Aufkleber, Beschlag-Labels, EAN-Codes, Artikelnummern auf Aufklebern) sind "Bild", NICHT "Produktdatenblatt"! Ein Produktdatenblatt ist ein mehrseitiges Dokument mit strukturierten technischen Spezifikationen, nicht ein Foto eines Etiketts.
 - WICHTIG: Fotos die als Email-Anhang zu Lieferscheinen kamen aber selbst NUR ein Foto zeigen → "Bild", NICHT "Lieferschein_Eingehend"
+- NICHT: Anfrage_Eingehend (Kundenfotos MIT Masstabellen oder handschriftlichen Massen → Anfrage_Eingehend!)
 - NICHT: Skizze (hat Bemasung und technischen Charakter)
 - NICHT: Produktdatenblatt (strukturiertes mehrseitiges Dokument)
 - NICHT: Sonstiges_Dokument (bei wenig Text ist Bild wahrscheinlicher als Sonstiges!)
@@ -371,7 +393,8 @@ Lieferschein von einem Lieferanten. Dokumentiert eingehende Ware bei J.S. Fenste
 - Typische Merkmale: "Lieferschein", Lieferscheinnummer, Artikelliste OHNE Preise, Lieferdatum, Versandadresse ist J.S. Fenster oder eine Baustelle
 - INKLUSIVE: Polnische/auslaendische Lieferscheine, Lagerausgabescheine ("Wydanie z magazynu", "WZ"), CMR-Frachtbriefe, Speditionsbelege
 - INKLUSIVE: Lieferscheine von ALLEN Lieferanten - auch unbekannten oder branchenfremden (z.B. WAREMA, Steinau, ab-in-die-BOX.de, Abus, irgendein Webshop). Wenn "Lieferschein" draufsteht, ist es ein Lieferschein!
-- INKLUSIVE: "Abholauftrag", "Reparaturauftrag" von Lieferanten die Ware abholen/liefern/tauschen (z.B. KLAIBER Markisen "Abholauftrag" = Lieferschein fuer Ruecklieferung). Kernfrage: Geht es um physischen Warenfluss? → Lieferschein_Eingehend
+- INKLUSIVE: "Abholauftrag", "Reparaturauftrag" von Lieferanten die NEUE Ware abholen/liefern/tauschen → Lieferschein_Eingehend
+- ACHTUNG: "Abholauftrag" mit "Grund der Ruecklieferung" oder "Falschlieferung" oder "Reklamation" → das ist eine RETOURE, kein normaler Lieferschein! → Retoure_Ausgehend! Kernfrage: Wird fehlerhafte/falsche Ware ZURUECKGESCHICKT? Dann Retoure_Ausgehend.
 - ACHTUNG: Lieferscheine haben oft eine "Auftragsnummer" oder "Bestellnummer" als Referenz - das macht sie NICHT zu einer Auftragsbestaetigung!
 - ACHTUNG: Auch bei niedriger OCR-Qualitaet - wenn "Lieferschein" im Text erkennbar ist → Lieferschein_Eingehend, NICHT Sonstiges_Dokument!
 - Kernfrage: Wird hier WARE GELIEFERT/VERSENDET/ABGEHOLT? Dann ist es ein Lieferschein.
@@ -400,11 +423,17 @@ Interner Auftrag oder Terminplan fuer NEU-Montage/Demontage-Arbeiten (Fenster/Tu
 - NICHT: Rechnung_Eingehend (die hat Rechnungsnummer, Betraege, Bankverbindung)
 
 ## Notiz
-Interne Notizen, Telefonnotizen, Gespraechsprotokolle, handschriftliche Vermerke, Rapporte.
+Interne Notizen, Telefonnotizen, Gespraechsprotokolle, handschriftliche Vermerke, Rapporte. REIN INTERNE Vermerke OHNE Kundenanfrage-Charakter und OHNE Masse/Skizzen.
 - Typische Merkmale: Kurzer Text, informeller Stil, "Tel. mit...", Stichworte, "Rapport"
 - INKLUSIVE: Ausgefuellte Rapporte/Arbeitsrapporte (interner Arbeitsbericht vom Monteur)
-- ACHTUNG: "Kundennotiz" mit ☑ Termin / ☑ Angebot und Kontaktdaten → Anfrage_Eingehend (Kunde fragt nach Leistung!)
-- Notiz = rein INTERNER Vermerk ohne Kundenanfrage-Charakter
+- WICHTIG: Das Wort "Notiz" oder "Notizen" im Dokumenttitel bestimmt NICHT die Kategorie! Klassifiziere nach INHALT:
+  - Kundenkontaktdaten (Name/Adresse/Telefon) + Produktanfrage → Anfrage_Eingehend
+  - Handschriftliche Skizzen/Zeichnungen + Masse/Schrauben-Angaben → Aufmassblatt
+  - Rein interner Text ohne Kundenanfrage und ohne Masse → Notiz
+- ACHTUNG: "Kundennotiz" mit Kundenkontaktdaten und Produkt-/Leistungsanfrage (Lamelle, Fenster, Reparatur) → Anfrage_Eingehend!
+- ACHTUNG: Handnotizen auf Hersteller-Notizblock (Weru, Schueco) mit Skizze/Zeichnung und Massen/Material → Aufmassblatt!
+- NICHT: Anfrage_Eingehend (Kundennotiz mit Kontaktdaten + Produktwunsch)
+- NICHT: Aufmassblatt (Notizen mit Skizzen, Massen, Materialangaben fuer einen bestimmten Auftrag)
 
 ## Office_Dokument
 Word-Dokumente, Excel-Tabellen, PowerPoint-Praesentationen und aehnliche Office-Dateien die in keine spezifischere Kategorie passen.
@@ -417,6 +446,8 @@ Dokumente die Mitarbeiter, Personal und Arbeitszeiten betreffen.
 - INKLUSIVE: Stundennachweise, Arbeitszeitnachweise, AU-Bescheinigungen (Arbeitsunfaehigkeit), Lohnabrechnungen, Arbeitsvertraege, Urlaubsantraege, Krankmeldungen
 - INKLUSIVE: Auch handschriftliche Stundenzettel (z.B. von Reinigungskraefte)
 - INKLUSIVE: BGHW-Unfallanzeigen, Berufsgenossenschaft-Dokumente fuer Mitarbeiter
+- INKLUSIVE: Mitarbeiter-Benefits: E-Bike/Dienstrad-Leasing (Jobrad, AGL Activ Services, Bikeleasing, BusinessBike), Pauschalversteuerung nach §37b EStG, geldwerter Vorteil, betriebliche Altersvorsorge (bAV), Vermoegenswirksame Leistungen
+- ACHTUNG: Briefe die einen EINZELNEN Mitarbeiter NAMENTLICH im Kontext seines Arbeitsverhaeltnisses betreffen (Benefits, Steuerbehandlung, Leasing-Uebernahme) → Personalunterlagen, NICHT Brief_eingehend!
 - NICHT: Montageauftrag (der plant Montage-Einsaetze, nicht Arbeitszeiten)
 - NICHT: Formular (Personalunterlagen haben eigene Kategorie)
 - NICHT: Vertrag (allgemeine Vertraege ohne Personalbezug)
@@ -545,9 +576,11 @@ Nur verwenden wenn das Dokument in KEINE der anderen 62 Kategorien passt.
 - Typische Faelle: Voellig branchenfremde Dokumente, nicht identifizierbare Dokumente OHNE jegliche erkennbare Keywords
 
 ## Spam
-Offensichtlicher Spam, Phishing, irrelevante Massensendungen ohne jeden Geschaeftsbezug.
+Offensichtlicher Spam, Phishing, irrelevante Massensendungen ohne jeden Geschaeftsbezug. Auch Fax-Spam.
 - Typische Merkmale: Gewinnspiele, Phishing-Versuche, generische Massenpost, voellig branchenfremde Werbung
-- NICHT: Werbung (Werbeflyer/Prospekte von Dienstleistern oder Lieferanten mit potenziellem Nutzen)
+- INKLUSIVE: Fax-Spam von unbekannten Absendern ("Telefax.unbekannt"), auslaendische Faxnummern (0031-...), Produkte voellig ohne Bezug zu Fenster/Tueren/Bau (Zelte, Pavillons, Bueromoebel), "faxabmelden@" Abmeldeadressen, aggressive Rabattsprache ("Statt X nur Y!"), Bestellfax-Formulare mit auslaendischen Nummern
+- Kernfrage: Ist der Absender unbekannt UND das Produkt hat keinen Bezug zum Fenster-/Tueren-/Baugeschaeft? → Spam, nicht Werbung!
+- NICHT: Werbung (Werbeflyer/Prospekte von BEKANNTEN oder RELEVANTEN Dienstleistern/Lieferanten)
 - NICHT: Brief_eingehend (relevante geschaeftliche Korrespondenz)
 
 ## Werbung
@@ -557,8 +590,9 @@ Werbeflyer, Produktprospekte, Newsletter-Anhaenge, Software-Werbung, Aktionsange
 - INKLUSIVE: Unaufgeforderte Produkt-Exposes und Fahrzeug-Angebote von Haendlern (z.B. Autohaus-Expose, Nutzfahrzeug-Angebot, Maserati-Prospekt)
 - NICHT: Katalog (strukturiertes Sortiment mit vielen Produkten/Preisen)
 - NICHT: Produktdatenblatt (technische Daten eines einzelnen Produkts)
-- NICHT: Spam (voellig irrelevant, Phishing, Gewinnspiele)
+- NICHT: Spam (Fax-Spam von unbekannten Absendern fuer branchenfremde Produkte → Spam!)
 - NICHT: Veranstaltung (konkrete Messe-Einladung mit Datum/Ort)
+- NICHT: Vorlage (EIGENE Firmen-Assets von JS Fenster wie Logos, Jubilaeumsgrafiken, Briefpapier-Vorlagen → Vorlage!)
 
 ## Steuer_Bescheid
 Steuerbescheide, Vorauszahlungsbescheide, Umsatzsteuer-Bescheide. Amtliche Steuerdokumente.
@@ -594,6 +628,7 @@ Unterschriebene Vertraege, Vereinbarungen, AGB, Geschaeftsbedingungen, rechtlich
 - NICHT: Angebot_Eingehend (Vorvertragliche Pflichtinfo von Telekom etc. ist Vertrag!)
 - NICHT: Personalunterlagen (Arbeitsvertraege und Aenderungsvertraege → Personalunterlagen!)
 - NICHT: Sonstiges_Dokument (AGB/Geschaeftsbedingungen → Vertrag!)
+- NICHT: Anfrage_Eingehend (Baubeschreibungen/Leistungsbeschreibungen OHNE Unterschriften und OHNE bindende Vereinbarung sind Anfrage_Eingehend! Ein Vertrag braucht bindende Klauseln, Unterschriften oder Vertragsnummern.)
 
 ## Video
 Videodateien.
@@ -605,6 +640,7 @@ Wiederverwendbare Design-Assets, Briefpapier-Vorlagen, Logos, Druckvorlagen fuer
 - Typische Merkmale: "Briefpapier", "Druckvorlage", "Logo", "Vorlage", "Template", Corporate-Design-Elemente, Druckerei-Anweisungen, Anzeigenvorlagen
 - INKLUSIVE: Eigene Briefpapier-Vorlagen (SEPA-Daten fuer Druckerei), Anzeigenvorlagen von Lieferanten (WERU, Roto), Logos (eigene + Lieferanten zur Mitverwendung), Grafikvorlagen
 - INKLUSIVE: Firmen-Logos als Bilddatei (JPG/PNG) - z.B. "J.S. Fenster & Türen" Logo/Briefkopf-Grafik → Vorlage, NICHT Bild!
+- INKLUSIVE: Eigene Jubilaeumsgrafiken, Werbemotive, Anzeigenvorlagen (z.B. "30 Jahre J.S. Fenster") → Vorlage, NICHT Werbung! JS Fenster ist der ERSTELLER des Assets, nicht der Empfaenger von Werbung.
 - Kernfrage: Ist dieses Dokument ein fertiges Design-Asset das wiederverwendet/gedruckt wird (nicht ausgefuellt)? Dann Vorlage.
 - NICHT: Formular (strukturierte Vorlage mit Feldern ZUM AUSFUELLEN)
 - NICHT: Bild (Firmen-Logos und Briefkopf-Grafiken sind Vorlagen, keine Bilder!)
@@ -673,6 +709,26 @@ Technische Zeichnungen, CAD-Zeichnungen, Detailzeichnungen (digital erstellt).
 - AUSGEHEND = Dokument geht VON J.S. Fenster AN einen Externen (wir schicken Angebot an Kunden, wir bestellen bei Lieferant)
 - Bei Briefen/Schreiben von Anwaelten, Steuerberatern etc. die IM AUFTRAG von JS Fenster handeln: Ausgehend (aus JS-Perspektive gesendet)
 - Bei Briefen/Schreiben die an JS Fenster gerichtet sind: Eingehend
+
+## Vertrag vs Anfrage_Eingehend (Baubeschreibungen!)
+- Vertrag = bindende Vereinbarung MIT Unterschriften, Vertragsnummer, Kuendigungsfristen, Vertragsstrafen
+- Baubeschreibung / Leistungsbeschreibung / Bau- und Leistungsbeschreibung OHNE bindende Klauseln und OHNE Unterschriften = Anfrage_Eingehend (Projekt-Spezifikation fuer Angebotsanfrage)
+- ENTSCHEIDUNGSREGEL: Gibt es Unterschriften und/oder bindende Vereinbarungssprache ("vereinbaren hiermit", "Vertrag", "Kuendigungsfrist")? → Vertrag. Beschreibt das Dokument Bau-Anforderungen ohne bindende Vereinbarung? → Anfrage_Eingehend.
+
+## Mehrseitige Scans (WICHTIG!)
+- Wenn ein Scan mehrere Dokumenttypen enthaelt, bestimmt die PRIMAERE Seite (typisch Seite 1) die Kategorie
+- Beispiel: Seite 1 = Outlook-Termin mit Kundenbesuch + handschriftliche Masse, Seite 2 = Lieferschein als Referenz → Anfrage_Eingehend (die Kundennotiz ist der Hauptzweck)
+- Erwaehne in extraktions_hinweise wenn mehrere Dokumenttypen erkannt wurden
+
+## Brief_eingehend vs Personalunterlagen
+- Briefe die einen EINZELNEN Mitarbeiter NAMENTLICH im Kontext seines Arbeitsverhaeltnisses betreffen → Personalunterlagen
+- Themen: E-Bike/Dienstrad-Uebernahme, Pauschalversteuerung (§37b EStG), geldwerter Vorteil, bAV → Personalunterlagen
+- Allgemeine geschaeftliche Korrespondenz ohne Mitarbeiter-Bezug → Brief_eingehend
+
+## Werbung vs Spam vs Vorlage
+- Werbung = Werbematerial von BEKANNTEN oder RELEVANTEN externen Firmen (Lieferanten, Dienstleister)
+- Spam = Werbung von UNBEKANNTEN Absendern fuer BRANCHENFREMDE Produkte (Fax-Spam, auslaendische Nummern)
+- Vorlage = EIGENE Firmen-Assets (JS Fenster Logos, Jubilaeumsgrafiken, Briefpapier) → JS Fenster ist ERSTELLER, nicht Empfaenger
 
 ## Telekom/Mobilfunk/Versicherung/KFZ
 - Telekom-Vertragszusammenfassungen → Vertrag
@@ -861,6 +917,57 @@ FALSCH: Kundenunterlage
 RICHTIG: Werbung
 GRUND: Unaufgefordertes Fahrzeug-Expose von einem Autohaendler per Email. Kundenunterlage waere ein Dokument das ein KUNDE als Referenz fuer unser Fenster-/Tueren-Geschaeft mitbringt. Haendler-Prospekte und Produkt-Exposes die unaufgefordert kommen sind Werbung.
 
+## Beispiel 28: Fachunternehmererklaerung / QNG-Handbuch
+OCR-Text (Ausschnitt): "Fachunternehmererklärung Einhaltung der Schadstoffliste ... Hiermit bestätige ich, dass die QNG-Anforderungen ... Fachunternehmen: _____ Bauherr: _____ Adresse Bauvorhaben: _____ ... QNG-Anforderungskatalog Anhangdokument 313 Schadstoffvermeidung in Baumaterialien"
+FALSCH: Anleitung
+RICHTIG: Anfrage_Eingehend
+GRUND: Blanko-Formular (Fachunternehmen/Bauherr/Adresse leer) das von einem Bauherrn/Architekten geschickt wurde und von JS Fenster ausgefuellt werden muss. Teil eines Projektanfrage-Pakets. Der QNG-Katalog ist Beilage, nicht Hauptzweck.
+
+## Beispiel 29: Kundenfoto mit Masstabelle
+OCR-Text: "| 45 | 2,20 | 2 |\n| 2 | 3 | 3 |\n| 36 | 150 | 3,60 |"
+Dateiname: "20260311_173426.jpg"
+FALSCH: Bild
+RICHTIG: Anfrage_Eingehend
+GRUND: Foto mit Masstabelle von einem Kunden. Auch wenn wenig Text - die Zahlen sind Masse (Breite/Hoehe/Anzahl) die der Kunde fuer ein Angebot schickt. Bild waere ein reines Foto ohne geschaeftlichen Handlungsbedarf.
+
+## Beispiel 30: Kundennotiz mit Kontaktdaten und Produktwunsch
+OCR-Text (Ausschnitt): "Kundennotiz ... Name: Volle Jugen ... Straße: Badelschwinghstr. 51 ... PLZ/Ort: 92224 ... Telefon: 0157 5630141 ... Grund: ☑ Lamelle ... Kundeneigentum ... 1x ZB + Schrauben"
+FALSCH: Notiz
+RICHTIG: Anfrage_Eingehend
+GRUND: Obwohl "Kundennotiz" im Titel steht, enthaelt das Dokument Kundenkontaktdaten (Name, Adresse, Telefon) und einen konkreten Produktwunsch (Lamelle). Das ist eine Kundenanfrage, keine interne Notiz.
+
+## Beispiel 31: Baubeschreibung ohne Unterschriften
+OCR-Text (Ausschnitt): "Baubeschreibung Senioren Servicehaus ... Bau- und Leistungsbeschreibung Stand 08.12.2025 ... ALLGEMEINE OBJEKTBESCHREIBUNG ... 3-geschossiges Bauwerk ... Fenster ... Türen ..."
+FALSCH: Vertrag
+RICHTIG: Anfrage_Eingehend
+GRUND: Eine Baubeschreibung/Leistungsbeschreibung ist eine Projekt-Spezifikation, kein Vertrag. Sie beschreibt Anforderungen an Fenster/Tueren fuer ein Bauprojekt. Keine Unterschriften, keine bindenden Klauseln. JS Fenster soll darauf ein Angebot abgeben.
+
+## Beispiel 32: E-Bike Pauschalversteuerung (Mitarbeiter-Benefit)
+OCR-Text (Ausschnitt): "AGL Activ Services GmbH ... Pauschalversteuerung nach § 37b EStG ... Vertragsnummer: 82302439 ... E-Bike ... an den Arbeitnehmer Stolarczyk, Andreas verkauft ... Kaufpreis brutto 593,04 €"
+FALSCH: Brief_eingehend
+RICHTIG: Personalunterlagen
+GRUND: Brief der einen einzelnen Mitarbeiter namentlich betrifft (Andreas Stolarczyk) im Kontext eines Mitarbeiter-Benefits (E-Bike-Leasing, Pauschalversteuerung §37b EStG). Personalunterlagen haben Vorrang vor Brief_eingehend.
+
+## Beispiel 33: Fax-Spam Faltpavillon
+OCR-Text (Ausschnitt): "Veranstaltungszelte – Faltpavillons: 3 x 6 Meter ... Statt 499,- nur 299,- Euro netto! ... Bestellfax: 0031-20-8907709 ... www.mbkauf.com ... Fairer Import Vertrieb, NL"
+Dateiname: "11.03.26_20.28_Telefax.unbekannt.pdf"
+FALSCH: Werbung
+RICHTIG: Spam
+GRUND: Fax von unbekanntem Absender ("Telefax.unbekannt"), auslaendische Nummer (0031 = NL), Produkt voellig branchenfremde (Zelte/Pavillons), aggressive Rabatt-Sprache. Das ist Fax-Spam, keine relevante Werbung.
+
+## Beispiel 34: Eigene Jubilaeumsgrafik
+OCR-Text: "30 Jahre ... J.S. Fenster & Türen"
+Dateiname: "30jahre_jsfenster_2024_06_20.png"
+FALSCH: Werbung
+RICHTIG: Vorlage
+GRUND: Eigene Firmengrafik (Jubilaeums-Logo). JS Fenster ist der ERSTELLER dieses Assets, nicht der Empfaenger von Werbung. Firmen-eigene Grafiken/Logos sind Vorlage.
+
+## Beispiel 35: KLAIBER Abholauftrag wegen Falschlieferung
+OCR-Text (Ausschnitt): "KLAIBER ... Abholauftrag ... Nummer: 26-RP-007287 ... 2 Stück PS-5000-40 RAL 9006 ... Grund der Rücklieferung: Falschlieferung"
+FALSCH: Lieferschein_Eingehend
+RICHTIG: Retoure_Ausgehend
+GRUND: Obwohl "Abholauftrag" steht und KLAIBER die Ware abholt, ist der Grund eine Ruecklieferung wegen Falschlieferung. Der Warenfluss geht VON JS Fenster ZURUECK an den Lieferanten → Retoure_Ausgehend.
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # OCR-QUALITAET UND SONDERFAELLE
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -883,7 +990,8 @@ GRUND: Unaufgefordertes Fahrzeug-Expose von einem Autohaendler per Email. Kunden
 
 ## Mehrere Dokumenttypen in einem Scan
 - Manchmal werden mehrere Dokumente zusammen gescannt
-- Kategorisiere nach dem HAUPTDOKUMENT (das meiste des Textes)
+- Kategorisiere nach dem HAUPTDOKUMENT (Seite 1 / primaerer Inhalt)
+- Wenn Seite 1 eine Kundenanfrage/Terminnotiz ist und Seite 2 ein Lieferschein → Anfrage_Eingehend!
 - Erwaehne in extraktions_hinweise dass mehrere Dokumenttypen erkannt wurden
 
 # ═══════════════════════════════════════════════════════════════════════════════
