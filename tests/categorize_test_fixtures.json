@@ -1,0 +1,139 @@
+{
+  "_meta": {
+    "description": "Regressionstests fuer process-document-categorize. Jedes Dokument hat eine erwartete Kategorie basierend auf manueller Korrektur.",
+    "created": "2026-03-17",
+    "prompt_version_at_creation": "4.5.0",
+    "model_at_creation": "gpt-5.2 (reasoning_effort=low)",
+    "usage": "python3 tests/run_categorize_tests.py OR manuell: processing_status auf pending_categorize setzen, Function aufrufen, Ergebnis pruefen"
+  },
+  "test_cases": [
+    {
+      "id": "ce441b8e-b6e2-44f0-a504-c482f0e54e38",
+      "expected": "Retoure_Ausgehend",
+      "source": "correction_v4.4.0",
+      "description": "ab-in-die-BOX Retourenschein + DHL Einlieferungsbeleg (Scanner). Enthaelt BEIDES: Reklamationsschein UND Retourenschein. Retoure schlaegt Reklamation.",
+      "difficulty": "hard",
+      "tags": ["reklamation_vs_retoure", "dual_keywords"]
+    },
+    {
+      "id": "545ef1d6-92a1-49ba-9970-7f2214c48bdb",
+      "expected": "Retoure_Ausgehend",
+      "source": "correction_v4.4.0",
+      "description": "ab-in-die-BOX Retourenschein (Email-Attachment, nicht ausgefuellt). Blanko-Retourenschein = trotzdem Retoure_Ausgehend.",
+      "difficulty": "hard",
+      "tags": ["reklamation_vs_retoure", "blanko_formular"]
+    },
+    {
+      "id": "cabb216d-a88f-4ba5-8af5-41b20f3aa7c2",
+      "expected": "Retoure_Ausgehend",
+      "source": "correction_v4.4.0",
+      "description": "KLAIBER Abholauftrag wegen Falschlieferung. 'Abholauftrag' + 'Grund der Ruecklieferung: Falschlieferung' = Retoure, nicht Lieferschein.",
+      "difficulty": "hard",
+      "tags": ["lieferschein_vs_retoure", "abholauftrag"]
+    },
+    {
+      "id": "263e0900-7f97-457e-9c8e-a93a09ef8075",
+      "expected": "Anfrage_Eingehend",
+      "source": "correction_v4.4.0",
+      "description": "Kundennotiz Volle Jugen (Lamelle). 'Kundennotiz' mit Name/Adresse/Telefon + Produktwunsch = Anfrage, nicht Notiz.",
+      "difficulty": "medium",
+      "tags": ["notiz_vs_anfrage", "kundennotiz"]
+    },
+    {
+      "id": "d58844d8-2354-4ffd-a060-ccc17da35f54",
+      "expected": "Anfrage_Eingehend",
+      "source": "correction_v4.4.0",
+      "description": "QNG Fachunternehmererklaerung (blanko). Formulare die der Kunde schickt und JS ausfuellen soll = Anfrage-Paket, nicht Anleitung.",
+      "difficulty": "hard",
+      "tags": ["anleitung_vs_anfrage", "blanko_formular", "qng"]
+    },
+    {
+      "id": "1afb9629-ceb2-4a95-b969-576fbcefb169",
+      "expected": "Anfrage_Eingehend",
+      "source": "correction_v4.4.0",
+      "description": "Baubeschreibung Senioren-Servicehaus Donaustauf. Bau-/Leistungsbeschreibung ohne Unterschriften = Anfrage, nicht Vertrag.",
+      "difficulty": "hard",
+      "tags": ["vertrag_vs_anfrage", "baubeschreibung"]
+    },
+    {
+      "id": "f2386d80-3aeb-45e8-9e3e-a9c4d0c83960",
+      "expected": "Anfrage_Eingehend",
+      "source": "correction_v4.4.0",
+      "description": "Mehrseitiger Scan: Seite 1 Outlook-Termin Kundenbesuch + Handnotizen, Seite 2 Ammon Lieferschein als Referenz. Primaere Seite zaehlt.",
+      "difficulty": "hard",
+      "tags": ["mehrseitig", "lieferschein_vs_anfrage"]
+    },
+    {
+      "id": "2047d7df-69b7-4d32-b036-bc5178a00391",
+      "expected": "Anfrage_Eingehend",
+      "source": "correction_v4.4.0",
+      "description": "Kundenfoto mit Masstabelle (nur Zahlen, .jpg). Foto mit Massen vom Kunden = Anfrage, nicht Bild.",
+      "difficulty": "hard",
+      "tags": ["bild_vs_anfrage", "masse_foto"]
+    },
+    {
+      "id": "9d5b9e7e-8fe1-4b23-bb1c-b523e1f0ab59",
+      "expected": "Spam",
+      "source": "correction_v4.4.0",
+      "description": "Fax-Spam Faltpavillon von unbekanntem Absender (NL). Branchenfremdes Produkt + unbekannter Absender = Spam, nicht Werbung.",
+      "difficulty": "medium",
+      "tags": ["werbung_vs_spam", "fax_spam"]
+    },
+    {
+      "id": "559027ad-5d58-4af3-9613-ed46df0f9686",
+      "expected": "Personalunterlagen",
+      "source": "correction_v4.4.0",
+      "description": "E-Bike Pauschalversteuerung §37b EStG (AGL Activ Services). Brief ueber Mitarbeiter-Benefit = Personalunterlagen, nicht Brief_eingehend.",
+      "difficulty": "medium",
+      "tags": ["brief_vs_personal", "mitarbeiter_benefit"]
+    },
+    {
+      "id": "27b0857b-cefe-44d9-b9f2-454455d5fab5",
+      "expected": "Werbung",
+      "source": "correction_v4.4.0",
+      "description": "Toyota Proace Work Expose (Autohaus Gross). Unaufgefordertes Fahrzeug-Expose = Werbung, nicht Kundenunterlage.",
+      "difficulty": "easy",
+      "tags": ["kundenunterlage_vs_werbung", "fahrzeug_expose"]
+    },
+    {
+      "id": "db29ebb3-fd17-41ce-b2a4-6759989ada9c",
+      "expected": "Werbung",
+      "source": "correction_v4.4.0",
+      "description": "Toyota Proace Max Expose (Autohaus Gross). Wie oben, zweites Fahrzeug.",
+      "difficulty": "easy",
+      "tags": ["kundenunterlage_vs_werbung", "fahrzeug_expose"]
+    },
+    {
+      "id": "4a3a3f84-786d-4341-a4f7-8b3f24ec5679",
+      "expected": "Vorlage",
+      "source": "correction_v4.4.0",
+      "description": "30 Jahre JS Fenster Jubilaeumsgrafik (.png). Eigene Firmengrafik = Vorlage, nicht Werbung.",
+      "difficulty": "medium",
+      "tags": ["werbung_vs_vorlage", "firmen_asset"]
+    },
+    {
+      "id": "e3be1c3c-80ff-4b79-9f7a-10b7a74ca3e4",
+      "expected": "Aufmassblatt",
+      "source": "correction_v4.4.0",
+      "description": "Screenshot Ausfuehrung Cubo (Farbe Umbra, VSG 10mm). Produktkonfig-Details fuer Auftrag = Aufmassblatt, nicht Bild.",
+      "difficulty": "hard",
+      "tags": ["bild_vs_aufmassblatt", "produktkonfig"]
+    },
+    {
+      "id": "845c0f0f-f0dd-47d8-9730-4d09b979fce1",
+      "expected": "Aufmassblatt",
+      "source": "correction_v4.4.0",
+      "description": "Weru-Notizblock mit Skizze + 'X 300 Schrauben'. Handnotizen mit Materialangaben auf Hersteller-Block = Aufmassblatt, nicht Notiz.",
+      "difficulty": "hard",
+      "tags": ["notiz_vs_aufmassblatt", "hersteller_notizblock"]
+    },
+    {
+      "id": "c1e47b6b-91f7-4c33-abe8-94f9b8047e39",
+      "expected": "Bild",
+      "source": "correction_v4.4.0",
+      "description": "PDF nur mit Bildreferenzen (img-0 bis img-9), kein Text. Reine Bilder ohne Text = Bild, nicht Produktdatenblatt.",
+      "difficulty": "medium",
+      "tags": ["produktdatenblatt_vs_bild", "kein_text"]
+    }
+  ]
+}
