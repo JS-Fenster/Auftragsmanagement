@@ -1,0 +1,42 @@
+name: Check CLAUDE.md Structure
+
+on:
+  push:
+    branches: [master, main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Checkout KB scripts
+        uses: actions/checkout@v4
+        with:
+          repository: JS-Fenster/KB
+          path: _kb
+          sparse-checkout: |
+            scripts/check_claude_md.py
+            scripts/notify-failure.sh
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Check CLAUDE.md structure
+        run: python _kb/scripts/check_claude_md.py .
+
+      - name: Notify on failure
+        if: failure()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: bash _kb/scripts/notify-failure.sh "Check CLAUDE.md" "Structure drift detected in ${{ github.repository }}"
