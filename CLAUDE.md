@@ -40,8 +40,13 @@ Auftragsmanagement/
 │   └── package.json
 ├── docs/
 │   └── Auftragsmanagement_Projektplan.md
+├── rag-demo/               # RAG Demo App (Node.js Server fuer Retrieval-Augmented Generation)
+├── scripts/                # Hilfs-Scripts (Batch-Move, Batch-Process)
 ├── supabase/
 │   └── functions/          # Edge Functions (process-document, process-email, etc.)
+├── sync/                   # ERP-zu-Supabase Sync (Python, SQL Server → Supabase)
+├── tools/                  # Standalone Tools (Scanner-Webhook, Subscription-Management)
+├── workflows/              # Workflow-Dokumentation + Backtests (Kategorisierung, Reparaturen)
 ├── README.md               # Setup-Anleitung
 ├── SETUP_ANLEITUNG.md      # Detaillierte Installation
 └── CLAUDE.md               # Diese Datei
