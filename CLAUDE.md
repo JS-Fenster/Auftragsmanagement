@@ -20,6 +20,13 @@
 
 ```
 Auftragsmanagement/
+├── apps/
+│   └── review-tool/        # KI-Review Tool (React + Vite + TS)
+│       └── src/
+│           ├── components/  # ReviewQueue, DetailPanel, StatsPanel, AttachmentPreview
+│           ├── hooks/       # usePreviewPrefetch
+│           ├── lib/         # api.ts (AdminReviewApi), previewCache.ts
+│           └── App.tsx      # Haupt-App (API-Key Auth, Filter, Queue)
 ├── backend/                # Node.js + Express API
 │   ├── config/             # Datenbank-Konfiguration
 │   ├── routes/             # API-Endpunkte
@@ -33,6 +40,8 @@ Auftragsmanagement/
 │   └── package.json
 ├── docs/
 │   └── Auftragsmanagement_Projektplan.md
+├── supabase/
+│   └── functions/          # Edge Functions (process-document, process-email, etc.)
 ├── README.md               # Setup-Anleitung
 ├── SETUP_ANLEITUNG.md      # Detaillierte Installation
 └── CLAUDE.md               # Diese Datei
@@ -64,7 +73,25 @@ npm start             # Port 3001
 cd dashboard
 npm install
 npm run dev           # Port 3000
+
+# Review Tool (KI-Kategorisierung pruefen/korrigieren)
+cd apps/review-tool
+npm install
+npm run dev           # Port 5174
 ```
+
+### Review Tool
+
+Standalone-App zum Pruefen und Korrigieren der KI-Kategorisierung von Dokumenten und E-Mails.
+Kommuniziert mit der `admin-review` Edge Function. Authentifizierung via API-Key (localStorage).
+
+| Info | Wert |
+|------|------|
+| **Pfad** | `apps/review-tool/` |
+| **Tech** | React 19, Vite 6, TypeScript, Tailwind |
+| **Port** | 5174 (Vite Dev Server) |
+| **Backend** | Edge Function `admin-review` |
+| **Start** | `cd apps/review-tool && npm run dev` |
 
 ---
 
