@@ -1,6 +1,6 @@
 // =============================================================================
 // Process Document - Stage 2: GPT-Kategorisierung + Feld-Extraktion
-// Version: 1.1.0 - 2026-03-10
+// Version: 1.2.0 - 2026-03-17
 // =============================================================================
 // Zweite Stufe der 2-Stufen-Pipeline (G-052):
 // Stage 1 (process-document-ocr): OCR-Extraktion → speichert ocr_text, setzt status=pending_categorize
@@ -70,7 +70,8 @@ async function categorizeAndExtract(ocrText: string, fileName: string): Promise<
       Authorization: `Bearer ${OPENAI_API_KEY}`,
     },
     body: JSON.stringify({
-      model: "gpt-5-mini",
+      model: "gpt-5.2",
+      reasoning_effort: "low",
       messages: [
         {
           role: "system",
@@ -290,7 +291,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         service: "process-document-categorize",
-        version: "1.0.1",
+        version: "1.2.0",
         status: "ready",
       }),
       {
