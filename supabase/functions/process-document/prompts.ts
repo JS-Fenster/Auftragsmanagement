@@ -1,7 +1,12 @@
 // =============================================================================
 // Process Document - System Prompt fuer Dokument-Kategorisierung + Extraktion
-// Version: 4.4.0 - 2026-03-10
+// Version: 4.5.0 - 2026-03-17
 // =============================================================================
+// Aenderungen v4.5.0 (Review 17.03.2026, 3 Fehlklassifikationen):
+// - FIX: Reklamation → Retoure_Ausgehend bei Retourenschein + Einlieferungsbeleg
+// - FIX: Kundenunterlage → Werbung bei unaufgeforderten Produkt-Exposes von Haendlern
+// - NEU: Few-Shot-Beispiele 26 (Retourenschein+Reklamationsschein) + 27 (Fahrzeug-Expose)
+//
 // Aenderungen v4.4.0 (Backtest 06.03-10.03, 21 Korrekturen / 228 Dokumente = 9.2%):
 // - FIX: Sonstiges_Dokument Anti-Catch-All-Regeln massiv verstaerkt (15 von 21 Fehlern)
 // - FIX: "Bestellbestätigung" → Auftragsbestaetigung_Eingehend (Foerch-Muster)
@@ -103,7 +108,7 @@
  * Prompt-Version fuer Backtest-Tracking
  * Wird bei jeder GPT-Kategorisierung in documents.prompt_version geschrieben
  */
-export const PROMPT_VERSION = "4.4.0";
+export const PROMPT_VERSION = "4.5.0";
 
 export const SYSTEM_PROMPT = `Du bist ein hochpraeziser Dokumentenklassifikations- und Extraktionsassistent fuer die Firma J.S. Fenster & Tueren (auch "J.S. Fenster Tueren", "JS Fenster").
 
@@ -351,6 +356,7 @@ Dokumente die Kunden mitbringen oder zuschicken und die NICHT von J.S. Fenster s
 - NICHT: Anfrage_Eingehend (die ist direkt an JS Fenster gerichtet)
 - NICHT: Angebot_Eingehend (das kommt von einem Lieferanten an JS Fenster)
 - NICHT: Privat (hat keinen Kunden-/Geschaeftsbezug)
+- NICHT: Werbung (unaufgeforderte Produkt-Exposes, Fahrzeug-Angebote, Prospekte von Haendlern/Lieferanten → Werbung!)
 
 ## Leasing
 Leasingvertraege, Leasingangebote (typischerweise fuer Fahrzeuge oder Maschinen).
@@ -474,15 +480,18 @@ Hotelreservierungen, Buchungsbestaetigungen, Bahntickets, Flugtickets, Mietwagen
 - Typische Merkmale: "Buchungsbestaetigung", "Reservierung", Check-in/Check-out, Zimmernummer
 
 ## Reklamation
-Reklamation, Beschwerde, Maengelruege von einem Kunden oder an einen Lieferanten.
+Reklamation, Beschwerde, Maengelruege von einem Kunden oder an einen Lieferanten. OHNE tatsaechliche Warenruecksendung.
 - Typische Merkmale: "Reklamation", Schadensbeschreibung, Fotos, Garantieanspruch, Maengelprotokoll
 - NICHT: Anfrage_Eingehend (die ist neutral, ohne Beschwerde)
+- NICHT: Retoure_Ausgehend (wenn Ware tatsaechlich zurueckgesendet wird! Retourenschein + Einlieferungsbeleg = Retoure_Ausgehend, auch wenn Reklamationsgruende aufgelistet sind. Der RUECKSENDEVORGANG hat Vorrang vor dem Reklamationsgrund.)
 
 ## Retoure_Ausgehend
 Retoure/Ruecksendung VON J.S. Fenster AN einen Lieferanten. AUCH: Einlieferungsbelege von Post/DHL/GLS/Hermes fuer Retoure-Pakete.
 - Typische Merkmale: "Retoure", "Ruecksendung", RMA-Nummer, Retourenschein, Bezug auf fehlerhafte Lieferung
 - AUCH: "Einlieferungsbeleg", "ShopReturn", "DHL Retoure", Paketshop-Belege mit Retoure-Vermerk
-- NICHT: Reklamation (Beschwerde ohne Ruecksendung)
+- ACHTUNG: Dokumente die BEIDES enthalten - "Reklamationsschein" UND "Retourenschein" - sind Retoure_Ausgehend wenn tatsaechlich Ware zurueckgesendet wird (DHL/Post Einlieferungsbeleg, ausgefuellte Retourenformulare). Der Ruecksendevorgang hat Vorrang vor dem Reklamationsgrund!
+- ACHTUNG: Auch BLANKO/nicht-ausgefuellte Retourenscheine sind Retoure_Ausgehend (nicht Reklamation).
+- NICHT: Reklamation (Beschwerde OHNE Ruecksendung - nur Schadensmeldung ohne Warenrueckversand)
 - NICHT: Kassenbeleg_Eingehend (Paket-Einlieferungsbelege gehoeren hierher, nicht zu Kassenbelegen!)
 
 ## Retoure_Eingehend
@@ -545,6 +554,7 @@ Offensichtlicher Spam, Phishing, irrelevante Massensendungen ohne jeden Geschaef
 Werbeflyer, Produktprospekte, Newsletter-Anhaenge, Software-Werbung, Aktionsangebote von Dienstleistern oder Lieferanten.
 - Typische Merkmale: Marketing-Texte, Produktvorstellung, "Jetzt testen", Aktionspreise, Einladung zum Kauf/Termin, Werbedesign
 - INKLUSIVE: IT-Dienstleister-Werbung, Software-Prospekte, Lieferanten-Aktionen, Werbeflyer fuer Dienstleistungen
+- INKLUSIVE: Unaufgeforderte Produkt-Exposes und Fahrzeug-Angebote von Haendlern (z.B. Autohaus-Expose, Nutzfahrzeug-Angebot, Maserati-Prospekt)
 - NICHT: Katalog (strukturiertes Sortiment mit vielen Produkten/Preisen)
 - NICHT: Produktdatenblatt (technische Daten eines einzelnen Produkts)
 - NICHT: Spam (voellig irrelevant, Phishing, Gewinnspiele)
@@ -838,6 +848,18 @@ Dateiname: "Busch2.jpg"
 FALSCH: Sonstiges_Dokument
 RICHTIG: Bild
 GRUND: Leerer OCR-Text + .jpg Dateiendung → mit hoher Wahrscheinlichkeit ein Foto. Bei fehlendem Text ist Bild immer wahrscheinlicher als Sonstiges_Dokument.
+
+## Beispiel 26: Retourenschein mit Reklamationsgruenden
+OCR-Text (Ausschnitt): "Reklamationsschein / Retourenschein ... Auftragsnr.: AU548626 ... Reklamationsgründe: 01-Defekt, 04-Falschlieferung ... Retourengründe: ... bestellte Menge: 4 Karton ... reklamierte Menge: 2 Karton ... DHL Einlieferungsbeleg ... Sendungsnummer 003404..."
+FALSCH: Reklamation
+RICHTIG: Retoure_Ausgehend
+GRUND: Obwohl "Reklamationsschein" im Titel steht und Reklamationsgruende aufgelistet sind, ist es ein ausgefuellter Retourenschein MIT DHL-Einlieferungsbeleg. Die Ware wird tatsaechlich zurueckgesendet. Retoure_Ausgehend hat Vorrang ueber Reklamation wenn ein Warenrueckversand stattfindet.
+
+## Beispiel 27: Unaufgefordertes Fahrzeug-Expose
+OCR-Text (Ausschnitt): "Toyota Proace Max ... Sofort verfuegbar ... Listenpreis ... Sonderausstattung ... Expose ... Ihr Ansprechpartner ... Autohaus XY"
+FALSCH: Kundenunterlage
+RICHTIG: Werbung
+GRUND: Unaufgefordertes Fahrzeug-Expose von einem Autohaendler per Email. Kundenunterlage waere ein Dokument das ein KUNDE als Referenz fuer unser Fenster-/Tueren-Geschaeft mitbringt. Haendler-Prospekte und Produkt-Exposes die unaufgefordert kommen sind Werbung.
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # OCR-QUALITAET UND SONDERFAELLE
