@@ -1,5 +1,5 @@
 import { Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom'
-import { FolderKanban, CalendarDays, ArrowLeft, Home, Search, LayoutDashboard, Moon, Sun } from 'lucide-react'
+import { FolderKanban, CalendarDays, ArrowLeft, Home, Search, LayoutDashboard, Moon, Sun, Euro, Package } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useIsStandalone } from './hooks/usePopout'
 import Cockpit from './pages/Cockpit'
@@ -14,6 +14,8 @@ import BudgetangebotVerlauf from './pages/BudgetangebotVerlauf'
 import Projekte from './pages/Projekte'
 import ProjektDetail from './pages/ProjektDetail'
 import Montageplanung from './pages/Montageplanung'
+import Finanzen from './pages/Finanzen'
+import Bestellungen from './pages/Bestellungen'
 import CommandPalette from './components/CommandPalette'
 import ChatWidget from './components/ChatWidget'
 import NotificationBell from './components/NotificationBell'
@@ -22,6 +24,8 @@ const NAV_ITEMS = [
   { to: '/', label: 'Cockpit', icon: LayoutDashboard },
   { to: '/projekte', label: 'Projekte', icon: FolderKanban },
   { to: '/kalender', label: 'Kalender', icon: CalendarDays },
+  { to: '/finanzen', label: 'Finanzen', icon: Euro },
+  { to: '/bestellungen', label: 'Bestellungen', icon: Package },
 ]
 
 const PAGE_TITLES = {
@@ -37,6 +41,8 @@ const PAGE_TITLES = {
   '/emails': 'E-Mail',
   '/einstellungen': 'Einstellungen',
   '/uebersicht': 'Uebersicht',
+  '/finanzen': 'Finanzen',
+  '/bestellungen': 'Bestellungen',
 }
 
 function StandaloneHeader() {
@@ -139,6 +145,8 @@ function AppRoutes() {
       <Route path="/emails" element={<Emails />} />
       <Route path="/einstellungen" element={<Einstellungen />} />
       <Route path="/uebersicht" element={<Uebersicht />} />
+      <Route path="/finanzen" element={<Finanzen />} />
+      <Route path="/bestellungen" element={<Bestellungen />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

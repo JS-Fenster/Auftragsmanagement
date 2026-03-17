@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Phone, Mail, AlertTriangle, ArrowRight, FileText, Package,
-  CheckCircle, Clock, TrendingUp, Users, Calendar
+  CheckCircle, Clock, TrendingUp, Users, Calendar, Euro,
+  ArrowUpRight, ArrowDownLeft
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { PROJEKT_STATUS, MONTAGE_TEAMS } from '../lib/constants'
@@ -169,6 +170,7 @@ export default function Cockpit() {
   const [projekte, setProjekte] = useState([])
   const [montagen, setMontagen] = useState([])
   const [historie, setHistorie] = useState([])
+  const [finanzKpis, setFinanzKpis] = useState(null)
   const [loading, setLoading] = useState(true)
 
   const loadData = useCallback(async () => {
@@ -176,7 +178,7 @@ export default function Cockpit() {
     try {
       const today = new Date().toISOString().split('T')[0]
 
-      const [projekteRes, montagenRes, historieRes] = await Promise.all([
+      const [projekteRes, montagenRes, historieRes, offArRes, offErRes, bestRes] = await Promise.all([
         supabase
           .from('projekte')
           .select('*, kontakte!projekte_kontakt_id_fkey(id, firma1, firma2, ort, kontakt_personen!kontakt_personen_kontakt_id_fkey(vorname, nachname, ist_hauptkontakt))')
@@ -191,11 +193,28 @@ export default function Cockpit() {
           .select('*, projekte(projekt_nummer, titel)')
           .order('erstellt_am', { ascending: false })
           .limit(10),
+        supabase.from('v_offene_ausgangsrechnungen').select('offener_betrag, ueberfaellig_tage'),
+        supabase.from('v_offene_eingangsrechnungen').select('offener_betrag, skonto_moeglich'),
+        supabase.from('projekt_bestellungen').select('status, liefertermin_geplant, bestell_wert').not('status', 'in', '("geliefert","storniert")'),
       ])
 
       if (projekteRes.data) setProjekte(projekteRes.data)
       if (montagenRes.data) setMontagen(montagenRes.data)
       if (historieRes.data) setHistorie(historieRes.data)
+
+      // Finanz-KPIs berechnen
+      const offAR = offArRes.data || []
+      const offER = offErRes.data || []
+      const best = bestRes.data || []
+      setFinanzKpis({
+        offeneAR: offAR.reduce((s, r) => s + (r.offener_betrag || 0), 0),
+        ueberfaelligAR: offAR.filter(r => r.ueberfaellig_tage > 0).length,
+        offeneER: offER.reduce((s, r) => s + (r.offener_betrag || 0), 0),
+        skontoMoeglich: offER.reduce((s, r) => s + (r.skonto_moeglich || 0), 0),
+        aktiveBest: best.length,
+        bestWert: best.reduce((s, b) => s + (b.bestell_wert || 0), 0),
+        ueberfaelligBest: best.filter(b => b.liefertermin_geplant && new Date(b.liefertermin_geplant) < new Date()).length,
+      })
     } catch (err) {
       console.error('Cockpit loadData error:', err)
     } finally {
@@ -364,7 +383,69 @@ export default function Cockpit() {
         </section>
       </div>
 
-      {/* Sektion 4: Letzte Aktivitaet */}
+      {/* Sektion 4: Finanz-Ueberblick */}
+      {finanzKpis && (
+        <section>
+          <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-2">
+            <Euro size={14} />
+            Finanzen & Bestellungen
+          </h2>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div
+              onClick={() => navigate('/finanzen')}
+              className="bg-surface-card rounded-lg shadow-sm border border-border-default p-3 cursor-pointer hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <ArrowUpRight size={14} className="text-blue-500" />
+                <span className="text-xs text-text-secondary">Offene AR</span>
+              </div>
+              <p className="text-lg font-bold text-text-primary">{formatEuro(finanzKpis.offeneAR)}</p>
+              {finanzKpis.ueberfaelligAR > 0 && (
+                <p className="text-xs text-red-500 mt-0.5">{finanzKpis.ueberfaelligAR} ueberfaellig</p>
+              )}
+            </div>
+            <div
+              onClick={() => navigate('/finanzen')}
+              className="bg-surface-card rounded-lg shadow-sm border border-border-default p-3 cursor-pointer hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <ArrowDownLeft size={14} className="text-amber-500" />
+                <span className="text-xs text-text-secondary">Offene ER</span>
+              </div>
+              <p className="text-lg font-bold text-text-primary">{formatEuro(finanzKpis.offeneER)}</p>
+              {finanzKpis.skontoMoeglich > 0 && (
+                <p className="text-xs text-green-600 mt-0.5">{formatEuro(finanzKpis.skontoMoeglich)} Skonto moeglich</p>
+              )}
+            </div>
+            <div
+              onClick={() => navigate('/bestellungen')}
+              className="bg-surface-card rounded-lg shadow-sm border border-border-default p-3 cursor-pointer hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <Package size={14} className="text-purple-500" />
+                <span className="text-xs text-text-secondary">Bestellungen aktiv</span>
+              </div>
+              <p className="text-lg font-bold text-text-primary">{finanzKpis.aktiveBest}</p>
+              <p className="text-xs text-text-muted mt-0.5">{formatEuro(finanzKpis.bestWert)}</p>
+            </div>
+            {finanzKpis.ueberfaelligBest > 0 && (
+              <div
+                onClick={() => navigate('/bestellungen')}
+                className="bg-red-50 rounded-lg shadow-sm border border-red-200 p-3 cursor-pointer hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <AlertTriangle size={14} className="text-red-500" />
+                  <span className="text-xs text-red-700">Lieferung ueberfaellig</span>
+                </div>
+                <p className="text-lg font-bold text-red-700">{finanzKpis.ueberfaelligBest}</p>
+                <p className="text-xs text-red-500 mt-0.5">Lieferanten kontaktieren!</p>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* Sektion 5: Letzte Aktivitaet */}
       <section>
         <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-2">
           <Clock size={14} />
