@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { AUFTRAG_STATUS } from '../lib/constants'
 import { format } from 'date-fns'
@@ -1009,6 +1010,7 @@ function KontaktDetailModal({ kontaktId, onClose }) {
 // ─── Main Page ─────────────────────────────────────────────
 
 export default function Kunden() {
+  const [searchParams] = useSearchParams()
   const [searchTerm, setSearchTerm] = useState('')
   const [debouncedTerm, setDebouncedTerm] = useState('')
   const [results, setResults] = useState([])
@@ -1016,6 +1018,27 @@ export default function Kunden() {
   const [selectedKontaktId, setSelectedKontaktId] = useState(null)
   const [showNeuerKontakt, setShowNeuerKontakt] = useState(false)
   const timerRef = useRef(null)
+
+  // Deep-link: auto-load contact from ?id= parameter
+  useEffect(() => {
+    const deepLinkId = searchParams.get('id')
+    if (!deepLinkId) return
+
+    const loadContact = async () => {
+      setLoading(true)
+      const { data } = await supabase.from('kontakte')
+        .select('id, firma1, firma2, strasse, plz, ort, erp_kunden_code, ist_kunde, ist_lieferant, typ, kontakt_personen!kontakt_id(id, anrede, vorname, nachname, rolle, ist_hauptkontakt, kontakt_details(id, typ, label, wert, ist_primaer))')
+        .eq('id', deepLinkId)
+        .single()
+      if (data) {
+        setResults([data])
+        setSelectedKontaktId(data.id)
+        setSearchTerm(data.firma1 || '')
+      }
+      setLoading(false)
+    }
+    loadContact()
+  }, [searchParams])
 
   // Debounce search input
   useEffect(() => {

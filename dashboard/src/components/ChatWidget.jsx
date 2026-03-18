@@ -575,7 +575,7 @@ function SimpleTable({ rows, navigate }) {
           {body.map((row, i) => (
             <tr key={i}>
               {row.map((cell, j) => (
-                <td key={j} className="border border-border-default px-2 py-1">
+                <td key={j} className="border border-border-default px-2 py-1 whitespace-nowrap">
                   {formatInline(cell, `r${i}c${j}`, navigate)}
                 </td>
               ))}
