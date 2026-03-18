@@ -28,18 +28,23 @@ const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 // Clean leaked reasoning artifacts from LLM response text
 function cleanResponse(text: string | null): string | null {
   if (!text) return text;
-  // Strip leading whitespace/newlines
   let cleanText = text.replace(/^\s+/, "");
-  // Cut at 3+ consecutive newlines (reasoning leak always starts there)
+  // Cut at 3+ consecutive newlines
   const tripleNewline = cleanText.search(/\n{3,}/);
   if (tripleNewline > 0) {
     cleanText = cleanText.substring(0, tripleNewline);
   }
-  // Remove any remaining English reasoning fragments at the end
+  // Remove English reasoning fragments
   cleanText = cleanText.replace(/\n(?:Ok|Stop|Let's|Need|Oops|I (?:should|must|will|think)|Hmm|Proceed)[\s\S]*$/i, "");
   // Remove trailing JSON/tool-call artifacts
   cleanText = cleanText.replace(/\n?\{\"(?:query|tool)[\s\S]*$/g, "");
   cleanText = cleanText.replace(/\nto=functions\.[\s\S]*$/g, "");
+  // Remove German reasoning leaks: parenthesized self-talk
+  cleanText = cleanText.replace(/\n?\((?:Ohne weitere|Noch kein|Kein weiteres|Erneut|ich (?:muss|nutze|starte|versuche|fuehre)|Ohne|stattdessen)[^)]*\)/gi, "");
+  // Remove self-commentary lines
+  cleanText = cleanText.replace(/\n(?:Ich (?:muss|versuche|starte|fuehre|erweitere|nutze) (?:tatsaechlich|nochmal|jetzt|die|noch|eine)[^\n]*)/gi, "");
+  // Remove "sorry" / apology lines
+  cleanText = cleanText.replace(/\n?(?:Sorry|Entschuldigung|Verzeihung)[.,!]?[^\n]*/gi, "");
   return cleanText.trim() || null;
 }
 
