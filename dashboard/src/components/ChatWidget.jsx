@@ -194,14 +194,14 @@ export default function ChatWidget() {
         </div>
         <div className="flex items-center gap-1">
           {messages.length > 0 && (
-            <button onClick={clearChat} className="p-1.5 text-text-muted hover:text-white hover:bg-gray-600 rounded transition-colors" title="Chat leeren">
+            <button onClick={clearChat} className="p-1.5 text-white/70 hover:text-white hover:bg-gray-600 rounded transition-colors" title="Chat leeren">
               <Trash2 size={14} />
             </button>
           )}
-          <button onClick={() => setIsOpen(false)} className="p-1.5 text-text-muted hover:text-white hover:bg-gray-600 rounded transition-colors" title="Minimieren">
+          <button onClick={() => setIsOpen(false)} className="p-1.5 text-white/70 hover:text-white hover:bg-gray-600 rounded transition-colors" title="Minimieren">
             <Minimize2 size={14} />
           </button>
-          <button onClick={() => { setIsOpen(false); setMessages([]) }} className="p-1.5 text-text-muted hover:text-white hover:bg-gray-600 rounded transition-colors" title="Schliessen">
+          <button onClick={() => { setIsOpen(false); setMessages([]) }} className="p-1.5 text-white/70 hover:text-white hover:bg-gray-600 rounded transition-colors" title="Schliessen">
             <X size={14} />
           </button>
         </div>
