@@ -16,7 +16,7 @@ export const TOOL_DEFINITIONS = [
     function: {
       name: "search_knowledge",
       description:
-        "Sucht im Firmenwissen (KB): Deploy-Prozesse, API-Regeln, Projekt-Architektur, Learnings, Prozess-Dokumentation. Nutze dies fuer Fragen zu internen Ablaeufen, Technik und Best Practices.",
+        "Semantische Suche im Firmenwissen (KB): Prozesse, Architektur, Learnings, Doku. Fuer konzeptuelle Fragen wie 'Wie funktioniert X?'. Fuer exakte Begriffe (IDs, Funktionsnamen) nutze keyword_search.",
       parameters: {
         type: "object",
         properties: {
@@ -32,7 +32,88 @@ export const TOOL_DEFINITIONS = [
           filter_path: {
             type: "string",
             description:
-              'Optionaler Dateipfad-Filter, z.B. "wissen/" oder "logbuch.md"',
+              'Optionaler Dateipfad-Filter, z.B. "wissen/" oder "LOGBUCH.md"',
+          },
+          filter_projekt: {
+            type: "string",
+            description: 'Projekt-Filter: "AM", "PDF", "WA", "KB", "GP"',
+          },
+          filter_typ: {
+            type: "string",
+            description:
+              'Typ-Filter: "typescript", "python", "sql", "wissen", "additiv", "invasiv"',
+          },
+        },
+        required: ["query"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "keyword_search",
+      description:
+        "Exakte Keyword-Suche im Firmenwissen (KB). Nutze dies fuer IDs (KB-L23, AM-0127), Funktionsnamen (process-email), Fehlercodes oder wenn du den genauen Begriff kennst.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "Exakte Suchbegriffe",
+          },
+          top_k: {
+            type: "integer",
+            description: "Anzahl Ergebnisse (1-20)",
+            default: 5,
+          },
+          filter_projekt: {
+            type: "string",
+            description: 'Projekt-Filter: "AM", "PDF", "WA", "KB", "GP"',
+          },
+          filter_typ: {
+            type: "string",
+            description:
+              'Typ-Filter: "typescript", "python", "sql", "wissen", "additiv", "invasiv"',
+          },
+        },
+        required: ["query"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "hybrid_search",
+      description:
+        "Kombinierte Suche (semantisch + keyword) im Firmenwissen mit optionalem Reranking. Beste Wahl wenn sowohl Bedeutung als auch spezifische Begriffe wichtig sind, z.B. 'Wie funktioniert die Email-Kategorisierung in process-email?'",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "Suchanfrage (Deutsch oder Englisch)",
+          },
+          top_k: {
+            type: "integer",
+            description: "Anzahl Ergebnisse (1-20)",
+            default: 5,
+          },
+          rerank: {
+            type: "boolean",
+            description:
+              "Reranking fuer maximale Praezision (langsamer, ~1s extra). Nur bei wichtigen Fragen.",
+            default: false,
+          },
+          filter_projekt: {
+            type: "string",
+            description: 'Projekt-Filter: "AM", "PDF", "WA", "KB", "GP"',
+          },
+          filter_typ: {
+            type: "string",
+            description:
+              'Typ-Filter: "typescript", "python", "sql", "wissen", "additiv", "invasiv"',
           },
         },
         required: ["query"],
@@ -147,18 +228,23 @@ export const TOOL_DEFINITIONS = [
 export const SYSTEM_PROMPT = `Du bist Jess, die digitale Assistentin von JS Fenster & Tueren (Fensterbau, Amberg).
 Du hilfst Sachbearbeitern bei Fragen zu Auftraegen, Kunden, Dokumenten und internen Prozessen.
 
-Dir stehen GENAU 4 Tools zur Verfuegung:
+Dir stehen GENAU 6 Tools zur Verfuegung:
 
-Lesen (automatisch):
-1. search_knowledge: Firmenwissen (interne Doku, Prozesse, Learnings)
-2. search_contacts: Kunden/Lieferanten (Fuzzy auf Name, mit Kontaktdaten)
-3. search_orders: Dokumente (Emails, Rechnungen, Angebote), Auftraege, Projekte
+Firmenwissen durchsuchen (KB):
+1. search_knowledge: Semantische Suche — fuer konzeptuelle Fragen ("Wie funktioniert X?")
+2. keyword_search: Exakte Begriffe — fuer IDs, Funktionsnamen, Fehlercodes
+3. hybrid_search: Kombiniert beides + optionales Reranking — beste Wahl bei komplexen Fragen
+
+AM-Daten durchsuchen:
+4. search_contacts: Kunden/Lieferanten (Fuzzy auf Name, mit Kontaktdaten)
+5. search_orders: Dokumente (Emails, Rechnungen, Angebote), Auftraege, Projekte
 
 Aktionen (benoetigen Bestaetigung):
-4. update_document_kategorie: Kategorie eines Dokuments/Email aendern
+6. update_document_kategorie: Kategorie eines Dokuments/Email aendern
 
 Du hast KEINE anderen Tools. Erfinde keine Tools die nicht existieren.
 Bei Aktionen: Zeige ZUERST das betroffene Dokument, DANN schlage die Aenderung vor.
+Waehle das KB-Tool je nach Frage-Typ: keyword fuer exakte Begriffe, semantic fuer Konzepte, hybrid fuer beides.
 
 Antwort-Stil:
 - Deutsch, kurz und direkt — keine langen Einleitungen

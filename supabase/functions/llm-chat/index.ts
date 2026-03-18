@@ -22,8 +22,6 @@ const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 const MODEL = "gpt-5.2"; // GPT-5.x: no temperature/top_p/max_tokens
 const REASONING_EFFORT = "low"; // "high"/"medium" leak reasoning, omitting causes newline garbage
-const VOYAGE_URL = "https://api.voyageai.com/v1/embeddings";
-const VOYAGE_KEY = Deno.env.get("VOYAGE_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -52,24 +50,36 @@ function jsonResponse(body: unknown, status = 200, corsHeaders: Record<string, s
   });
 }
 
-// Embed query for search_knowledge (Voyage AI)
-async function embedQuery(text: string): Promise<number[]> {
-  const resp = await fetch(VOYAGE_URL, {
+// Call search-knowledge Edge Function (shared pipeline for all KB search modes)
+// Anon key is public/client-side — safe to use here for JWT validation
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzbWpnZHVqbHBueWRic2Z1aWVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3NjY0NTcsImV4cCI6MjA4MTM0MjQ1N30.da6ZwbEfqhqdsZlKYNUGP7uvu8A7qwlVLBI0IK4uQfc";
+
+async function callSearchKnowledge(
+  args: Record<string, unknown>,
+  mode: string,
+): Promise<unknown> {
+  const resp = await fetch(`${SUPABASE_URL}/functions/v1/search-knowledge`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${VOYAGE_KEY}`,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "voyage-3-large",
-      input: [text],
-      input_type: "query",
-      output_dimension: 2048,
+      query: args.query,
+      mode,
+      top_k: (args.top_k as number) || 5,
+      rerank: (args.rerank as boolean) || false,
+      filter_path: (args.filter_path as string) || null,
+      filter_projekt: (args.filter_projekt as string) || null,
+      filter_typ: (args.filter_typ as string) || null,
     }),
   });
-  if (!resp.ok) throw new Error(`Voyage API error: ${resp.status}`);
+  if (!resp.ok) {
+    const err = await resp.text();
+    throw new Error(`search-knowledge failed (${resp.status}): ${err}`);
+  }
   const data = await resp.json();
-  return data.data[0].embedding;
+  return data.results;
 }
 
 // Execute a tool call against DB
@@ -79,17 +89,12 @@ async function executeTool(
   args: Record<string, unknown>,
 ): Promise<unknown> {
   switch (name) {
-    case "search_knowledge": {
-      const embedding = await embedQuery(args.query as string);
-      const vecStr = `[${embedding.join(",")}]`;
-      const { data, error } = await supabase.rpc("search_kb_chunks", {
-        query_embedding: vecStr,
-        match_count: (args.top_k as number) || 5,
-        filter_path: (args.filter_path as string) || null,
-      });
-      if (error) throw new Error(`search_knowledge failed`);
-      return data;
-    }
+    case "search_knowledge":
+      return await callSearchKnowledge(args, "semantic");
+    case "keyword_search":
+      return await callSearchKnowledge(args, "keyword");
+    case "hybrid_search":
+      return await callSearchKnowledge(args, "hybrid");
     case "search_contacts": {
       const { data, error } = await supabase.rpc("search_contacts", {
         search_query: args.query as string,
