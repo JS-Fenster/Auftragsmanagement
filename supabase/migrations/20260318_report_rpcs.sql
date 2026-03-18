@@ -120,8 +120,8 @@ BEGIN
       'typ', b.beleg_typ,
       'status', b.status,
       'datum', b.datum,
-      'betrag_netto', b.netto_gesamt,
-      'betrag_brutto', b.brutto_gesamt
+      'betrag_netto', b.netto_summe,
+      'betrag_brutto', b.brutto_summe
     ) ORDER BY b.datum DESC
   ), '[]'::jsonb) INTO v_dokumente
   FROM belege b
@@ -294,7 +294,7 @@ BEGIN
     jsonb_build_object(
       'id', b.id,
       'firma', COALESCE(b.empfaenger_firma, 'Unbekannt'),
-      'betrag', COALESCE(b.brutto_gesamt, b.netto_gesamt, 0),
+      'betrag', COALESCE(b.brutto_summe, b.netto_summe, 0),
       'faellig_seit', b.gueltig_bis,
       'tage', EXTRACT(DAY FROM CURRENT_DATE - COALESCE(b.gueltig_bis, b.datum))::int
     ) ORDER BY COALESCE(b.gueltig_bis, b.datum) ASC
@@ -305,7 +305,7 @@ BEGIN
     AND COALESCE(b.gueltig_bis, b.datum) < CURRENT_DATE;
 
   -- Total open amount
-  SELECT COALESCE(SUM(COALESCE(b.brutto_gesamt, b.netto_gesamt, 0)), 0)
+  SELECT COALESCE(SUM(COALESCE(b.brutto_summe, b.netto_summe, 0)), 0)
   INTO v_gesamt_offen
   FROM belege b
   WHERE b.beleg_typ IN ('rechnung', 'abschlagsrechnung', 'schlussrechnung')
@@ -335,7 +335,7 @@ BEGIN
     FROM (
       SELECT
         EXTRACT(DAY FROM CURRENT_DATE - COALESCE(b.gueltig_bis, b.datum))::int AS tage,
-        COALESCE(b.brutto_gesamt, b.netto_gesamt, 0) AS betrag
+        COALESCE(b.brutto_summe, b.netto_summe, 0) AS betrag
       FROM belege b
       WHERE b.beleg_typ IN ('rechnung', 'abschlagsrechnung', 'schlussrechnung')
         AND b.status NOT IN ('bezahlt', 'storniert', 'entwurf')
