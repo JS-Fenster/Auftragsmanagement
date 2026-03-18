@@ -6,11 +6,12 @@
  *   /belege/neu?from=<beleg_id>             — Konversion aus bestehendem Beleg
  *   /belege/:id                             — Bestehenden Beleg bearbeiten
  */
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, FileText, Loader2 } from 'lucide-react'
+import { ArrowLeft, FileText, Loader2, Eye, EyeOff, ChevronDown, ArrowRightLeft } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import BelegFormular from './belege/BelegFormular'
+import BelegVorschau from './belege/BelegVorschau'
 import { BELEG_TYPEN, BELEG_KONVERSIONEN, DEFAULT_TEXTE, generateBelegNummer } from './belege/constants'
 
 export default function BelegErstellen() {
@@ -21,6 +22,9 @@ export default function BelegErstellen() {
   const [beleg, setBeleg] = useState(null)
   const [positionen, setPositionen] = useState([])
   const [loading, setLoading] = useState(true)
+  const [showVorschau, setShowVorschau] = useState(false)
+  const [showKonvDropdown, setShowKonvDropdown] = useState(false)
+  const konvRef = useRef(null)
 
   const projektId = searchParams.get('projekt_id')
   const fromBelegId = searchParams.get('from')
@@ -119,8 +123,22 @@ export default function BelegErstellen() {
   useEffect(() => { loadData() }, [loadData])
 
   const handleSaved = useCallback((savedBeleg) => {
-    navigate(`/belege/${savedBeleg.id}`)
+    setBeleg(prev => ({ ...prev, id: savedBeleg.id }))
+    navigate(`/belege/${savedBeleg.id}`, { replace: true })
   }, [navigate])
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClick(e) {
+      if (konvRef.current && !konvRef.current.contains(e.target)) {
+        setShowKonvDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  const erlaubteKonversionen = beleg?.beleg_typ ? (BELEG_KONVERSIONEN[beleg.beleg_typ] || []) : []
 
   if (loading) {
     return (
@@ -138,27 +156,76 @@ export default function BelegErstellen() {
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => showVorschau ? setShowVorschau(false) : navigate(-1)}
           className="p-2 rounded-lg hover:bg-surface-hover transition-colors"
         >
           <ArrowLeft className="w-5 h-5 text-text-secondary" />
         </button>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-1">
           <FileText className="w-6 h-6 text-brand" />
           <div>
             <h1 className="text-xl font-bold text-text-primary">{title}</h1>
             {typLabel && <p className="text-sm text-text-muted">{typLabel}</p>}
           </div>
         </div>
+        <div className="flex items-center gap-2">
+          {/* Vorschau Button — only for saved belege */}
+          {id && (
+            <button
+              onClick={() => setShowVorschau(v => !v)}
+              className="inline-flex items-center gap-2 px-3 py-2 text-sm text-text-secondary border border-border-default hover:bg-surface-main rounded-lg transition-colors"
+            >
+              {showVorschau ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              {showVorschau ? 'Formular' : 'Vorschau'}
+            </button>
+          )}
+          {/* Konvertieren Dropdown — only for saved belege with allowed conversions */}
+          {id && erlaubteKonversionen.length > 0 && (
+            <div className="relative" ref={konvRef}>
+              <button
+                onClick={() => setShowKonvDropdown(v => !v)}
+                className="inline-flex items-center gap-2 px-3 py-2 text-sm text-text-secondary border border-border-default hover:bg-surface-main rounded-lg transition-colors"
+              >
+                <ArrowRightLeft className="w-4 h-4" />
+                Konvertieren
+                <ChevronDown className="w-3 h-3" />
+              </button>
+              {showKonvDropdown && (
+                <div className="absolute right-0 mt-1 w-56 bg-surface-card rounded-lg shadow-lg border border-border-default py-1 z-50">
+                  {erlaubteKonversionen.map(targetTyp => (
+                    <button
+                      key={targetTyp}
+                      onClick={() => {
+                        setShowKonvDropdown(false)
+                        navigate(`/belege/neu?from=${id}`)
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm hover:bg-surface-main transition-colors flex items-center gap-2"
+                    >
+                      <span
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: BELEG_TYPEN[targetTyp]?.color }}
+                      />
+                      {BELEG_TYPEN[targetTyp]?.label || targetTyp}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Formular */}
-      <BelegFormular
-        beleg={beleg}
-        positionen={positionen}
-        onSaved={handleSaved}
-        onCancel={() => navigate(-1)}
-      />
+      {/* Content: Vorschau or Formular */}
+      {showVorschau && id ? (
+        <BelegVorschau belegId={id} onClose={() => setShowVorschau(false)} />
+      ) : (
+        <BelegFormular
+          beleg={beleg}
+          positionen={positionen}
+          onSaved={handleSaved}
+          onCancel={() => navigate(-1)}
+        />
+      )}
     </div>
   )
 }

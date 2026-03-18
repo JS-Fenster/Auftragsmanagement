@@ -4,11 +4,11 @@
  * Route: /belege
  * Features: KPI-Cards, Filter, Tabelle, Schnellaktionen
  */
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   FileText, Plus, Search, Filter, Euro, Clock, TrendingUp,
-  ChevronRight, ArrowUpRight, ArrowDownRight, Loader2
+  ChevronRight, ArrowUpRight, ArrowDownRight, Loader2, ArrowRightLeft
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { BelegStatusBadge, BelegTypBadge } from './belege/BelegStatusBadge'
@@ -27,6 +27,55 @@ function KpiCard({ label, value, subtitle, icon: Icon, color }) {
       </div>
       <p className="text-2xl font-bold text-text-primary">{value}</p>
       {subtitle && <p className="text-xs text-text-muted mt-1">{subtitle}</p>}
+    </div>
+  )
+}
+
+function KonvertierenButton({ beleg, navigate }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  const erlaubte = BELEG_KONVERSIONEN[beleg.beleg_typ] || []
+
+  useEffect(() => {
+    function handleClick(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  if (erlaubte.length === 0) return <ChevronRight className="w-4 h-4 text-text-muted" />
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={(e) => { e.stopPropagation(); setOpen(v => !v) }}
+        className="p-1 rounded hover:bg-surface-hover transition-colors"
+        title="Konvertieren"
+      >
+        <ArrowRightLeft className="w-4 h-4 text-text-muted" />
+      </button>
+      {open && (
+        <div className="absolute right-0 mt-1 w-48 bg-surface-card rounded-lg shadow-lg border border-border-default py-1 z-50">
+          {erlaubte.map(targetTyp => (
+            <button
+              key={targetTyp}
+              onClick={(e) => {
+                e.stopPropagation()
+                setOpen(false)
+                navigate(`/belege/neu?from=${beleg.id}`)
+              }}
+              className="w-full text-left px-3 py-1.5 text-sm hover:bg-surface-main transition-colors flex items-center gap-2"
+            >
+              <span
+                className="w-2 h-2 rounded-full shrink-0"
+                style={{ backgroundColor: BELEG_TYPEN[targetTyp]?.color }}
+              />
+              {BELEG_TYPEN[targetTyp]?.label || targetTyp}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -228,7 +277,7 @@ export default function BelegListe() {
                     </td>
                     <td className="px-4 py-3"><BelegStatusBadge status={b.status} /></td>
                     <td className="px-4 py-3">
-                      <ChevronRight className="w-4 h-4 text-text-muted" />
+                      <KonvertierenButton beleg={b} navigate={navigate} />
                     </td>
                   </tr>
                 ))
