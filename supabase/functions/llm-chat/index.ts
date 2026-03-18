@@ -20,8 +20,8 @@ import {
 
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
-const MODEL = "gpt-5.2"; // GPT-5.x: no temperature/top_p/max_tokens — 5.4 gave 500 (API key tier?)
-const REASONING_EFFORT = "low"; // "high"/"medium" leak reasoning, omitting causes newline garbage
+const MODEL = "gpt-5.4"; // Testing 5.4 with debug error output
+const REASONING_EFFORT = "low";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -172,7 +172,7 @@ async function callLLM(
   if (!resp.ok) {
     const err = await resp.text();
     console.error("OpenAI API error:", resp.status, err);
-    throw new Error(`LLM request failed (${resp.status})`);
+    throw new Error(`LLM request failed (${resp.status}): ${err.substring(0, 300)}`);
   }
 
   return await resp.json();
@@ -305,7 +305,12 @@ Deno.serve(async (req) => {
       model: MODEL,
     }, 200, corsHeaders);
   } catch (err) {
-    console.error("llm-chat fatal:", err instanceof Error ? err.message : err);
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error("llm-chat fatal:", errMsg);
+    // Temporarily expose LLM errors for debugging (remove after 5.4 test)
+    if (errMsg.includes("LLM request failed")) {
+      return jsonResponse({ error: errMsg }, 500, corsHeaders);
+    }
     return jsonResponse({ error: sanitizeError(err) }, 500, corsHeaders);
   }
 });
