@@ -4,12 +4,99 @@
  * Pattern: Wie StepPositionen.jsx aus budgetangebot
  * Props: positionen, setPositionen
  */
-import { useCallback } from 'react'
-import { Plus, Trash2, GripVertical } from 'lucide-react'
+import { useState, useCallback, useEffect, useRef } from 'react'
+import { Plus, Trash2, GripVertical, BookOpen, Search, X } from 'lucide-react'
 import { EditableCell } from '../budgetangebot/ui'
 import { BELEG_EINHEITEN, formatEuro, generateTempId } from './constants'
+import { supabase } from '../../lib/supabase'
+
+function VorlagenPicker({ onSelect, onClose }) {
+  const [vorlagen, setVorlagen] = useState([])
+  const [search, setSearch] = useState('')
+  const [loading, setLoading] = useState(true)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    supabase.from('beleg_vorlagen').select('*').order('sort_order')
+      .then(({ data }) => { setVorlagen(data || []); setLoading(false) })
+  }, [])
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose() }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [onClose])
+
+  const filtered = search
+    ? vorlagen.filter(v => v.bezeichnung.toLowerCase().includes(search.toLowerCase()) || (v.kategorie || '').toLowerCase().includes(search.toLowerCase()))
+    : vorlagen
+
+  const kategorien = [...new Set(filtered.map(v => v.kategorie || 'Sonstige'))]
+
+  return (
+    <div ref={ref} className="absolute left-0 top-full mt-1 w-96 max-h-80 bg-surface-card border border-border-default rounded-lg shadow-lg z-50 overflow-hidden">
+      <div className="p-2 border-b border-border-default flex items-center gap-2">
+        <Search size={14} className="text-text-muted" />
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Vorlage suchen..."
+          className="flex-1 text-sm border-none outline-none bg-transparent"
+          autoFocus
+        />
+        <button onClick={onClose} className="text-text-muted hover:text-text-primary">
+          <X size={14} />
+        </button>
+      </div>
+      <div className="overflow-y-auto max-h-64">
+        {loading ? (
+          <p className="p-3 text-sm text-text-muted">Laden...</p>
+        ) : filtered.length === 0 ? (
+          <p className="p-3 text-sm text-text-muted">Keine Vorlagen gefunden</p>
+        ) : (
+          kategorien.map(kat => (
+            <div key={kat}>
+              <div className="px-3 py-1.5 text-xs font-medium text-text-muted uppercase bg-surface-main sticky top-0">{kat}</div>
+              {filtered.filter(v => (v.kategorie || 'Sonstige') === kat).map(v => (
+                <button
+                  key={v.id}
+                  onClick={() => onSelect(v)}
+                  className="w-full text-left px-3 py-2 hover:bg-surface-hover transition-colors flex items-center justify-between gap-2"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm text-text-primary truncate">{v.bezeichnung}</p>
+                    {v.beschreibung && <p className="text-xs text-text-muted truncate">{v.beschreibung}</p>}
+                  </div>
+                  <span className="text-xs text-text-muted shrink-0">{v.einheit}</span>
+                </button>
+              ))}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
 
 export default function BelegPositionenEditor({ positionen, setPositionen }) {
+  const [showVorlagen, setShowVorlagen] = useState(false)
+
+  const addFromVorlage = useCallback((vorlage) => {
+    setPositionen(prev => [...prev, {
+      _id: generateTempId(),
+      bezeichnung: vorlage.bezeichnung,
+      beschreibung: vorlage.beschreibung || '',
+      einheit: vorlage.einheit || 'Stk',
+      menge: vorlage.menge || 1,
+      einzelpreis: vorlage.einzelpreis || 0,
+      gruppe: '',
+      breite: null,
+      hoehe: null,
+    }])
+    setShowVorlagen(false)
+  }, [setPositionen])
 
   const updatePosition = useCallback((index, field, value) => {
     setPositionen(prev => {
@@ -168,7 +255,7 @@ export default function BelegPositionenEditor({ positionen, setPositionen }) {
       </div>
 
       {/* Buttons */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 relative">
         <button
           onClick={addPosition}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-brand hover:text-brand-dark hover:bg-brand-light rounded-lg transition-colors"
@@ -176,11 +263,20 @@ export default function BelegPositionenEditor({ positionen, setPositionen }) {
           <Plus className="w-4 h-4" /> Position hinzufuegen
         </button>
         <button
+          onClick={() => setShowVorlagen(prev => !prev)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-colors"
+        >
+          <BookOpen className="w-4 h-4" /> Aus Vorlage
+        </button>
+        <button
           onClick={addGruppenHeader}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-text-secondary hover:text-text-primary hover:bg-surface-hover rounded-lg transition-colors"
         >
           <GripVertical className="w-4 h-4" /> Gruppe hinzufuegen
         </button>
+        {showVorlagen && (
+          <VorlagenPicker onSelect={addFromVorlage} onClose={() => setShowVorlagen(false)} />
+        )}
       </div>
 
       {positionen.length === 0 && (
