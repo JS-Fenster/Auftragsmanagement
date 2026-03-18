@@ -97,9 +97,12 @@ async function executeTool(
       return await callSearchKnowledge(args, "hybrid");
     case "search_contacts": {
       const { data, error } = await supabase.rpc("search_contacts", {
-        search_query: args.query as string,
+        search_query: (args.query as string) || null,
         filter_typ: (args.typ as string) || null,
         max_results: Math.min((args.limit as number) || 10, 50),
+        filter_ort: (args.ort as string) || null,
+        filter_plz: (args.plz as string) || null,
+        filter_name_pattern: (args.name_pattern as string) || null,
       });
       if (error) throw new Error(`search_contacts failed`);
       return data;

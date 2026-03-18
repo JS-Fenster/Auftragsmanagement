@@ -37,16 +37,18 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { query, typ = null, limit = 20 } = await req.json();
+    const { query = null, typ = null, limit = 20, ort = null, plz = null, name_pattern = null } = await req.json();
 
-    if (!query || typeof query !== "string") {
-      return jsonResponse({ error: "query is required" }, 400, corsHeaders);
+    if (!query && !ort && !plz && !name_pattern) {
+      return jsonResponse({ error: "At least one of query, ort, plz, or name_pattern is required" }, 400, corsHeaders);
     }
 
     // Input validation
-    const queryError = validateQueryLength(query);
-    if (queryError) {
-      return jsonResponse({ error: queryError }, 400, corsHeaders);
+    if (query) {
+      const queryError = validateQueryLength(query);
+      if (queryError) {
+        return jsonResponse({ error: queryError }, 400, corsHeaders);
+      }
     }
 
     if (typ && !["kunde", "lieferant"].includes(typ)) {
@@ -60,6 +62,9 @@ Deno.serve(async (req) => {
       search_query: query,
       filter_typ: typ,
       max_results: maxResults,
+      filter_ort: ort,
+      filter_plz: plz,
+      filter_name_pattern: name_pattern,
     });
 
     if (error) {

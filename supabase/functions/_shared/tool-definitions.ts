@@ -126,18 +126,30 @@ export const TOOL_DEFINITIONS = [
     function: {
       name: "search_contacts",
       description:
-        "Sucht Kontakte (Kunden, Lieferanten) per Fuzzy-Matching auf Firmenname und Volltext auf Notizen. Liefert Kontaktdaten inkl. Ansprechpartner mit Telefon/Email.",
+        "Sucht Kontakte (Kunden, Lieferanten) per Fuzzy-Matching, Volltext (inkl. Adresse, Notizen) und optionalen Filtern. Liefert Kontaktdaten inkl. Ansprechpartner mit Telefon/Email. Filter koennen auch OHNE query verwendet werden.",
       parameters: {
         type: "object",
         properties: {
           query: {
             type: "string",
-            description: "Suchbegriff: Firmenname, Personenname oder Stichwort",
+            description: "Suchbegriff: Firmenname, Personenname, Ort oder Stichwort. Optional wenn Filter gesetzt.",
           },
           typ: {
             type: "string",
             enum: ["kunde", "lieferant"],
             description: "Optional: Nur Kunden oder nur Lieferanten",
+          },
+          ort: {
+            type: "string",
+            description: "Ort/Adresse-Filter (ILIKE, Teilstring genuegt, z.B. 'Ensdorf' oder 'Vilstal')",
+          },
+          plz: {
+            type: "string",
+            description: "PLZ-Prefix-Filter (z.B. '922' fuer Raum Amberg, '9226' fuer Ensdorf-Umgebung)",
+          },
+          name_pattern: {
+            type: "string",
+            description: "Namensmuster-Filter auf Nachname/Firma (SQL ILIKE, z.B. '%ski%' fuer polnische Namen, '%er' fuer Namen auf -er)",
           },
           limit: {
             type: "integer",
@@ -145,7 +157,6 @@ export const TOOL_DEFINITIONS = [
             default: 10,
           },
         },
-        required: ["query"],
         additionalProperties: false,
       },
     },
