@@ -285,10 +285,21 @@ async function executeTool(
       const rpcName = rpcMap[reportType];
       if (!rpcName) throw new Error(`Unknown report type: ${reportType}`);
 
-      // Build RPC params based on type
+      // Build RPC params based on type — provide sensible defaults for date-range RPCs
       const rpcParams: Record<string, unknown> = {};
-      if (params.zeitraum_von) rpcParams.p_von = params.zeitraum_von;
-      if (params.zeitraum_bis) rpcParams.p_bis = params.zeitraum_bis;
+      const needsDates = ["finanzbericht", "montage_uebersicht"].includes(reportType);
+      if (params.zeitraum_von) {
+        rpcParams.p_von = params.zeitraum_von;
+      } else if (needsDates) {
+        // Default: start of current year
+        rpcParams.p_von = new Date(new Date().getFullYear(), 0, 1).toISOString().slice(0, 10);
+      }
+      if (params.zeitraum_bis) {
+        rpcParams.p_bis = params.zeitraum_bis;
+      } else if (needsDates) {
+        // Default: today
+        rpcParams.p_bis = new Date().toISOString().slice(0, 10);
+      }
       if (params.projekt_id) rpcParams.p_projekt_id = params.projekt_id;
       if (params.kunde_id) rpcParams.p_kunde_id = params.kunde_id;
 

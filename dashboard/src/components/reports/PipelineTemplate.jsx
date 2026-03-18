@@ -13,7 +13,7 @@ export default function PipelineTemplate({ data }) {
         <div className="grid grid-cols-3 gap-4">
           <KpiCard label="Anfragen gesamt" value={conversion.anfragen_gesamt} />
           <KpiCard label="Auftraege gesamt" value={conversion.auftraege_gesamt} />
-          <KpiCard label="Conversion Rate" value={`${((conversion.rate || 0) * 100).toFixed(1)}%`} />
+          <KpiCard label="Conversion Rate" value={`${(conversion.rate || 0).toFixed(1)}%`} />
         </div>
       )}
 
