@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useChatContext } from '../lib/chatContext'
 import { ArrowLeft, Save, Clock, Package, Wrench, FileText, Plus, Edit2, Trash2, ChevronRight, ExternalLink, Shield, Link2, Unlink, AlertCircle, Eye, EyeOff, Tag, ListChecks, History, Archive } from 'lucide-react'
 import ProjektAufgaben from './projekte/ProjektAufgaben'
 import ProjektTimeline from './projekte/ProjektTimeline'
@@ -96,6 +97,7 @@ const VALUE_FIELDS = [
 export default function ProjektDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { setChatEntity } = useChatContext()
   const [projekt, setProjekt] = useState(null)
   const [positionen, setPositionen] = useState([])
   const [bestellungen, setBestellungen] = useState([])
@@ -135,8 +137,13 @@ export default function ProjektDetail() {
     setHistorie(histRes.data || [])
     setDokumente(dokRes.data || [])
     setProjektBelege(belegeRes.data || [])
+    // Provide entity context to Jess chat
+    setChatEntity({
+      entity_name: `${projektRes.data.projekt_nummer} ${projektRes.data.titel}`,
+      kunde_id: projektRes.data.kontakt_id,
+    })
     setLoading(false)
-  }, [id, navigate])
+  }, [id, navigate, setChatEntity])
 
   useEffect(() => { loadProjekt() }, [loadProjekt])
 
