@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Save, Clock, Package, Wrench, FileText, Plus, Edit2, Trash2, ChevronRight, ExternalLink, Shield, Link2, Unlink, AlertCircle, Eye, EyeOff, Tag } from 'lucide-react'
+import { ArrowLeft, Save, Clock, Package, Wrench, FileText, Plus, Edit2, Trash2, ChevronRight, ExternalLink, Shield, Link2, Unlink, AlertCircle, Eye, EyeOff, Tag, ListChecks, History, Archive } from 'lucide-react'
+import ProjektAufgaben from './projekte/ProjektAufgaben'
+import ProjektTimeline from './projekte/ProjektTimeline'
+import ErpAngeboteTab from './projekte/ErpAngeboteTab'
 import { supabase } from '../lib/supabase'
 import StatusBadge, { PROJEKT_PHASEN } from '../components/StatusBadge'
 import { PrioritaetBadge } from '../components/StatusBadge'
@@ -696,6 +699,18 @@ export default function ProjektDetail() {
             </div>
           </div>
 
+          {/* Aufgaben */}
+          <div className="bg-surface-card rounded-lg shadow-sm border border-border-default">
+            <div className="px-5 py-3 border-b border-border-default">
+              <h2 className="font-semibold text-text-primary flex items-center gap-2">
+                <ListChecks className="h-4 w-4 text-text-muted" /> Aufgaben
+              </h2>
+            </div>
+            <div className="p-5">
+              <ProjektAufgaben projektId={id} />
+            </div>
+          </div>
+
           {/* Belege */}
           <div className="bg-surface-card rounded-lg shadow-sm border border-border-default">
             <div className="px-5 py-3 border-b border-border-default flex items-center justify-between">
@@ -749,6 +764,20 @@ export default function ProjektDetail() {
               )}
             </div>
           </div>
+
+          {/* W4A-Angebote (historisch) */}
+          {projekt?.kontakte?.firma1 && (
+            <div className="bg-surface-card rounded-lg shadow-sm border border-border-default">
+              <div className="px-5 py-3 border-b border-border-default">
+                <h2 className="font-semibold text-text-primary flex items-center gap-2">
+                  <Archive className="h-4 w-4 text-text-muted" /> W4A-Angebote (historisch)
+                </h2>
+              </div>
+              <div className="p-5">
+                <ErpAngeboteTab firma={projekt.kontakte.firma1} />
+              </div>
+            </div>
+          )}
 
           {/* Dokumente (A-003) */}
           <div className="bg-surface-card rounded-lg shadow-sm border border-border-default">
@@ -884,55 +913,11 @@ export default function ProjektDetail() {
           <div className="bg-surface-card rounded-lg shadow-sm border border-border-default">
             <div className="px-5 py-3 border-b border-border-default">
               <h2 className="font-semibold text-text-primary flex items-center gap-2">
-                <Clock className="h-4 w-4 text-text-muted" /> Historie
+                <History className="h-4 w-4 text-text-muted" /> Projekt-Timeline
               </h2>
             </div>
             <div className="p-5">
-              {historie.length === 0 ? (
-                <p className="text-sm text-text-muted">Noch keine Eintraege.</p>
-              ) : (
-                <div className="relative space-y-0">
-                  {historie.map((entry, idx) => {
-                    const style = HISTORIE_STYLES[entry.aktion] || HISTORIE_STYLES.field_update
-                    const isLast = idx === historie.length - 1
-                    return (
-                      <div key={entry.id} className="relative flex gap-3 pb-6">
-                        {/* Vertical line */}
-                        {!isLast && (
-                          <div className="absolute left-[7px] top-4 bottom-0 w-px bg-surface-hover" />
-                        )}
-                        {/* Dot */}
-                        <div className="relative z-10 flex-shrink-0 mt-0.5">
-                          <div className="h-4 w-4 rounded-full border-2" style={{ borderColor: style.dot, backgroundColor: `${style.dot}20` }} />
-                        </div>
-                        {/* Content */}
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs text-text-muted">{formatRelativeTime(entry.erstellt_am)}</p>
-                          {entry.aktion === 'status_change' ? (
-                            <p className="text-sm text-text-primary mt-0.5">
-                              Status: <span className="font-medium">{PROJEKT_PHASEN[entry.alter_wert]?.label || entry.alter_wert}</span>
-                              {' '}<ChevronRight className="inline h-3 w-3 text-text-muted" />{' '}
-                              <span className="font-medium">{PROJEKT_PHASEN[entry.neuer_wert]?.label || entry.neuer_wert}</span>
-                            </p>
-                          ) : entry.aktion === 'notiz' ? (
-                            <p className="text-sm text-text-primary mt-0.5">{entry.neuer_wert}</p>
-                          ) : (
-                            <p className="text-sm text-text-primary mt-0.5">
-                              <span className="text-text-secondary">{entry.feld}:</span>{' '}
-                              {entry.alter_wert && <span className="line-through text-text-muted">{entry.alter_wert}</span>}
-                              {entry.alter_wert && ' '}
-                              <span className="font-medium">{entry.neuer_wert || '-'}</span>
-                            </p>
-                          )}
-                          {entry.erstellt_von && (
-                            <p className="text-xs text-text-muted mt-0.5">{entry.erstellt_von}</p>
-                          )}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
+              <ProjektTimeline projektId={id} />
             </div>
           </div>
         </div>
