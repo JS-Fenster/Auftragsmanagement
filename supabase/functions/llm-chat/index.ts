@@ -20,8 +20,8 @@ import {
 
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
-const MODEL = "gpt-5.4"; // GPT-5.4: no reasoning_effort with tools in chat/completions
-const REASONING_EFFORT = "low"; // Only used for final answer (no tools)
+const MODEL = "gpt-5.2"; // A/B test: comparing with 5.4
+const REASONING_EFFORT = "low";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
