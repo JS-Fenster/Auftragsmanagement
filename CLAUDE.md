@@ -40,7 +40,6 @@ Auftragsmanagement/
 │   └── package.json
 ├── docs/
 │   └── Auftragsmanagement_Projektplan.md
-├── frontend/               # Frontend (dist + node_modules)
 ├── rag-demo/               # RAG Demo App (Node.js Server fuer Retrieval-Augmented Generation)
 ├── scripts/                # Hilfs-Scripts (Batch-Move, Batch-Process)
 ├── supabase/
