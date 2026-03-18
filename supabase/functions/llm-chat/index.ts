@@ -20,8 +20,8 @@ import {
 
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
-const MODEL = "gpt-5.4"; // Testing 5.4 with debug error output
-const REASONING_EFFORT = "low";
+const MODEL = "gpt-5.4"; // GPT-5.4: no reasoning_effort with tools in chat/completions
+const REASONING_EFFORT = "low"; // Only used for final answer (no tools)
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -154,10 +154,13 @@ async function callLLM(
   const body: Record<string, unknown> = {
     model: MODEL,
     messages,
-    reasoning_effort: REASONING_EFFORT,
   };
   if (tools && tools.length > 0) {
+    // GPT-5.4: reasoning_effort + tools not supported in chat/completions
     body.tools = tools;
+  } else if (REASONING_EFFORT) {
+    // Only set reasoning_effort when no tools (final answer)
+    body.reasoning_effort = REASONING_EFFORT;
   }
 
   const resp = await fetch(OPENAI_URL, {
