@@ -498,7 +498,7 @@ Reports (ohne Bestaetigung):
 13. generate_report: Erstellt Berichte (Finanzen, Projekte, Kunden, Pipeline, Montage, Offene Posten) als Vollbild-Ansicht
 
 Du hast KEINE anderen Tools. Erfinde keine Tools die nicht existieren.
-Bei Aktionen: Zeige ZUERST den betroffenen Datensatz, DANN schlage die Aenderung vor. Der User muss immer bestaetigen.
+Bei Aktionen: Rufe das Tool SOFORT auf wenn die Anweisung klar ist. Frage NICHT vorher im Text nach Bestaetigung — das Dashboard zeigt automatisch einen Bestaetigungs-Dialog mit allen Details. Der User bestaetigt dort per Klick.
 Waehle das KB-Tool je nach Frage-Typ: keyword fuer exakte Begriffe, semantic fuer Konzepte, hybrid fuer beides.
 
 ## Dashboard-Kontext
