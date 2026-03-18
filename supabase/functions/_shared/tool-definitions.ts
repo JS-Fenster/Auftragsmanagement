@@ -130,7 +130,7 @@ export const TOOL_DEFINITIONS = [
     function: {
       name: "search_contacts",
       description:
-        "Sucht Kontakte (Kunden, Lieferanten) per Fuzzy-Matching, Volltext (inkl. Adresse, Notizen) und optionalen Filtern. Liefert Kontaktdaten inkl. Ansprechpartner mit Telefon/Email. Filter koennen auch OHNE query verwendet werden.",
+        "Sucht Kontakte (Kunden, Lieferanten) per Fuzzy-Matching, Volltext, Umkreis und phonetischer Namenssuche. Liefert Kontaktdaten inkl. Ansprechpartner mit Telefon/Email. Filter koennen auch OHNE query verwendet werden. Fuer Umkreissuche: zentrum_plz + radius_km setzen. Fuer phonetische Namenssuche: name_pattern + phonetisch=true.",
       parameters: {
         type: "object",
         properties: {
@@ -145,15 +145,28 @@ export const TOOL_DEFINITIONS = [
           },
           ort: {
             type: "string",
-            description: "Ort/Adresse-Filter (ILIKE, Teilstring genuegt, z.B. 'Ensdorf' oder 'Vilstal')",
+            description: "Ort/Adresse-Filter (ILIKE, Teilstring genuegt). Wird ignoriert wenn zentrum_plz gesetzt.",
           },
           plz: {
             type: "string",
-            description: "PLZ-Prefix-Filter (z.B. '922' fuer Raum Amberg, '9226' fuer Ensdorf-Umgebung)",
+            description: "PLZ-Prefix-Filter (z.B. '922'). Wird ignoriert wenn zentrum_plz gesetzt.",
+          },
+          zentrum_plz: {
+            type: "string",
+            description: "Zentrum-PLZ fuer Umkreissuche (z.B. '92224' fuer Amberg). Muss zusammen mit radius_km verwendet werden.",
+          },
+          radius_km: {
+            type: "integer",
+            description: "Radius in Kilometern fuer Umkreissuche (z.B. 15 fuer 15km). Muss zusammen mit zentrum_plz verwendet werden.",
           },
           name_pattern: {
             type: "string",
-            description: "Namensmuster-Filter auf Nachname/Firma (SQL ILIKE, z.B. '%ski%' fuer polnische Namen, '%er' fuer Namen auf -er)",
+            description: "Namensmuster-Filter auf Nachname/Firma. Bei phonetisch=false: SQL ILIKE (z.B. '%ski%'). Bei phonetisch=true: exakter Name fuer phonetischen Vergleich (z.B. 'Rekos').",
+          },
+          phonetisch: {
+            type: "boolean",
+            description: "Aktiviert phonetischen Namensvergleich (Soundex + Levenshtein). Statt ILIKE-Pattern werden aehnlich klingende Namen gefunden. Nur sinnvoll mit name_pattern.",
+            default: false,
           },
           limit: {
             type: "integer",
@@ -246,6 +259,67 @@ export const TOOL_DEFINITIONS = [
           },
         },
         required: ["query"],
+        additionalProperties: false,
+      },
+    },
+  },
+  // LLM-022: Cross-entity search (READ — no confirmation needed)
+  {
+    type: "function" as const,
+    function: {
+      name: "search_combined",
+      description:
+        "Kombinierte Suche: Findet Kontakte MIT ihren zugehoerigen Dokumenten/Auftraegen. Nutze dies wenn der User nach Kontakten in Verbindung mit bestimmten Dokumenttypen fragt, z.B. 'Kunden mit Reklamationen', 'Lieferanten mit offenen Rechnungen im Raum Amberg', 'Wer hat letzten Monat Bestellungen gehabt?'. Liefert pro Kontakt: Anzahl Dokumente, Gesamtsumme, Kategorien, letzte Aktivitaet.",
+      parameters: {
+        type: "object",
+        properties: {
+          search_query: {
+            type: "string",
+            description: "Volltext-Suche in Dokumenten (optional). Findet Dokumente deren Inhalt diesen Begriff enthaelt.",
+          },
+          filter_kontakt_ort: {
+            type: "string",
+            description: "Ort-Filter fuer Kontakte (ILIKE). Wird ignoriert wenn zentrum_plz gesetzt.",
+          },
+          filter_kontakt_plz: {
+            type: "string",
+            description: "PLZ-Prefix fuer Kontakte. Wird ignoriert wenn zentrum_plz gesetzt.",
+          },
+          filter_kontakt_typ: {
+            type: "string",
+            enum: ["kunde", "lieferant"],
+            description: "Nur Kunden oder Lieferanten",
+          },
+          filter_kontakt_name: {
+            type: "string",
+            description: "Firmenname-Filter (Teilstring, z.B. 'Mueller')",
+          },
+          filter_dok_kategorie: {
+            type: "string",
+            description: "Dokument-Kategorie: Rechnung_Eingehend, Rechnung_Ausgehend, Angebot_Eingehend, Angebot_Ausgehend, Bestellung, Reklamation, Mahnung, Email, etc.",
+          },
+          filter_dok_datum_von: {
+            type: "string",
+            description: "Start-Datum fuer Dokumente (ISO 8601)",
+          },
+          filter_dok_datum_bis: {
+            type: "string",
+            description: "End-Datum fuer Dokumente (ISO 8601)",
+          },
+          zentrum_plz: {
+            type: "string",
+            description: "Zentrum-PLZ fuer Umkreissuche (z.B. '92224' fuer Amberg)",
+          },
+          radius_km: {
+            type: "integer",
+            description: "Radius in km fuer Umkreissuche",
+          },
+          limit: {
+            type: "integer",
+            description: "Max. Ergebnisse (1-50)",
+            default: 20,
+          },
+        },
         additionalProperties: false,
       },
     },
@@ -472,7 +546,7 @@ export const TOOL_DEFINITIONS = [
 export const SYSTEM_PROMPT = `Du bist Jess, die digitale Assistentin von JS Fenster & Tueren (Fensterbau, Amberg).
 Du hilfst Sachbearbeitern bei Fragen zu Auftraegen, Kunden, Dokumenten und internen Prozessen.
 
-Dir stehen GENAU 13 Tools zur Verfuegung:
+Dir stehen GENAU 14 Tools zur Verfuegung:
 
 Firmenwissen durchsuchen (KB):
 1. search_knowledge: Semantische Suche — fuer konzeptuelle Fragen ("Wie funktioniert X?")
@@ -480,9 +554,10 @@ Firmenwissen durchsuchen (KB):
 3. hybrid_search: Kombiniert beides + optionales Reranking — beste Wahl bei komplexen Fragen
 
 AM-Daten durchsuchen:
-4. search_contacts: Kunden/Lieferanten (Fuzzy auf Name, mit Kontaktdaten)
+4. search_contacts: Kunden/Lieferanten (Fuzzy, Umkreis, Phonetik). Neu: zentrum_plz+radius_km fuer Umkreissuche, phonetisch=true fuer aehnlich klingende Namen
 5. search_orders: Dokumente (Emails, Rechnungen, Angebote), Auftraege, Projekte
 6. search_emails: Semantische Suche in Emails (nach Inhalt, Absender, Zeitraum)
+7. search_combined: Kontakte + Dokumente kombiniert — fuer Fragen wie "Kunden mit Reklamationen" oder "Lieferanten mit offenen Rechnungen im Raum Amberg"
 
 Aktionen (benoetigen Bestaetigung):
 7. update_document_kategorie: Kategorie eines Dokuments/Email aendern
@@ -492,10 +567,10 @@ Aktionen (benoetigen Bestaetigung):
 11. assign_document_to_project: Dokument einem Projekt zuordnen
 
 Analytics (ohne Bestaetigung):
-12. query_analytics: Kennzahlen abrufen (Umsatz, Projekte, Dokumente, Emails, Kunden, Durchlaufzeiten)
+13. query_analytics: Kennzahlen abrufen (Umsatz, Projekte, Dokumente, Emails, Kunden, Durchlaufzeiten)
 
 Reports (ohne Bestaetigung):
-13. generate_report: Erstellt Berichte (Finanzen, Projekte, Kunden, Pipeline, Montage, Offene Posten) als Vollbild-Ansicht
+14. generate_report: Erstellt Berichte (Finanzen, Projekte, Kunden, Pipeline, Montage, Offene Posten) als Vollbild-Ansicht
 
 Du hast KEINE anderen Tools. Erfinde keine Tools die nicht existieren.
 Bei Aktionen: Rufe das Tool SOFORT auf wenn die Anweisung klar ist. Frage NICHT vorher im Text nach Bestaetigung — das Dashboard zeigt automatisch einen Bestaetigungs-Dialog mit allen Details. Der User bestaetigt dort per Klick.
@@ -518,13 +593,24 @@ Beispiele:
 
 Verwende Deep-Links nur wenn du eine konkrete UUID hast. Erfinde keine IDs.
 
+## Such-Strategien
+
 Bei Kontaktsuche mit vagen Beschreibungen (z.B. "polnischer Name in Schmidmuehlen"):
 - Nutze name_pattern + ort/plz fuer Namensmuster + geografische Eingrenzung
+- NEU: Nutze phonetisch=true wenn der Name bekannt ist aber die Schreibweise unklar
+- NEU: Nutze zentrum_plz + radius_km fuer Umkreissuche (z.B. "im Raum Amberg" → zentrum_plz='92224', radius_km=15)
 - WICHTIG Eskalations-Strategie wenn Pattern-Suche keine Treffer liefert:
   1. Zuerst: Ort + typische Namensmuster (ski, cz, wicz, czyk)
-  2. Falls nichts: NUR Ort OHNE Namensmuster — alle Kunden am Ort auflisten, User kann den richtigen erkennen
-  3. Falls immer noch nichts: PLZ-Umkreis erweitern
+  2. Falls nichts: Phonetische Suche mit phonetisch=true
+  3. Falls nichts: NUR Ort/Umkreis OHNE Namensmuster — alle Kunden auflisten
   NIEMALS aufgeben nach Schritt 1 — immer mindestens Schritt 2 ausfuehren!
+
+Bei uebergreifenden Fragen (Kontakte + Dokumente/Auftraege):
+- "Kunden die reklamiert haben" → search_combined mit filter_dok_kategorie='Reklamation'
+- "Lieferanten mit Rechnungen im Raum Amberg" → search_combined mit filter_kontakt_typ='lieferant', filter_dok_kategorie='Rechnung_Eingehend', zentrum_plz='92224', radius_km=20
+- "Wer hat letzten Monat bestellt?" → search_combined mit filter_dok_kategorie='Bestellung', filter_dok_datum_von/bis
+- search_combined ist IMMER besser als search_contacts + search_orders getrennt aufrufen!
+
 - NIEMALS dich selbst kommentieren ("ich muss nochmal suchen", "sorry", "kein Tool genutzt") — einfach suchen und Ergebnisse zeigen
 
 Antwort-Stil:

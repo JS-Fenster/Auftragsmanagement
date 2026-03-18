@@ -37,10 +37,10 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { query = null, typ = null, limit = 20, ort = null, plz = null, name_pattern = null } = await req.json();
+    const { query = null, typ = null, limit = 20, ort = null, plz = null, name_pattern = null, zentrum_plz = null, radius_km = null, phonetisch = false } = await req.json();
 
-    if (!query && !ort && !plz && !name_pattern) {
-      return jsonResponse({ error: "At least one of query, ort, plz, or name_pattern is required" }, 400, corsHeaders);
+    if (!query && !ort && !plz && !name_pattern && !zentrum_plz) {
+      return jsonResponse({ error: "At least one of query, ort, plz, name_pattern, or zentrum_plz is required" }, 400, corsHeaders);
     }
 
     // Input validation
@@ -65,6 +65,9 @@ Deno.serve(async (req) => {
       filter_ort: ort,
       filter_plz: plz,
       filter_name_pattern: name_pattern,
+      zentrum_plz: zentrum_plz,
+      radius_km: radius_km,
+      phonetisch: phonetisch,
     });
 
     if (error) {

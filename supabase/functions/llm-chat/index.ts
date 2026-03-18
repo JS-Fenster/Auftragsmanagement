@@ -108,8 +108,28 @@ async function executeTool(
         filter_ort: (args.ort as string) || null,
         filter_plz: (args.plz as string) || null,
         filter_name_pattern: (args.name_pattern as string) || null,
+        zentrum_plz: (args.zentrum_plz as string) || null,
+        radius_km: (args.radius_km as number) || null,
+        phonetisch: (args.phonetisch as boolean) || false,
       });
       if (error) throw new Error(`search_contacts failed`);
+      return data;
+    }
+    case "search_combined": {
+      const { data, error } = await supabase.rpc("search_combined", {
+        search_query: (args.search_query as string) || null,
+        filter_kontakt_ort: (args.filter_kontakt_ort as string) || null,
+        filter_kontakt_plz: (args.filter_kontakt_plz as string) || null,
+        filter_kontakt_typ: (args.filter_kontakt_typ as string) || null,
+        filter_kontakt_name: (args.filter_kontakt_name as string) || null,
+        filter_dok_kategorie: (args.filter_dok_kategorie as string) || null,
+        filter_dok_datum_von: (args.filter_dok_datum_von as string) || null,
+        filter_dok_datum_bis: (args.filter_dok_datum_bis as string) || null,
+        zentrum_plz: (args.zentrum_plz as string) || null,
+        radius_km: (args.radius_km as number) || null,
+        max_results: Math.min((args.limit as number) || 20, 50),
+      });
+      if (error) throw new Error(`search_combined failed`);
       return data;
     }
     case "search_orders": {
