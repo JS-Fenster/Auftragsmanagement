@@ -296,7 +296,7 @@ BEGIN
       'firma', COALESCE(b.empfaenger_firma, 'Unbekannt'),
       'betrag', COALESCE(b.brutto_summe, b.netto_summe, 0),
       'faellig_seit', b.gueltig_bis,
-      'tage', EXTRACT(DAY FROM CURRENT_DATE - COALESCE(b.gueltig_bis, b.datum))::int
+      'tage', (CURRENT_DATE - COALESCE(b.gueltig_bis, b.datum))
     ) ORDER BY COALESCE(b.gueltig_bis, b.datum) ASC
   ), '[]'::jsonb) INTO v_ueberfaellig
   FROM belege b
@@ -334,7 +334,7 @@ BEGIN
       COALESCE(SUM(betrag), 0) AS summe
     FROM (
       SELECT
-        EXTRACT(DAY FROM CURRENT_DATE - COALESCE(b.gueltig_bis, b.datum))::int AS tage,
+        (CURRENT_DATE - COALESCE(b.gueltig_bis, b.datum)) AS tage,
         COALESCE(b.brutto_summe, b.netto_summe, 0) AS betrag
       FROM belege b
       WHERE b.beleg_typ IN ('rechnung', 'abschlagsrechnung', 'schlussrechnung')
