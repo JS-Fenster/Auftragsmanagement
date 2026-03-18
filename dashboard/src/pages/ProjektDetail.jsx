@@ -41,6 +41,27 @@ const HISTORIE_STYLES = {
   bestellung: { dot: '#F97316', icon: Package },
 }
 
+const BELEG_TYPEN_MAP = {
+  angebot:               { label: 'Angebot',             bg: '#F5F3FF', text: '#5B21B6' },
+  auftragsbestaetigung:  { label: 'AB',                  bg: '#EFF6FF', text: '#1E40AF' },
+  lieferschein:          { label: 'Lieferschein',        bg: '#F0FDFA', text: '#115E59' },
+  rechnung:              { label: 'Rechnung',            bg: '#FFFBEB', text: '#92400E' },
+  abschlagsrechnung:     { label: 'Abschlagsrechnung',   bg: '#FFF7ED', text: '#9A3412' },
+  schlussrechnung:       { label: 'Schlussrechnung',     bg: '#D1FAE5', text: '#064E3B' },
+  gutschrift:            { label: 'Gutschrift',          bg: '#FEE2E2', text: '#991B1B' },
+}
+
+const BELEG_STATUS_MAP = {
+  entwurf:      { label: 'Entwurf',      bg: '#F3F4F6', text: '#374151' },
+  freigegeben:  { label: 'Freigegeben',  bg: '#EFF6FF', text: '#1E40AF' },
+  versendet:    { label: 'Versendet',    bg: '#F5F3FF', text: '#5B21B6' },
+  angenommen:   { label: 'Angenommen',   bg: '#ECFDF5', text: '#065F46' },
+  abgelehnt:    { label: 'Abgelehnt',    bg: '#FEE2E2', text: '#991B1B' },
+  bezahlt:      { label: 'Bezahlt',      bg: '#D1FAE5', text: '#064E3B' },
+  teilbezahlt:  { label: 'Teilbezahlt',  bg: '#FFFBEB', text: '#92400E' },
+  storniert:    { label: 'Storniert',    bg: '#F3F4F6', text: '#6B7280' },
+}
+
 const BESTELL_STATUS = {
   entwurf: { label: 'Entwurf', color: '#6B7280', bg: '#F3F4F6' },
   bestellt: { label: 'Bestellt', color: '#F59E0B', bg: '#FFFBEB' },
@@ -85,6 +106,7 @@ export default function ProjektDetail() {
     bestell_nummer: '', lieferant_name: '', bestell_datum: new Date().toISOString().split('T')[0],
     ab_nummer: '', liefertermin_geplant: '', bestell_wert: '', notizen: ''
   })
+  const [projektBelege, setProjektBelege] = useState([])
   const [dokumente, setDokumente] = useState([])
   const [showLinkDokument, setShowLinkDokument] = useState(false)
   const [linkDocSearch, setLinkDocSearch] = useState('')
@@ -94,12 +116,13 @@ export default function ProjektDetail() {
 
   const loadProjekt = useCallback(async () => {
     setLoading(true)
-    const [projektRes, posRes, bestRes, histRes, dokRes] = await Promise.all([
+    const [projektRes, posRes, bestRes, histRes, dokRes, belegeRes] = await Promise.all([
       supabase.from('projekte').select('*, kontakte!projekte_kontakt_id_fkey(id, firma1, firma2, strasse, plz, ort, kontakt_personen!kontakt_personen_kontakt_id_fkey(vorname, nachname, ist_hauptkontakt))').eq('id', id).single(),
       supabase.from('projekt_positionen').select('*').eq('projekt_id', id).order('pos_nr'),
       supabase.from('projekt_bestellungen').select('*').eq('projekt_id', id).order('created_at', { ascending: false }),
       supabase.from('projekt_historie').select('*').eq('projekt_id', id).order('erstellt_am', { ascending: false }),
       supabase.from('projekt_dokumente').select('*, documents(id, dateiname, kategorie, storage_pfad, created_at)').eq('projekt_id', id).order('created_at', { ascending: false }),
+      supabase.from('belege').select('*').eq('projekt_id', id).order('created_at', { ascending: false }),
     ])
 
     if (projektRes.error) { navigate('/projekte'); return }
@@ -108,6 +131,7 @@ export default function ProjektDetail() {
     setBestellungen(bestRes.data || [])
     setHistorie(histRes.data || [])
     setDokumente(dokRes.data || [])
+    setProjektBelege(belegeRes.data || [])
     setLoading(false)
   }, [id, navigate])
 
@@ -660,6 +684,60 @@ export default function ProjektDetail() {
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium" style={{ color: bStatus.color, backgroundColor: bStatus.bg }}>
                                   {bStatus.label}
                                 </span>
+                              ) : (b.status || '-')}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Belege */}
+          <div className="bg-surface-card rounded-lg shadow-sm border border-border-default">
+            <div className="px-5 py-3 border-b border-border-default flex items-center justify-between">
+              <h2 className="font-semibold text-text-primary flex items-center gap-2">
+                <FileText className="h-4 w-4 text-text-muted" /> Belege
+              </h2>
+              <button onClick={() => navigate(`/belege/neu?projekt_id=${id}`)} className="text-sm text-brand hover:text-brand-dark flex items-center gap-1">
+                <Plus className="h-4 w-4" /> Neuer Beleg
+              </button>
+            </div>
+            <div className="p-5">
+              {projektBelege.length === 0 ? (
+                <p className="text-sm text-text-muted">Keine Belege vorhanden.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border-light text-left text-xs font-medium text-text-secondary uppercase tracking-wide">
+                        <th className="pb-2 pr-4">Beleg-Nr.</th>
+                        <th className="pb-2 pr-4">Typ</th>
+                        <th className="pb-2 pr-4">Datum</th>
+                        <th className="pb-2 pr-4 text-right">Betrag</th>
+                        <th className="pb-2">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {projektBelege.map(b => {
+                        const typInfo = BELEG_TYPEN_MAP[b.beleg_typ]
+                        const statusInfo = BELEG_STATUS_MAP[b.status]
+                        return (
+                          <tr key={b.id} className="border-b border-gray-50 hover:bg-surface-main cursor-pointer" onClick={() => navigate(`/belege/${b.id}`)}>
+                            <td className="py-2 pr-4 font-medium text-brand">{b.beleg_nummer || '-'}</td>
+                            <td className="py-2 pr-4">
+                              {typInfo ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium" style={{ color: typInfo.text, backgroundColor: typInfo.bg }}>{typInfo.label}</span>
+                              ) : (b.beleg_typ || '-')}
+                            </td>
+                            <td className="py-2 pr-4">{formatDate(b.datum)}</td>
+                            <td className="py-2 pr-4 text-right font-medium">{formatEuro(b.brutto_summe)}</td>
+                            <td className="py-2">
+                              {statusInfo ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium" style={{ color: statusInfo.text || statusInfo.color, backgroundColor: statusInfo.bg }}>{statusInfo.label}</span>
                               ) : (b.status || '-')}
                             </td>
                           </tr>

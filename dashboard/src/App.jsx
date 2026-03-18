@@ -1,5 +1,5 @@
 import { Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom'
-import { FolderKanban, CalendarDays, ArrowLeft, Home, Search, LayoutDashboard, Moon, Sun, Euro, Package } from 'lucide-react'
+import { FolderKanban, CalendarDays, ArrowLeft, Home, Search, LayoutDashboard, Moon, Sun, Euro, Package, FileText } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useIsStandalone } from './hooks/usePopout'
 import Cockpit from './pages/Cockpit'
@@ -16,6 +16,8 @@ import ProjektDetail from './pages/ProjektDetail'
 import Montageplanung from './pages/Montageplanung'
 import Finanzen from './pages/Finanzen'
 import Bestellungen from './pages/Bestellungen'
+import BelegListe from './pages/BelegListe'
+import BelegErstellen from './pages/BelegErstellen'
 import CommandPalette from './components/CommandPalette'
 import ChatWidget from './components/ChatWidget'
 import NotificationBell from './components/NotificationBell'
@@ -26,6 +28,7 @@ const NAV_ITEMS = [
   { to: '/kalender', label: 'Kalender', icon: CalendarDays },
   { to: '/finanzen', label: 'Finanzen', icon: Euro },
   { to: '/bestellungen', label: 'Bestellungen', icon: Package },
+  { to: '/belege', label: 'Belege', icon: FileText },
 ]
 
 const PAGE_TITLES = {
@@ -43,6 +46,7 @@ const PAGE_TITLES = {
   '/uebersicht': 'Uebersicht',
   '/finanzen': 'Finanzen',
   '/bestellungen': 'Bestellungen',
+  '/belege': 'Belege',
 }
 
 function StandaloneHeader() {
@@ -147,6 +151,9 @@ function AppRoutes() {
       <Route path="/uebersicht" element={<Uebersicht />} />
       <Route path="/finanzen" element={<Finanzen />} />
       <Route path="/bestellungen" element={<Bestellungen />} />
+      <Route path="/belege" element={<BelegListe />} />
+      <Route path="/belege/neu" element={<BelegErstellen />} />
+      <Route path="/belege/:id" element={<BelegErstellen />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
