@@ -21,6 +21,7 @@ import BelegErstellen from './pages/BelegErstellen'
 import CommandPalette from './components/CommandPalette'
 import ChatWidget from './components/ChatWidget'
 import NotificationBell from './components/NotificationBell'
+import { ChatContextProvider } from './lib/chatContext'
 
 const NAV_ITEMS = [
   { to: '/', label: 'Cockpit', icon: LayoutDashboard },
@@ -164,25 +165,29 @@ export default function App() {
 
   if (isStandalone) {
     return (
-      <div className="flex flex-col h-screen bg-surface-main">
-        <StandaloneHeader />
+      <ChatContextProvider>
+        <div className="flex flex-col h-screen bg-surface-main">
+          <StandaloneHeader />
+          <main className="flex-1 overflow-auto">
+            <AppRoutes />
+          </main>
+          <CommandPalette />
+          <ChatWidget />
+        </div>
+      </ChatContextProvider>
+    )
+  }
+
+  return (
+    <ChatContextProvider>
+      <div className="flex h-screen bg-surface-main">
+        <Sidebar />
         <main className="flex-1 overflow-auto">
           <AppRoutes />
         </main>
         <CommandPalette />
         <ChatWidget />
       </div>
-    )
-  }
-
-  return (
-    <div className="flex h-screen bg-surface-main">
-      <Sidebar />
-      <main className="flex-1 overflow-auto">
-        <AppRoutes />
-      </main>
-      <CommandPalette />
-      <ChatWidget />
-    </div>
+    </ChatContextProvider>
   )
 }

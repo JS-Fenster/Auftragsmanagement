@@ -1,18 +1,32 @@
 import { useState, useRef, useEffect } from 'react'
-import { MessageCircle, Send, X, Minimize2, Loader2, Trash2, StopCircle } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { MessageCircle, Send, X, Minimize2, Loader2, Trash2, StopCircle, User, FolderKanban, FileText, Mail, Receipt } from 'lucide-react'
 import { supabaseUrl, supabaseAnonKey } from '../lib/supabase'
+import { useChatContext } from '../lib/chatContext'
+import { getEntityRoute } from '../lib/entityRoutes'
 import ActionConfirmDialog from './ActionConfirmDialog'
 
 const LLM_CHAT_URL = `${supabaseUrl}/functions/v1/llm-chat`
 const ASSISTANT_NAME = 'Jess'
 const ASSISTANT_AVATAR = '/jess-avatar.png'
 
+// Deep-link icon map for entity chips
+const DEEP_LINK_ICONS = {
+  kontakt: User,
+  projekt: FolderKanban,
+  document: FileText,
+  email: Mail,
+  beleg: Receipt,
+}
+
 export default function ChatWidget() {
+  const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [pendingAction, setPendingAction] = useState(null) // LLM-011
+  const { context: chatContext } = useChatContext()
   const abortRef = useRef(null)
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
@@ -36,7 +50,7 @@ export default function ChatWidget() {
 
   const callLLM = async (text, confirmAction = null) => {
     const history = messages.map(m => ({ role: m.role, content: m.content }))
-    const body = { message: text, history }
+    const body = { message: text, history, context: chatContext }
     if (confirmAction) body.confirm_action = confirmAction
 
     const controller = new AbortController()
@@ -244,7 +258,7 @@ export default function ChatWidget() {
               }`}
             >
               {msg.role === 'assistant' ? (
-                <FormattedMessage content={msg.content} />
+                <FormattedMessage content={msg.content} navigate={navigate} />
               ) : (
                 <span className="whitespace-pre-wrap">{msg.content}</span>
               )}
@@ -340,8 +354,7 @@ function formatActionDetails(name, args) {
 }
 
 // Inline formatting: bold, inline code
-function formatInline(text, keyPrefix = '') {
-  // Split by **bold** and `code` patterns
+function formatInlineText(text, keyPrefix) {
   return text.split(/(\*\*[^*]+\*\*|`[^`]+`)/).map((part, j) => {
     if (part.startsWith('**') && part.endsWith('**')) {
       return <strong key={`${keyPrefix}-${j}`}>{part.slice(2, -2)}</strong>
@@ -353,8 +366,56 @@ function formatInline(text, keyPrefix = '') {
   })
 }
 
+// Inline formatting with deep-link support: [[link:type:uuid:Name]]
+function formatInline(text, keyPrefix = '', navigate) {
+  const deepLinkParts = []
+  let lastIndex = 0
+  const regex = /\[\[link:(kontakt|projekt|document|email|beleg):([a-f0-9-]+):(.+?)\]\]/g
+  let match
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      deepLinkParts.push({ type: 'text', value: text.slice(lastIndex, match.index) })
+    }
+    deepLinkParts.push({
+      type: 'link',
+      entityType: match[1],
+      entityId: match[2],
+      displayName: match[3],
+    })
+    lastIndex = regex.lastIndex
+  }
+  if (lastIndex < text.length) {
+    deepLinkParts.push({ type: 'text', value: text.slice(lastIndex) })
+  }
+
+  // No deep links found — fall through to original logic
+  if (deepLinkParts.length === 1 && deepLinkParts[0].type === 'text') {
+    return formatInlineText(text, keyPrefix)
+  }
+
+  return deepLinkParts.map((part, i) => {
+    if (part.type === 'link') {
+      const Icon = DEEP_LINK_ICONS[part.entityType]
+      const route = getEntityRoute(part.entityType, part.entityId)
+      return (
+        <button
+          key={`${keyPrefix}dl${i}`}
+          onClick={() => route && navigate(route)}
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50 text-xs font-medium cursor-pointer transition-colors"
+          title={`${part.displayName} oeffnen`}
+        >
+          {Icon && <Icon size={12} />}
+          {part.displayName}
+        </button>
+      )
+    }
+    return formatInlineText(part.value, `${keyPrefix}t${i}`)
+  })
+}
+
 // Simple markdown-like formatting for assistant messages
-function FormattedMessage({ content }) {
+function FormattedMessage({ content, navigate }) {
   if (!content) return null
 
   const lines = content.split('\n')
@@ -386,11 +447,11 @@ function FormattedMessage({ content }) {
 
     // Headers
     if (line.startsWith('### ')) {
-      elements.push(<p key={i} className="font-semibold text-text-primary mt-1.5">{formatInline(line.slice(4), i)}</p>)
+      elements.push(<p key={i} className="font-semibold text-text-primary mt-1.5">{formatInline(line.slice(4), i, navigate)}</p>)
     } else if (line.startsWith('## ')) {
-      elements.push(<p key={i} className="font-semibold text-text-primary mt-2">{formatInline(line.slice(3), i)}</p>)
+      elements.push(<p key={i} className="font-semibold text-text-primary mt-2">{formatInline(line.slice(3), i, navigate)}</p>)
     } else if (line.startsWith('# ')) {
-      elements.push(<p key={i} className="font-bold text-text-primary mt-2">{formatInline(line.slice(2), i)}</p>)
+      elements.push(<p key={i} className="font-bold text-text-primary mt-2">{formatInline(line.slice(2), i, navigate)}</p>)
     }
     // Numbered lists
     else if (/^\d+[\.\)] /.test(line)) {
@@ -398,7 +459,7 @@ function FormattedMessage({ content }) {
       elements.push(
         <div key={i} className="flex gap-1.5 ml-1">
           <span className="text-text-muted flex-shrink-0">{match[1]}</span>
-          <span>{formatInline(match[2], i)}</span>
+          <span>{formatInline(match[2], i, navigate)}</span>
         </div>
       )
     }
@@ -407,7 +468,7 @@ function FormattedMessage({ content }) {
       elements.push(
         <div key={i} className="flex gap-1.5 ml-1">
           <span className="text-text-muted">•</span>
-          <span>{formatInline(line.slice(2), i)}</span>
+          <span>{formatInline(line.slice(2), i, navigate)}</span>
         </div>
       )
     }
@@ -417,7 +478,7 @@ function FormattedMessage({ content }) {
       elements.push(
         <div key={i} className="flex gap-1.5 ml-4">
           <span className="text-text-muted">◦</span>
-          <span>{formatInline(text, i)}</span>
+          <span>{formatInline(text, i, navigate)}</span>
         </div>
       )
     }
@@ -427,7 +488,7 @@ function FormattedMessage({ content }) {
     }
     // Regular text with inline formatting
     else {
-      elements.push(<p key={i} className="whitespace-pre-wrap">{formatInline(line, i)}</p>)
+      elements.push(<p key={i} className="whitespace-pre-wrap">{formatInline(line, i, navigate)}</p>)
     }
   }
 

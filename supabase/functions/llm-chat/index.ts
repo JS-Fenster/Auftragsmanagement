@@ -2,7 +2,7 @@
 // Receives user message, calls GPT-5.x with tools, executes tool calls, returns answer
 //
 // POST /functions/v1/llm-chat
-// Body: { message: string, history?: Array<{role, content}>, context?: string }
+// Body: { message: string, history?: Array<{role, content}>, context?: string | {page, entity_type?, entity_id?, entity_name?, kunde_id?, kunde_name?} }
 // Returns: { answer: string, tool_calls?: Array<{name, args, result}>, model: string }
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -212,8 +212,25 @@ Deno.serve(async (req) => {
     // Build message array with current timestamp so Jess knows "today"
     const now = new Date().toLocaleString("de-DE", { timeZone: "Europe/Berlin" });
     const systemWithDate = `${SYSTEM_PROMPT}\n\nAktuelles Datum und Uhrzeit (Europe/Berlin): ${now}`;
-    const systemContent = context
-      ? `${systemWithDate}\n\nZusaetzlicher Kontext:\n${context}`
+    // Build context string from structured or plain context
+    let contextStr = '';
+    if (context && typeof context === 'object' && context.page) {
+      const parts = [`Der User befindet sich auf der Seite '${context.page}'.`];
+      if (context.entity_type && context.entity_id) {
+        const name = context.entity_name ? ` '${context.entity_name}'` : '';
+        parts.push(`Er schaut sich ${context.entity_type}${name} (ID: ${context.entity_id}) an.`);
+      }
+      if (context.kunde_id) {
+        const kName = context.kunde_name ? ` '${context.kunde_name}'` : '';
+        parts.push(`Zugehoeriger Kunde:${kName} (ID: ${context.kunde_id}).`);
+      }
+      contextStr = parts.join(' ');
+    } else if (context && typeof context === 'string') {
+      contextStr = context;
+    }
+
+    const systemContent = contextStr
+      ? `${systemWithDate}\n\nAktueller Dashboard-Kontext:\n${contextStr}`
       : systemWithDate;
 
     const messages: Array<{ role: string; content: string | null; tool_calls?: unknown[]; tool_call_id?: string }> = [
