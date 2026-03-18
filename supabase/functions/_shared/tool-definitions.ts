@@ -209,6 +209,94 @@ export const TOOL_DEFINITIONS = [
       },
     },
   },
+  // LLM-013: Semantic email search
+  {
+    type: "function" as const,
+    function: {
+      name: "search_emails",
+      description:
+        "Semantische Suche in E-Mails. Findet Emails nach Inhalt, Absender, Zeitraum. Nutze dies wenn der User nach bestimmten Emails oder Kommunikation sucht.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "Suchanfrage (natuerliche Sprache, z.B. 'Lieferverzoegerung von Salamander')",
+          },
+          absender: {
+            type: "string",
+            description: "Absender-Filter (Teilstring, z.B. 'mueller' oder 'salamander')",
+          },
+          kategorie: {
+            type: "string",
+            description: "Email-Kategorie Filter",
+          },
+          datum_von: {
+            type: "string",
+            description: "Start-Datum (ISO 8601)",
+          },
+          datum_bis: {
+            type: "string",
+            description: "End-Datum (ISO 8601)",
+          },
+          limit: {
+            type: "integer",
+            description: "Max. Ergebnisse (1-50)",
+            default: 10,
+          },
+        },
+        required: ["query"],
+        additionalProperties: false,
+      },
+    },
+  },
+  // LLM-021: Analytics tool (READ — no confirmation needed)
+  {
+    type: "function" as const,
+    function: {
+      name: "query_analytics",
+      description:
+        "Ruft vordefinierte Kennzahlen/Metriken ab: Umsatz, Dokumente pro Kategorie, Projektstatus-Verteilung, offene Rechnungen, Email-Volumen, Durchlaufzeiten, Top-Kunden. Gibt Labels und Werte zurueck die direkt in der Antwort verwendet werden koennen.",
+      parameters: {
+        type: "object",
+        properties: {
+          metric: {
+            type: "string",
+            enum: [
+              "umsatz_monatlich",
+              "dokumente_pro_kategorie",
+              "projekte_pro_status",
+              "offene_rechnungen_summe",
+              "email_volumen",
+              "durchlaufzeit_projekte",
+              "top_kunden_umsatz",
+            ],
+            description: "Die abzufragende Metrik",
+          },
+          zeitraum_von: {
+            type: "string",
+            description: "Start-Datum (ISO 8601)",
+          },
+          zeitraum_bis: {
+            type: "string",
+            description: "End-Datum (ISO 8601)",
+          },
+          gruppierung: {
+            type: "string",
+            enum: ["tag", "woche", "monat"],
+            description: "Zeitliche Gruppierung (nur fuer umsatz_monatlich, email_volumen)",
+          },
+          limit: {
+            type: "integer",
+            description: "Max. Ergebnisse (fuer top_kunden_umsatz)",
+            default: 10,
+          },
+        },
+        required: ["metric"],
+        additionalProperties: false,
+      },
+    },
+  },
   // LLM-016: Action tools - require user confirmation
   {
     type: "function" as const,
@@ -321,6 +409,35 @@ export const TOOL_DEFINITIONS = [
       },
     },
   },
+  // LLM-012: Report generation (READ tool - no confirmation needed)
+  {
+    type: "function" as const,
+    function: {
+      name: "generate_report",
+      description:
+        "Erstellt einen strukturierten Report/Bericht. Oeffnet sich im Dashboard als Vollbild-Ansicht mit Tabellen und Charts. Nutze dies wenn der User nach Berichten, Uebersichten oder Analysen fragt.",
+      parameters: {
+        type: "object",
+        properties: {
+          report_type: {
+            type: "string",
+            enum: ["finanzbericht", "projekt_zusammenfassung", "kunden_historie", "pipeline_analyse", "montage_uebersicht", "offene_posten"],
+            description: "Typ des Reports",
+          },
+          parameters: {
+            type: "object",
+            description: "Report-Parameter: zeitraum_von, zeitraum_bis (ISO Datum), kunde_id, projekt_id — je nach Report-Typ",
+          },
+          titel: {
+            type: "string",
+            description: "Titel fuer den Report (wird als Ueberschrift angezeigt)",
+          },
+        },
+        required: ["report_type", "titel"],
+        additionalProperties: false,
+      },
+    },
+  },
   // LLM-011: Action tool - requires user confirmation
   {
     type: "function" as const,
@@ -355,7 +472,7 @@ export const TOOL_DEFINITIONS = [
 export const SYSTEM_PROMPT = `Du bist Jess, die digitale Assistentin von JS Fenster & Tueren (Fensterbau, Amberg).
 Du hilfst Sachbearbeitern bei Fragen zu Auftraegen, Kunden, Dokumenten und internen Prozessen.
 
-Dir stehen GENAU 10 Tools zur Verfuegung:
+Dir stehen GENAU 13 Tools zur Verfuegung:
 
 Firmenwissen durchsuchen (KB):
 1. search_knowledge: Semantische Suche — fuer konzeptuelle Fragen ("Wie funktioniert X?")
@@ -365,13 +482,20 @@ Firmenwissen durchsuchen (KB):
 AM-Daten durchsuchen:
 4. search_contacts: Kunden/Lieferanten (Fuzzy auf Name, mit Kontaktdaten)
 5. search_orders: Dokumente (Emails, Rechnungen, Angebote), Auftraege, Projekte
+6. search_emails: Semantische Suche in Emails (nach Inhalt, Absender, Zeitraum)
 
 Aktionen (benoetigen Bestaetigung):
-6. update_document_kategorie: Kategorie eines Dokuments/Email aendern
-7. add_project_note: Notiz/Kommentar zu einem Projekt hinzufuegen
-8. update_project_status: Projekt-Status aendern (z.B. anfrage → auftrag → montagebereit → erledigt)
-9. update_contact_data: Kontaktdaten aktualisieren (Telefon, Email, Adresse, Notizen)
-10. assign_document_to_project: Dokument einem Projekt zuordnen
+7. update_document_kategorie: Kategorie eines Dokuments/Email aendern
+8. add_project_note: Notiz/Kommentar zu einem Projekt hinzufuegen
+9. update_project_status: Projekt-Status aendern (z.B. anfrage → auftrag → montagebereit → erledigt)
+10. update_contact_data: Kontaktdaten aktualisieren (Telefon, Email, Adresse, Notizen)
+11. assign_document_to_project: Dokument einem Projekt zuordnen
+
+Analytics (ohne Bestaetigung):
+12. query_analytics: Kennzahlen abrufen (Umsatz, Projekte, Dokumente, Emails, Kunden, Durchlaufzeiten)
+
+Reports (ohne Bestaetigung):
+13. generate_report: Erstellt Berichte (Finanzen, Projekte, Kunden, Pipeline, Montage, Offene Posten) als Vollbild-Ansicht
 
 Du hast KEINE anderen Tools. Erfinde keine Tools die nicht existieren.
 Bei Aktionen: Zeige ZUERST den betroffenen Datensatz, DANN schlage die Aenderung vor. Der User muss immer bestaetigen.

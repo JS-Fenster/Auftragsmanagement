@@ -5,6 +5,7 @@ import { supabaseUrl, supabaseAnonKey } from '../lib/supabase'
 import { useChatContext } from '../lib/chatContext'
 import { getEntityRoute } from '../lib/entityRoutes'
 import ActionConfirmDialog from './ActionConfirmDialog'
+import ReportViewer from './ReportViewer' // LLM-012
 
 const LLM_CHAT_URL = `${supabaseUrl}/functions/v1/llm-chat`
 const ASSISTANT_NAME = 'Jess'
@@ -26,6 +27,7 @@ export default function ChatWidget() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [pendingAction, setPendingAction] = useState(null) // LLM-011
+  const [activeReport, setActiveReport] = useState(null) // LLM-012
   const { context: chatContext } = useChatContext()
   const abortRef = useRef(null)
   const messagesEndRef = useRef(null)
@@ -100,6 +102,7 @@ export default function ChatWidget() {
           role: 'assistant',
           content: data.answer,
           toolCalls: data.tool_calls,
+          report: data.report || null, // LLM-012
         }])
       }
     } catch (err) {
@@ -269,6 +272,16 @@ export default function ChatWidget() {
                   </span>
                 </div>
               )}
+              {msg.report && (
+                <div className="mt-2 pt-2 border-t border-border-default">
+                  <button
+                    onClick={() => setActiveReport(msg.report)}
+                    className="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors bg-brand text-btn-primary-text hover:bg-brand-hover"
+                  >
+                    Report anzeigen
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -291,6 +304,11 @@ export default function ChatWidget() {
 
         <div ref={messagesEndRef} />
       </div>
+
+      {/* LLM-012: Report Viewer */}
+      {activeReport && (
+        <ReportViewer report={activeReport} onClose={() => setActiveReport(null)} />
+      )}
 
       {/* LLM-011: Action Confirmation Dialog */}
       {pendingAction && (

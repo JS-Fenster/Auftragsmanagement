@@ -239,6 +239,105 @@ async function executeTool(
       if (error) throw new Error("assign_document_to_project failed");
       return data;
     }
+    // LLM-013: Semantic email search via Voyage AI embeddings
+    case "search_emails": {
+      const voyageResp = await fetch("https://api.voyageai.com/v1/embeddings", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${Deno.env.get("VOYAGE_API_KEY")}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          input: [args.query as string],
+          model: "voyage-3",
+        }),
+      });
+      if (!voyageResp.ok) throw new Error("Embedding generation failed");
+      const voyageData = await voyageResp.json();
+      const queryEmbedding = voyageData.data[0].embedding;
+
+      const { data, error } = await supabase.rpc("search_emails_semantic", {
+        p_query_embedding: JSON.stringify(queryEmbedding),
+        p_absender: (args.absender as string) || null,
+        p_kategorie: (args.kategorie as string) || null,
+        p_datum_von: (args.datum_von as string) || null,
+        p_datum_bis: (args.datum_bis as string) || null,
+        p_limit: Math.min((args.limit as number) || 10, 50),
+      });
+      if (error) throw new Error("search_emails failed");
+      return data;
+    }
+    // LLM-012: Report generation
+    case "generate_report": {
+      const reportType = args.report_type as string;
+      const params = (args.parameters || {}) as Record<string, unknown>;
+
+      // Map report_type to RPC
+      const rpcMap: Record<string, string> = {
+        finanzbericht: "query_report_finanzen",
+        projekt_zusammenfassung: "query_report_projekt",
+        kunden_historie: "query_report_kunde",
+        pipeline_analyse: "query_report_pipeline",
+        offene_posten: "query_report_offene_posten",
+        montage_uebersicht: "query_report_montage",
+      };
+
+      const rpcName = rpcMap[reportType];
+      if (!rpcName) throw new Error(`Unknown report type: ${reportType}`);
+
+      // Build RPC params based on type
+      const rpcParams: Record<string, unknown> = {};
+      if (params.zeitraum_von) rpcParams.p_von = params.zeitraum_von;
+      if (params.zeitraum_bis) rpcParams.p_bis = params.zeitraum_bis;
+      if (params.projekt_id) rpcParams.p_projekt_id = params.projekt_id;
+      if (params.kunde_id) rpcParams.p_kunde_id = params.kunde_id;
+
+      const { data, error } = await supabase.rpc(rpcName, rpcParams);
+      if (error) throw new Error(`Report RPC ${rpcName} failed`);
+
+      // Upsert template for reuse
+      await supabase.from("jess_report_templates").upsert({
+        report_type: reportType,
+        titel: args.titel as string,
+        parameters: params,
+        use_count: 1,
+        last_used_at: new Date().toISOString(),
+      }, { onConflict: "report_type" }).select();
+
+      return {
+        report_id: crypto.randomUUID(),
+        report_type: reportType,
+        titel: args.titel as string,
+        data,
+      };
+    }
+    // LLM-021: Analytics metrics
+    case "query_analytics": {
+      const metric = args.metric as string;
+
+      const metricRpcMap: Record<string, string> = {
+        umsatz_monatlich: "analytics_umsatz_monatlich",
+        dokumente_pro_kategorie: "analytics_dokumente_pro_kategorie",
+        projekte_pro_status: "analytics_projekte_pro_status",
+        offene_rechnungen_summe: "analytics_offene_rechnungen_summe",
+        email_volumen: "analytics_email_volumen",
+        durchlaufzeit_projekte: "analytics_durchlaufzeit_projekte",
+        top_kunden_umsatz: "analytics_top_kunden_umsatz",
+      };
+
+      const rpcName = metricRpcMap[metric];
+      if (!rpcName) throw new Error(`Unknown metric: ${metric}`);
+
+      const rpcParams: Record<string, unknown> = {};
+      if (args.zeitraum_von) rpcParams.p_von = args.zeitraum_von;
+      if (args.zeitraum_bis) rpcParams.p_bis = args.zeitraum_bis;
+      if (args.gruppierung) rpcParams.p_gruppierung = args.gruppierung;
+      if (args.limit) rpcParams.p_limit = Math.min(args.limit as number, 50);
+
+      const { data, error } = await supabase.rpc(rpcName, rpcParams);
+      if (error) throw new Error(`Analytics RPC ${rpcName} failed`);
+      return data;
+    }
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
@@ -350,9 +449,12 @@ Deno.serve(async (req) => {
 
       // No tool calls — return final answer
       if (choice.finish_reason !== "tool_calls" || !choice.message.tool_calls) {
+        // LLM-012: Include report data if generate_report was called
+        const reportResult = toolCallsLog.find(tc => tc.name === "generate_report");
         return jsonResponse({
           answer: cleanResponse(choice.message.content),
           tool_calls: toolCallsLog,
+          ...(reportResult ? { report: reportResult.result } : {}),
           model: MODEL,
         }, 200, corsHeaders);
       }
@@ -404,10 +506,12 @@ Deno.serve(async (req) => {
 
       // If there are pending actions, return them for user confirmation
       if (pendingActions.length > 0) {
+        const pendingReportResult = toolCallsLog.find(tc => tc.name === "generate_report");
         return jsonResponse({
           answer: null,
           tool_calls: toolCallsLog,
           pending_actions: pendingActions,
+          ...(pendingReportResult ? { report: pendingReportResult.result } : {}),
           model: MODEL,
         }, 200, corsHeaders);
       }
@@ -417,9 +521,12 @@ Deno.serve(async (req) => {
     const finalResponse = await callLLM(
       messages as Array<{ role: string; content: string }>,
     );
+    // LLM-012: Include report data if generate_report was called
+    const reportResult = toolCallsLog.find(tc => tc.name === "generate_report");
     return jsonResponse({
       answer: cleanResponse(finalResponse.choices[0].message.content),
       tool_calls: toolCallsLog,
+      ...(reportResult ? { report: reportResult.result } : {}),
       model: MODEL,
     }, 200, corsHeaders);
   } catch (err) {
