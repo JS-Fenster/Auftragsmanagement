@@ -20,8 +20,8 @@ import {
 
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
-const MODEL = "gpt-5.2"; // GPT-5.x: no temperature/top_p/max_tokens
-const REASONING_EFFORT = "low"; // "high"/"medium" leak reasoning, omitting causes newline garbage
+const MODEL = "gpt-5.4"; // GPT-5.x: no temperature/top_p/max_tokens
+const REASONING_EFFORT = "low"; // Testing 5.4 with low reasoning
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
