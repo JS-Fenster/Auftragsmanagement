@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useMemo } from 'react'
+import { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
 
 const ChatContext = createContext(null)
@@ -90,10 +90,10 @@ export function ChatContextProvider({ children }) {
     ...(entity || {}),
   }), [routeContext, entity])
 
-  const setChatEntity = (details) => {
+  const setChatEntity = useCallback((details) => {
     // details: { entity_name?, kunde_id?, kunde_name? }
     setEntity(details)
-  }
+  }, [])
 
   return (
     <ChatContext.Provider value={{ context, setChatEntity }}>
