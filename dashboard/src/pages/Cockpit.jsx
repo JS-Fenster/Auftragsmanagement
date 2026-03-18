@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Phone, Mail, AlertTriangle, ArrowRight, FileText, Package,
   CheckCircle, Clock, TrendingUp, Users, Calendar, Euro,
-  ArrowUpRight, ArrowDownLeft
+  ArrowUpRight, ArrowDownLeft, FileCheck
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { PROJEKT_STATUS, MONTAGE_TEAMS } from '../lib/constants'
@@ -171,6 +171,7 @@ export default function Cockpit() {
   const [montagen, setMontagen] = useState([])
   const [historie, setHistorie] = useState([])
   const [finanzKpis, setFinanzKpis] = useState(null)
+  const [belegeKpis, setBelegeKpis] = useState(null)
   const [loading, setLoading] = useState(true)
 
   const loadData = useCallback(async () => {
@@ -178,7 +179,7 @@ export default function Cockpit() {
     try {
       const today = new Date().toISOString().split('T')[0]
 
-      const [projekteRes, montagenRes, historieRes, offArRes, offErRes, bestRes] = await Promise.all([
+      const [projekteRes, montagenRes, historieRes, offArRes, offErRes, bestRes, belegeRes] = await Promise.all([
         supabase
           .from('projekte')
           .select('*, kontakte!projekte_kontakt_id_fkey(id, firma1, firma2, ort, kontakt_personen!kontakt_personen_kontakt_id_fkey(vorname, nachname, ist_hauptkontakt))')
@@ -196,6 +197,7 @@ export default function Cockpit() {
         supabase.from('v_offene_ausgangsrechnungen').select('offener_betrag, ueberfaellig_tage'),
         supabase.from('v_offene_eingangsrechnungen').select('offener_betrag, skonto_moeglich'),
         supabase.from('projekt_bestellungen').select('status, liefertermin_geplant, bestell_wert').not('status', 'in', '("geliefert","storniert")'),
+        supabase.from('belege').select('beleg_typ, status, brutto_summe'),
       ])
 
       if (projekteRes.data) setProjekte(projekteRes.data)
@@ -214,6 +216,20 @@ export default function Cockpit() {
         aktiveBest: best.length,
         bestWert: best.reduce((s, b) => s + (b.bestell_wert || 0), 0),
         ueberfaelligBest: best.filter(b => b.liefertermin_geplant && new Date(b.liefertermin_geplant) < new Date()).length,
+      })
+
+      // Belege-KPIs berechnen
+      const allBelege = belegeRes.data || []
+      const entwuerfe = allBelege.filter(b => b.status === 'entwurf').length
+      const offeneAngebote = allBelege.filter(b => b.beleg_typ === 'angebot' && ['freigegeben', 'versendet'].includes(b.status))
+      const rechnungsTypen = ['rechnung', 'abschlagsrechnung', 'schlussrechnung']
+      const unbezahlteRechnungen = allBelege.filter(b => rechnungsTypen.includes(b.beleg_typ) && !['bezahlt', 'storniert', 'entwurf'].includes(b.status))
+      setBelegeKpis({
+        entwuerfe,
+        offeneAngeboteCount: offeneAngebote.length,
+        offeneAngeboteWert: offeneAngebote.reduce((s, b) => s + (b.brutto_summe || 0), 0),
+        unbezahltCount: unbezahlteRechnungen.length,
+        unbezahltWert: unbezahlteRechnungen.reduce((s, b) => s + (b.brutto_summe || 0), 0),
       })
     } catch (err) {
       console.error('Cockpit loadData error:', err)
@@ -445,7 +461,54 @@ export default function Cockpit() {
         </section>
       )}
 
-      {/* Sektion 5: Letzte Aktivitaet */}
+      {/* Sektion 5: Belege */}
+      {belegeKpis && (
+        <section>
+          <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-2">
+            <FileCheck size={14} />
+            Belege
+          </h2>
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+            <div
+              onClick={() => navigate('/belege')}
+              className="bg-surface-card rounded-lg shadow-sm border border-border-default p-3 cursor-pointer hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <FileText size={14} className="text-gray-400" />
+                <span className="text-xs text-text-secondary">Entwuerfe</span>
+              </div>
+              <p className="text-lg font-bold text-text-primary">{belegeKpis.entwuerfe}</p>
+              <p className="text-xs text-text-muted mt-0.5">Noch nicht freigegeben</p>
+            </div>
+            <div
+              onClick={() => navigate('/belege')}
+              className="bg-surface-card rounded-lg shadow-sm border border-border-default p-3 cursor-pointer hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <FileText size={14} className="text-purple-500" />
+                <span className="text-xs text-text-secondary">Offene Angebote</span>
+              </div>
+              <p className="text-lg font-bold text-text-primary">{belegeKpis.offeneAngeboteCount}</p>
+              <p className="text-xs text-text-muted mt-0.5">{formatEuro(belegeKpis.offeneAngeboteWert)}</p>
+            </div>
+            <div
+              onClick={() => navigate('/belege')}
+              className={`rounded-lg shadow-sm border p-3 cursor-pointer hover:shadow-md transition-shadow ${
+                belegeKpis.unbezahltCount > 0 ? 'bg-amber-50 border-amber-200' : 'bg-surface-card border-border-default'
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <Euro size={14} className="text-amber-500" />
+                <span className="text-xs text-text-secondary">Unbezahlte Rechnungen</span>
+              </div>
+              <p className="text-lg font-bold text-text-primary">{belegeKpis.unbezahltCount}</p>
+              <p className="text-xs text-text-muted mt-0.5">{formatEuro(belegeKpis.unbezahltWert)}</p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Sektion 6: Letzte Aktivitaet */}
       <section>
         <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-2">
           <Clock size={14} />

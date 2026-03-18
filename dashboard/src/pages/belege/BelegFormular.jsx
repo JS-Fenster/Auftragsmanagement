@@ -7,6 +7,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Save, Loader2, Search, X, ChevronDown } from 'lucide-react'
 import BelegPositionenEditor from './BelegPositionenEditor'
+import BelegZahlungen from './BelegZahlungen'
 import { KundenSuchModal } from '../budgetangebot/KundenSuche'
 import {
   BELEG_TYPEN, BELEG_STATUS, BELEG_EINHEITEN, MWST_OPTIONEN, MWST_STANDARD,
@@ -400,6 +401,22 @@ export default function BelegFormular({ beleg, positionen: initialPositionen, on
                 />
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Zahlungseingaenge (nur bei Rechnungstypen, gespeichert, nicht Entwurf) */}
+      {isRechnungstyp && formData.id && formData.status !== 'entwurf' && (
+        <div className="bg-surface-card rounded-lg shadow-sm border border-border-default">
+          <div className="px-5 py-3 border-b border-border-default">
+            <h2 className="font-semibold text-text-primary">Zahlungseingaenge</h2>
+          </div>
+          <div className="p-5">
+            <BelegZahlungen
+              belegId={formData.id}
+              bruttoSumme={summen.brutto_summe}
+              status={formData.status}
+            />
           </div>
         </div>
       )}

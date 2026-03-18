@@ -99,6 +99,15 @@ export const DEFAULT_TEXTE = {
   },
 }
 
+// ── Zahlungsarten ─────────────────────────────────────────────
+
+export const ZAHLUNGSARTEN = [
+  { value: 'ueberweisung', label: 'Ueberweisung' },
+  { value: 'bar', label: 'Barzahlung' },
+  { value: 'scheck', label: 'Scheck' },
+  { value: 'lastschrift', label: 'Lastschrift' },
+]
+
 // ── MwSt ────────────────────────────────────────────────────
 
 export const MWST_STANDARD = 19.00

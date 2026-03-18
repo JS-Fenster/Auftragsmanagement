@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Euro, TrendingUp, TrendingDown, AlertTriangle, Search, Filter, X,
-  RefreshCw, FileText, Download, ArrowUpRight, ArrowDownLeft, Clock
+  RefreshCw, FileText, Download, ArrowUpRight, ArrowDownLeft, Clock, Bell
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
@@ -68,13 +68,14 @@ export default function Finanzen() {
   const [rechnungenAR, setRechnungenAR] = useState([])
   const [offeneAR, setOffeneAR] = useState([])
   const [offeneER, setOffeneER] = useState([])
+  const [faelligeBelege, setFaelligeBelege] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
 
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const [arRes, kundenRes, raRes, offArRes, offErRes] = await Promise.all([
+      const [arRes, kundenRes, raRes, offArRes, offErRes, faelligeRes] = await Promise.all([
         // Ausgangsrechnungen
         supabase
           .from('erp_rechnungen')
@@ -99,6 +100,11 @@ export default function Finanzen() {
           .from('v_offene_eingangsrechnungen')
           .select('*')
           .order('faellig_am', { ascending: true }),
+        // Faellige Belege (Mahnwesen)
+        supabase
+          .from('v_faellige_belege')
+          .select('*')
+          .order('ueberfaellig_tage', { ascending: false }),
       ])
 
       // JS-Join: Kunden + RA auf Rechnungen mappen
@@ -115,6 +121,7 @@ export default function Finanzen() {
       setRechnungenAR(enriched)
       if (offArRes.data) setOffeneAR(offArRes.data)
       if (offErRes.data) setOffeneER(offErRes.data)
+      if (faelligeRes.data) setFaelligeBelege(faelligeRes.data)
     } catch (err) {
       console.error('Finanzen loadData error:', err)
     } finally {
@@ -220,6 +227,7 @@ export default function Finanzen() {
     { key: 'ausgang', label: 'Ausgangsrechnungen', icon: ArrowUpRight, count: rechnungenAR.length },
     { key: 'offenAR', label: 'Offene Posten AR', icon: Clock, count: offeneAR.length },
     { key: 'offenER', label: 'Offene Posten ER', icon: ArrowDownLeft, count: offeneER.length },
+    { key: 'mahnungen', label: 'Mahnungen', icon: Bell, count: faelligeBelege.length },
   ]
 
   if (loading) {
@@ -504,6 +512,85 @@ export default function Finanzen() {
             </table>
             {filteredOffeneER.length === 0 && (
               <div className="text-center py-10 text-text-muted text-sm">Keine offenen Eingangsrechnungen</div>
+            )}
+          </div>
+        )}
+
+        {/* Table: Mahnungen */}
+        {tab === 'mahnungen' && (
+          <div className="bg-surface-card rounded-lg shadow-sm border overflow-x-auto">
+            {faelligeBelege.length > 0 && (
+              <div className="px-4 py-3 border-b bg-amber-50 flex items-center gap-2">
+                <Bell size={16} className="text-amber-600" />
+                <span className="text-sm font-medium text-amber-700">
+                  {faelligeBelege.length} faellige Beleg{faelligeBelege.length !== 1 ? 'e' : ''} —
+                  Summe: {formatCurrency(faelligeBelege.reduce((s, b) => s + (b.restbetrag || 0), 0))}
+                </span>
+              </div>
+            )}
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-surface-main">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase">Beleg-Nr.</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase">Typ</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase">Empfaenger</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-text-secondary uppercase">Restbetrag</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase">Faellig am</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase">Ueberfaellig</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase">Mahnstufe</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase">Aktion</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {faelligeBelege.map(b => {
+                  const stufeColors = { 0: 'bg-gray-100 text-gray-700', 1: 'bg-yellow-100 text-yellow-800', 2: 'bg-orange-100 text-orange-800', 3: 'bg-red-100 text-red-800' }
+                  const stufeColor = stufeColors[b.mahnstufe] || stufeColors[3]
+                  return (
+                    <tr key={b.id} className={`hover:bg-surface-main transition-colors ${b.mahnstufe >= 2 ? 'bg-red-50/20' : ''}`}>
+                      <td className="px-4 py-3 text-sm font-mono text-text-secondary">{b.beleg_nummer}</td>
+                      <td className="px-4 py-3 text-sm text-text-secondary capitalize">{b.beleg_typ}</td>
+                      <td className="px-4 py-3 text-sm text-text-primary font-medium truncate max-w-[200px]">
+                        {b.empfaenger_firma || b.empfaenger_name || '-'}
+                      </td>
+                      <td className="px-4 py-3 text-sm font-medium text-right text-red-600">{formatCurrency(b.restbetrag)}</td>
+                      <td className="px-4 py-3 text-sm text-text-secondary">{formatDate(b.faellig_am)}</td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                          {b.ueberfaellig_tage} Tage
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${stufeColor}`}>
+                          Stufe {b.mahnstufe}
+                        </span>
+                        {b.letzte_mahnung_am && (
+                          <span className="text-xs text-text-muted ml-1">({formatDate(b.letzte_mahnung_am)})</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {b.mahnstufe < 3 && (
+                          <button
+                            onClick={async () => {
+                              const neueStufe = (b.mahnstufe || 0) + 1
+                              const { error } = await supabase
+                                .from('belege')
+                                .update({ mahnstufe: neueStufe, letzte_mahnung_am: new Date().toISOString().split('T')[0] })
+                                .eq('id', b.id)
+                              if (!error) loadData()
+                            }}
+                            className="text-xs px-2 py-1 rounded bg-amber-500 text-white hover:bg-amber-600 transition-colors font-medium"
+                          >
+                            Stufe {(b.mahnstufe || 0) + 1}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+            {faelligeBelege.length === 0 && (
+              <div className="text-center py-10 text-text-muted text-sm">Keine faelligen Belege — alles im Zeitplan</div>
             )}
           </div>
         )}
