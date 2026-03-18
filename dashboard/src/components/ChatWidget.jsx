@@ -146,6 +146,8 @@ export default function ChatWidget() {
           content: data.answer || 'Aktion ausgefuehrt.',
           toolCalls: data.tool_calls,
         }])
+        // Refresh current page data after successful action
+        window.dispatchEvent(new CustomEvent('jess-action-completed'))
       }
     } catch (err) {
       setPendingAction(null)
@@ -489,7 +491,7 @@ function FormattedMessage({ content, navigate }) {
 
     // End of table
     if (inTable) {
-      elements.push(<SimpleTable key={`table-${i}`} rows={tableRows} />)
+      elements.push(<SimpleTable key={`table-${i}`} rows={tableRows} navigate={navigate} />)
       inTable = false
       tableRows = []
     }
@@ -543,13 +545,13 @@ function FormattedMessage({ content, navigate }) {
 
   // Flush remaining table
   if (inTable && tableRows.length > 0) {
-    elements.push(<SimpleTable key="table-end" rows={tableRows} />)
+    elements.push(<SimpleTable key="table-end" rows={tableRows} navigate={navigate} />)
   }
 
   return <div className="space-y-0.5">{elements}</div>
 }
 
-function SimpleTable({ rows }) {
+function SimpleTable({ rows, navigate }) {
   if (rows.length === 0) return null
   const [header, ...body] = rows
 
@@ -560,7 +562,7 @@ function SimpleTable({ rows }) {
           <tr>
             {header.map((cell, i) => (
               <th key={i} className="border border-border-default bg-surface-main px-2 py-1 text-left font-medium">
-                {cell}
+                {formatInline(cell, `th${i}`, navigate)}
               </th>
             ))}
           </tr>
@@ -570,7 +572,7 @@ function SimpleTable({ rows }) {
             <tr key={i}>
               {row.map((cell, j) => (
                 <td key={j} className="border border-border-default px-2 py-1">
-                  {cell}
+                  {formatInline(cell, `r${i}c${j}`, navigate)}
                 </td>
               ))}
             </tr>

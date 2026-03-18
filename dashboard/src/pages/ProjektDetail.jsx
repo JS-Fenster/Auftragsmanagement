@@ -140,6 +140,13 @@ export default function ProjektDetail() {
 
   useEffect(() => { loadProjekt() }, [loadProjekt])
 
+  // Refresh when Jess completes an action (e.g. status change, note added)
+  useEffect(() => {
+    const handler = () => loadProjekt()
+    window.addEventListener('jess-action-completed', handler)
+    return () => window.removeEventListener('jess-action-completed', handler)
+  }, [loadProjekt])
+
   // A-003: Gate-Check wenn Dokumente sich aendern
   useEffect(() => {
     if (!projekt) return
