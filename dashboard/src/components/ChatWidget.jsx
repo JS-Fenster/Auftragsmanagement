@@ -86,15 +86,19 @@ export default function ChatWidget() {
       if (data.error) {
         setMessages(prev => [...prev, { role: 'assistant', content: `Fehler: ${data.error}`, isError: true }])
       } else if (data.pending_actions && data.pending_actions.length > 0) {
-        // LLM-011: Action requires confirmation
+        // LLM-011: Action requires confirmation — enrich args with context display name
         const action = data.pending_actions[0]
+        const enrichedArgs = { ...action.args }
+        if (chatContext?.entity_name && (enrichedArgs.projekt_id || enrichedArgs.kontakt_id || enrichedArgs.document_id)) {
+          enrichedArgs._display_name = chatContext.entity_name
+        }
         setPendingAction({
           originalMessage: text,
           toolCallId: action.tool_call_id,
           name: action.name,
-          args: action.args,
-          description: formatActionDescription(action.name, action.args),
-          details: formatActionDetails(action.name, action.args),
+          args: enrichedArgs,
+          description: formatActionDescription(action.name, enrichedArgs),
+          details: formatActionDetails(action.name, enrichedArgs),
           readToolCalls: data.tool_calls,
         })
       } else {
@@ -375,19 +379,19 @@ function formatActionDetails(name, args) {
       ]
     case 'add_project_note':
       return [
-        { label: 'Projekt-ID', value: (args.projekt_id || '').substring(0, 8) + '...' },
+        { label: 'Projekt', value: args._display_name || (args.projekt_id || '').substring(0, 8) + '...' },
         { label: 'Typ', value: args.typ || 'notiz' },
         { label: 'Text', value: args.text || '—' },
       ]
     case 'update_project_status':
       return [
-        { label: 'Projekt-ID', value: (args.projekt_id || '').substring(0, 8) + '...' },
+        { label: 'Projekt', value: args._display_name || (args.projekt_id || '').substring(0, 8) + '...' },
         { label: 'Neuer Status', value: (args.neuer_status || '').replace(/_/g, ' ') },
         ...(args.kommentar ? [{ label: 'Kommentar', value: args.kommentar }] : []),
       ]
     case 'update_contact_data':
       return [
-        { label: 'Kontakt-ID', value: (args.kontakt_id || '').substring(0, 8) + '...' },
+        { label: 'Kontakt', value: args._display_name || (args.kontakt_id || '').substring(0, 8) + '...' },
         { label: 'Feld', value: (args.field || '').replace(/_/g, ' ') },
         { label: 'Neuer Wert', value: args.value || '—' },
       ]
