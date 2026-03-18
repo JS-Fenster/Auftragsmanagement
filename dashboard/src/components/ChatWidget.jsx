@@ -78,6 +78,7 @@ export default function ChatWidget() {
     const userMsg = { role: 'user', content: text }
     setMessages(prev => [...prev, userMsg])
     setInput('')
+    if (inputRef.current) inputRef.current.style.height = 'auto'
     setLoading(true)
 
     try {
@@ -331,11 +332,17 @@ export default function ChatWidget() {
           <textarea
             ref={inputRef}
             value={input}
-            onChange={e => setInput(e.target.value)}
+            onChange={e => {
+              setInput(e.target.value)
+              // Auto-resize: reset then grow to scrollHeight, cap at max
+              e.target.style.height = 'auto'
+              e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px'
+            }}
             onKeyDown={handleKeyDown}
             placeholder="Frage eingeben..."
             rows={1}
-            className="flex-1 resize-none border border-border-default rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand max-h-20"
+            className="flex-1 resize-none border border-border-default rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand overflow-y-auto"
+            style={{ maxHeight: '160px' }}
             disabled={loading}
           />
           <button
