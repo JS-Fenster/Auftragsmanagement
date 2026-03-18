@@ -141,6 +141,104 @@ async function executeTool(
       if (error) throw new Error("update_document_kategorie failed");
       return data;
     }
+    // LLM-016: New action tools
+    case "add_project_note": {
+      const { data, error } = await supabase
+        .from("projekt_historie")
+        .insert({
+          projekt_id: args.projekt_id as string,
+          aktion: args.typ as string,
+          neuer_wert: args.text as string,
+          erstellt_von: "jess-assistant",
+        })
+        .select("id, projekt_id, aktion, neuer_wert, erstellt_am")
+        .single();
+      if (error) throw new Error("add_project_note failed");
+      return data;
+    }
+    case "update_project_status": {
+      const { data, error } = await supabase.rpc("update_projekt_status", {
+        p_projekt_id: args.projekt_id as string,
+        p_neuer_status: args.neuer_status as string,
+        p_kommentar: (args.kommentar as string) || null,
+      });
+      if (error) throw new Error("update_project_status failed");
+      return data;
+    }
+    case "update_contact_data": {
+      const field = args.field as string;
+      const value = args.value as string;
+      const kontaktId = args.kontakt_id as string;
+
+      if (field === "telefon" || field === "email") {
+        // Update or insert in kontakt_details via the primary contact person
+        const { data: person } = await supabase
+          .from("kontakt_personen")
+          .select("id")
+          .eq("kontakt_id", kontaktId)
+          .eq("ist_hauptkontakt", true)
+          .single();
+
+        if (!person) throw new Error("Hauptkontakt-Person nicht gefunden");
+
+        const detailTyp = field === "telefon" ? "telefon" : "email";
+        // Check if primary detail exists
+        const { data: existing } = await supabase
+          .from("kontakt_details")
+          .select("id")
+          .eq("kontakt_person_id", person.id)
+          .eq("typ", detailTyp)
+          .eq("ist_primaer", true)
+          .maybeSingle();
+
+        if (existing) {
+          const { error } = await supabase
+            .from("kontakt_details")
+            .update({ wert: value })
+            .eq("id", existing.id);
+          if (error) throw new Error("update_contact_data failed");
+        } else {
+          const { error } = await supabase
+            .from("kontakt_details")
+            .insert({
+              kontakt_person_id: person.id,
+              typ: detailTyp,
+              wert: value,
+              ist_primaer: true,
+            });
+          if (error) throw new Error("update_contact_data insert failed");
+        }
+        return { kontakt_id: kontaktId, field, value, updated: true };
+      } else if (field === "adresse") {
+        // Update address on kontakte table
+        const { error } = await supabase
+          .from("kontakte")
+          .update({ strasse: value })
+          .eq("id", kontaktId);
+        if (error) throw new Error("update_contact_data address failed");
+        return { kontakt_id: kontaktId, field, value, updated: true };
+      } else if (field === "notizen") {
+        const { error } = await supabase
+          .from("kontakte")
+          .update({ notiz: value })
+          .eq("id", kontaktId);
+        if (error) throw new Error("update_contact_data notes failed");
+        return { kontakt_id: kontaktId, field, value, updated: true };
+      }
+      throw new Error(`Unknown contact field: ${field}`);
+    }
+    case "assign_document_to_project": {
+      const { data, error } = await supabase
+        .from("projekt_dokumente")
+        .insert({
+          projekt_id: args.projekt_id as string,
+          document_id: args.document_id as string,
+        })
+        .select("id, projekt_id, document_id")
+        .single();
+      if (error) throw new Error("assign_document_to_project failed");
+      return data;
+    }
     default:
       throw new Error(`Unknown tool: ${name}`);
   }

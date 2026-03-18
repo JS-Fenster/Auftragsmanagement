@@ -332,6 +332,14 @@ function formatActionDescription(name, args) {
   switch (name) {
     case 'update_document_kategorie':
       return `Kategorie aendern auf "${(args.neue_kategorie || '').replace(/_/g, ' ')}"`
+    case 'add_project_note':
+      return `Notiz zum Projekt hinzufuegen`
+    case 'update_project_status':
+      return `Projekt-Status aendern auf "${(args.neuer_status || '').replace(/_/g, ' ')}"`
+    case 'update_contact_data':
+      return `Kontaktdaten aktualisieren: ${(args.field || '').replace(/_/g, ' ')}`
+    case 'assign_document_to_project':
+      return `Dokument einem Projekt zuordnen`
     default:
       return `Aktion: ${name}`
   }
@@ -344,6 +352,29 @@ function formatActionDetails(name, args) {
         { label: 'Dokument-ID', value: (args.document_id || '').substring(0, 8) + '...' },
         { label: 'Neue Kategorie', value: (args.neue_kategorie || '').replace(/_/g, ' ') },
         { label: 'Grund', value: args.grund || '—' },
+      ]
+    case 'add_project_note':
+      return [
+        { label: 'Projekt-ID', value: (args.projekt_id || '').substring(0, 8) + '...' },
+        { label: 'Typ', value: args.typ || 'notiz' },
+        { label: 'Text', value: args.text || '—' },
+      ]
+    case 'update_project_status':
+      return [
+        { label: 'Projekt-ID', value: (args.projekt_id || '').substring(0, 8) + '...' },
+        { label: 'Neuer Status', value: (args.neuer_status || '').replace(/_/g, ' ') },
+        ...(args.kommentar ? [{ label: 'Kommentar', value: args.kommentar }] : []),
+      ]
+    case 'update_contact_data':
+      return [
+        { label: 'Kontakt-ID', value: (args.kontakt_id || '').substring(0, 8) + '...' },
+        { label: 'Feld', value: (args.field || '').replace(/_/g, ' ') },
+        { label: 'Neuer Wert', value: args.value || '—' },
+      ]
+    case 'assign_document_to_project':
+      return [
+        { label: 'Dokument-ID', value: (args.document_id || '').substring(0, 8) + '...' },
+        { label: 'Projekt-ID', value: (args.projekt_id || '').substring(0, 8) + '...' },
       ]
     default:
       return Object.entries(args || {}).map(([k, v]) => ({

@@ -8,6 +8,10 @@
 // Names of tools that require user confirmation before execution
 export const ACTION_TOOLS = new Set([
   "update_document_kategorie",
+  "add_project_note",
+  "update_project_status",
+  "update_contact_data",
+  "assign_document_to_project",
 ]);
 
 export const TOOL_DEFINITIONS = [
@@ -205,6 +209,118 @@ export const TOOL_DEFINITIONS = [
       },
     },
   },
+  // LLM-016: Action tools - require user confirmation
+  {
+    type: "function" as const,
+    function: {
+      name: "add_project_note",
+      description:
+        "Fuegt eine Notiz/Kommentar zu einem Projekt hinzu. ACHTUNG: Schreibt echte Daten! Nur wenn der User explizit darum bittet.",
+      parameters: {
+        type: "object",
+        properties: {
+          projekt_id: {
+            type: "string",
+            description: "UUID des Projekts",
+          },
+          text: {
+            type: "string",
+            description: "Inhalt der Notiz",
+          },
+          typ: {
+            type: "string",
+            enum: ["notiz", "intern", "kunde"],
+            description: "Art der Notiz: allgemeine Notiz, interner Vermerk, oder Kunden-Kommunikation",
+          },
+        },
+        required: ["projekt_id", "text", "typ"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "update_project_status",
+      description:
+        "Aendert den Status eines Projekts (z.B. auf 'in Montage', 'erledigt'). Aktualisiert automatisch das zugehoerige Datum und erstellt einen Historie-Eintrag.",
+      parameters: {
+        type: "object",
+        properties: {
+          projekt_id: {
+            type: "string",
+            description: "UUID des Projekts",
+          },
+          neuer_status: {
+            type: "string",
+            enum: [
+              "anfrage", "angebot", "auftrag", "bestellt", "ab_erhalten",
+              "lieferung_geplant", "montagebereit", "abnahme", "rechnung",
+              "bezahlt", "erledigt", "reklamation", "storniert", "pausiert",
+            ],
+            description: "Neuer Projekt-Status",
+          },
+          kommentar: {
+            type: "string",
+            description: "Optionaler Kommentar zur Status-Aenderung",
+          },
+        },
+        required: ["projekt_id", "neuer_status"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "update_contact_data",
+      description:
+        "Aktualisiert Kontaktdaten eines Kunden/Lieferanten (Telefon, Email, Adresse oder Notizen). ACHTUNG: Aendert echte Daten!",
+      parameters: {
+        type: "object",
+        properties: {
+          kontakt_id: {
+            type: "string",
+            description: "UUID des Kontakts",
+          },
+          field: {
+            type: "string",
+            enum: ["telefon", "email", "adresse", "notizen"],
+            description: "Welches Feld geaendert werden soll",
+          },
+          value: {
+            type: "string",
+            description: "Neuer Wert fuer das Feld",
+          },
+        },
+        required: ["kontakt_id", "field", "value"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "assign_document_to_project",
+      description:
+        "Ordnet ein Dokument einem Projekt zu (erstellt Verknuepfung in projekt_dokumente). Nuetzlich wenn ein Dokument noch keinem Projekt zugeordnet ist.",
+      parameters: {
+        type: "object",
+        properties: {
+          document_id: {
+            type: "string",
+            description: "UUID des Dokuments",
+          },
+          projekt_id: {
+            type: "string",
+            description: "UUID des Projekts dem das Dokument zugeordnet werden soll",
+          },
+        },
+        required: ["document_id", "projekt_id"],
+        additionalProperties: false,
+      },
+    },
+  },
   // LLM-011: Action tool - requires user confirmation
   {
     type: "function" as const,
@@ -239,7 +355,7 @@ export const TOOL_DEFINITIONS = [
 export const SYSTEM_PROMPT = `Du bist Jess, die digitale Assistentin von JS Fenster & Tueren (Fensterbau, Amberg).
 Du hilfst Sachbearbeitern bei Fragen zu Auftraegen, Kunden, Dokumenten und internen Prozessen.
 
-Dir stehen GENAU 6 Tools zur Verfuegung:
+Dir stehen GENAU 10 Tools zur Verfuegung:
 
 Firmenwissen durchsuchen (KB):
 1. search_knowledge: Semantische Suche — fuer konzeptuelle Fragen ("Wie funktioniert X?")
@@ -252,9 +368,13 @@ AM-Daten durchsuchen:
 
 Aktionen (benoetigen Bestaetigung):
 6. update_document_kategorie: Kategorie eines Dokuments/Email aendern
+7. add_project_note: Notiz/Kommentar zu einem Projekt hinzufuegen
+8. update_project_status: Projekt-Status aendern (z.B. anfrage → auftrag → montagebereit → erledigt)
+9. update_contact_data: Kontaktdaten aktualisieren (Telefon, Email, Adresse, Notizen)
+10. assign_document_to_project: Dokument einem Projekt zuordnen
 
 Du hast KEINE anderen Tools. Erfinde keine Tools die nicht existieren.
-Bei Aktionen: Zeige ZUERST das betroffene Dokument, DANN schlage die Aenderung vor.
+Bei Aktionen: Zeige ZUERST den betroffenen Datensatz, DANN schlage die Aenderung vor. Der User muss immer bestaetigen.
 Waehle das KB-Tool je nach Frage-Typ: keyword fuer exakte Begriffe, semantic fuer Konzepte, hybrid fuer beides.
 
 ## Dashboard-Kontext
