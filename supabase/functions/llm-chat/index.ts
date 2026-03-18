@@ -143,12 +143,30 @@ async function executeTool(
     }
     // LLM-016: New action tools
     case "add_project_note": {
+      const projektId = args.projekt_id as string;
+      const noteText = args.text as string;
+      const timestamp = new Date().toLocaleString("de-DE", { timeZone: "Europe/Berlin" });
+
+      // Append to projekte.notizen field (same pattern as Dashboard UI)
+      const { data: projekt } = await supabase
+        .from("projekte")
+        .select("notizen")
+        .eq("id", projektId)
+        .single();
+      const existing = projekt?.notizen || "";
+      const updated = existing
+        ? `${existing}\n\n[${timestamp} - Jess]\n${noteText}`
+        : `[${timestamp} - Jess]\n${noteText}`;
+      await supabase.from("projekte").update({ notizen: updated }).eq("id", projektId);
+
+      // Also create historie entry for timeline
       const { data, error } = await supabase
         .from("projekt_historie")
         .insert({
-          projekt_id: args.projekt_id as string,
-          aktion: args.typ as string,
-          neuer_wert: args.text as string,
+          projekt_id: projektId,
+          aktion: "notiz",
+          feld: "notizen",
+          neuer_wert: noteText,
           erstellt_von: "jess-assistant",
         })
         .select("id, projekt_id, aktion, neuer_wert, erstellt_am")
