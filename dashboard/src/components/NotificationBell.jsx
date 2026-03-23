@@ -50,8 +50,21 @@ export default function NotificationBell() {
 
   useEffect(() => {
     fetchNotifications()
+
+    // Realtime subscription for instant updates
+    const channel = supabase
+      .channel('notifications-realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
+        setNotifications(prev => [payload.new, ...prev].slice(0, 50))
+      })
+      .subscribe()
+
+    // Fallback polling every 60s
     const interval = setInterval(fetchNotifications, 60000)
-    return () => clearInterval(interval)
+    return () => {
+      clearInterval(interval)
+      supabase.removeChannel(channel)
+    }
   }, [fetchNotifications])
 
   // Close on click outside
