@@ -8,8 +8,9 @@
 // Checks:
 // 1. Email subscription expiry (< 24h remaining)
 // 2. Stale email pipeline (no emails processed in 4+ hours during business hours)
-// 3. Edge function error rate (from Supabase logs — future)
-// 4. Unprocessed email queue depth
+// 3. Unprocessed email queue depth
+// 4. Classification quality (Sonstiges rate)
+// 5. Inactive email subscriptions
 // =============================================================================
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -154,6 +155,32 @@ async function checkClassificationQuality(): Promise<void> {
   }
 }
 
+// Check 5: Inactive email subscriptions (should never happen unnoticed)
+async function checkInactiveSubscriptions(): Promise<number> {
+  const { data, error } = await supabase
+    .from("email_subscriptions")
+    .select("id, postfach")
+    .eq("active", false);
+
+  if (error || !data || data.length === 0) return 0;
+
+  const postfaecher = data.map((s) => s.postfach).join(", ");
+  await notify({
+    type: "error",
+    severity: "critical",
+    source: "system_health",
+    title: `${data.length} E-Mail Subscription(s) inaktiv`,
+    body: `Postfaecher: ${postfaecher}. Es kommen keine E-Mails mehr rein fuer diese Postfaecher.`,
+    metadata: {
+      check: "inactive_subscriptions",
+      count: data.length,
+      postfaecher: data.map((s) => s.postfach),
+    },
+  });
+
+  return data.length;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204 });
@@ -172,6 +199,7 @@ Deno.serve(async (req: Request) => {
     results.stale_pipeline = await checkStalePipeline();
     results.email_queue = await checkEmailQueue();
     await checkClassificationQuality();
+    results.inactive_subscriptions = await checkInactiveSubscriptions();
     results.status = "ok";
   } catch (err) {
     results.status = "error";

@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { notify } from "../_shared/notify.ts";
 
 /**
  * Telegram Bot Edge Function - JS Fenster Fotobot
@@ -286,6 +287,7 @@ async function finishAuftrag(chatId: number, user: TelegramUser, auftragData: Au
 
   if (error) {
     console.error("Auftrag insert error:", error);
+    await notify({ type: 'error', severity: 'critical', source: 'edge_function', title: 'Telegram-Bot: Auftrag nicht gespeichert', body: `Insert fehlgeschlagen: ${error.message}` });
     await sendWithMenu(chatId, `Fehler beim Anlegen: ${error.message}`);
   } else {
     const kundeLabel = auftragData.kunde_kategorie === "NEUKUNDE" ? auftragData.name : "Bestandskunde";
@@ -339,7 +341,7 @@ async function handleKundeCallback(chatId: number, user: TelegramUser, data: str
     const insertData: Record<string, unknown> = { kundentyp: kundeData.kundentyp || "Privat", telefon: kundeData.telefon, email: kundeData.email, strasse: kundeData.strasse, plz: kundeData.plz, ort: kundeData.ort, erstellt_via: "telegram", telegram_chat_id: chatId };
     if (kundeData.kundentyp === "Gewerbe" || kundeData.kundentyp === "Oeffentlich") { insertData.firma = kundeData.firma; } else { insertData.vorname = kundeData.vorname; insertData.name = kundeData.name; }
     const { data: newKunde, error } = await supabase.from("manuelle_kunden").insert(insertData).select("id").single();
-    if (error) { await sendWithMenu(chatId, `Fehler beim Anlegen: ${error.message}`); } else {
+    if (error) { await notify({ type: 'error', severity: 'critical', source: 'edge_function', title: 'Telegram-Bot: Kunde nicht gespeichert', body: `Insert fehlgeschlagen: ${error.message}` }); await sendWithMenu(chatId, `Fehler beim Anlegen: ${error.message}`); } else {
       const displayName = kundeData.firma || `${kundeData.vorname || ""} ${kundeData.name || ""}`.trim();
       await sendWithMenu(chatId, `<b>Kunde erfolgreich angelegt!</b>\n\nName: ${displayName}\nTyp: ${kundeData.kundentyp}\nTelefon: ${kundeData.telefon || "-"}\nAdresse: ${kundeData.strasse || "-"}, ${kundeData.plz || ""} ${kundeData.ort || ""}\n\nDer Kunde kann jetzt fuer Auftraege verwendet werden.`);
     }
@@ -572,6 +574,7 @@ Deno.serve(async (req: Request) => {
     return new Response(JSON.stringify({ ok: true }), { status: 200 });
   } catch (error) {
     console.error("Error:", error);
+    await notify({ type: 'error', severity: 'high', source: 'edge_function', title: 'Telegram-Bot: Unbehandelter Fehler', body: String(error) });
     return new Response(JSON.stringify({ ok: true }), { status: 200 });
   }
 });

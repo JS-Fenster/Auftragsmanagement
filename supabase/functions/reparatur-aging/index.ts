@@ -18,6 +18,7 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { notify } from "../_shared/notify.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SVC_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -133,7 +134,15 @@ async function runAgingCheck(): Promise<AgingResult> {
     };
 
   } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
     console.error('[AGING] Error:', error);
+    await notify({
+      type: 'error',
+      severity: 'high',
+      source: 'edge_function',
+      title: 'Reparatur-Aging fehlgeschlagen',
+      body: errorMsg,
+    });
     return {
       success: false,
       updated_count: 0,
@@ -141,7 +150,7 @@ async function runAgingCheck(): Promise<AgingResult> {
       updated_ids: [],
       timestamp,
       aging_threshold_days: AGING_DAYS,
-      error: error instanceof Error ? error.message : String(error),
+      error: errorMsg,
     };
   }
 }

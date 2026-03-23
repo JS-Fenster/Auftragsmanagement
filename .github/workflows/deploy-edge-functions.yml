@@ -16,6 +16,13 @@ jobs:
         with:
           fetch-depth: 2
 
+      - name: Checkout KB scripts
+        uses: actions/checkout@v4
+        with:
+          repository: JS-Fenster/KB
+          path: _kb
+          sparse-checkout: scripts/notify-failure.sh
+
       - uses: supabase/setup-cli@v1
         with:
           version: latest
@@ -50,3 +57,10 @@ jobs:
               --no-verify-jwt
             echo "$FUNC deployed successfully"
           done
+
+      - name: Notify on failure
+        if: failure()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: bash _kb/scripts/notify-failure.sh "Edge Function Deploy fehlgeschlagen" "Deploy auf master fehlgeschlagen. Alte Version laeuft weiter."

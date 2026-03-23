@@ -7,6 +7,7 @@
 // =============================================================================
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { notify } from "../_shared/notify.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SVC_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -152,6 +153,16 @@ Deno.serve(async (req: Request) => {
 
     console.log(`[RETRY] Completed: ${successCount} success, ${errorCount} errors`);
 
+    if (errorCount > 0) {
+      await notify({
+        type: 'warning',
+        severity: 'high',
+        source: 'edge_function',
+        title: 'Retry-Queued: Fehler bei Verarbeitung',
+        body: `${errorCount} von ${queuedEmails.length} Emails konnten nicht verarbeitet werden.`,
+      });
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -164,6 +175,13 @@ Deno.serve(async (req: Request) => {
     );
   } catch (error) {
     console.error(`[RETRY] Error: ${error}`);
+    await notify({
+      type: 'error',
+      severity: 'high',
+      source: 'edge_function',
+      title: 'Retry-Queued fehlgeschlagen',
+      body: String(error),
+    });
     return new Response(
       JSON.stringify({ error: String(error) }),
       { status: 500, headers: { "Content-Type": "application/json" } }

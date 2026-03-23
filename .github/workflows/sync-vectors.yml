@@ -60,3 +60,10 @@ jobs:
             --repo-root . \
             --config .vector-sync.json \
             --repo-name "${REPO_NAME:-$(jq -r .repo_name .vector-sync.json)}"
+
+      - name: Notify on failure
+        if: failure()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: bash _kb/scripts/notify-failure.sh "Vector-Sync fehlgeschlagen" "RAG-Embeddings werden nicht aktualisiert in ${{ github.repository }}."
