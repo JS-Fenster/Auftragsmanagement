@@ -88,7 +88,7 @@ export default function Login() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-2.5 bg-[var(--btn-primary)] text-white rounded-lg font-medium hover:bg-[var(--btn-primary-hover)] disabled:opacity-50 transition-colors"
+                    className="w-full py-2.5 bg-[var(--btn-primary)] text-white rounded-lg font-medium hover:bg-[var(--btn-primary-hover)] disabled:opacity-50 transition-colors cursor-pointer"
                   >
                     {loading ? 'Sende...' : 'Reset-Link senden'}
                   </button>
@@ -97,7 +97,7 @@ export default function Login() {
               <button
                 type="button"
                 onClick={() => { setResetMode(false); setError(null); setResetSent(false) }}
-                className="w-full mt-3 text-sm text-text-muted hover:text-text-secondary"
+                className="w-full mt-3 text-sm text-text-muted hover:text-text-secondary cursor-pointer"
               >
                 Zurueck zur Anmeldung
               </button>
@@ -160,7 +160,7 @@ export default function Login() {
               <button
                 type="button"
                 onClick={() => { setResetMode(true); setError(null) }}
-                className="w-full mt-3 text-sm text-text-muted hover:text-text-secondary"
+                className="w-full mt-3 text-sm text-text-muted hover:text-text-secondary cursor-pointer"
               >
                 Passwort vergessen?
               </button>
