@@ -228,6 +228,15 @@ export default function ProjektDetail() {
 
     if (Object.keys(changes).length === 0) { setEditing(false); return }
 
+    // Optimistic Locking (AM-084): check if record was modified since we loaded it
+    if (projekt.updated_at) {
+      const { data: current } = await supabase.from('projekte').select('updated_at').eq('id', id).single()
+      if (current && current.updated_at !== projekt.updated_at) {
+        const confirmed = window.confirm('Dieses Projekt wurde zwischenzeitlich von jemand anderem geaendert. Trotzdem speichern? (Aenderungen des anderen koennten ueberschrieben werden)')
+        if (!confirmed) return
+      }
+    }
+
     await supabase.from('projekte').update(changes).eq('id', id)
     if (historieEntries.length > 0) {
       await supabase.from('projekt_historie').insert(historieEntries)
