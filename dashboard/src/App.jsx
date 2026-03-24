@@ -130,7 +130,7 @@ function Sidebar() {
       <div className="px-4 py-3 border-t border-border-default">
         {user && (
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-6 h-6 rounded-full bg-[#C4C7C7] dark:bg-[#9E9E9E] text-white flex items-center justify-center text-xs font-medium">
+            <div className="w-6 h-6 rounded-full bg-[#C4C7C7] dark:bg-[#9E9E9E] text-[#333] dark:text-[#1a1a1a] flex items-center justify-center text-xs font-semibold">
               {user.email?.[0]?.toUpperCase() || '?'}
             </div>
             <span className="text-xs text-text-secondary truncate flex-1">{user.email}</span>
