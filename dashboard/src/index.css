@@ -70,7 +70,7 @@
   --text-secondary: #94A3B8;
   --text-muted: #64748B;
 
-  --nav-active-bg: #3A3A38;
+  --nav-active-bg: rgba(158, 158, 158, 0.15);
   --nav-active-text: #FBBF24;
   --nav-hover-bg: #1E293B;
   --nav-hover-text: #F1F5F9;
