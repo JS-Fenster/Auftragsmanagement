@@ -191,7 +191,7 @@ export default function ChatWidget() {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 z-50 w-16 h-16 rounded-full shadow-md flex items-center justify-center transition-all hover:scale-105 hover:shadow-lg border-2 border-brand bg-surface-hover"
+        className="fixed bottom-6 right-6 z-50 w-16 h-16 rounded-full shadow-md flex items-center justify-center transition-all hover:scale-105 hover:shadow-lg border-2 border-brand bg-[#C4C7C7] dark:bg-[#9E9E9E]"
         title={`${ASSISTANT_NAME} oeffnen`}
       >
         <img src={ASSISTANT_AVATAR} alt={ASSISTANT_NAME} className="w-12 h-12 rounded-full object-cover" />
