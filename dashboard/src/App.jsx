@@ -1,7 +1,10 @@
 import { Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom'
-import { FolderKanban, CalendarDays, ArrowLeft, Home, Search, LayoutDashboard, Moon, Sun, Euro, Package, FileText, Truck } from 'lucide-react'
+import { FolderKanban, CalendarDays, ArrowLeft, Home, Search, LayoutDashboard, Moon, Sun, Euro, Package, FileText, Truck, LogOut } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useIsStandalone } from './hooks/usePopout'
+import { useAuth } from './contexts/AuthContext'
+import ProtectedRoute from './components/ProtectedRoute'
+import Login from './pages/Login'
 import Cockpit from './pages/Cockpit'
 import Uebersicht from './pages/Uebersicht'
 import Auftraege from './pages/Auftraege'
@@ -86,6 +89,7 @@ function useDarkMode() {
 
 function Sidebar() {
   const [dark, toggleDark] = useDarkMode()
+  const { user, signOut } = useAuth()
 
   return (
     <nav className="w-56 bg-surface-sidebar border-r border-border-default flex flex-col">
@@ -123,15 +127,34 @@ function Sidebar() {
         </button>
         <NotificationBell />
       </div>
-      <div className="p-4 border-t border-border-default flex items-center justify-between">
-        <span className="text-xs text-text-muted">Dashboard v2.0</span>
-        <button
-          onClick={toggleDark}
-          className="p-1.5 rounded-md text-text-muted hover:text-text-secondary hover:bg-surface-hover transition-colors cursor-pointer"
-          title={dark ? 'Light Mode' : 'Dark Mode'}
-        >
-          {dark ? <Sun size={14} /> : <Moon size={14} />}
-        </button>
+      <div className="px-4 py-3 border-t border-border-default">
+        {user && (
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-6 h-6 rounded-full bg-brand-primary/20 text-brand-primary flex items-center justify-center text-xs font-medium">
+              {user.email?.[0]?.toUpperCase() || '?'}
+            </div>
+            <span className="text-xs text-text-secondary truncate flex-1">{user.email}</span>
+          </div>
+        )}
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-text-muted">Dashboard v2.0</span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={toggleDark}
+              className="p-1.5 rounded-md text-text-muted hover:text-text-secondary hover:bg-surface-hover transition-colors cursor-pointer"
+              title={dark ? 'Light Mode' : 'Dark Mode'}
+            >
+              {dark ? <Sun size={14} /> : <Moon size={14} />}
+            </button>
+            <button
+              onClick={signOut}
+              className="p-1.5 rounded-md text-text-muted hover:text-red-500 hover:bg-surface-hover transition-colors cursor-pointer"
+              title="Abmelden"
+            >
+              <LogOut size={14} />
+            </button>
+          </div>
+        </div>
       </div>
     </nav>
   )
@@ -140,6 +163,7 @@ function Sidebar() {
 function AppRoutes() {
   return (
     <Routes>
+      <Route path="/login" element={<Login />} />
       <Route path="/" element={<Cockpit />} />
       <Route path="/projekte" element={<Projekte />} />
       <Route path="/projekte/:id" element={<ProjektDetail />} />
@@ -164,7 +188,7 @@ function AppRoutes() {
   )
 }
 
-export default function App() {
+function ProtectedApp() {
   const isStandalone = useIsStandalone()
 
   if (isStandalone) {
@@ -194,4 +218,35 @@ export default function App() {
       </div>
     </ChatContextProvider>
   )
+}
+
+export default function App() {
+  const { session, loading } = useAuth()
+  const location = useLocation()
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-surface-main">
+        <div className="w-8 h-8 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (!session && location.pathname !== '/login') {
+    return <Navigate to="/login" replace />
+  }
+
+  if (session && location.pathname === '/login') {
+    return <Navigate to="/" replace />
+  }
+
+  if (location.pathname === '/login') {
+    return (
+      <Routes>
+        <Route path="/login" element={<Login />} />
+      </Routes>
+    )
+  }
+
+  return <ProtectedApp />
 }
