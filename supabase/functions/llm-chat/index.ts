@@ -277,6 +277,22 @@ async function executeTool(
       if (error) throw new Error("assign_document_to_project failed");
       return data;
     }
+    // AM-076: Save feedback from Jess
+    case "save_feedback": {
+      const { data, error } = await supabase
+        .from("jess_feedback")
+        .insert({
+          feedback_type: args.feedback_type,
+          title: args.title,
+          description: args.description,
+          page_context: (args.page_context as string) || null,
+          priority: (args.priority as string) || "normal",
+        })
+        .select("id, title, feedback_type")
+        .single();
+      if (error) throw new Error("save_feedback failed: " + error.message);
+      return { saved: true, ...data };
+    }
     // LLM-013: Semantic email search via Voyage AI embeddings
     case "search_emails": {
       const voyageResp = await fetch("https://api.voyageai.com/v1/embeddings", {

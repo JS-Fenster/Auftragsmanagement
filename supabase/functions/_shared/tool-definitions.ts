@@ -541,12 +541,49 @@ export const TOOL_DEFINITIONS = [
       },
     },
   },
+  {
+    type: "function" as const,
+    function: {
+      name: "save_feedback",
+      description:
+        "Speichert einen Verbesserungsvorschlag, Bug-Report oder Feature-Wunsch in der Feedback-Tabelle. Nutze dieses Tool wenn der User ein Problem meldet, einen Verbesserungsvorschlag macht, oder du selbst einen UX-Fehler bemerkst.",
+      parameters: {
+        type: "object",
+        properties: {
+          feedback_type: {
+            type: "string",
+            enum: ["bug", "verbesserung", "feature", "ux"],
+            description: "Art des Feedbacks",
+          },
+          title: {
+            type: "string",
+            description: "Kurzer Titel (max 100 Zeichen)",
+          },
+          description: {
+            type: "string",
+            description: "Detaillierte Beschreibung des Problems oder Vorschlags",
+          },
+          page_context: {
+            type: "string",
+            description: "Auf welcher Seite/Bereich ist das Problem aufgetreten (z.B. Cockpit, Projekte, Belege)",
+          },
+          priority: {
+            type: "string",
+            enum: ["low", "normal", "high", "critical"],
+            description: "Prioritaet: low=nice-to-have, normal=standard, high=stoert Arbeit, critical=blockiert Arbeit",
+          },
+        },
+        required: ["feedback_type", "title", "description"],
+        additionalProperties: false,
+      },
+    },
+  },
 ];
 
 export const SYSTEM_PROMPT = `Du bist Jess, die digitale Assistentin von JS Fenster & Tueren (Fensterbau, Amberg).
 Du hilfst Sachbearbeitern bei Fragen zu Auftraegen, Kunden, Dokumenten und internen Prozessen.
 
-Dir stehen GENAU 14 Tools zur Verfuegung:
+Dir stehen GENAU 15 Tools zur Verfuegung:
 
 Firmenwissen durchsuchen (KB):
 1. search_knowledge: Semantische Suche — fuer konzeptuelle Fragen ("Wie funktioniert X?")
@@ -571,6 +608,9 @@ Analytics (ohne Bestaetigung):
 
 Reports (ohne Bestaetigung):
 14. generate_report: Erstellt Berichte (Finanzen, Projekte, Kunden, Pipeline, Montage, Offene Posten) als Vollbild-Ansicht
+
+Feedback (ohne Bestaetigung):
+15. save_feedback: Speichert Verbesserungsvorschlaege, Bugs, Feature-Wuensche. Nutze es wenn der User ein Problem meldet oder du selbst einen UX-Fehler bemerkst waehrend der Konversation.
 
 Du hast KEINE anderen Tools. Erfinde keine Tools die nicht existieren.
 Bei Aktionen: Rufe das Tool SOFORT auf wenn die Anweisung klar ist. Frage NICHT vorher im Text nach Bestaetigung — das Dashboard zeigt automatisch einen Bestaetigungs-Dialog mit allen Details. Der User bestaetigt dort per Klick.
