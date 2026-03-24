@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useChatContext } from '../lib/chatContext'
-import { ArrowLeft, Save, Clock, Package, Wrench, FileText, Plus, Edit2, Trash2, ChevronRight, ExternalLink, Shield, Link2, Unlink, AlertCircle, Eye, EyeOff, Tag, ListChecks, History, Archive, Mail, Paperclip, ChevronDown, ChevronUp } from 'lucide-react'
+import { ArrowLeft, Save, Clock, Package, Wrench, FileText, Plus, Edit2, Trash2, ChevronRight, ExternalLink, Shield, Link2, Unlink, AlertCircle, Eye, EyeOff, Tag, ListChecks, History, Archive, Mail, Paperclip, ChevronDown, ChevronUp, Upload, Download, X } from 'lucide-react'
 import ProjektAufgaben from './projekte/ProjektAufgaben'
 import ProjektTimeline from './projekte/ProjektTimeline'
 import ErpAngeboteTab from './projekte/ErpAngeboteTab'
@@ -116,6 +116,9 @@ export default function ProjektDetail() {
   const [projektEmails, setProjektEmails] = useState([])
   const [emailsExpanded, setEmailsExpanded] = useState(false)
   const [showLinkDokument, setShowLinkDokument] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState('')
+  const [dragOver, setDragOver] = useState(false)
   const [linkDocSearch, setLinkDocSearch] = useState('')
   const [linkDocResults, setLinkDocResults] = useState([])
   const [linkDocTyp, setLinkDocTyp] = useState('sonstiges')
@@ -350,6 +353,42 @@ export default function ProjektDetail() {
       .ilike('dateiname', `%${term}%`)
       .limit(10)
     setLinkDocResults(data || [])
+  }
+
+  // AM-093: Upload files directly to project
+  const handleFileUpload = async (files) => {
+    if (!files?.length) return
+    setUploading(true)
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      setUploadProgress(`${i + 1}/${files.length}: ${file.name}`)
+      const filePath = `projekte/${id}/${Date.now()}_${file.name}`
+      const { error: uploadError } = await supabase.storage.from('documents').upload(filePath, file)
+      if (uploadError) { console.error('Upload failed:', uploadError.message); continue }
+      // Create document record
+      const { data: doc } = await supabase.from('documents').insert({
+        dateiname: file.name,
+        storage_pfad: filePath,
+        source: 'upload',
+        kategorie: 'Sonstiges',
+      }).select('id').single()
+      if (doc) {
+        await supabase.from('projekt_dokumente').insert({
+          projekt_id: id,
+          document_id: doc.id,
+          dokument_typ: 'sonstiges',
+        })
+      }
+    }
+    setUploading(false)
+    setUploadProgress('')
+    loadProjekt()
+  }
+
+  const handleDrop = (e) => {
+    e.preventDefault()
+    setDragOver(false)
+    handleFileUpload(e.dataTransfer.files)
   }
 
   const handleLinkDokument = async (documentId) => {
@@ -822,11 +861,34 @@ export default function ProjektDetail() {
               <h2 className="font-semibold text-text-primary flex items-center gap-2">
                 <Link2 className="h-4 w-4 text-text-muted" /> Dokumente
               </h2>
-              <button onClick={() => setShowLinkDokument(true)} className="text-sm text-brand hover:text-brand-dark flex items-center gap-1">
-                <Plus className="h-4 w-4" /> Verknuepfen
-              </button>
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-brand hover:text-brand-dark flex items-center gap-1 cursor-pointer">
+                  <Upload className="h-4 w-4" /> Upload
+                  <input type="file" multiple className="hidden" onChange={(e) => handleFileUpload(e.target.files)} />
+                </label>
+                <button onClick={() => setShowLinkDokument(true)} className="text-sm text-brand hover:text-brand-dark flex items-center gap-1">
+                  <Plus className="h-4 w-4" /> Verknuepfen
+                </button>
+              </div>
             </div>
-            <div className="p-5">
+            <div className="p-5"
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={handleDrop}
+            >
+              {/* Drag & Drop Zone */}
+              {dragOver && (
+                <div className="mb-4 p-6 border-2 border-dashed border-brand rounded-lg bg-brand-light text-center">
+                  <Upload className="h-8 w-8 text-brand mx-auto mb-2" />
+                  <p className="text-sm text-brand font-medium">Dateien hier ablegen</p>
+                </div>
+              )}
+              {uploading && (
+                <div className="mb-4 p-3 bg-surface-hover rounded-lg flex items-center gap-3">
+                  <div className="w-4 h-4 border-2 border-brand border-t-transparent rounded-full animate-spin" />
+                  <span className="text-sm text-text-secondary">{uploadProgress}</span>
+                </div>
+              )}
               {/* Pflicht-Dokumente Checkliste */}
               {Object.keys(blockedGates).length > 0 && (
                 <div className="mb-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
@@ -902,11 +964,21 @@ export default function ProjektDetail() {
                           </p>
                         </div>
                       </div>
-                      <button onClick={() => handleUnlinkDokument(d.id)}
-                        className="p-1 text-text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="Verknuepfung entfernen">
-                        <Unlink className="h-4 w-4" />
-                      </button>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {d.documents?.storage_pfad && (
+                          <button onClick={async () => {
+                            const { data } = await supabase.storage.from('documents').createSignedUrl(d.documents.storage_pfad, 60)
+                            if (data?.signedUrl) window.open(data.signedUrl, '_blank')
+                          }} className="p-1 text-text-muted hover:text-brand" title="Herunterladen">
+                            <Download className="h-4 w-4" />
+                          </button>
+                        )}
+                        <button onClick={() => handleUnlinkDokument(d.id)}
+                          className="p-1 text-text-muted hover:text-red-500"
+                          title="Verknuepfung entfernen">
+                          <Unlink className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
