@@ -130,7 +130,7 @@ function Sidebar() {
       <div className="px-4 py-3 border-t border-border-default">
         {user && (
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-6 h-6 rounded-full bg-brand-primary/20 text-brand-primary flex items-center justify-center text-xs font-medium">
+            <div className="w-6 h-6 rounded-full bg-[var(--brand-light)] text-[var(--brand-dark)] flex items-center justify-center text-xs font-medium">
               {user.email?.[0]?.toUpperCase() || '?'}
             </div>
             <span className="text-xs text-text-secondary truncate flex-1">{user.email}</span>
@@ -227,7 +227,7 @@ export default function App() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-surface-main">
-        <div className="w-8 h-8 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-[var(--brand)] border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }

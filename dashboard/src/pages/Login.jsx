@@ -79,7 +79,7 @@ export default function Login() {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-3 py-2 border border-border-default rounded-lg bg-surface-main text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-primary mb-4"
+                    className="w-full px-3 py-2 border border-border-default rounded-lg bg-surface-main text-text-primary focus:outline-none focus:ring-2 focus:ring-[var(--brand)] mb-4"
                     placeholder="name@js-fenster.de"
                     required
                     autoFocus
@@ -88,7 +88,7 @@ export default function Login() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-2.5 bg-brand-primary text-white rounded-lg font-medium hover:bg-brand-primary/90 disabled:opacity-50 transition-colors"
+                    className="w-full py-2.5 bg-[var(--btn-primary)] text-white rounded-lg font-medium hover:bg-[var(--btn-primary-hover)] disabled:opacity-50 transition-colors"
                   >
                     {loading ? 'Sende...' : 'Reset-Link senden'}
                   </button>
@@ -110,7 +110,7 @@ export default function Login() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-3 py-2 border border-border-default rounded-lg bg-surface-main text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                  className="w-full px-3 py-2 border border-border-default rounded-lg bg-surface-main text-text-primary focus:outline-none focus:ring-2 focus:ring-[var(--brand)]"
                   placeholder="name@js-fenster.de"
                   required
                   autoFocus
@@ -124,7 +124,7 @@ export default function Login() {
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-3 py-2 pr-10 border border-border-default rounded-lg bg-surface-main text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                    className="w-full px-3 py-2 pr-10 border border-border-default rounded-lg bg-surface-main text-text-primary focus:outline-none focus:ring-2 focus:ring-[var(--brand)]"
                     placeholder="Passwort"
                     required
                   />
@@ -145,7 +145,7 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-2.5 bg-brand-primary text-white rounded-lg font-medium hover:bg-brand-primary/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                className="w-full py-2.5 bg-[var(--btn-primary)] text-white rounded-lg font-medium hover:bg-[var(--btn-primary-hover)] disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
