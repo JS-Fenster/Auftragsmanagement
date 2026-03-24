@@ -7,8 +7,9 @@ const ALLOWED_ORIGINS = [
   "http://localhost:4173",       // Vite preview
   "https://js-fenster.de",
   "https://www.js-fenster.de",
-  // Cloudflare Pages (AM-078) — Domain wird beim Deploy gesetzt
+  // Cloudflare Pages (AM-078)
   "https://auftragsmanagement.pages.dev",
+  "https://am.js-fenster-intern.org",
 ];
 
 export function getCorsHeaders(req: Request): Record<string, string> {
