@@ -1,31 +1,33 @@
 import { Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom'
 import { FolderKanban, CalendarDays, ArrowLeft, Home, Search, LayoutDashboard, Moon, Sun, Euro, Package, FileText, Truck, LogOut } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { useIsStandalone } from './hooks/usePopout'
 import { useAuth } from './contexts/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Login from './pages/Login'
-import Cockpit from './pages/Cockpit'
-import Uebersicht from './pages/Uebersicht'
-import Auftraege from './pages/Auftraege'
-import Dokumente from './pages/Dokumente'
-import Kunden from './pages/Kunden'
-import Emails from './pages/Emails'
-import Einstellungen from './pages/Einstellungen'
-import Budgetangebot from './pages/Budgetangebot'
-import BudgetangebotVerlauf from './pages/BudgetangebotVerlauf'
-import Projekte from './pages/Projekte'
-import ProjektDetail from './pages/ProjektDetail'
-import Montageplanung from './pages/Montageplanung'
-import Finanzen from './pages/Finanzen'
-import Bestellungen from './pages/Bestellungen'
-import BelegListe from './pages/BelegListe'
-import BelegErstellen from './pages/BelegErstellen'
-import Lieferanten from './pages/Lieferanten'
 import CommandPalette from './components/CommandPalette'
 import ChatWidget from './components/ChatWidget'
 import NotificationBell from './components/NotificationBell'
 import { ChatContextProvider } from './lib/chatContext'
+
+// Code-splitting: lazy load all page components (AM-090)
+const Cockpit = lazy(() => import('./pages/Cockpit'))
+const Uebersicht = lazy(() => import('./pages/Uebersicht'))
+const Auftraege = lazy(() => import('./pages/Auftraege'))
+const Dokumente = lazy(() => import('./pages/Dokumente'))
+const Kunden = lazy(() => import('./pages/Kunden'))
+const Emails = lazy(() => import('./pages/Emails'))
+const Einstellungen = lazy(() => import('./pages/Einstellungen'))
+const Budgetangebot = lazy(() => import('./pages/Budgetangebot'))
+const BudgetangebotVerlauf = lazy(() => import('./pages/BudgetangebotVerlauf'))
+const Projekte = lazy(() => import('./pages/Projekte'))
+const ProjektDetail = lazy(() => import('./pages/ProjektDetail'))
+const Montageplanung = lazy(() => import('./pages/Montageplanung'))
+const Finanzen = lazy(() => import('./pages/Finanzen'))
+const Bestellungen = lazy(() => import('./pages/Bestellungen'))
+const BelegListe = lazy(() => import('./pages/BelegListe'))
+const BelegErstellen = lazy(() => import('./pages/BelegErstellen'))
+const Lieferanten = lazy(() => import('./pages/Lieferanten'))
 
 const NAV_ITEMS = [
   { to: '/', label: 'Cockpit', icon: LayoutDashboard },
@@ -160,8 +162,15 @@ function Sidebar() {
   )
 }
 
+const PageLoader = () => (
+  <div className="flex items-center justify-center h-64">
+    <div className="w-6 h-6 border-2 border-[var(--brand)] border-t-transparent rounded-full animate-spin" />
+  </div>
+)
+
 function AppRoutes() {
   return (
+    <Suspense fallback={<PageLoader />}>
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/" element={<Cockpit />} />
@@ -185,6 +194,7 @@ function AppRoutes() {
       <Route path="/lieferanten" element={<Lieferanten />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </Suspense>
   )
 }
 
