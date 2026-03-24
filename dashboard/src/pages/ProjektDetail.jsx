@@ -689,7 +689,7 @@ export default function ProjektDetail() {
           })()}
 
           {/* Bestellungen */}
-          <div className="bg-surface-card rounded-lg shadow-sm border border-border-default">
+          <div id="sektion-bestellungen" className="bg-surface-card rounded-lg shadow-sm border border-border-default transition-all">
             <div className="px-5 py-3 border-b border-border-default flex items-center justify-between">
               <h2 className="font-semibold text-text-primary flex items-center gap-2">
                 <Package className="h-4 w-4 text-text-muted" /> Bestellungen
@@ -788,7 +788,7 @@ export default function ProjektDetail() {
           </div>
 
           {/* Belege */}
-          <div className="bg-surface-card rounded-lg shadow-sm border border-border-default">
+          <div id="sektion-belege" className="bg-surface-card rounded-lg shadow-sm border border-border-default transition-all">
             <div className="px-5 py-3 border-b border-border-default flex items-center justify-between">
               <h2 className="font-semibold text-text-primary flex items-center gap-2">
                 <FileText className="h-4 w-4 text-text-muted" /> Belege
@@ -856,7 +856,7 @@ export default function ProjektDetail() {
           )}
 
           {/* Dokumente (A-003) */}
-          <div className="bg-surface-card rounded-lg shadow-sm border border-border-default">
+          <div id="sektion-dokumente" className="bg-surface-card rounded-lg shadow-sm border border-border-default transition-all">
             <div className="px-5 py-3 border-b border-border-default flex items-center justify-between">
               <h2 className="font-semibold text-text-primary flex items-center gap-2">
                 <Link2 className="h-4 w-4 text-text-muted" /> Dokumente

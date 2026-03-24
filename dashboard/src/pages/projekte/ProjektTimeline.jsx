@@ -63,6 +63,25 @@ function getSubtitle(item) {
   }
 }
 
+// AM-070: Map timeline item types to scrollable section IDs
+const SCROLL_TARGETS = {
+  historie: null, // no specific section
+  beleg: 'sektion-belege',
+  bestellung: 'sektion-bestellungen',
+  dokument: 'sektion-dokumente',
+}
+
+function scrollToSection(type) {
+  const targetId = SCROLL_TARGETS[type]
+  if (!targetId) return
+  const el = document.getElementById(targetId)
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    el.classList.add('ring-2', 'ring-[var(--brand)]', 'ring-offset-2')
+    setTimeout(() => el.classList.remove('ring-2', 'ring-[var(--brand)]', 'ring-offset-2'), 2000)
+  }
+}
+
 export default function ProjektTimeline({ projektId }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
@@ -116,7 +135,9 @@ export default function ProjektTimeline({ projektId }) {
           const subtitle = getSubtitle(item)
 
           return (
-            <div key={`${item._type}-${item.id}-${idx}`} className="relative flex gap-3 pb-3">
+            <div key={`${item._type}-${item.id}-${idx}`}
+              className={`relative flex gap-3 pb-3 ${SCROLL_TARGETS[item._type] ? 'cursor-pointer hover:bg-surface-hover rounded-lg px-1 -mx-1 transition-colors' : ''}`}
+              onClick={() => scrollToSection(item._type)}>
               {/* Dot */}
               <div
                 className="absolute left-[-14px] w-5 h-5 rounded-full flex items-center justify-center shrink-0"
