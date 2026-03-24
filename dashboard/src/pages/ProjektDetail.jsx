@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useChatContext } from '../lib/chatContext'
-import { ArrowLeft, Save, Clock, Package, Wrench, FileText, Plus, Edit2, Trash2, ChevronRight, ExternalLink, Shield, Link2, Unlink, AlertCircle, Eye, EyeOff, Tag, ListChecks, History, Archive } from 'lucide-react'
+import { ArrowLeft, Save, Clock, Package, Wrench, FileText, Plus, Edit2, Trash2, ChevronRight, ExternalLink, Shield, Link2, Unlink, AlertCircle, Eye, EyeOff, Tag, ListChecks, History, Archive, Mail, Paperclip, ChevronDown, ChevronUp } from 'lucide-react'
 import ProjektAufgaben from './projekte/ProjektAufgaben'
 import ProjektTimeline from './projekte/ProjektTimeline'
 import ErpAngeboteTab from './projekte/ErpAngeboteTab'
@@ -113,6 +113,8 @@ export default function ProjektDetail() {
   })
   const [projektBelege, setProjektBelege] = useState([])
   const [dokumente, setDokumente] = useState([])
+  const [projektEmails, setProjektEmails] = useState([])
+  const [emailsExpanded, setEmailsExpanded] = useState(false)
   const [showLinkDokument, setShowLinkDokument] = useState(false)
   const [linkDocSearch, setLinkDocSearch] = useState('')
   const [linkDocResults, setLinkDocResults] = useState([])
@@ -142,6 +144,18 @@ export default function ProjektDetail() {
       entity_name: `${projektRes.data.projekt_nummer} ${projektRes.data.titel}`,
       kunde_id: projektRes.data.kontakt_id,
     })
+    // Load emails for this project's customer (AM-094)
+    if (projektRes.data.kontakt_id) {
+      const { data: emailData } = await supabase
+        .from('documents')
+        .select('id, email_betreff, email_von_email, email_von_name, email_empfangen_am, email_kategorie, email_hat_anhaenge, email_anhaenge_count, email_body_text')
+        .eq('source', 'email')
+        .eq('kontakt_id', projektRes.data.kontakt_id)
+        .is('bezug_email_id', null)
+        .order('email_empfangen_am', { ascending: false })
+        .limit(10)
+      setProjektEmails(emailData || [])
+    }
     setLoading(false)
   }, [id, navigate, setChatEntity])
 
@@ -890,6 +904,56 @@ export default function ProjektDetail() {
               )}
             </div>
           </div>
+
+          {/* Emails zum Kunden (AM-094) */}
+          {projektEmails.length > 0 && (
+            <div className="bg-surface-card rounded-lg shadow-sm border border-border-default">
+              <div className="px-5 py-3 border-b border-border-default flex items-center justify-between">
+                <h2 className="font-semibold text-text-primary flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-text-muted" /> Emails zum Kunden
+                  <span className="text-xs font-normal text-text-muted bg-surface-hover px-1.5 py-0.5 rounded-full">{projektEmails.length}</span>
+                </h2>
+                <button onClick={() => setEmailsExpanded(!emailsExpanded)} className="text-text-muted hover:text-text-secondary">
+                  {emailsExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </button>
+              </div>
+              <div className="p-5">
+                <div className="space-y-2">
+                  {(emailsExpanded ? projektEmails : projektEmails.slice(0, 3)).map(email => (
+                    <div key={email.id} className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-surface-main group">
+                      <Mail className="h-4 w-4 text-text-muted mt-0.5 flex-shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-text-primary truncate">{email.email_betreff || '(Kein Betreff)'}</p>
+                          {email.email_hat_anhaenge && <Paperclip className="h-3 w-3 text-text-muted flex-shrink-0" />}
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-xs text-text-muted">{email.email_von_name || email.email_von_email}</span>
+                          <span className="text-xs text-text-muted">·</span>
+                          <span className="text-xs text-text-muted">{formatRelativeTime(email.email_empfangen_am)}</span>
+                          {email.email_kategorie && (
+                            <>
+                              <span className="text-xs text-text-muted">·</span>
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-surface-hover text-text-muted">{email.email_kategorie.replace(/_/g, ' ')}</span>
+                            </>
+                          )}
+                        </div>
+                        {emailsExpanded && email.email_body_text && (
+                          <p className="text-xs text-text-muted mt-1 line-clamp-2">{email.email_body_text.slice(0, 200)}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {projektEmails.length > 3 && !emailsExpanded && (
+                  <button onClick={() => setEmailsExpanded(true)}
+                    className="mt-2 text-xs text-brand hover:text-brand-hover cursor-pointer">
+                    + {projektEmails.length - 3} weitere Emails anzeigen
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Notizen */}
           <div className="bg-surface-card rounded-lg shadow-sm border border-border-default">
