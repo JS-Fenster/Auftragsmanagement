@@ -55,7 +55,7 @@
 .dark {
   --brand: #FBBF24;
   --brand-hover: #FCD34D;
-  --brand-light: #422006;
+  --brand-light: rgba(250, 178, 11, 0.12);
   --brand-dark: #FDE68A;
 
   --surface-main: #0F172A;
