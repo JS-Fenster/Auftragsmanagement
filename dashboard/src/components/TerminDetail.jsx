@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { X, MapPin, Clock, Car, Users, FileText, ExternalLink, CheckCircle, XCircle, Edit2, Briefcase } from 'lucide-react'
+import { X, MapPin, Clock, Car, Users, FileText, ExternalLink, CheckCircle, XCircle, Edit2, Briefcase, History } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useNavigate } from 'react-router-dom'
 
@@ -35,12 +35,33 @@ const getAdresse = (kontakt) => {
   return parts.length ? parts.join(', ') : null
 }
 
+const AKTION_LABELS = {
+  erstellt: 'Erstellt',
+  bearbeitet: 'Bearbeitet',
+  verschoben: 'Verschoben',
+  storniert: 'Storniert',
+  bestaetigt: 'Bestaetigt',
+  abgeschlossen: 'Abgeschlossen',
+  ressourcen_geaendert: 'Ressourcen geaendert',
+}
+
+const AKTION_COLORS = {
+  erstellt: '#3B82F6',
+  bearbeitet: '#F59E0B',
+  verschoben: '#8B5CF6',
+  storniert: '#EF4444',
+  bestaetigt: '#10B981',
+  abgeschlossen: '#6B7280',
+}
+
 export default function TerminDetail() {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [termin, setTermin] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [confirmAction, setConfirmAction] = useState(null) // 'abschliessen' | 'absagen'
+  const [confirmAction, setConfirmAction] = useState(null)
+  const [stornoGrund, setStornoGrund] = useState('')
+  const [historie, setHistorie] = useState([])
 
   const loadTermin = useCallback(async (terminId) => {
     setLoading(true)
@@ -63,6 +84,15 @@ export default function TerminDetail() {
     }
     setTermin(data)
     setLoading(false)
+
+    // Load historie
+    const { data: hist } = await supabase
+      .from('termin_historie')
+      .select('*')
+      .eq('termin_id', terminId)
+      .order('created_at', { ascending: false })
+      .limit(20)
+    setHistorie(hist || [])
   }, [])
 
   useEffect(() => {
@@ -91,18 +121,27 @@ export default function TerminDetail() {
 
   const handleStatusChange = async (newStatus) => {
     if (!termin) return
+    const updateData = { status: newStatus }
+    if (newStatus === 'abgesagt' && stornoGrund) {
+      updateData.storno_grund = stornoGrund
+    }
     const { error } = await supabase
       .from('termine')
-      .update({ status: newStatus })
+      .update(updateData)
       .eq('id', termin.id)
 
     if (error) {
       console.error('Status-Update fehlgeschlagen:', error)
       return
     }
-    setTermin(prev => ({ ...prev, status: newStatus }))
+    setTermin(prev => ({ ...prev, ...updateData }))
     setConfirmAction(null)
+    setStornoGrund('')
     window.dispatchEvent(new CustomEvent('termin-saved'))
+    // Reload historie
+    const { data: hist } = await supabase
+      .from('termin_historie').select('*').eq('termin_id', termin.id).order('created_at', { ascending: false }).limit(20)
+    setHistorie(hist || [])
   }
 
   if (!open) return null
@@ -273,6 +312,51 @@ export default function TerminDetail() {
                 </p>
               </div>
             )}
+
+            {/* Storno-Grund */}
+            {termin.storno_grund && (
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5 text-xs font-medium text-red-600 uppercase tracking-wider">
+                  <XCircle className="w-3.5 h-3.5" />
+                  Storno-Grund
+                </div>
+                <p className="text-sm text-red-700 bg-red-50 rounded-lg p-3">
+                  {termin.storno_grund}
+                </p>
+              </div>
+            )}
+
+            {/* Historie */}
+            {historie.length > 0 && (
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5 text-xs font-medium text-text-secondary uppercase tracking-wider">
+                  <History className="w-3.5 h-3.5" />
+                  Verlauf
+                </div>
+                <div className="space-y-1.5">
+                  {historie.map(h => {
+                    const color = AKTION_COLORS[h.aktion] || '#6B7280'
+                    const label = AKTION_LABELS[h.aktion] || h.aktion
+                    const zeit = new Date(h.created_at).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+                    let detail = ''
+                    if (h.aktion === 'verschoben' && h.aenderungen?.start_zeit) {
+                      const [alt, neu] = h.aenderungen.start_zeit
+                      detail = `${new Date(alt).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} → ${new Date(neu).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`
+                    }
+                    return (
+                      <div key={h.id} className="flex items-start gap-2 text-xs">
+                        <span className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ backgroundColor: color }} />
+                        <div className="min-w-0">
+                          <span className="font-medium" style={{ color }}>{label}</span>
+                          <span className="text-text-muted ml-1.5">{zeit}</span>
+                          {detail && <div className="text-text-muted mt-0.5">{detail}</div>}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         ) : null}
 
@@ -281,16 +365,23 @@ export default function TerminDetail() {
           <div className="border-t border-border-default p-4 space-y-2">
             {confirmAction === 'absagen' ? (
               <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-3 space-y-2">
-                <p className="text-sm text-red-700 dark:text-red-300">Termin wirklich absagen?</p>
+                <p className="text-sm font-medium text-red-700 dark:text-red-300">Termin stornieren?</p>
+                <textarea
+                  value={stornoGrund}
+                  onChange={e => setStornoGrund(e.target.value)}
+                  placeholder="Grund fuer Stornierung (optional)..."
+                  rows={2}
+                  className="w-full px-2 py-1.5 text-sm border border-red-200 rounded-lg bg-white dark:bg-red-900/10 text-text-primary outline-none resize-none"
+                />
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleStatusChange('abgesagt')}
                     className="flex-1 px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                   >
-                    Ja, absagen
+                    Stornieren
                   </button>
                   <button
-                    onClick={() => setConfirmAction(null)}
+                    onClick={() => { setConfirmAction(null); setStornoGrund('') }}
                     className="flex-1 px-3 py-1.5 text-sm text-text-secondary hover:bg-surface-hover rounded-lg transition-colors"
                   >
                     Abbrechen

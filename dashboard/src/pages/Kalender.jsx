@@ -161,8 +161,18 @@ export default function Kalender() {
     setView('tag')
   }
 
-  // Drag & Drop handler for TagesAnsicht
-  const handleTerminDrop = useCallback(async (terminId, newStart, newEnd, newFahrzeugId) => {
+  // Drag & Drop with confirmation dialog
+  const [pendingDrop, setPendingDrop] = useState(null)
+
+  const handleTerminDrop = useCallback((terminId, newStart, newEnd, newFahrzeugId) => {
+    const termin = termine.find(t => t.id === terminId)
+    setPendingDrop({ terminId, termin, newStart, newEnd, newFahrzeugId })
+  }, [termine])
+
+  const confirmDrop = useCallback(async () => {
+    if (!pendingDrop) return
+    const { terminId, newStart, newEnd, newFahrzeugId } = pendingDrop
+
     const { error } = await supabase
       .from('termine')
       .update({ start_zeit: newStart, end_zeit: newEnd })
@@ -170,13 +180,12 @@ export default function Kalender() {
 
     if (error) {
       console.error('Termin verschieben fehlgeschlagen:', error)
+      setPendingDrop(null)
       return
     }
 
-    // If fahrzeug changed, update termin_ressourcen
     if (newFahrzeugId) {
-      const termin = termine.find(t => t.id === terminId)
-      const oldFahrzeug = termin?.termin_ressourcen?.find(r => r.ressourcen?.typ === 'fahrzeug')
+      const oldFahrzeug = pendingDrop.termin?.termin_ressourcen?.find(r => r.ressourcen?.typ === 'fahrzeug')
       if (oldFahrzeug && oldFahrzeug.ressource_id !== newFahrzeugId) {
         await supabase
           .from('termin_ressourcen')
@@ -186,8 +195,14 @@ export default function Kalender() {
       }
     }
 
+    setPendingDrop(null)
     loadTermine()
-  }, [termine, loadTermine])
+  }, [pendingDrop, loadTermine])
+
+  const cancelDrop = () => {
+    setPendingDrop(null)
+    loadTermine() // Reload to revert visual position
+  }
 
   // Monteur cell click
   const handleMonteurCellClick = (monteurId, date) => {
@@ -353,6 +368,38 @@ export default function Kalender() {
 
       {/* Hover Popover */}
       <TerminPopover termin={hoveredTermin} position={popoverPos} />
+
+      {/* Drag & Drop Confirmation Dialog */}
+      {pendingDrop && (
+        <>
+          <div className="fixed inset-0 z-50 bg-black/30" onClick={cancelDrop} />
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] bg-surface-card rounded-xl shadow-2xl border border-border-default p-5 w-80">
+            <h3 className="text-sm font-semibold text-text-primary mb-2">Termin verschieben?</h3>
+            <p className="text-xs text-text-secondary mb-1">
+              <span className="font-medium">{pendingDrop.termin?.titel}</span>
+            </p>
+            <p className="text-xs text-text-muted mb-3">
+              Neue Zeit: {new Date(pendingDrop.newStart).toLocaleString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+              {' – '}
+              {new Date(pendingDrop.newEnd).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={confirmDrop}
+                className="flex-1 px-3 py-2 text-sm font-medium bg-[var(--brand)] text-[#1f2937] rounded-lg hover:opacity-90 transition-opacity"
+              >
+                Verschieben
+              </button>
+              <button
+                onClick={cancelDrop}
+                className="flex-1 px-3 py-2 text-sm text-text-secondary hover:bg-surface-hover rounded-lg transition-colors"
+              >
+                Abbrechen
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }
