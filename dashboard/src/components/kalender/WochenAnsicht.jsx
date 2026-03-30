@@ -111,6 +111,7 @@ export default function WochenAnsicht({
   onTerminHover,
   onTerminHoverEnd,
   onSlotClick,
+  onDayClick,
 }) {
   const weekStart = useMemo(() => startOfWeek(currentDate, { weekStartsOn: 1 }), [currentDate])
   const weekDays = useMemo(() => Array.from({ length: 5 }, (_, i) => addDays(weekStart, i)), [weekStart])
@@ -170,9 +171,11 @@ export default function WochenAnsicht({
               return (
                 <th
                   key={i}
-                  className={`px-2 py-2 text-center text-sm font-semibold border-l border-border-default ${
+                  className={`px-2 py-2 text-center text-sm font-semibold border-l border-border-default cursor-pointer hover:bg-surface-hover transition-colors ${
                     isToday ? 'text-brand bg-brand/5' : 'text-text-primary bg-surface-main'
                   }`}
+                  onClick={() => onDayClick?.(day)}
+                  title="Klick fuer Tagesansicht"
                 >
                   {WEEKDAYS[i]} {format(day, 'dd.MM', { locale: de })}
                 </th>
