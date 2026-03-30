@@ -132,7 +132,7 @@ export default function ProjektDetail() {
       supabase.from('projekt_positionen').select('*').eq('projekt_id', id).order('pos_nr'),
       supabase.from('projekt_bestellungen').select('*').eq('projekt_id', id).order('created_at', { ascending: false }),
       supabase.from('projekt_historie').select('*').eq('projekt_id', id).order('erstellt_am', { ascending: false }),
-      supabase.from('projekt_dokumente').select('*, documents(id, dateiname, kategorie, dokument_url, created_at)').eq('projekt_id', id).order('created_at', { ascending: false }),
+      supabase.from('projekt_dokumente').select('*').eq('projekt_id', id).order('created_at', { ascending: false }),
       supabase.from('belege').select('*').eq('projekt_id', id).order('created_at', { ascending: false }),
     ])
 
@@ -141,7 +141,19 @@ export default function ProjektDetail() {
     setPositionen(posRes.data || [])
     setBestellungen(bestRes.data || [])
     setHistorie(histRes.data || [])
-    setDokumente(dokRes.data || [])
+    // Enrich projekt_dokumente with document details (separate query, FK join was failing)
+    const rawDoks = dokRes.data || []
+    if (rawDoks.length > 0) {
+      const docIds = rawDoks.map(d => d.document_id).filter(Boolean)
+      const { data: docDetails } = await supabase
+        .from('documents')
+        .select('id, dateiname, kategorie, dokument_url, created_at')
+        .in('id', docIds)
+      const docMap = Object.fromEntries((docDetails || []).map(d => [d.id, d]))
+      setDokumente(rawDoks.map(d => ({ ...d, documents: docMap[d.document_id] || null })))
+    } else {
+      setDokumente([])
+    }
     setProjektBelege(belegeRes.data || [])
     // Provide entity context to Jess chat
     setChatEntity({

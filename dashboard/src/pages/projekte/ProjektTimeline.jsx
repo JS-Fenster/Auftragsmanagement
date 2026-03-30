@@ -95,14 +95,26 @@ export default function ProjektTimeline({ projektId }) {
       supabase.from('projekt_historie').select('*').eq('projekt_id', projektId),
       supabase.from('belege').select('id, beleg_typ, beleg_nummer, brutto_summe, status, datum, created_at').eq('projekt_id', projektId),
       supabase.from('projekt_bestellungen').select('id, bestell_nummer, lieferant_name, status, bestell_datum, created_at').eq('projekt_id', projektId),
-      supabase.from('projekt_dokumente').select('id, created_at, documents(id, dateiname, kategorie, created_at)').eq('projekt_id', projektId),
+      supabase.from('projekt_dokumente').select('id, document_id, created_at').eq('projekt_id', projektId),
     ])
+
+    // Enrich dokumente with document details (FK join fails on this table)
+    let enrichedDoks = dokRes.data || []
+    if (enrichedDoks.length > 0) {
+      const docIds = enrichedDoks.map(d => d.document_id).filter(Boolean)
+      const { data: docDetails } = await supabase
+        .from('documents')
+        .select('id, dateiname, kategorie, created_at')
+        .in('id', docIds)
+      const docMap = Object.fromEntries((docDetails || []).map(d => [d.id, d]))
+      enrichedDoks = enrichedDoks.map(d => ({ ...d, documents: docMap[d.document_id] || null }))
+    }
 
     const all = [
       ...(histRes.data || []).map(h => ({ ...h, _type: 'historie', _date: h.erstellt_am })),
       ...(belegRes.data || []).map(b => ({ ...b, _type: 'beleg', _date: b.created_at })),
       ...(bestRes.data || []).map(b => ({ ...b, _type: 'bestellung', _date: b.created_at })),
-      ...(dokRes.data || []).map(d => ({ ...d, _type: 'dokument', _date: d.created_at })),
+      ...enrichedDoks.map(d => ({ ...d, _type: 'dokument', _date: d.created_at })),
     ]
 
     all.sort((a, b) => new Date(b._date) - new Date(a._date))
