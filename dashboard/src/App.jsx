@@ -22,7 +22,10 @@ const Budgetangebot = lazy(() => import('./pages/Budgetangebot'))
 const BudgetangebotVerlauf = lazy(() => import('./pages/BudgetangebotVerlauf'))
 const Projekte = lazy(() => import('./pages/Projekte'))
 const ProjektDetail = lazy(() => import('./pages/ProjektDetail'))
+const Kalender = lazy(() => import('./pages/Kalender'))
 const Montageplanung = lazy(() => import('./pages/Montageplanung'))
+const TerminDetail = lazy(() => import('./components/TerminDetail'))
+const TerminForm = lazy(() => import('./components/TerminForm'))
 const Finanzen = lazy(() => import('./pages/Finanzen'))
 const Bestellungen = lazy(() => import('./pages/Bestellungen'))
 const BelegListe = lazy(() => import('./pages/BelegListe'))
@@ -176,8 +179,8 @@ function AppRoutes() {
       <Route path="/" element={<Cockpit />} />
       <Route path="/projekte" element={<Projekte />} />
       <Route path="/projekte/:id" element={<ProjektDetail />} />
-      <Route path="/kalender" element={<Montageplanung />} />
-      <Route path="/montageplanung" element={<Montageplanung />} />
+      <Route path="/kalender" element={<Kalender />} />
+      <Route path="/montageplanung" element={<Navigate to="/kalender" replace />} />
       <Route path="/budgetangebot" element={<Budgetangebot />} />
       <Route path="/budgetangebot-verlauf" element={<BudgetangebotVerlauf />} />
       <Route path="/auftraege" element={<Auftraege />} />
@@ -209,6 +212,8 @@ function ProtectedApp() {
           <main className="flex-1 overflow-auto">
             <AppRoutes />
           </main>
+          <Suspense fallback={null}><TerminDetail /></Suspense>
+          <Suspense fallback={null}><TerminForm /></Suspense>
           <CommandPalette />
           <ChatWidget />
         </div>
@@ -223,6 +228,8 @@ function ProtectedApp() {
         <main className="flex-1 overflow-auto">
           <AppRoutes />
         </main>
+        <Suspense fallback={null}><TerminDetail /></Suspense>
+        <Suspense fallback={null}><TerminForm /></Suspense>
         <CommandPalette />
         <ChatWidget />
       </div>

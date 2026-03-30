@@ -263,5 +263,36 @@ export const BELEG_EINHEITEN = {
   kg:       { label: 'Kilogramm',    short: 'kg' },
 }
 
+// Termin-Arten (synced with termin_arten table)
+export const TERMIN_ARTEN = {
+  montage:    { label: 'Montage',                 farbe: '#3B82F6', icon: 'Wrench' },
+  reparatur:  { label: 'Reparatur',               farbe: '#EF4444', icon: 'AlertTriangle' },
+  aufmass:    { label: 'Aufmass',                  farbe: '#8B5CF6', icon: 'Ruler' },
+  lieferung:  { label: 'Lieferung / Abholung',    farbe: '#F59E0B', icon: 'Truck' },
+  beratung:   { label: 'Kundenbesuch / Beratung',  farbe: '#10B981', icon: 'Users' },
+  intern:     { label: 'Intern / Buero',           farbe: '#6B7280', icon: 'Building' },
+  lieferant:  { label: 'Lieferanten-Termin',       farbe: '#EC4899', icon: 'Factory' },
+}
+
+export const TERMIN_STATUS = {
+  geplant:       { label: 'Geplant',       color: '#3B82F6', bg: '#EFF6FF', text: '#1E40AF' },
+  bestaetigt:    { label: 'Bestaetigt',    color: '#10B981', bg: '#ECFDF5', text: '#065F46' },
+  abgeschlossen: { label: 'Abgeschlossen', color: '#6B7280', bg: '#F3F4F6', text: '#374151' },
+  abgesagt:      { label: 'Abgesagt',      color: '#EF4444', bg: '#FEF2F2', text: '#991B1B' },
+}
+
+export const RESSOURCE_TYPEN = {
+  fahrzeug:    { label: 'Fahrzeug' },
+  monteur:     { label: 'Monteur' },
+  hilfsmittel: { label: 'Hilfsmittel' },
+}
+
+export const ABWESENHEIT_TYPEN = {
+  urlaub:    { label: 'Urlaub',    color: '#F59E0B' },
+  krank:     { label: 'Krank',     color: '#EF4444' },
+  frei:      { label: 'Frei',      color: '#6B7280' },
+  sonstiges: { label: 'Sonstiges', color: '#9CA3AF' },
+}
+
 // API base URL for Edge Functions
 export const API_BASE = 'https://rsmjgdujlpnydbsfuiek.supabase.co/functions/v1'
