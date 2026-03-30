@@ -130,7 +130,7 @@ export default function TerminForm() {
       const t = kontaktSuche.replace(/'/g, '')
       const { data } = await supabase
         .from('kontakte')
-        .select('id, firma1, firma2, ort, kontakt_personen(vorname, nachname, ist_hauptkontakt)')
+        .select('id, firma1, firma2, ort, kontakt_personen!kontakt_id(vorname, nachname, ist_hauptkontakt)')
         .or(`firma1.ilike.%${t}%,firma2.ilike.%${t}%`)
         .limit(8)
       setKontaktResults(data || [])
@@ -157,8 +157,54 @@ export default function TerminForm() {
     setSelectedMonteure(p => p.includes(id) ? p.filter(m => m !== id) : [...p, id])
   }
 
+  // Overlap check state
+  const [overlaps, setOverlaps] = useState([])
+  const [overlapConfirmed, setOverlapConfirmed] = useState(false)
+
+  // Check for overlaps when monteure or time changes
+  useEffect(() => {
+    if (selectedMonteure.length === 0 || !startDatum || !startZeit) {
+      setOverlaps([])
+      return
+    }
+    const sISO = ganztaegig ? `${startDatum}T00:00:00` : `${startDatum}T${startZeit}:00`
+    const eISO = ganztaegig ? `${endDatum || startDatum}T23:59:59` : `${endDatum || startDatum}T${endZeit}:00`
+
+    const check = async () => {
+      // Find termine that overlap with our time range AND have any of our monteure assigned
+      const { data } = await supabase
+        .from('termin_ressourcen')
+        .select('ressource_id, termine!inner(id, titel, start_zeit, end_zeit, status)')
+        .in('ressource_id', selectedMonteure)
+        .lt('termine.start_zeit', eISO)
+        .gt('termine.end_zeit', sISO)
+        .neq('termine.status', 'abgesagt')
+
+      if (!data) { setOverlaps([]); return }
+      // Filter out current termin if editing
+      const filtered = editId ? data.filter(d => d.termine?.id !== editId) : data
+      // Map to readable format
+      const monteurNames = new Map(monteure.map(m => [m.id, m.name]))
+      const hits = filtered
+        .filter(d => d.termine)
+        .map(d => ({
+          monteur: monteurNames.get(d.ressource_id) || d.ressource_id,
+          termin: d.termine.titel,
+          zeit: `${new Date(d.termine.start_zeit).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}–${new Date(d.termine.end_zeit).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`,
+        }))
+      setOverlaps(hits)
+      setOverlapConfirmed(false)
+    }
+    const tm = setTimeout(check, 500)
+    return () => clearTimeout(tm)
+  }, [selectedMonteure, startDatum, startZeit, endDatum, endZeit, ganztaegig, editId, monteure])
+
   const handleSave = async () => {
     if (!artId || !titel || !startDatum) return
+
+    // Block save if overlaps exist and not confirmed
+    if (overlaps.length > 0 && !overlapConfirmed) return
+
     setSaving(true)
 
     const sISO = ganztaegig
@@ -197,6 +243,8 @@ export default function TerminForm() {
 
     setSaving(false)
     setOpen(false)
+    setOverlaps([])
+    setOverlapConfirmed(false)
     window.dispatchEvent(new CustomEvent('termin-saved'))
     window.dispatchEvent(new CustomEvent('termin-detail-close'))
   }
@@ -400,13 +448,32 @@ export default function TerminForm() {
             </div>
           </div>
 
+          {/* Overlap Warning */}
+          {overlaps.length > 0 && (
+            <div className="mx-4 mb-2 p-3 rounded-lg bg-red-50 border border-red-200">
+              <p className="text-sm font-semibold text-red-800 mb-1">Ueberschneidung erkannt!</p>
+              <ul className="text-xs text-red-700 space-y-0.5 mb-2">
+                {overlaps.map((o, i) => (
+                  <li key={i}>{o.monteur}: {o.termin} ({o.zeit})</li>
+                ))}
+              </ul>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={overlapConfirmed}
+                  onChange={e => setOverlapConfirmed(e.target.checked)}
+                  className="w-4 h-4 rounded accent-red-600" />
+                <span className="text-xs text-red-700 font-medium">Trotzdem anlegen (Doppelbelegung bestaetigen)</span>
+              </label>
+            </div>
+          )}
+
           {/* Footer */}
           <div className="flex items-center justify-end gap-2 p-4 border-t border-border-default">
             <button onClick={() => setOpen(false)}
               className="px-4 py-2 text-sm text-text-secondary hover:bg-surface-hover rounded-lg transition-colors">
               Abbrechen
             </button>
-            <button onClick={handleSave} disabled={saving || !artId || !titel || !startDatum}
+            <button onClick={handleSave}
+              disabled={saving || !artId || !titel || !startDatum || (overlaps.length > 0 && !overlapConfirmed)}
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-[var(--brand)] text-[#1f2937] rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
               {saving
                 ? <span className="w-4 h-4 border-2 border-[#1f2937] border-t-transparent rounded-full animate-spin" />

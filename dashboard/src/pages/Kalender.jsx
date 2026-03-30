@@ -84,6 +84,13 @@ export default function Kalender() {
 
   useEffect(() => { loadTermine() }, [loadTermine])
 
+  // Reload when a termin is saved/changed
+  useEffect(() => {
+    const handleSaved = () => loadTermine()
+    window.addEventListener('termin-saved', handleSaved)
+    return () => window.removeEventListener('termin-saved', handleSaved)
+  }, [loadTermine])
+
   // Filter termine by active termin_arten
   const filteredTermine = useMemo(
     () => termine.filter(t => activeFilters.has(t.art_id)),
