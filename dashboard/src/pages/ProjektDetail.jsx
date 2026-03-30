@@ -147,7 +147,7 @@ export default function ProjektDetail() {
       const docIds = rawDoks.map(d => d.document_id).filter(Boolean)
       const { data: docDetails } = await supabase
         .from('documents')
-        .select('id, dateiname, kategorie, dokument_url, created_at')
+        .select('id, betreff, kategorie, dokument_url, created_at')
         .in('id', docIds)
       const docMap = Object.fromEntries((docDetails || []).map(d => [d.id, d]))
       setDokumente(rawDoks.map(d => ({ ...d, documents: docMap[d.document_id] || null })))
@@ -362,8 +362,8 @@ export default function ProjektDetail() {
     if (term.length < 2) { setLinkDocResults([]); return }
     const { data } = await supabase
       .from('documents')
-      .select('id, dateiname, kategorie, created_at')
-      .ilike('dateiname', `%${term}%`)
+      .select('id, betreff, dokument_url, kategorie, created_at')
+      .or(`betreff.ilike.%${term}%,dokument_url.ilike.%${term}%`)
       .limit(10)
     setLinkDocResults(data || [])
   }
@@ -381,10 +381,10 @@ export default function ProjektDetail() {
       if (uploadError) { console.error('Upload failed:', uploadError.message); continue }
       // Create document record
       const { data: doc } = await supabase.from('documents').insert({
-        dateiname: file.name,
         dokument_url: filePath,
         source: 'upload',
         kategorie: 'Sonstiges',
+        betreff: file.name,
       }).select('id').single()
       if (doc) {
         await supabase.from('projekt_dokumente').insert({
@@ -947,7 +947,7 @@ export default function ProjektDetail() {
                           {linkDocResults.map(doc => (
                             <li key={doc.id} onClick={() => handleLinkDokument(doc.id)}
                               className="px-3 py-2 text-sm hover:bg-brand-light cursor-pointer flex justify-between">
-                              <span className="truncate">{doc.dateiname}</span>
+                              <span className="truncate">{doc.betreff || doc.dokument_url?.split('/').pop() || 'Dokument'}</span>
                               <span className="text-xs text-text-muted ml-2">{doc.kategorie}</span>
                             </li>
                           ))}
@@ -983,7 +983,7 @@ export default function ProjektDetail() {
                       <div className="flex items-center gap-3 min-w-0">
                         <FileText className="h-4 w-4 text-text-muted flex-shrink-0" />
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-text-primary truncate">{d.documents?.dateiname || 'Unbekannt'}</p>
+                          <p className="text-sm font-medium text-text-primary truncate">{d.documents?.betreff || d.documents?.dokument_url?.split('/').pop() || 'Unbekannt'}</p>
                           <p className="text-xs text-text-muted">
                             {PROJEKT_DOKUMENT_TYPEN[d.dokument_typ]?.label || d.dokument_typ}
                             {d.ist_pflicht && <span className="ml-1 text-amber-600 font-medium">Pflicht</span>}

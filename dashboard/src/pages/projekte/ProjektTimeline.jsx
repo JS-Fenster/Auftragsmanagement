@@ -40,7 +40,7 @@ function getTitle(item) {
     case 'bestellung':
       return `Bestellung ${item.bestell_nummer || ''} bei ${item.lieferant_name || '?'}`
     case 'dokument':
-      return `${item.documents?.dateiname || 'Dokument'} (${item.documents?.kategorie || '?'})`
+      return `${item.documents?.betreff || item.documents?.dokument_url?.split('/').pop() || 'Dokument'} (${item.documents?.kategorie || '?'})`
     default:
       return '?'
   }
@@ -104,7 +104,7 @@ export default function ProjektTimeline({ projektId }) {
       const docIds = enrichedDoks.map(d => d.document_id).filter(Boolean)
       const { data: docDetails } = await supabase
         .from('documents')
-        .select('id, dateiname, kategorie, created_at')
+        .select('id, betreff, dokument_url, kategorie, created_at')
         .in('id', docIds)
       const docMap = Object.fromEntries((docDetails || []).map(d => [d.id, d]))
       enrichedDoks = enrichedDoks.map(d => ({ ...d, documents: docMap[d.document_id] || null }))

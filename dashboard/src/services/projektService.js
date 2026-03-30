@@ -234,7 +234,7 @@ export async function updateBestellung(id, updates) {
 export async function fetchProjektDokumente(projektId) {
   const { data, error } = await supabase
     .from('projekt_dokumente')
-    .select('*, documents(id, dateiname, kategorie, storage_pfad, created_at)')
+    .select('*, documents(id, betreff, kategorie, dokument_url, created_at)')
     .eq('projekt_id', projektId)
     .order('created_at', { ascending: false })
   if (error) throw new Error('Fehler beim Laden der Projekt-Dokumente: ' + error.message)
@@ -250,7 +250,7 @@ export async function linkDokument(projektId, documentId, dokumentTyp, istPflich
       dokument_typ: dokumentTyp,
       ist_pflicht: istPflicht,
     })
-    .select('*, documents(id, dateiname, kategorie, storage_pfad, created_at)')
+    .select('*, documents(id, betreff, kategorie, dokument_url, created_at)')
     .single()
   if (error) throw new Error('Fehler beim Verknuepfen des Dokuments: ' + error.message)
   return data
