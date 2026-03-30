@@ -64,8 +64,8 @@ export default function Kalender() {
           *,
           termin_arten(*),
           termin_ressourcen(*, ressourcen(*)),
-          kontakte:kontakt_id(id, firma1, kontakt_personen(vorname, nachname, ist_hauptkontakt)),
-          projekte:projekt_id(id, projekt_nummer, status)
+          kontakte!kontakt_id(id, firma1, kontakt_personen(vorname, nachname, ist_hauptkontakt)),
+          projekte!projekt_id(id, projekt_nummer, status)
         `)
         .gte('start_zeit', `${startStr}T00:00:00`)
         .lte('start_zeit', `${endStr}T23:59:59`)
