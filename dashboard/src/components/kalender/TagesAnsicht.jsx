@@ -239,6 +239,7 @@ function TerminBlock({
 
   return (
     <div
+      data-termin="true"
       className={`
         absolute inset-x-1 rounded-md px-1.5 py-1 text-xs cursor-grab overflow-hidden
         transition-shadow hover:shadow-lg hover:z-20 group
@@ -459,18 +460,59 @@ export default function TagesAnsicht({
     }
   }, [drag, selectedDate, fahrzeuge, onTerminDrop])
 
-  const handleSlotClick = useCallback(
+  // Click-drag slot selection
+  const [slotDrag, setSlotDrag] = useState(null) // { fahrzeugId, colEl, startY, currentY }
+
+  const handleSlotMouseDown = useCallback(
     (e, fahrzeugId) => {
-      if (!onSlotClick || !gridRef.current) return
-      const rect = e.currentTarget.getBoundingClientRect()
+      // Only start if clicking empty space
+      if (e.target.closest('[data-termin]')) return
+      const colEl = e.currentTarget
+      const rect = colEl.getBoundingClientRect()
       const relY = e.clientY - rect.top
-      const time = yToTime(relY)
-      const dateWithTime = new Date(selectedDate)
-      dateWithTime.setHours(time.h, time.m, 0, 0)
-      onSlotClick(dateWithTime, fahrzeugId)
+      setSlotDrag({ fahrzeugId, rect, startY: relY, currentY: relY })
     },
-    [onSlotClick, selectedDate],
+    [],
   )
+
+  useEffect(() => {
+    if (!slotDrag) return
+
+    const handleMove = (e) => {
+      const relY = e.clientY - slotDrag.rect.top
+      setSlotDrag((prev) => prev ? { ...prev, currentY: Math.max(0, Math.min(relY, TOTAL_HEIGHT)) } : null)
+    }
+
+    const handleUp = (e) => {
+      if (!slotDrag || !onSlotClick) { setSlotDrag(null); return }
+      const relY = e.clientY - slotDrag.rect.top
+      const minY = Math.min(slotDrag.startY, relY)
+      const maxY = Math.max(slotDrag.startY, relY)
+      const startTime = yToTime(minY)
+      const endTime = yToTime(maxY)
+
+      // If barely moved (< 15px), treat as simple click with 1h default
+      const isClick = Math.abs(maxY - minY) < 15
+      const startDate = new Date(selectedDate)
+      startDate.setHours(startTime.h, startTime.m, 0, 0)
+      const endDate = new Date(selectedDate)
+      if (isClick) {
+        endDate.setHours(startTime.h + 1, startTime.m, 0, 0)
+      } else {
+        endDate.setHours(endTime.h, endTime.m, 0, 0)
+      }
+
+      setSlotDrag(null)
+      onSlotClick(startDate, slotDrag.fahrzeugId, endDate)
+    }
+
+    window.addEventListener('mousemove', handleMove)
+    window.addEventListener('mouseup', handleUp)
+    return () => {
+      window.removeEventListener('mousemove', handleMove)
+      window.removeEventListener('mouseup', handleUp)
+    }
+  }, [slotDrag, onSlotClick, selectedDate])
 
   if (fahrzeuge.length === 0) {
     return (
@@ -518,19 +560,34 @@ export default function TagesAnsicht({
 
               {/* Day column body */}
               <div
-                className="relative cursor-crosshair"
+                className="relative cursor-crosshair select-none"
                 style={{ height: TOTAL_HEIGHT }}
-                onClick={(e) => {
-                  // Only fire if clicking empty space, not on a termin
-                  if (e.target === e.currentTarget || e.target.closest('[data-gridlines]')) {
-                    handleSlotClick(e, fz.id)
-                  }
-                }}
+                onMouseDown={(e) => handleSlotMouseDown(e, fz.id)}
               >
                 {/* Grid lines */}
-                <div data-gridlines="true" className="absolute inset-0 pointer-events-none">
+                <div className="absolute inset-0 pointer-events-none">
                   <GridLines />
                 </div>
+
+                {/* Slot drag selection highlight */}
+                {slotDrag && slotDrag.fahrzeugId === fz.id && (() => {
+                  const minY = Math.min(slotDrag.startY, slotDrag.currentY)
+                  const maxY = Math.max(slotDrag.startY, slotDrag.currentY)
+                  const height = maxY - minY
+                  if (height < 5) return null
+                  const startT = yToTime(minY)
+                  const endT = yToTime(maxY)
+                  return (
+                    <div
+                      className="absolute inset-x-1 rounded-md z-20 pointer-events-none border-2 border-brand/50 flex items-center justify-center"
+                      style={{ top: minY, height, backgroundColor: 'rgba(59, 130, 246, 0.15)' }}
+                    >
+                      <span className="text-xs font-medium text-brand bg-surface-card/90 px-2 py-0.5 rounded">
+                        {startT.str} – {endT.str}
+                      </span>
+                    </div>
+                  )
+                })()}
 
                 {/* Abwesenheiten */}
                 {col.abwesenheiten.map((ab) => (

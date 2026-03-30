@@ -141,10 +141,11 @@ export default function Kalender() {
     setPopoverPos(null)
   }
 
-  const handleSlotClick = (date, fahrzeugId) => {
-    const startTime = typeof date === 'string' ? date : date.toISOString()
+  const handleSlotClick = (startDate, fahrzeugId, endDate) => {
+    const startTime = typeof startDate === 'string' ? startDate : startDate.toISOString()
+    const endTime = endDate ? (typeof endDate === 'string' ? endDate : endDate.toISOString()) : null
     window.dispatchEvent(new CustomEvent('termin-create-open', {
-      detail: { start: startTime, resourceId: fahrzeugId },
+      detail: { start: startTime, end: endTime, resourceId: fahrzeugId },
     }))
   }
 

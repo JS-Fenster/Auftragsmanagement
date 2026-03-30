@@ -60,18 +60,20 @@ export default function TerminForm() {
   useEffect(() => {
     const onCreate = (e) => {
       reset()
-      const { startTime, endTime, resourceId } = e.detail || {}
-      if (startTime) {
-        const d = new Date(startTime)
+      const { start, startTime, end, endTime, resourceId } = e.detail || {}
+      const s = start || startTime
+      const en = end || endTime
+      if (s) {
+        const d = new Date(s)
         setStartDatum(d.toISOString().slice(0, 10))
         setStartZeit(d.toTimeString().slice(0, 5))
       }
-      if (endTime) {
-        const d = new Date(endTime)
+      if (en) {
+        const d = new Date(en)
         setEndDatum(d.toISOString().slice(0, 10))
         setEndZeit(d.toTimeString().slice(0, 5))
-      } else if (startTime) {
-        setEndDatum(new Date(startTime).toISOString().slice(0, 10))
+      } else if (s) {
+        setEndDatum(new Date(s).toISOString().slice(0, 10))
       }
       if (resourceId) setFahrzeugId(resourceId)
       setOpen(true)
