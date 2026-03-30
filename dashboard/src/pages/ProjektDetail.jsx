@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useChatContext } from '../lib/chatContext'
 import { ArrowLeft, Save, Clock, Package, Wrench, FileText, Plus, Edit2, Trash2, ChevronRight, ExternalLink, Shield, Link2, Unlink, AlertCircle, Eye, EyeOff, Tag, ListChecks, History, Archive, Mail, Paperclip, ChevronDown, ChevronUp, Upload, Download, X } from 'lucide-react'
@@ -119,6 +119,7 @@ export default function ProjektDetail() {
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState('')
   const [dragOver, setDragOver] = useState(false)
+  const dragCounterRef = useRef(0)
   const [linkDocSearch, setLinkDocSearch] = useState('')
   const [linkDocResults, setLinkDocResults] = useState([])
   const [linkDocTyp, setLinkDocTyp] = useState('sonstiges')
@@ -385,8 +386,19 @@ export default function ProjektDetail() {
     loadProjekt()
   }
 
+  const handleDragEnter = (e) => {
+    e.preventDefault()
+    dragCounterRef.current++
+    setDragOver(true)
+  }
+  const handleDragLeave = (e) => {
+    e.preventDefault()
+    dragCounterRef.current--
+    if (dragCounterRef.current === 0) setDragOver(false)
+  }
   const handleDrop = (e) => {
     e.preventDefault()
+    dragCounterRef.current = 0
     setDragOver(false)
     handleFileUpload(e.dataTransfer.files)
   }
@@ -872,8 +884,9 @@ export default function ProjektDetail() {
               </div>
             </div>
             <div className="p-5"
-              onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
-              onDragLeave={() => setDragOver(false)}
+              onDragOver={(e) => e.preventDefault()}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
               onDrop={handleDrop}
             >
               {/* Drag & Drop Zone */}
