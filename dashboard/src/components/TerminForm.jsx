@@ -157,7 +157,39 @@ export default function TerminForm() {
     setSelectedMonteure(p => p.includes(id) ? p.filter(m => m !== id) : [...p, id])
   }
 
-  // Overlap check state
+  // Monteur availability check (for ALL monteure, not just selected)
+  const [monteurStatus, setMonteurStatus] = useState({}) // { monteurId: 'frei' | 'belegt' | 'teilweise' }
+
+  useEffect(() => {
+    if (!startDatum || !startZeit || monteure.length === 0) {
+      setMonteurStatus({})
+      return
+    }
+    const sISO = ganztaegig ? `${startDatum}T00:00:00` : `${startDatum}T${startZeit}:00`
+    const eISO = ganztaegig ? `${endDatum || startDatum}T23:59:59` : `${endDatum || startDatum}T${endZeit}:00`
+
+    const check = async () => {
+      const allMonteurIds = monteure.map(m => m.id)
+      const { data } = await supabase
+        .from('termin_ressourcen')
+        .select('ressource_id, termine!inner(id, start_zeit, end_zeit, status)')
+        .in('ressource_id', allMonteurIds)
+        .lt('termine.start_zeit', eISO)
+        .gt('termine.end_zeit', sISO)
+        .neq('termine.status', 'abgesagt')
+
+      const status = {}
+      for (const m of monteure) {
+        const hits = (data || []).filter(d => d.ressource_id === m.id && d.termine && (!editId || d.termine.id !== editId))
+        status[m.id] = hits.length > 0 ? 'belegt' : 'frei'
+      }
+      setMonteurStatus(status)
+    }
+    const tm = setTimeout(check, 400)
+    return () => clearTimeout(tm)
+  }, [startDatum, startZeit, endDatum, endZeit, ganztaegig, monteure, editId])
+
+  // Overlap check state (for selected monteure — blocks save)
   const [overlaps, setOverlaps] = useState([])
   const [overlapConfirmed, setOverlapConfirmed] = useState(false)
 
@@ -344,25 +376,54 @@ export default function TerminForm() {
               </select>
             </div>
 
-            {/* Monteure Chips */}
+            {/* Monteure Chips with availability */}
             <div>
-              <label className="block text-xs font-medium text-text-secondary uppercase tracking-wider mb-1">Monteure</label>
+              <label className="block text-xs font-medium text-text-secondary uppercase tracking-wider mb-1">
+                Monteure
+                {Object.keys(monteurStatus).length > 0 && (
+                  <span className="ml-2 text-[10px] font-normal normal-case tracking-normal text-text-muted">
+                    (Verfuegbarkeit fuer {startZeit}–{endZeit})
+                  </span>
+                )}
+              </label>
               <div className="flex flex-wrap gap-2">
                 {monteure.map(m => {
                   const sel = selectedMonteure.includes(m.id)
+                  const status = monteurStatus[m.id]
+                  const isBelegt = status === 'belegt'
+
+                  // Border color: selected=monteur color, belegt=red, frei=green, unknown=default
+                  let borderColor = 'var(--border-default)'
+                  let ringStyle = {}
+                  if (sel) {
+                    borderColor = m.farbe
+                  } else if (status === 'belegt') {
+                    borderColor = '#EF4444'
+                    ringStyle = { boxShadow: '0 0 0 2px rgba(239, 68, 68, 0.3)' }
+                  } else if (status === 'frei') {
+                    borderColor = '#10B981'
+                    ringStyle = { boxShadow: '0 0 0 2px rgba(16, 185, 129, 0.2)' }
+                  }
+
                   return (
                     <button key={m.id} onClick={() => toggleMonteur(m.id)}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border transition-all"
-                      style={sel
-                        ? { backgroundColor: m.farbe + '20', borderColor: m.farbe, color: m.farbe }
-                        : { borderColor: 'var(--border-default)', color: 'var(--text-secondary)' }
-                      }
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border transition-all relative"
+                      style={{
+                        backgroundColor: sel ? m.farbe + '20' : isBelegt ? '#FEE2E220' : 'transparent',
+                        borderColor,
+                        color: sel ? m.farbe : isBelegt ? '#991B1B' : 'var(--text-secondary)',
+                        ...ringStyle,
+                      }}
+                      title={isBelegt ? `${m.name} ist zur gewaehlten Zeit belegt` : status === 'frei' ? `${m.name} ist frei` : m.name}
                     >
                       <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
-                        style={{ backgroundColor: sel ? m.farbe : '#D1D5DB' }}>
+                        style={{ backgroundColor: sel ? m.farbe : isBelegt ? '#EF4444' : status === 'frei' ? '#10B981' : '#D1D5DB' }}>
                         {m.kuerzel || m.name?.charAt(0)}
                       </span>
                       {m.name}
+                      {isBelegt && !sel && (
+                        <span className="text-[9px] text-red-500 font-semibold ml-0.5">belegt</span>
+                      )}
                     </button>
                   )
                 })}
