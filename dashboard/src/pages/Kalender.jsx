@@ -92,24 +92,25 @@ export default function Kalender() {
 
   // Navigation
   const goToday = () => setCurrentDate(new Date())
+  const isDayView = view === 'tag' || view === 'monteur'
   const goPrev = () => {
-    if (view === 'tag') setCurrentDate(d => subDays(d, 1))
+    if (isDayView) setCurrentDate(d => subDays(d, 1))
     else setCurrentDate(d => subWeeks(d, 1))
   }
   const goNext = () => {
-    if (view === 'tag') setCurrentDate(d => addDays(d, 1))
+    if (isDayView) setCurrentDate(d => addDays(d, 1))
     else setCurrentDate(d => addWeeks(d, 1))
   }
 
   // Date label
   const dateLabel = useMemo(() => {
-    if (view === 'tag') {
+    if (isDayView) {
       return format(currentDate, 'EEEE, d. MMMM yyyy', { locale: de })
     }
     const ws = startOfWeek(currentDate, { weekStartsOn: 1 })
     const we = endOfWeek(currentDate, { weekStartsOn: 1 })
     return `${format(ws, 'd. MMM', { locale: de })} – ${format(we, 'd. MMM yyyy', { locale: de })}`
-  }, [currentDate, view])
+  }, [currentDate, isDayView])
 
   // Filter toggle
   const toggleFilter = (artId) => {

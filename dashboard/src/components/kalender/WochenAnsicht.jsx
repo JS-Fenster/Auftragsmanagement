@@ -192,8 +192,7 @@ export default function WochenAnsicht({
                       style={{ backgroundColor: fz.farbe || '#6B7280' }}
                     />
                     <div>
-                      <div className="text-xs font-semibold text-text-primary">{fz.kuerzel}</div>
-                      <div className="text-[10px] text-text-muted truncate max-w-[90px]">{fz.name}</div>
+                      <div className="text-xs font-semibold text-text-primary">{fz.name}</div>
                     </div>
                   </div>
                 </td>

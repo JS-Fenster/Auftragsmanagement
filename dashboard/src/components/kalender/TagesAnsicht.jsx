@@ -330,13 +330,21 @@ export default function TagesAnsicht({
   onTerminHoverEnd,
   onSlotClick,
   onTerminDrop,
+  columnType = 'fahrzeug',
 }) {
   const gridRef = useRef(null)
-  const [drag, setDrag] = useState(null) // { termin, startY, currentY, colIdx, originColIdx }
+  const [drag, setDrag] = useState(null)
 
   const showToday = isToday(selectedDate)
+  const isMonteurView = columnType === 'monteur'
 
-  // Map termine to fahrzeug columns
+  // Filter termine to selectedDate only
+  const dayTermine = useMemo(
+    () => termine.filter((t) => isSameDay(parseISO(t.start_zeit), selectedDate)),
+    [termine, selectedDate],
+  )
+
+  // Map termine to columns (fahrzeug or monteur)
   const columns = useMemo(() => {
     const cols = fahrzeuge.map((fz) => ({
       fahrzeug: fz,
@@ -344,34 +352,37 @@ export default function TagesAnsicht({
       abwesenheiten: [],
     }))
 
-    const fzIndexMap = new Map(fahrzeuge.map((fz, i) => [fz.id, i]))
+    const colIndexMap = new Map(fahrzeuge.map((fz, i) => [fz.id, i]))
 
-    for (const termin of termine) {
-      const fzId = getFahrzeugId(termin)
-      const idx = fzIndexMap.get(fzId)
-      if (idx !== undefined) {
-        cols[idx].termine.push(termin)
+    for (const termin of dayTermine) {
+      if (isMonteurView) {
+        // Monteur view: assign termin to each monteur column that is assigned to this termin
+        const monteurIds = (termin.termin_ressourcen || [])
+          .filter((r) => r.ressourcen?.typ === 'monteur')
+          .map((r) => r.ressource_id)
+        for (const mId of monteurIds) {
+          const idx = colIndexMap.get(mId)
+          if (idx !== undefined) cols[idx].termine.push(termin)
+        }
+      } else {
+        // Fahrzeug view: assign termin to its fahrzeug column
+        const fzId = getFahrzeugId(termin)
+        const idx = colIndexMap.get(fzId)
+        if (idx !== undefined) cols[idx].termine.push(termin)
       }
     }
 
-    // Map abwesenheiten to columns based on monteure assigned to that fahrzeug's termine
+    // Map abwesenheiten
     for (const ab of abwesenheiten) {
       if (!isSameDay(parseISO(ab.datum), selectedDate)) continue
-      // Show abwesenheit in every column where this ressource's monteur has termine
-      for (const col of cols) {
-        const hasRessource = col.termine.some((t) =>
-          t.termin_ressourcen?.some(
-            (r) => r.rolle === 'monteur' && r.ressource_id === ab.ressource_id,
-          ),
-        )
-        if (hasRessource) {
-          col.abwesenheiten.push(ab)
-        }
+      const idx = colIndexMap.get(ab.ressource_id)
+      if (idx !== undefined) {
+        cols[idx].abwesenheiten.push(ab)
       }
     }
 
     return cols
-  }, [termine, fahrzeuge, abwesenheiten, selectedDate])
+  }, [dayTermine, fahrzeuge, abwesenheiten, selectedDate, isMonteurView])
 
   // Drag handlers
   const handleDragStart = useCallback(
@@ -502,8 +513,7 @@ export default function TagesAnsicht({
                   className="w-2.5 h-2.5 rounded-full shrink-0"
                   style={{ backgroundColor: fz.farbe || '#6B7280' }}
                 />
-                <span className="text-xs font-semibold text-text-primary truncate">{fz.kuerzel}</span>
-                <span className="text-[10px] text-text-muted truncate hidden sm:inline">{fz.name}</span>
+                <span className="text-xs font-semibold text-text-primary truncate">{fz.name}</span>
               </div>
 
               {/* Day column body */}
