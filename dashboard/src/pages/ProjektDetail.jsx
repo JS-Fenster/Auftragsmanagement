@@ -132,7 +132,7 @@ export default function ProjektDetail() {
       supabase.from('projekt_positionen').select('*').eq('projekt_id', id).order('pos_nr'),
       supabase.from('projekt_bestellungen').select('*').eq('projekt_id', id).order('created_at', { ascending: false }),
       supabase.from('projekt_historie').select('*').eq('projekt_id', id).order('erstellt_am', { ascending: false }),
-      supabase.from('projekt_dokumente').select('*, documents(id, dateiname, kategorie, storage_pfad, created_at)').eq('projekt_id', id).order('created_at', { ascending: false }),
+      supabase.from('projekt_dokumente').select('*, documents(id, dateiname, kategorie, dokument_url, created_at)').eq('projekt_id', id).order('created_at', { ascending: false }),
       supabase.from('belege').select('*').eq('projekt_id', id).order('created_at', { ascending: false }),
     ])
 
@@ -363,13 +363,14 @@ export default function ProjektDetail() {
     for (let i = 0; i < files.length; i++) {
       const file = files[i]
       setUploadProgress(`${i + 1}/${files.length}: ${file.name}`)
-      const filePath = `projekte/${id}/${Date.now()}_${file.name}`
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+      const filePath = `projekte/${id}/${Date.now()}_${safeName}`
       const { error: uploadError } = await supabase.storage.from('documents').upload(filePath, file)
       if (uploadError) { console.error('Upload failed:', uploadError.message); continue }
       // Create document record
       const { data: doc } = await supabase.from('documents').insert({
         dateiname: file.name,
-        storage_pfad: filePath,
+        dokument_url: filePath,
         source: 'upload',
         kategorie: 'Sonstiges',
       }).select('id').single()
@@ -978,9 +979,9 @@ export default function ProjektDetail() {
                         </div>
                       </div>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {d.documents?.storage_pfad && (
+                        {d.documents?.dokument_url && (
                           <button onClick={async () => {
-                            const { data } = await supabase.storage.from('documents').createSignedUrl(d.documents.storage_pfad, 60)
+                            const { data } = await supabase.storage.from('documents').createSignedUrl(d.documents.dokument_url, 60)
                             if (data?.signedUrl) window.open(data.signedUrl, '_blank')
                           }} className="p-1 text-text-muted hover:text-brand" title="Herunterladen">
                             <Download className="h-4 w-4" />
