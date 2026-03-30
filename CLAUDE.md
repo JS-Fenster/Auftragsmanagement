@@ -204,6 +204,17 @@ Bei JEDER Aenderung an Kategorien (Rename, Neu, Loeschen, CHECK Constraint) ALLE
 7. `admin-review` - Frontend Kategorie-Dropdown + constants.js
 8. Storage-Ordner - Bestehende Dateien muessen ggf. verschoben werden
 
+**DSGVO-Dokumentation (PFLICHT bei neuen Verarbeitungszwecken):**
+> **Hintergrund:** Alle API-Calls an OpenAI senden personenbezogene Daten (Kundennamen, Emails, Adressen).
+> AVVs mit OpenAI, Supabase und Cloudflare sind abgeschlossen (30.03.2026).
+
+Bei JEDER neuen Edge Function oder Jess-Erweiterung die **personenbezogene Daten an externe APIs sendet**:
+1. Eintrag in [DSGVO_VERARBEITUNGSVERZEICHNIS.md](../../KB/wissen/DSGVO_VERARBEITUNGSVERZEICHNIS.md) ergaenzen
+2. Dokumentieren: Welche Daten, an wen, zu welchem Zweck, welches Modell
+3. Bei neuem Dienstleister (nicht OpenAI/Supabase/Cloudflare): AVV abschliessen BEVOR Daten gesendet werden
+
+Betrifft auch: Neue Jess-Tools die Kundendaten in den LLM-Kontext laden, neue OCR/Kategorisierungs-Features, neue API-Integrationen.
+
 **Deploy-Checkliste (PFLICHT nach JEDEM Deploy):**
 > **Hintergrund:** Am 05.03.2026 wurde process-document v39 mit json_schema strict deployed.
 > Health-Check (GET) war OK, aber ALLE POST-Calls gaben 500 zurueck (24h Ausfall).
