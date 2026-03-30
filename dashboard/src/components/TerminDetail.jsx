@@ -67,11 +67,13 @@ export default function TerminDetail() {
 
   useEffect(() => {
     const handleOpen = (e) => {
-      const { terminId } = e.detail || {}
-      if (!terminId) return
+      // Support both { terminId } and full termin object as detail
+      const detail = e.detail || {}
+      const id = detail.terminId || detail.id
+      if (!id) return
       setOpen(true)
       setConfirmAction(null)
-      loadTermin(terminId)
+      loadTermin(id)
     }
     const handleClose = () => setOpen(false)
 

@@ -258,39 +258,63 @@ function TerminBlock({
       onMouseLeave={() => onTerminHoverEnd?.()}
       onMouseDown={handleMouseDown}
     >
-      {/* Art Badge */}
-      {termin.termin_arten && (
-        <div
-          className="inline-block px-1 py-0 rounded text-[9px] font-semibold text-white mb-0.5 truncate max-w-full"
-          style={{ backgroundColor: farbe }}
-        >
-          {termin.termin_arten.name}
-        </div>
-      )}
-
-      <div className={`font-medium truncate text-text-primary ${abgesagt ? 'line-through' : ''}`}>
-        {kontaktName}
-      </div>
-
-      {height >= 48 && (
-        <div className={`text-text-muted ${abgesagt ? 'line-through' : ''}`}>
-          {format(start, 'HH:mm')}&ndash;{format(end, 'HH:mm')}
-        </div>
-      )}
-
-      {monteure.length > 0 && height >= 36 && (
-        <div className="flex gap-0.5 mt-0.5 flex-wrap">
+      {height < 30 ? (
+        /* Compact single-line for very small termine */
+        <div className="flex items-center gap-1 min-w-0">
+          <span className="inline-block px-1 rounded text-[8px] font-semibold text-white shrink-0"
+            style={{ backgroundColor: farbe }}>
+            {termin.termin_arten?.name?.slice(0, 3)}
+          </span>
+          <span className={`truncate text-text-primary ${abgesagt ? 'line-through' : ''}`}>{kontaktName}</span>
           {monteure.map((m) => (
-            <span
-              key={m.kuerzel}
-              className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[8px] font-bold text-white shrink-0"
-              style={{ backgroundColor: m.farbe || '#6B7280' }}
-              title={m.kuerzel}
-            >
+            <span key={m.kuerzel}
+              className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full text-[7px] font-bold text-white shrink-0"
+              style={{ backgroundColor: m.farbe || '#6B7280' }} title={m.kuerzel}>
               {m.kuerzel}
             </span>
           ))}
         </div>
+      ) : (
+        <>
+          {/* Art Badge */}
+          {termin.termin_arten && (
+            <div className="flex items-center gap-1 mb-0.5">
+              <span className="inline-block px-1 py-0 rounded text-[9px] font-semibold text-white truncate"
+                style={{ backgroundColor: farbe }}>
+                {termin.termin_arten.name}
+              </span>
+              {monteure.length > 0 && height < 48 && monteure.map((m) => (
+                <span key={m.kuerzel}
+                  className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[8px] font-bold text-white shrink-0"
+                  style={{ backgroundColor: m.farbe || '#6B7280' }} title={m.kuerzel}>
+                  {m.kuerzel}
+                </span>
+              ))}
+            </div>
+          )}
+
+          <div className={`font-medium truncate text-text-primary ${abgesagt ? 'line-through' : ''}`}>
+            {kontaktName}
+          </div>
+
+          {height >= 48 && (
+            <div className={`text-text-muted ${abgesagt ? 'line-through' : ''}`}>
+              {format(start, 'HH:mm')}&ndash;{format(end, 'HH:mm')}
+            </div>
+          )}
+
+          {monteure.length > 0 && height >= 48 && (
+            <div className="flex gap-0.5 mt-0.5 flex-wrap">
+              {monteure.map((m) => (
+                <span key={m.kuerzel}
+                  className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[8px] font-bold text-white shrink-0"
+                  style={{ backgroundColor: m.farbe || '#6B7280' }} title={m.kuerzel}>
+                  {m.kuerzel}
+                </span>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   )
