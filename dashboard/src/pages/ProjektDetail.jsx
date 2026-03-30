@@ -377,14 +377,19 @@ export default function ProjektDetail() {
       setUploadProgress(`${i + 1}/${files.length}: ${file.name}`)
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
       const filePath = `projekte/${id}/${Date.now()}_${safeName}`
+      // Generate file hash for duplicate detection (required by DB constraint)
+      const arrayBuf = await file.arrayBuffer()
+      const hashBuf = await crypto.subtle.digest('SHA-256', arrayBuf)
+      const fileHash = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('')
       const { error: uploadError } = await supabase.storage.from('documents').upload(filePath, file)
       if (uploadError) { console.error('Upload failed:', uploadError.message); continue }
       // Create document record
       const { data: doc } = await supabase.from('documents').insert({
         dokument_url: filePath,
         source: 'upload',
-        kategorie: 'Sonstiges',
+        kategorie: 'Sonstiges_Dokument',
         betreff: file.name,
+        file_hash: fileHash,
       }).select('id').single()
       if (doc) {
         await supabase.from('projekt_dokumente').insert({
