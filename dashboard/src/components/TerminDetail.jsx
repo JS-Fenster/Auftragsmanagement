@@ -70,9 +70,9 @@ export default function TerminDetail() {
       .select(`
         *,
         termin_arten ( id, name, slug, farbe, icon ),
-        kontakte ( id, firma1, firma2, strasse, plz, ort, kontakt_personen ( vorname, nachname, ist_hauptkontakt ) ),
-        projekte ( id, projekt_nummer, status ),
-        termin_ressourcen ( rolle, ressourcen ( id, typ, name, kuerzel, farbe ) )
+        kontakte!kontakt_id ( id, firma1, firma2, strasse, plz, ort, kontakt_personen!kontakt_id ( vorname, nachname, ist_hauptkontakt ) ),
+        projekte!projekt_id ( id, projekt_nummer, status ),
+        termin_ressourcen ( rolle, ressource_id, ressourcen ( id, typ, name, kuerzel, farbe ) )
       `)
       .eq('id', terminId)
       .single()
