@@ -218,7 +218,7 @@ export default function Kalender() {
   const columnType = spalten === 'monteure' ? 'monteur' : 'fahrzeug'
 
   return (
-    <div className="h-full flex flex-col bg-surface-main p-4 overflow-hidden">
+    <div className="h-full flex flex-col bg-surface-main px-4 pt-2 pb-0 overflow-hidden">
       {/* Header */}
       <div className="mb-3 flex items-center justify-between flex-wrap gap-2 shrink-0">
         <div className="flex items-center gap-3">
@@ -355,9 +355,9 @@ export default function Kalender() {
       </div>
 
       {/* Calendar + Auslastung wrapper */}
-      <div className="flex-1 min-h-0 overflow-auto">
+      <div className="flex-1 min-h-0 flex flex-col">
       {/* Calendar View */}
-      <div className="rounded-lg bg-surface-card shadow-sm border border-border-default overflow-hidden">
+      <div className="flex-1 min-h-0 rounded-lg bg-surface-card shadow-sm border border-border-default">
         {loading ? (
           <div className="flex h-[500px] items-center justify-center text-text-muted">
             Laden...
@@ -405,7 +405,7 @@ export default function Kalender() {
       </div>
 
       {/* Monteur Availability Strip */}
-      <div className="mt-2 rounded-lg bg-surface-card shadow-sm border border-border-default overflow-hidden">
+      <div className="shrink-0 mt-1 rounded-lg bg-surface-card shadow-sm border border-border-default overflow-hidden">
         <div className="px-3 py-1.5 border-b border-border-default">
           <h2 className="text-xs font-semibold text-text-primary flex items-center gap-1.5">
             <Users className="h-3.5 w-3.5 text-text-muted" />
