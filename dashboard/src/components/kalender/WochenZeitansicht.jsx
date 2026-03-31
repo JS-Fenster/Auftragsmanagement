@@ -4,7 +4,7 @@ import { de } from 'date-fns/locale'
 
 const SLOT_START = 7
 const SLOT_END = 17
-const HOUR_HEIGHT = 48
+const HOUR_HEIGHT = 60
 const TOTAL_HEIGHT = (SLOT_END - SLOT_START) * HOUR_HEIGHT
 const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr']
 

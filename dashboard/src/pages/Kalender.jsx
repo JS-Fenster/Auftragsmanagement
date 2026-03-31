@@ -354,8 +354,10 @@ export default function Kalender() {
         ))}
       </div>
 
+      {/* Calendar + Auslastung wrapper */}
+      <div className="flex-1 min-h-0 overflow-auto">
       {/* Calendar View */}
-      <div className="flex-1 min-h-0 rounded-lg bg-surface-card shadow-sm border border-border-default overflow-auto">
+      <div className="rounded-lg bg-surface-card shadow-sm border border-border-default overflow-hidden">
         {loading ? (
           <div className="flex h-[500px] items-center justify-center text-text-muted">
             Laden...
@@ -403,7 +405,7 @@ export default function Kalender() {
       </div>
 
       {/* Monteur Availability Strip */}
-      <div className="mt-2 shrink-0 rounded-lg bg-surface-card shadow-sm border border-border-default overflow-hidden">
+      <div className="mt-2 rounded-lg bg-surface-card shadow-sm border border-border-default overflow-hidden">
         <div className="px-3 py-1.5 border-b border-border-default">
           <h2 className="text-xs font-semibold text-text-primary flex items-center gap-1.5">
             <Users className="h-3.5 w-3.5 text-text-muted" />
@@ -423,6 +425,7 @@ export default function Kalender() {
           onCellClick={handleMonteurCellClick}
         />
       </div>
+      </div>{/* end scroll wrapper */}
 
       {/* Hover Popover */}
       <TerminPopover termin={hoveredTermin} position={popoverPos} />
