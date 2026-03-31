@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 import { startOfWeek, addDays, format, isSameDay, parseISO } from 'date-fns'
 import { de } from 'date-fns/locale'
 import { ArrowRight } from 'lucide-react'
@@ -34,10 +34,8 @@ const getFahrzeugId = (termin) => {
   return fahrzeug?.ressource_id ?? null
 }
 
-const isAbgesagt = (termin) => termin.status === 'abgesagt'
-
-function TerminKachel({ termin, isContinuation, onTerminClick, onTerminHover, onTerminHoverEnd }) {
-  const abgesagt = isAbgesagt(termin)
+function TerminKachel({ termin, isContinuation, onTerminClick, onTerminHover, onTerminHoverEnd, onDragStart }) {
+  const abgesagt = termin.status === 'abgesagt'
   const farbe = termin.termin_arten?.farbe || '#6B7280'
   const monteure = getMonteurKuerzel(termin)
   const kontaktName = getKontaktName(termin.kontakte)
@@ -49,14 +47,20 @@ function TerminKachel({ termin, isContinuation, onTerminClick, onTerminHover, on
     }
   }
 
+  const handleMouseDown = (e) => {
+    if (e.button !== 0 || isContinuation) return
+    e.preventDefault()
+    e.stopPropagation()
+    onDragStart?.(termin, e)
+  }
+
   return (
-    <button
-      type="button"
+    <div
       className={`
         group w-full text-left rounded-md px-2 py-1.5 text-xs
-        transition-all cursor-pointer border border-transparent
+        transition-all border border-transparent select-none
         hover:shadow-md hover:scale-[1.02] hover:border-white/20
-        ${abgesagt ? 'opacity-50' : ''}
+        ${abgesagt ? 'opacity-50' : 'cursor-grab'}
       `}
       style={{
         backgroundColor: abgesagt ? `${farbe}33` : `${farbe}22`,
@@ -66,6 +70,7 @@ function TerminKachel({ termin, isContinuation, onTerminClick, onTerminHover, on
       onClick={() => onTerminClick?.(termin)}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={() => onTerminHoverEnd?.()}
+      onMouseDown={handleMouseDown}
     >
       {isContinuation ? (
         <div className="flex items-center gap-1 text-text-secondary">
@@ -98,7 +103,7 @@ function TerminKachel({ termin, isContinuation, onTerminClick, onTerminHover, on
           ))}
         </div>
       )}
-    </button>
+    </div>
   )
 }
 
@@ -112,11 +117,72 @@ export default function WochenAnsicht({
   onTerminHoverEnd,
   onSlotClick,
   onDayClick,
+  onTerminDrop,
   columnType = 'fahrzeug',
 }) {
   const isMonteurView = columnType === 'monteur'
   const weekStart = useMemo(() => startOfWeek(currentDate, { weekStartsOn: 1 }), [currentDate])
   const weekDays = useMemo(() => Array.from({ length: 5 }, (_, i) => addDays(weekStart, i)), [weekStart])
+  const tableRef = useRef(null)
+
+  // Drag state
+  const [drag, setDrag] = useState(null) // { termin, startX, startY, currentX, currentY, active }
+  const [dropTarget, setDropTarget] = useState(null) // { fzId, dayIdx }
+
+  const handleDragStart = useCallback((termin, e) => {
+    setDrag({ termin, startX: e.clientX, startY: e.clientY, currentX: e.clientX, currentY: e.clientY, active: false })
+  }, [])
+
+  useEffect(() => {
+    if (!drag) return
+
+    const onMove = (e) => {
+      const dx = Math.abs(e.clientX - drag.startX)
+      const dy = Math.abs(e.clientY - drag.startY)
+      const isActive = drag.active || dx >= 8 || dy >= 8
+
+      setDrag(prev => prev ? { ...prev, currentX: e.clientX, currentY: e.clientY, active: isActive } : null)
+
+      // Find drop target cell
+      if (isActive) {
+        const el = document.elementFromPoint(e.clientX, e.clientY)
+        const cell = el?.closest('[data-cell-fz][data-cell-day]')
+        if (cell) {
+          setDropTarget({ fzId: cell.dataset.cellFz, dayIdx: parseInt(cell.dataset.cellDay) })
+        } else {
+          setDropTarget(null)
+        }
+      }
+    }
+
+    const onUp = () => {
+      if (drag.active && dropTarget && onTerminDrop) {
+        const targetDay = weekDays[dropTarget.dayIdx]
+        const oldStart = parseISO(drag.termin.start_zeit)
+        const oldEnd = parseISO(drag.termin.end_zeit)
+        const dur = oldEnd.getTime() - oldStart.getTime()
+
+        // Keep same time, change day
+        const newStart = new Date(targetDay)
+        newStart.setHours(oldStart.getHours(), oldStart.getMinutes(), 0, 0)
+        const newEnd = new Date(newStart.getTime() + dur)
+
+        onTerminDrop(drag.termin.id, newStart.toISOString(), newEnd.toISOString(), dropTarget.fzId)
+      } else if (!drag.active) {
+        // Was a click, not drag
+        onTerminClick?.(drag.termin)
+      }
+      setDrag(null)
+      setDropTarget(null)
+    }
+
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+  }, [drag, dropTarget, weekDays, onTerminDrop, onTerminClick])
 
   // Build lookup: resourceId -> dayIndex -> termine[]
   const grid = useMemo(() => {
@@ -135,7 +201,6 @@ export default function WochenAnsicht({
       const end = parseISO(termin.end_zeit)
 
       if (isMonteurView) {
-        // Monteur view: assign termin to each monteur row that is assigned
         const monteurIds = (termin.termin_ressourcen || [])
           .filter((r) => r.ressourcen?.typ === 'monteur')
           .map((r) => r.ressource_id)
@@ -152,7 +217,6 @@ export default function WochenAnsicht({
           }
         }
       } else {
-        // Fahrzeug view: assign termin to its fahrzeug row
         const fzId = getFahrzeugId(termin)
         if (!fzId || !map.has(fzId)) continue
         const row = map.get(fzId)
@@ -179,8 +243,8 @@ export default function WochenAnsicht({
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border-default bg-surface-card">
-      <table className="w-full border-collapse min-w-[700px]" style={{ tableLayout: 'fixed' }}>
+    <div className="overflow-x-auto rounded-lg border border-border-default bg-surface-card relative">
+      <table ref={tableRef} className="w-full border-collapse min-w-[700px]" style={{ tableLayout: 'fixed' }}>
         <thead>
           <tr className="border-b border-border-default">
             <th className="w-32 px-3 py-2 text-left text-xs font-semibold text-text-secondary bg-surface-main sticky left-0 z-10">
@@ -222,14 +286,18 @@ export default function WochenAnsicht({
                 {weekDays.map((day, dIdx) => {
                   const items = row?.get(dIdx) || []
                   const isToday = isSameDay(day, new Date())
+                  const isDropHere = dropTarget?.fzId === fz.id && dropTarget?.dayIdx === dIdx
                   return (
                     <td
                       key={dIdx}
-                      className={`px-1 py-1 align-top border-l border-border-default min-h-[60px] ${
+                      data-cell-fz={fz.id}
+                      data-cell-day={dIdx}
+                      className={`px-1 py-1 align-top border-l border-border-default min-h-[60px] transition-colors ${
+                        isDropHere ? 'bg-brand/20 ring-2 ring-brand/40 ring-inset' :
                         isToday ? 'bg-brand/5' : 'bg-surface-card'
-                      } ${items.length === 0 ? 'cursor-pointer hover:bg-surface-hover transition-colors' : ''}`}
+                      } ${items.length === 0 && !drag ? 'cursor-pointer hover:bg-surface-hover' : ''}`}
                       onClick={() => {
-                        if (items.length === 0) {
+                        if (items.length === 0 && !drag) {
                           onDayClick?.(day)
                         }
                       }}
@@ -243,9 +311,10 @@ export default function WochenAnsicht({
                             key={`${termin.id}-${isContinuation ? 'cont' : 'main'}`}
                             termin={termin}
                             isContinuation={isContinuation}
-                            onTerminClick={onTerminClick}
-                            onTerminHover={onTerminHover}
-                            onTerminHoverEnd={onTerminHoverEnd}
+                            onTerminClick={drag ? undefined : onTerminClick}
+                            onTerminHover={drag ? undefined : onTerminHover}
+                            onTerminHoverEnd={drag ? undefined : onTerminHoverEnd}
+                            onDragStart={handleDragStart}
                           />
                         ))}
                       </div>
@@ -257,6 +326,26 @@ export default function WochenAnsicht({
           })}
         </tbody>
       </table>
+
+      {/* Drag Ghost */}
+      {drag?.active && (
+        <div
+          className="fixed z-50 pointer-events-none opacity-80 rounded-md px-2 py-1 text-xs shadow-xl max-w-[200px]"
+          style={{
+            left: drag.currentX + 12,
+            top: drag.currentY - 8,
+            backgroundColor: (drag.termin.termin_arten?.farbe || '#6B7280') + '40',
+            borderLeft: `3px solid ${drag.termin.termin_arten?.farbe || '#6B7280'}`,
+          }}
+        >
+          <div className="font-medium truncate text-text-primary">
+            {getKontaktName(drag.termin.kontakte)}
+          </div>
+          <div className="text-text-muted">
+            {formatTime(drag.termin.start_zeit)}–{formatTime(drag.termin.end_zeit)}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

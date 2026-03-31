@@ -384,6 +384,7 @@ export default function Kalender() {
             onTerminHoverEnd={handleTerminHoverEnd}
             onSlotClick={handleSlotClick}
             onDayClick={handleDayClick}
+            onTerminDrop={handleTerminDrop}
             columnType={columnType}
           />
         ) : (
