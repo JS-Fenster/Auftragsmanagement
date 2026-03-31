@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { ChevronLeft, ChevronRight, CalendarDays, Filter, Calendar, LayoutGrid, Users } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CalendarDays, Filter, Calendar, LayoutGrid, Users, Layers, List } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, subDays } from 'date-fns'
 import { de } from 'date-fns/locale'
 import WochenAnsicht from '../components/kalender/WochenAnsicht'
+import WochenZeitansicht from '../components/kalender/WochenZeitansicht'
 import TagesAnsicht from '../components/kalender/TagesAnsicht'
 import MonteurAuslastung from '../components/kalender/MonteurAuslastung'
 import TerminPopover from '../components/kalender/TerminPopover'
@@ -27,6 +28,7 @@ export default function Kalender() {
   const [activeFilters, setActiveFilters] = useState(new Set())
   const [hoveredTermin, setHoveredTermin] = useState(null)
   const [popoverPos, setPopoverPos] = useState(null)
+  const [wochenModus, setWochenModus] = useState('kachel') // 'kachel' or 'gruppe'
 
   // Load static data once
   useEffect(() => {
@@ -238,6 +240,32 @@ export default function Kalender() {
             ))}
           </div>
 
+          {/* Wochenansicht Modus Toggle */}
+          {view === 'woche' && (
+            <div className="flex rounded-lg border border-border-default bg-surface-card overflow-hidden ml-2">
+              <button
+                onClick={() => setWochenModus('kachel')}
+                className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                  wochenModus === 'kachel' ? 'bg-brand text-white' : 'text-text-secondary hover:bg-surface-hover'
+                }`}
+                title="Kachel-Ansicht"
+              >
+                <List className="h-3.5 w-3.5" />
+                Kacheln
+              </button>
+              <button
+                onClick={() => setWochenModus('gruppe')}
+                className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                  wochenModus === 'gruppe' ? 'bg-brand text-white' : 'text-text-secondary hover:bg-surface-hover'
+                }`}
+                title="Gruppendarstellung mit Zeitraster"
+              >
+                <Layers className="h-3.5 w-3.5" />
+                Gruppe
+              </button>
+            </div>
+          )}
+
           {/* Navigation */}
           <div className="flex items-center gap-1 ml-2">
             <button
@@ -303,6 +331,16 @@ export default function Kalender() {
           <div className="flex h-[500px] items-center justify-center text-text-muted">
             Laden...
           </div>
+        ) : view === 'woche' && wochenModus === 'gruppe' ? (
+          <WochenZeitansicht
+            termine={filteredTermine}
+            currentDate={currentDate}
+            onTerminClick={handleTerminClick}
+            onTerminHover={handleTerminHover}
+            onTerminHoverEnd={handleTerminHoverEnd}
+            onSlotClick={handleSlotClick}
+            onDayClick={handleDayClick}
+          />
         ) : view === 'woche' ? (
           <WochenAnsicht
             termine={filteredTermine}
@@ -362,6 +400,7 @@ export default function Kalender() {
           arbeitszeitmodelle={arbeitszeitmodelle}
           abwesenheiten={abwesenheiten}
           currentDate={currentDate}
+          highlightDate={isDayView ? currentDate : null}
           onCellClick={handleMonteurCellClick}
         />
       </div>

@@ -33,6 +33,8 @@ export default function TerminForm() {
   const [projektResults, setProjektResults] = useState([])
   const [showProjektDD, setShowProjektDD] = useState(false)
   const timerRef = useRef(null)
+  const kontaktDDRef = useRef(null)
+  const projektDDRef = useRef(null)
 
   useEffect(() => {
     const load = async () => {
@@ -101,8 +103,13 @@ export default function TerminForm() {
       }
       if (t.kontakte) {
         setKontaktId(t.kontakt_id)
-        setKontaktName(t.kontakte.firma1 || '')
-        setKontaktSuche(t.kontakte.firma1 || '')
+        const kName = t.kontakte.firma1
+          || (() => {
+            const hp = t.kontakte.kontakt_personen?.find(p => p.ist_hauptkontakt) || t.kontakte.kontakt_personen?.[0]
+            return hp ? [hp.vorname, hp.nachname].filter(Boolean).join(' ') : 'Unbekannt'
+          })()
+        setKontaktName(kName)
+        setKontaktSuche(kName)
       }
       if (t.projekte) {
         setProjektId(t.projekt_id)
@@ -122,18 +129,48 @@ export default function TerminForm() {
     }
   }, [reset])
 
-  // Kontakt search debounced
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (kontaktDDRef.current && !kontaktDDRef.current.contains(e.target)) setShowKontaktDD(false)
+      if (projektDDRef.current && !projektDDRef.current.contains(e.target)) setShowProjektDD(false)
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Kontakt search debounced — searches firma1, firma2, AND person names
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current)
     if (!kontaktSuche || kontaktSuche.length < 2) { setKontaktResults([]); return }
     timerRef.current = setTimeout(async () => {
       const t = kontaktSuche.replace(/'/g, '')
-      const { data } = await supabase
+      // Search by firma name
+      const { data: firmaResults } = await supabase
         .from('kontakte')
         .select('id, firma1, firma2, ort, kontakt_personen!kontakt_id(vorname, nachname, ist_hauptkontakt)')
         .or(`firma1.ilike.%${t}%,firma2.ilike.%${t}%`)
         .limit(8)
-      setKontaktResults(data || [])
+      // Search by person name (finds kontakte where a person matches)
+      const { data: personResults } = await supabase
+        .from('kontakt_personen')
+        .select('kontakt_id, vorname, nachname, ist_hauptkontakt, kontakte!kontakt_id(id, firma1, firma2, ort)')
+        .or(`vorname.ilike.%${t}%,nachname.ilike.%${t}%`)
+        .limit(8)
+      // Merge results, deduplicate by kontakt id
+      const seen = new Set()
+      const merged = []
+      for (const k of (firmaResults || [])) {
+        if (!seen.has(k.id)) { seen.add(k.id); merged.push(k) }
+      }
+      for (const p of (personResults || [])) {
+        const k = p.kontakte
+        if (k && !seen.has(k.id)) {
+          seen.add(k.id)
+          merged.push({ ...k, kontakt_personen: [{ vorname: p.vorname, nachname: p.nachname, ist_hauptkontakt: p.ist_hauptkontakt }] })
+        }
+      }
+      setKontaktResults(merged.slice(0, 10))
       setShowKontaktDD(true)
     }, 300)
   }, [kontaktSuche])
@@ -431,7 +468,7 @@ export default function TerminForm() {
             </div>
 
             {/* Kontakt-Suche */}
-            <div className="relative">
+            <div className="relative" ref={kontaktDDRef}>
               <label className="block text-xs font-medium text-text-secondary uppercase tracking-wider mb-1">Kunde / Kontakt</label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
@@ -441,18 +478,27 @@ export default function TerminForm() {
                   placeholder="Firma oder Name suchen..."
                   className="w-full pl-9 pr-3 py-2 text-sm border border-border-default rounded-lg bg-surface-main text-text-primary outline-none"
                 />
+                {kontaktId && (
+                  <button onClick={() => { setKontaktId(null); setKontaktName(''); setKontaktSuche('') }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-surface-hover rounded">
+                    <X className="w-3.5 h-3.5 text-text-muted" />
+                  </button>
+                )}
               </div>
               {showKontaktDD && kontaktResults.length > 0 && (
                 <div className="absolute z-10 mt-1 w-full bg-surface-card border border-border-default rounded-lg shadow-lg max-h-48 overflow-y-auto">
                   {kontaktResults.map(k => {
                     const hp = k.kontakt_personen?.find(p => p.ist_hauptkontakt) || k.kontakt_personen?.[0]
-                    const d = k.firma1 || [hp?.vorname, hp?.nachname].filter(Boolean).join(' ') || 'Unbekannt'
+                    const firma = k.firma1 || k.firma2
+                    const person = hp ? [hp.vorname, hp.nachname].filter(Boolean).join(' ') : null
+                    const displayName = firma || person || 'Unbekannt'
+                    const subtitle = firma && person ? person : k.ort || null
                     return (
                       <button key={k.id}
-                        onClick={() => { setKontaktId(k.id); setKontaktName(d); setKontaktSuche(d); setShowKontaktDD(false) }}
+                        onClick={() => { setKontaktId(k.id); setKontaktName(displayName); setKontaktSuche(displayName); setShowKontaktDD(false) }}
                         className="w-full text-left px-3 py-2 text-sm hover:bg-surface-hover">
-                        <div className="font-medium text-text-primary">{d}</div>
-                        {k.ort && <div className="text-xs text-text-muted">{k.ort}</div>}
+                        <div className="font-medium text-text-primary">{displayName}</div>
+                        {subtitle && <div className="text-xs text-text-muted">{subtitle}{firma && person && k.ort ? ` · ${k.ort}` : ''}</div>}
                       </button>
                     )
                   })}
@@ -462,7 +508,7 @@ export default function TerminForm() {
             </div>
 
             {/* Projekt-Suche */}
-            <div className="relative">
+            <div className="relative" ref={projektDDRef}>
               <label className="block text-xs font-medium text-text-secondary uppercase tracking-wider mb-1">Projekt (optional)</label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />

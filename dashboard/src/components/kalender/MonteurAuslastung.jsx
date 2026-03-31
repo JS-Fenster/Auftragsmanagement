@@ -76,6 +76,7 @@ export default function MonteurAuslastung({
   arbeitszeitmodelle = [],
   abwesenheiten = [],
   currentDate,
+  highlightDate = null,
   onCellClick,
 }) {
   const weekDays = useMemo(() => {
@@ -108,11 +109,17 @@ export default function MonteurAuslastung({
             <th className="text-left px-2 py-1.5 text-text-secondary font-medium w-[120px] sticky left-0 bg-surface-card z-10">
               Monteur
             </th>
-            {weekDays.map((day, i) => (
-              <th key={i} className="text-center px-1 py-1.5 text-text-secondary font-medium">
-                {WOCHENTAG_LABELS[i]}, {format(day, 'dd.MM.')}
-              </th>
-            ))}
+            {weekDays.map((day, i) => {
+              const isHighlighted = highlightDate ? isSameDay(day, highlightDate) : false
+              const isDimmed = highlightDate && !isHighlighted
+              return (
+                <th key={i} className={`text-center px-1 py-1.5 font-medium transition-colors ${
+                  isHighlighted ? 'text-brand bg-brand/5 border-b-2 border-brand' : isDimmed ? 'text-text-muted opacity-50' : 'text-text-secondary'
+                }`}>
+                  {WOCHENTAG_LABELS[i]}, {format(day, 'dd.MM.')}
+                </th>
+              )
+            })}
           </tr>
         </thead>
         <tbody>
@@ -129,10 +136,15 @@ export default function MonteurAuslastung({
                   </span>
                 </div>
               </td>
-              {days.map(({ date, style, prozent, abwesend, azmFrei }, i) => (
+              {days.map(({ date, style, prozent, abwesend, azmFrei }, i) => {
+                const isHighlighted = highlightDate ? isSameDay(date, highlightDate) : false
+                const isDimmed = highlightDate && !isHighlighted
+                return (
                 <td
                   key={i}
-                  className="px-1 py-1 cursor-pointer hover:bg-surface-hover transition-colors"
+                  className={`px-1 py-1 cursor-pointer hover:bg-surface-hover transition-all ${
+                    isHighlighted ? 'bg-brand/5 ring-1 ring-inset ring-brand/30' : isDimmed ? 'opacity-40' : ''
+                  }`}
                   onClick={() => onCellClick?.(monteur.id, date)}
                   title={
                     azmFrei ? 'Kein Arbeitstag'
@@ -173,7 +185,8 @@ export default function MonteurAuslastung({
                     </div>
                   )}
                 </td>
-              ))}
+                )
+              })}
             </tr>
           ))}
           {monteure.length === 0 && (
