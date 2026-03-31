@@ -273,12 +273,20 @@ export default function TerminForm() {
 
     setSaving(true)
 
+    // Build ISO with local timezone offset so Supabase stores correct time
+    const tzOffset = (() => {
+      const off = new Date().getTimezoneOffset()
+      const sign = off <= 0 ? '+' : '-'
+      const h = String(Math.floor(Math.abs(off) / 60)).padStart(2, '0')
+      const m = String(Math.abs(off) % 60).padStart(2, '0')
+      return `${sign}${h}:${m}`
+    })()
     const sISO = ganztaegig
-      ? `${startDatum}T00:00:00`
-      : `${startDatum}T${startZeit}:00`
+      ? `${startDatum}T00:00:00${tzOffset}`
+      : `${startDatum}T${startZeit}:00${tzOffset}`
     const eISO = ganztaegig
-      ? `${endDatum || startDatum}T23:59:59`
-      : `${endDatum || startDatum}T${endZeit}:00`
+      ? `${endDatum || startDatum}T23:59:59${tzOffset}`
+      : `${endDatum || startDatum}T${endZeit}:00${tzOffset}`
 
     const td = {
       art_id: artId, titel,
