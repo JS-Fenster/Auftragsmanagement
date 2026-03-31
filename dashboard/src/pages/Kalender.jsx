@@ -138,7 +138,7 @@ export default function Kalender() {
   // Event handlers
   const handleTerminClick = (termin) => {
     setHoveredTermin(null)
-    window.dispatchEvent(new CustomEvent('termin-detail-open', { detail: termin }))
+    window.dispatchEvent(new CustomEvent('termin-edit-open', { detail: { termin } }))
   }
 
   const handleTerminHover = (termin, rect) => {
