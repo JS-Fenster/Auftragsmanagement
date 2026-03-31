@@ -175,7 +175,7 @@ export default function Kalender() {
 
     const { error } = await supabase
       .from('termine')
-      .update({ start_zeit: newStart, end_zeit: newEnd })
+      .update({ start_zeit: newStart, end_zeit: newEnd, bearbeitet_von: 'Dashboard' })
       .eq('id', terminId)
 
     if (error) {

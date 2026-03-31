@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { X, Search, Plus } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { searchKontakte } from '../pages/budgetangebot/KundenSuche'
 
 export default function TerminForm() {
   const [open, setOpen] = useState(false)
@@ -139,49 +140,21 @@ export default function TerminForm() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Kontakt search debounced — splits terms and matches across all fields
+  // Kontakt search debounced — reuses searchKontakte from KundenSuche
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current)
     if (!kontaktSuche || kontaktSuche.length < 2) { setKontaktResults([]); return }
     timerRef.current = setTimeout(async () => {
-      const terms = kontaktSuche.replace(/'/g, '').trim().split(/\s+/).filter(Boolean)
-      if (terms.length === 0) return
-
-      // Use first term for DB query (broadest match), filter rest client-side
-      const first = terms[0]
-      const { data: firmaResults } = await supabase
-        .from('kontakte')
-        .select('id, firma1, firma2, ort, kontakt_personen!kontakt_id(vorname, nachname, ist_hauptkontakt)')
-        .or(`firma1.ilike.%${first}%,firma2.ilike.%${first}%,ort.ilike.%${first}%`)
-        .limit(30)
-      const { data: personResults } = await supabase
-        .from('kontakt_personen')
-        .select('kontakt_id, vorname, nachname, ist_hauptkontakt, kontakte!kontakt_id(id, firma1, firma2, ort)')
-        .or(`vorname.ilike.%${first}%,nachname.ilike.%${first}%`)
-        .limit(30)
-
-      // Merge and deduplicate
-      const seen = new Set()
-      const merged = []
-      for (const k of (firmaResults || [])) {
-        if (!seen.has(k.id)) { seen.add(k.id); merged.push(k) }
-      }
-      for (const p of (personResults || [])) {
-        const k = p.kontakte
-        if (k && !seen.has(k.id)) {
-          seen.add(k.id)
-          merged.push({ ...k, kontakt_personen: [{ vorname: p.vorname, nachname: p.nachname, ist_hauptkontakt: p.ist_hauptkontakt }] })
-        }
-      }
-
-      // Client-side filter: ALL terms must match somewhere in the kontakt's searchable fields
-      const filtered = merged.filter(k => {
-        const hp = k.kontakt_personen?.find(p => p.ist_hauptkontakt) || k.kontakt_personen?.[0]
-        const searchable = [k.firma1, k.firma2, k.ort, hp?.vorname, hp?.nachname].filter(Boolean).join(' ').toLowerCase()
-        return terms.every(t => searchable.includes(t.toLowerCase()))
-      })
-
-      setKontaktResults(filtered.slice(0, 10))
+      const results = await searchKontakte(kontaktSuche)
+      // Map to format used by this component
+      setKontaktResults(results.map(r => ({
+        id: r.kontakt_id,
+        firma1: r.firma,
+        firma2: r.firma2,
+        ort: r.ort,
+        display_name: r.display_name,
+        kontakt_personen: r.personen.map(p => ({ vorname: p.vorname, nachname: p.nachname })),
+      })))
       setShowKontaktDD(true)
     }, 300)
   }, [kontaktSuche])
@@ -300,6 +273,7 @@ export default function TerminForm() {
       kontakt_id: kontaktId || null,
       projekt_id: projektId || null,
       status, notizen: notizen || null,
+      bearbeitet_von: 'Dashboard', // TODO: replace with actual user (AS, RH, Jess, etc.)
     }
 
     let tId = editId

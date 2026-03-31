@@ -121,7 +121,7 @@ export default function TerminDetail() {
 
   const handleStatusChange = async (newStatus) => {
     if (!termin) return
-    const updateData = { status: newStatus }
+    const updateData = { status: newStatus, bearbeitet_von: 'Dashboard' }
     if (newStatus === 'abgesagt' && stornoGrund) {
       updateData.storno_grund = stornoGrund
     }
@@ -348,6 +348,9 @@ export default function TerminDetail() {
                         <span className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ backgroundColor: color }} />
                         <div className="min-w-0">
                           <span className="font-medium" style={{ color }}>{label}</span>
+                          {h.erstellt_von && (
+                            <span className="text-text-secondary ml-1">von {h.erstellt_von}</span>
+                          )}
                           <span className="text-text-muted ml-1.5">{zeit}</span>
                           {detail && <div className="text-text-muted mt-0.5">{detail}</div>}
                         </div>
