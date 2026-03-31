@@ -164,6 +164,7 @@ function TerminBlock({ termin, left, width, onTerminClick, onTerminHover, onTerm
 
   return (
     <div
+      data-termin-block="true"
       className={`
         absolute rounded-md px-1 py-0.5 text-[10px] cursor-pointer overflow-hidden
         transition-shadow hover:shadow-lg hover:z-20 group
@@ -178,7 +179,7 @@ function TerminBlock({ termin, left, width, onTerminClick, onTerminHover, onTerm
         borderLeft: `3px solid ${farbe}`,
         zIndex: 10,
       }}
-      onClick={() => onTerminClick?.(termin)}
+      onClick={(e) => { e.stopPropagation(); onTerminClick?.(termin) }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={() => onTerminHoverEnd?.()}
     >
