@@ -63,6 +63,8 @@ Auftragsmanagement/
 | **Dashboard** | React 18, Vite, Tailwind CSS |
 | **Datenbank** | SQL Server (Work4all ERP) |
 | **Auth** | (geplant) JWT/Session-basiert |
+| **Hosting** | Cloudflare Pages (Auto-Deploy bei Push auf master) |
+| **Online-URL** | https://am.js-fenster-intern.org/ |
 
 ---
 
