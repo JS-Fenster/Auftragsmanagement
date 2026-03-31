@@ -76,13 +76,12 @@ function checkAzmWarning(termin, arbeitszeitmodelle, selectedDate) {
 
 function TimeSlotLabels() {
   const slots = []
-  for (let h = SLOT_START; h <= SLOT_END; h++) slots.push(h)
+  for (let h = SLOT_START; h < SLOT_END; h++) slots.push(h)
   return (
     <div className="absolute inset-0">
       {slots.map((h) => (
         <div key={h}
           className="absolute left-0 right-0 text-[10px] text-text-muted text-right pr-2"
-          /* label sits just below the hour line */
           style={{ top: `${((h - SLOT_START) / HOURS) * 100}%` }}>
           {String(h).padStart(2, '0')}:00
         </div>
@@ -93,12 +92,10 @@ function TimeSlotLabels() {
 
 function GridLines() {
   const lines = []
-  for (let h = SLOT_START; h <= SLOT_END; h++) {
+  for (let h = SLOT_START; h < SLOT_END; h++) {
     const pct = ((h - SLOT_START) / HOURS) * 100
     lines.push(<div key={`h-${h}`} className="absolute left-0 right-0 border-t border-border-default" style={{ top: `${pct}%` }} />)
-    if (h < SLOT_END) {
-      lines.push(<div key={`hm-${h}`} className="absolute left-0 right-0 border-t border-border-default/40 border-dashed" style={{ top: `${pct + 50 / HOURS}%` }} />)
-    }
+    lines.push(<div key={`hm-${h}`} className="absolute left-0 right-0 border-t border-border-default/40 border-dashed" style={{ top: `${pct + 50 / HOURS}%` }} />)
   }
   return <>{lines}</>
 }
