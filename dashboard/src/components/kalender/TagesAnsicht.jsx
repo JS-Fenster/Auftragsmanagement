@@ -139,11 +139,20 @@ function AbwesenheitBlock({ abwesenheit }) {
   )
 }
 
+const STATUS_STYLES = {
+  geplant: { border: 'dashed', opacity: 1 },
+  bestaetigt: { border: 'solid', opacity: 1 },
+  abgeschlossen: { border: 'solid', opacity: 0.6 },
+  abgesagt: { border: 'solid', opacity: 0.4 },
+}
+
 function TerminBlock({ termin, hasAzmWarning, onTerminClick, onTerminHover, onTerminHoverEnd, onDragStart }) {
-  const abgesagt = isAbgesagt(termin)
+  const abgesagt = termin.status === 'abgesagt'
+  const statusStyle = STATUS_STYLES[termin.status] || STATUS_STYLES.geplant
   const farbe = termin.termin_arten?.farbe || '#6B7280'
   const monteure = getMonteurKuerzel(termin)
   const kontaktName = getKontaktName(termin.kontakte)
+  const adresse = termin.kontakte?.ort || ''
   const start = parseISO(termin.start_zeit)
   const end = parseISO(termin.end_zeit)
   const topPct = timeToPct(start)
@@ -156,26 +165,38 @@ function TerminBlock({ termin, hasAzmWarning, onTerminClick, onTerminHover, onTe
 
   return (
     <div data-termin="true"
-      className={`absolute inset-x-1 rounded-md px-1.5 py-0.5 text-xs cursor-grab overflow-hidden transition-shadow hover:shadow-lg hover:z-20 group ${abgesagt ? 'opacity-50' : ''} ${hasAzmWarning ? 'ring-2 ring-red-500/70' : ''}`}
-      style={{ top: `${topPct}%`, height: `${heightPct}%`, backgroundColor: `${farbe}20`, borderLeft: `3px solid ${farbe}`, zIndex: 10 }}
+      className={`absolute inset-x-1 rounded-md px-1.5 py-0.5 text-xs cursor-grab overflow-hidden transition-shadow hover:shadow-lg hover:z-20 group ${hasAzmWarning ? 'ring-2 ring-red-500/70' : ''}`}
+      style={{
+        top: `${topPct}%`, height: `${heightPct}%`,
+        backgroundColor: `${farbe}20`,
+        borderLeft: `3px ${statusStyle.border} ${farbe}`,
+        opacity: statusStyle.opacity,
+        zIndex: 10,
+      }}
       onClick={() => onTerminClick?.(termin)}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={() => onTerminHoverEnd?.()}
       onMouseDown={handleMouseDown}>
-      {/* Art Badge */}
+      {/* Row 1: Art Badge + Status indicator */}
       {termin.termin_arten && (
         <div className="flex items-center gap-1 mb-0.5">
           <span className="inline-block px-1 py-0 rounded text-[9px] font-semibold text-white truncate" style={{ backgroundColor: farbe }}>{termin.termin_arten.name}</span>
-          {monteure.length > 0 && heightPct < 8 && monteure.map((m) => (
-            <span key={m.kuerzel} className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[8px] font-bold text-white shrink-0" style={{ backgroundColor: m.farbe || '#6B7280' }} title={m.kuerzel}>{m.kuerzel}</span>
-          ))}
+          {termin.status === 'bestaetigt' && <span className="text-[8px] text-emerald-600 font-medium">&#10003;</span>}
+          {termin.status === 'abgeschlossen' && <span className="text-[8px] text-gray-500 font-medium">&#10003;&#10003;</span>}
         </div>
       )}
-      <div className={`font-medium truncate text-text-primary ${abgesagt ? 'line-through' : ''}`}>{kontaktName}</div>
-      {heightPct >= 8 && (
+      {/* Titel */}
+      <div className={`font-semibold truncate text-text-primary ${abgesagt ? 'line-through' : ''}`}>{termin.titel || kontaktName}</div>
+      {/* Kontakt + Ort (if space) */}
+      {heightPct >= 6 && termin.titel && (
+        <div className="text-text-secondary truncate">{kontaktName}{adresse ? ` | ${adresse}` : ''}</div>
+      )}
+      {/* Zeit */}
+      {heightPct >= 6 && (
         <div className={`text-text-muted ${abgesagt ? 'line-through' : ''}`}>{format(start, 'HH:mm')}&ndash;{format(end, 'HH:mm')}</div>
       )}
-      {monteure.length > 0 && heightPct >= 8 && (
+      {/* Monteure */}
+      {monteure.length > 0 && heightPct >= 6 && (
         <div className="flex gap-0.5 mt-0.5 flex-wrap">
           {monteure.map((m) => (
             <span key={m.kuerzel} className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[8px] font-bold text-white shrink-0" style={{ backgroundColor: m.farbe || '#6B7280' }} title={m.kuerzel}>{m.kuerzel}</span>

@@ -75,10 +75,23 @@ export default function TerminPopover({ termin, position }) {
           </span>
         </div>
 
+        {/* Titel */}
+        {termin.titel && (
+          <p className="text-sm font-bold text-text-primary truncate mb-0.5">{termin.titel}</p>
+        )}
+
         {/* Kunde */}
-        <p className="text-sm font-semibold text-text-primary truncate mb-1" title={kundenname}>
+        <p className="text-xs font-semibold text-text-primary truncate mb-0.5" title={kundenname}>
           {kundenname}
         </p>
+
+        {/* Adresse */}
+        {termin.kontakte?.strasse && (
+          <p className="text-[10px] text-text-muted mb-0.5">
+            {termin.kontakte.strasse}{termin.kontakte.plz || termin.kontakte.ort ? ', ' : ''}
+            {[termin.kontakte.plz, termin.kontakte.ort].filter(Boolean).join(' ')}
+          </p>
+        )}
 
         {/* Uhrzeit */}
         {zeitStr && (
