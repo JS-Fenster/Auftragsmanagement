@@ -43,7 +43,7 @@ export default function TerminForm() {
       const [a, f, m] = await Promise.all([
         supabase.from('termin_arten').select('*').eq('aktiv', true).order('sort_order'),
         supabase.from('ressourcen').select('*').eq('typ', 'fahrzeug').eq('aktiv', true).order('sort_order'),
-        supabase.from('ressourcen').select('*').eq('typ', 'monteur').eq('aktiv', true).order('sort_order'),
+        supabase.from('ressourcen').select('*').eq('typ', 'monteur').eq('aktiv', true).or('gruppe.eq.monteur,gruppe.is.null').order('sort_order'),
       ])
       if (a.data) setTerminArten(a.data)
       if (f.data) setFahrzeuge(f.data)
