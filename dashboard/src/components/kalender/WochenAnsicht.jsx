@@ -180,7 +180,7 @@ export default function WochenAnsicht({
 
   return (
     <div className="overflow-x-auto rounded-lg border border-border-default bg-surface-card">
-      <table className="w-full border-collapse min-w-[700px]">
+      <table className="w-full border-collapse min-w-[700px]" style={{ tableLayout: 'fixed' }}>
         <thead>
           <tr className="border-b border-border-default">
             <th className="w-32 px-3 py-2 text-left text-xs font-semibold text-text-secondary bg-surface-main sticky left-0 z-10">
