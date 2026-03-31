@@ -582,8 +582,8 @@ export default function TagesAnsicht({
     : null
 
   return (
-    <div className="overflow-x-auto h-full bg-surface-card">
-      <div ref={gridRef} className="relative flex min-w-[600px] h-full">
+    <div className="overflow-x-auto bg-surface-card">
+      <div ref={gridRef} className="relative flex min-w-[600px]">
         {/* Time column */}
         <div className="w-12 shrink-0 bg-surface-main border-r border-border-default">
           {/* Header spacer */}
