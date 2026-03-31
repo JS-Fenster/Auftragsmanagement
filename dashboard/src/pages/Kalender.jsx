@@ -216,9 +216,9 @@ export default function Kalender() {
   const columnType = spalten === 'monteure' ? 'monteur' : 'fahrzeug'
 
   return (
-    <div className="min-h-screen bg-surface-main p-6">
+    <div className="h-full flex flex-col bg-surface-main p-4 overflow-hidden">
       {/* Header */}
-      <div className="mb-4 flex items-center justify-between flex-wrap gap-3">
+      <div className="mb-3 flex items-center justify-between flex-wrap gap-2 shrink-0">
         <div className="flex items-center gap-3">
           <CalendarDays className="h-7 w-7 text-brand" />
           <h1 className="text-2xl font-bold text-text-primary">Kalender</h1>
@@ -323,7 +323,7 @@ export default function Kalender() {
       </div>
 
       {/* Filter Bar */}
-      <div className="mb-4 flex items-center gap-2 flex-wrap">
+      <div className="mb-2 flex items-center gap-2 flex-wrap shrink-0">
         <Filter className="h-4 w-4 text-text-muted shrink-0" />
         <button
           onClick={toggleAllFilters}
@@ -355,7 +355,7 @@ export default function Kalender() {
       </div>
 
       {/* Calendar View */}
-      <div className="rounded-lg bg-surface-card shadow-sm border border-border-default overflow-hidden">
+      <div className="flex-1 min-h-0 rounded-lg bg-surface-card shadow-sm border border-border-default overflow-auto">
         {loading ? (
           <div className="flex h-[500px] items-center justify-center text-text-muted">
             Laden...
@@ -402,10 +402,10 @@ export default function Kalender() {
       </div>
 
       {/* Monteur Availability Strip */}
-      <div className="mt-4 rounded-lg bg-surface-card shadow-sm border border-border-default overflow-hidden">
-        <div className="px-4 py-2 border-b border-border-default">
-          <h2 className="text-sm font-semibold text-text-primary flex items-center gap-2">
-            <Users className="h-4 w-4 text-text-muted" />
+      <div className="mt-2 shrink-0 rounded-lg bg-surface-card shadow-sm border border-border-default overflow-hidden">
+        <div className="px-3 py-1.5 border-b border-border-default">
+          <h2 className="text-xs font-semibold text-text-primary flex items-center gap-1.5">
+            <Users className="h-3.5 w-3.5 text-text-muted" />
             Monteur-Auslastung
           </h2>
         </div>

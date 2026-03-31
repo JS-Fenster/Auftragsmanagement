@@ -102,11 +102,11 @@ export default function MonteurAuslastung({
   }, [monteure, weekDays, termine, arbeitszeitmodelle, abwesenheiten])
 
   return (
-    <div className="w-full overflow-x-auto max-h-[200px] overflow-y-auto border border-border-default rounded-lg bg-surface-card">
+    <div className="w-full overflow-x-auto max-h-[160px] overflow-y-auto">
       <table className="w-full text-xs border-collapse">
         <thead>
           <tr className="border-b border-border-default">
-            <th className="text-left px-2 py-1.5 text-text-secondary font-medium w-[120px] sticky left-0 bg-surface-card z-10">
+            <th className="text-left px-2 py-1 text-text-secondary font-medium w-[80px] sticky left-0 bg-surface-card z-10">
               Monteur
             </th>
             {weekDays.map((day, i) => {
@@ -125,7 +125,7 @@ export default function MonteurAuslastung({
         <tbody>
           {grid.map(({ monteur, days }) => (
             <tr key={monteur.id} className="border-b border-border-default last:border-b-0 group">
-              <td className="px-2 py-1 sticky left-0 bg-surface-card z-10">
+              <td className="px-2 py-0.5 sticky left-0 bg-surface-card z-10">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <span
                     className="w-2.5 h-2.5 rounded-full shrink-0"
