@@ -582,12 +582,12 @@ export default function TagesAnsicht({
     : null
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border-default bg-surface-card">
-      <div ref={gridRef} className="relative flex min-w-[600px]">
+    <div className="overflow-x-auto h-full bg-surface-card">
+      <div ref={gridRef} className="relative flex min-w-[600px] h-full">
         {/* Time column */}
         <div className="w-12 shrink-0 bg-surface-main border-r border-border-default">
           {/* Header spacer */}
-          <div className="h-10 border-b border-border-default" />
+          <div className="h-10 border-b border-border-default sticky top-0 bg-surface-main z-20" />
           {/* Time labels */}
           <div className="relative" style={{ height: TOTAL_HEIGHT }}>
             <TimeSlotLabels />
@@ -600,7 +600,7 @@ export default function TagesAnsicht({
           return (
             <div key={fz.id} className="flex-1 min-w-[140px] border-r border-border-default last:border-r-0">
               {/* Column header */}
-              <div className="h-10 flex items-center justify-center gap-1.5 border-b border-border-default bg-surface-main px-2">
+              <div className="h-10 flex items-center justify-center gap-1.5 border-b border-border-default bg-surface-main px-2 sticky top-0 z-20">
                 <span
                   className="w-2.5 h-2.5 rounded-full shrink-0"
                   style={{ backgroundColor: fz.farbe || '#6B7280' }}

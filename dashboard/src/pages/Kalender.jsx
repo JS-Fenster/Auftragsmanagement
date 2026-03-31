@@ -355,7 +355,7 @@ export default function Kalender() {
       </div>
 
       {/* Calendar View */}
-      <div className="flex-1 min-h-0 rounded-lg bg-surface-card shadow-sm border border-border-default overflow-auto">
+      <div className="flex-1 min-h-0 rounded-lg bg-surface-card shadow-sm border border-border-default overflow-y-auto overflow-x-hidden">
         {loading ? (
           <div className="flex h-[500px] items-center justify-center text-text-muted">
             Laden...

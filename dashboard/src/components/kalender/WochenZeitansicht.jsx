@@ -280,7 +280,7 @@ export default function WochenZeitansicht({
   }, [termine, weekDays, columnType])
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border-default bg-surface-card">
+    <div className="overflow-x-auto h-full bg-surface-card">
       <div className="relative flex min-w-[700px]">
         {/* Time column */}
         <div className="w-12 shrink-0 bg-surface-main border-r border-border-default">
