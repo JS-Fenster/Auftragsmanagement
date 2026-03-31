@@ -35,10 +35,26 @@ export default function TerminPopover({ termin, position }) {
     zeitStr += ' Uhr'
   }
 
+  // Clamp position to viewport
+  const popoverWidth = 280
+  const popoverHeight = 200
+  const vw = typeof window !== 'undefined' ? window.innerWidth : 1400
+  const vh = typeof window !== 'undefined' ? window.innerHeight : 900
+  let left = position.x
+  let top = position.y
+  // If overflows right, show to the left of the element
+  if (left + popoverWidth > vw - 8) {
+    left = Math.max(8, position.x - popoverWidth - 16)
+  }
+  // If overflows bottom, shift up
+  if (top + popoverHeight > vh - 8) {
+    top = Math.max(8, vh - popoverHeight - 8)
+  }
+
   return (
     <div
       className="fixed z-50 pointer-events-none transition-opacity duration-150"
-      style={{ left: position.x, top: position.y, opacity: 1 }}
+      style={{ left, top, opacity: 1 }}
     >
       <div className="bg-surface-card border border-border-default rounded-lg shadow-lg p-3 max-w-[280px] min-w-[200px]">
         {/* Art + Status */}
