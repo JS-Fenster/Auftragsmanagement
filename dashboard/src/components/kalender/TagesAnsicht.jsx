@@ -161,7 +161,7 @@ function TerminBlock({ termin, hasAzmWarning, onTerminClick, onTerminHover, onTe
   const handleMouseEnter = (e) => {
     if (onTerminHover) { const rect = e.currentTarget.getBoundingClientRect(); onTerminHover(termin, rect) }
   }
-  const handleMouseDown = (e) => { if (e.button !== 0) return; e.preventDefault(); onDragStart?.(termin, e) }
+  const handleMouseDown = (e) => { if (e.button !== 0) return; e.preventDefault(); e.stopPropagation(); onDragStart?.(termin, e) }
 
   return (
     <div data-termin="true"
