@@ -254,6 +254,7 @@ function TerminBlock({ termin, left, width, onTerminClick, onTerminHover, onTerm
 export default function WochenZeitansicht({
   termine = [],
   currentDate,
+  columnType = 'fahrzeug',
   onTerminClick,
   onTerminHover,
   onTerminHoverEnd,
@@ -263,14 +264,20 @@ export default function WochenZeitansicht({
   const weekStart = useMemo(() => startOfWeek(currentDate, { weekStartsOn: 1 }), [currentDate])
   const weekDays = useMemo(() => Array.from({ length: 5 }, (_, i) => addDays(weekStart, i)), [weekStart])
 
-  // Group termine by day, then layout overlapping
+  // Filter termine by resource type, then group by day
   const dayColumns = useMemo(() => {
+    // Filter: only termine that have at least one resource of the selected type
+    const filtered = termine.filter((t) => {
+      const resources = t.termin_ressourcen || []
+      return resources.some((r) => r.ressourcen?.typ === columnType)
+    })
+
     return weekDays.map((day) => {
-      const dayTermine = termine.filter((t) => isSameDay(parseISO(t.start_zeit), day))
+      const dayTermine = filtered.filter((t) => isSameDay(parseISO(t.start_zeit), day))
       const laid = layoutOverlapping(dayTermine)
       return { day, items: laid }
     })
-  }, [termine, weekDays])
+  }, [termine, weekDays, columnType])
 
   return (
     <div className="overflow-x-auto rounded-lg border border-border-default bg-surface-card">

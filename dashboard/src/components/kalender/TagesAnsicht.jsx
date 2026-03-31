@@ -3,7 +3,7 @@ import { format, parseISO, isSameDay, isToday } from 'date-fns'
 
 const SLOT_START = 7
 const SLOT_END = 17
-const HOUR_HEIGHT = 60
+const HOUR_HEIGHT = 48
 const TOTAL_HEIGHT = (SLOT_END - SLOT_START) * HOUR_HEIGHT
 const SNAP_MINUTES = 30
 const SNAP_PX = (SNAP_MINUTES / 60) * HOUR_HEIGHT
@@ -420,6 +420,7 @@ export default function TagesAnsicht({
 
       setDrag({
         termin,
+        startMouseX: e.clientX,
         startMouseY: e.clientY,
         startTop: timeToY(parseISO(termin.start_zeit)),
         colIdx,
@@ -445,7 +446,7 @@ export default function TagesAnsicht({
         return
       }
 
-      const deltaX = Math.abs(e.clientX - drag.currentX)
+      const deltaX = Math.abs(e.clientX - drag.startMouseX)
       const deltaY = Math.abs(e.clientY - drag.startMouseY)
 
       // If barely moved (< 8px), treat as click — open detail instead of drag

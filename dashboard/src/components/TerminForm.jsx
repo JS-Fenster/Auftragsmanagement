@@ -36,6 +36,7 @@ export default function TerminForm() {
   const timerRef = useRef(null)
   const kontaktDDRef = useRef(null)
   const projektDDRef = useRef(null)
+  const justSelectedRef = useRef(false)
 
   useEffect(() => {
     const load = async () => {
@@ -143,6 +144,8 @@ export default function TerminForm() {
   // Kontakt search debounced — reuses searchKontakte from KundenSuche
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current)
+    // Skip search immediately after selection (prevents dropdown from reopening)
+    if (justSelectedRef.current) { justSelectedRef.current = false; return }
     if (!kontaktSuche || kontaktSuche.length < 2) { setKontaktResults([]); return }
     timerRef.current = setTimeout(async () => {
       const results = await searchKontakte(kontaktSuche)
@@ -480,7 +483,7 @@ export default function TerminForm() {
                     const subtitle = firma && person ? person : k.ort || null
                     return (
                       <button key={k.id}
-                        onClick={() => { setKontaktId(k.id); setKontaktName(displayName); setKontaktSuche(displayName); setShowKontaktDD(false) }}
+                        onClick={() => { justSelectedRef.current = true; setKontaktId(k.id); setKontaktName(displayName); setKontaktSuche(displayName); setKontaktResults([]); setShowKontaktDD(false) }}
                         className="w-full text-left px-3 py-2 text-sm hover:bg-surface-hover">
                         <div className="font-medium text-text-primary">{displayName}</div>
                         {subtitle && <div className="text-xs text-text-muted">{subtitle}{firma && person && k.ort ? ` · ${k.ort}` : ''}</div>}

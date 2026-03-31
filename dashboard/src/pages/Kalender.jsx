@@ -42,7 +42,9 @@ export default function Kalender() {
       }
       if (resResult.data) {
         setFahrzeuge(resResult.data.filter(r => r.typ === 'fahrzeug' && r.eigenschaften?.typ === 'bus'))
-        setMonteure(resResult.data.filter(r => r.typ === 'monteur'))
+        // Only standard monteure (gruppe='monteur'), exclude geschaeftsfuehrung/buero
+        // Falls gruppe noch NULL (Migration pending), alle Monteure zeigen
+        setMonteure(resResult.data.filter(r => r.typ === 'monteur' && (r.gruppe === 'monteur' || !r.gruppe)))
       }
       if (azmResult.data) setArbeitszeitmodelle(azmResult.data)
     }
@@ -269,31 +271,29 @@ export default function Kalender() {
             </button>
           </div>
 
-          {/* Wochenansicht Darstellung: Kacheln / Gruppe */}
-          {zeitraum === 'woche' && (
-            <div className="flex rounded-lg border border-border-default bg-surface-card overflow-hidden">
-              <button
-                onClick={() => setWochenModus('kachel')}
-                className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium transition-colors ${
-                  wochenModus === 'kachel' ? 'bg-brand text-white' : 'text-text-secondary hover:bg-surface-hover'
-                }`}
-                title="Kachel-Ansicht (Fahrzeug-Zeilen x Wochentag-Spalten)"
-              >
-                <List className="h-3.5 w-3.5" />
-                Kacheln
-              </button>
-              <button
-                onClick={() => setWochenModus('gruppe')}
-                className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium transition-colors ${
-                  wochenModus === 'gruppe' ? 'bg-brand text-white' : 'text-text-secondary hover:bg-surface-hover'
-                }`}
-                title="Gruppendarstellung (Zeitraster mit ueberlagerten Terminen)"
-              >
-                <Layers className="h-3.5 w-3.5" />
-                Gruppe
-              </button>
-            </div>
-          )}
+          {/* Wochenansicht Darstellung: Kacheln / Gruppe — always visible, disabled in Tag */}
+          <div className={`flex rounded-lg border border-border-default bg-surface-card overflow-hidden ${zeitraum !== 'woche' ? 'opacity-40 pointer-events-none' : ''}`}>
+            <button
+              onClick={() => setWochenModus('kachel')}
+              className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                wochenModus === 'kachel' ? 'bg-brand text-white' : 'text-text-secondary hover:bg-surface-hover'
+              }`}
+              title="Kachel-Ansicht"
+            >
+              <List className="h-3.5 w-3.5" />
+              Kacheln
+            </button>
+            <button
+              onClick={() => setWochenModus('gruppe')}
+              className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                wochenModus === 'gruppe' ? 'bg-brand text-white' : 'text-text-secondary hover:bg-surface-hover'
+              }`}
+              title="Gruppendarstellung"
+            >
+              <Layers className="h-3.5 w-3.5" />
+              Gruppe
+            </button>
+          </div>
 
           {/* Navigation */}
           <div className="flex items-center gap-1 ml-1">
@@ -364,6 +364,7 @@ export default function Kalender() {
           <WochenZeitansicht
             termine={filteredTermine}
             currentDate={currentDate}
+            columnType={columnType}
             onTerminClick={handleTerminClick}
             onTerminHover={handleTerminHover}
             onTerminHoverEnd={handleTerminHoverEnd}
@@ -412,9 +413,12 @@ export default function Kalender() {
         <MonteurAuslastung
           termine={filteredTermine}
           monteure={monteure}
+          fahrzeuge={fahrzeuge}
           arbeitszeitmodelle={arbeitszeitmodelle}
           abwesenheiten={abwesenheiten}
           currentDate={currentDate}
+          zeitraum={zeitraum}
+          spalten={spalten}
           highlightDate={isDay ? currentDate : null}
           onCellClick={handleMonteurCellClick}
         />
