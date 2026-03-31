@@ -230,8 +230,11 @@ export default function WochenAnsicht({
                       } ${items.length === 0 ? 'cursor-pointer hover:bg-surface-hover transition-colors' : ''}`}
                       onClick={() => {
                         if (items.length === 0) {
-                          onSlotClick?.(day, fz.id)
+                          onDayClick?.(day)
                         }
+                      }}
+                      onDoubleClick={() => {
+                        onSlotClick?.(day, fz.id)
                       }}
                     >
                       <div className="flex flex-col gap-1 min-h-[50px]">

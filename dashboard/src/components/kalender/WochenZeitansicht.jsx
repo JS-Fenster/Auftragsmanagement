@@ -306,7 +306,7 @@ export default function WochenZeitansicht({
             <div
               key={dIdx}
               className="flex-1 min-w-[120px] border-r border-border-default last:border-r-0 relative cursor-crosshair select-none"
-              onClick={(e) => {
+              onDoubleClick={(e) => {
                 if (e.target.closest('[data-termin-block]')) return
                 const rect = e.currentTarget.getBoundingClientRect()
                 const relY = e.clientY - rect.top
@@ -321,7 +321,7 @@ export default function WochenZeitansicht({
                 const endDate = new Date(day)
                 endDate.setHours(h + 1, m, 0, 0)
                 onSlotClick?.(startDate, null, endDate)
-              }}
+              }
             >
               {/* Grid lines */}
               <div className="absolute inset-0 pointer-events-none">
