@@ -340,12 +340,12 @@ export default function TagesAnsicht({
       const endPct = yToPct(maxY, slotDrag.gridH)
       const startTime = pctToTime(startPct)
       const endTime = pctToTime(endPct)
-      const isClick = Math.abs(maxY - minY) < 15
-      const startDate = new Date(selectedDate); startDate.setHours(startTime.h, startTime.m, 0, 0)
-      const endDate = new Date(selectedDate)
-      if (isClick) endDate.setHours(startTime.h + 1, startTime.m, 0, 0)
-      else endDate.setHours(endTime.h, endTime.m, 0, 0)
+      const isDrag = Math.abs(maxY - minY) >= 15
       setSlotDrag(null)
+      // Only open form on drag (not simple click — use double-click for that)
+      if (!isDrag) return
+      const startDate = new Date(selectedDate); startDate.setHours(startTime.h, startTime.m, 0, 0)
+      const endDate = new Date(selectedDate); endDate.setHours(endTime.h, endTime.m, 0, 0)
       onSlotClick(startDate, slotDrag.fahrzeugId, endDate)
     }
     window.addEventListener('mousemove', onMove)
@@ -383,7 +383,17 @@ export default function TagesAnsicht({
         {columns.map((col) => (
           <div key={col.fahrzeug.id}
             className="flex-1 min-w-[140px] border-r border-border-default last:border-r-0 relative cursor-crosshair select-none"
-            onMouseDown={(e) => handleSlotMouseDown(e, col.fahrzeug.id)}>
+            onMouseDown={(e) => handleSlotMouseDown(e, col.fahrzeug.id)}
+            onDoubleClick={(e) => {
+              if (e.target.closest('[data-termin]') || !onSlotClick) return
+              const rect = e.currentTarget.getBoundingClientRect()
+              const relY = e.clientY - rect.top
+              const pct = yToPct(relY, rect.height)
+              const time = pctToTime(pct)
+              const startDate = new Date(selectedDate); startDate.setHours(time.h, time.m, 0, 0)
+              const endDate = new Date(selectedDate); endDate.setHours(time.h + 1, time.m, 0, 0)
+              onSlotClick(startDate, col.fahrzeug.id, endDate)
+            }}>
 
             <div className="absolute inset-0 pointer-events-none"><GridLines /></div>
 
