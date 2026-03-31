@@ -255,8 +255,11 @@ export default function TerminForm() {
           termin: d.termine.titel,
           zeit: `${new Date(d.termine.start_zeit).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}–${new Date(d.termine.end_zeit).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`,
         }))
+      // Only reset confirmation if overlaps actually changed
+      const oldKeys = overlaps.map(o => `${o.monteur}:${o.termin}`).sort().join(',')
+      const newKeys = hits.map(o => `${o.monteur}:${o.termin}`).sort().join(',')
       setOverlaps(hits)
-      setOverlapConfirmed(false)
+      if (oldKeys !== newKeys) setOverlapConfirmed(false)
     }
     const tm = setTimeout(check, 500)
     return () => clearTimeout(tm)
