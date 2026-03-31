@@ -117,7 +117,7 @@ export default function TerminPopover({ termin, position }) {
 
         {/* Notizen */}
         {notizenGekuerzt && (
-          <p className="text-[10px] text-text-muted mt-1.5 pt-1.5 border-t border-border-default leading-relaxed">
+          <p className="text-[10px] text-text-muted mt-1.5 pt-1.5 border-t border-border-default leading-relaxed whitespace-pre-line">
             {notizenGekuerzt}
           </p>
         )}
