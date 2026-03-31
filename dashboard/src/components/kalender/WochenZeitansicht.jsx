@@ -321,7 +321,7 @@ export default function WochenZeitansicht({
                 const endDate = new Date(day)
                 endDate.setHours(h + 1, m, 0, 0)
                 onSlotClick?.(startDate, null, endDate)
-              }
+              }}
             >
               {/* Grid lines */}
               <div className="absolute inset-0 pointer-events-none">
