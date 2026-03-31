@@ -112,11 +112,13 @@ export default function WochenAnsicht({
   onTerminHoverEnd,
   onSlotClick,
   onDayClick,
+  columnType = 'fahrzeug',
 }) {
+  const isMonteurView = columnType === 'monteur'
   const weekStart = useMemo(() => startOfWeek(currentDate, { weekStartsOn: 1 }), [currentDate])
   const weekDays = useMemo(() => Array.from({ length: 5 }, (_, i) => addDays(weekStart, i)), [weekStart])
 
-  // Build lookup: fahrzeugId -> dayIndex -> termine[]
+  // Build lookup: resourceId -> dayIndex -> termine[]
   const grid = useMemo(() => {
     const map = new Map()
 
@@ -129,31 +131,49 @@ export default function WochenAnsicht({
     }
 
     for (const termin of termine) {
-      const fzId = getFahrzeugId(termin)
-      if (!fzId || !map.has(fzId)) continue
-
-      const row = map.get(fzId)
       const start = parseISO(termin.start_zeit)
       const end = parseISO(termin.end_zeit)
 
-      for (let d = 0; d < 5; d++) {
-        const day = weekDays[d]
-        if (isSameDay(start, day)) {
-          row.get(d).push({ termin, isContinuation: false })
-        } else if (start < day && end > day) {
-          // Multi-day: continuation
-          row.get(d).push({ termin, isContinuation: true })
+      if (isMonteurView) {
+        // Monteur view: assign termin to each monteur row that is assigned
+        const monteurIds = (termin.termin_ressourcen || [])
+          .filter((r) => r.ressourcen?.typ === 'monteur')
+          .map((r) => r.ressource_id)
+        for (const mId of monteurIds) {
+          if (!map.has(mId)) continue
+          const row = map.get(mId)
+          for (let d = 0; d < 5; d++) {
+            const day = weekDays[d]
+            if (isSameDay(start, day)) {
+              row.get(d).push({ termin, isContinuation: false })
+            } else if (start < day && end > day) {
+              row.get(d).push({ termin, isContinuation: true })
+            }
+          }
+        }
+      } else {
+        // Fahrzeug view: assign termin to its fahrzeug row
+        const fzId = getFahrzeugId(termin)
+        if (!fzId || !map.has(fzId)) continue
+        const row = map.get(fzId)
+        for (let d = 0; d < 5; d++) {
+          const day = weekDays[d]
+          if (isSameDay(start, day)) {
+            row.get(d).push({ termin, isContinuation: false })
+          } else if (start < day && end > day) {
+            row.get(d).push({ termin, isContinuation: true })
+          }
         }
       }
     }
 
     return map
-  }, [termine, fahrzeuge, weekDays])
+  }, [termine, fahrzeuge, weekDays, isMonteurView])
 
   if (fahrzeuge.length === 0) {
     return (
       <div className="flex items-center justify-center h-64 text-text-muted text-sm">
-        Keine Fahrzeuge konfiguriert
+        {isMonteurView ? 'Keine Monteure konfiguriert' : 'Keine Fahrzeuge konfiguriert'}
       </div>
     )
   }
@@ -164,7 +184,7 @@ export default function WochenAnsicht({
         <thead>
           <tr className="border-b border-border-default">
             <th className="w-32 px-3 py-2 text-left text-xs font-semibold text-text-secondary bg-surface-main sticky left-0 z-10">
-              Fahrzeug
+              {isMonteurView ? 'Monteur' : 'Fahrzeug'}
             </th>
             {weekDays.map((day, i) => {
               const isToday = isSameDay(day, new Date())

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { ChevronLeft, ChevronRight, CalendarDays, Filter, Calendar, LayoutGrid, Users, Layers, List } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CalendarDays, Filter, Calendar, LayoutGrid, Users, Layers, List, Car } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, subDays } from 'date-fns'
 import { de } from 'date-fns/locale'
@@ -9,15 +9,14 @@ import TagesAnsicht from '../components/kalender/TagesAnsicht'
 import MonteurAuslastung from '../components/kalender/MonteurAuslastung'
 import TerminPopover from '../components/kalender/TerminPopover'
 
-const VIEWS = {
-  woche: { label: 'Woche', icon: LayoutGrid },
-  tag: { label: 'Tag', icon: Calendar },
-  monteur: { label: 'Monteure', icon: Users },
-}
-
 export default function Kalender() {
-  const [view, setView] = useState('woche')
+  // Core state
+  const [zeitraum, setZeitraum] = useState('woche') // 'woche' | 'tag'
+  const [spalten, setSpalten] = useState('fahrzeuge') // 'fahrzeuge' | 'monteure'
+  const [wochenModus, setWochenModus] = useState('kachel') // 'kachel' | 'gruppe'
   const [currentDate, setCurrentDate] = useState(new Date())
+
+  // Data state
   const [termine, setTermine] = useState([])
   const [terminArten, setTerminArten] = useState([])
   const [fahrzeuge, setFahrzeuge] = useState([])
@@ -28,7 +27,6 @@ export default function Kalender() {
   const [activeFilters, setActiveFilters] = useState(new Set())
   const [hoveredTermin, setHoveredTermin] = useState(null)
   const [popoverPos, setPopoverPos] = useState(null)
-  const [wochenModus, setWochenModus] = useState('kachel') // 'kachel' or 'gruppe'
 
   // Load static data once
   useEffect(() => {
@@ -101,25 +99,25 @@ export default function Kalender() {
 
   // Navigation
   const goToday = () => setCurrentDate(new Date())
-  const isDayView = view === 'tag' || view === 'monteur'
+  const isDay = zeitraum === 'tag'
   const goPrev = () => {
-    if (isDayView) setCurrentDate(d => subDays(d, 1))
+    if (isDay) setCurrentDate(d => subDays(d, 1))
     else setCurrentDate(d => subWeeks(d, 1))
   }
   const goNext = () => {
-    if (isDayView) setCurrentDate(d => addDays(d, 1))
+    if (isDay) setCurrentDate(d => addDays(d, 1))
     else setCurrentDate(d => addWeeks(d, 1))
   }
 
   // Date label
   const dateLabel = useMemo(() => {
-    if (isDayView) {
+    if (isDay) {
       return format(currentDate, 'EEEE, d. MMMM yyyy', { locale: de })
     }
     const ws = startOfWeek(currentDate, { weekStartsOn: 1 })
     const we = endOfWeek(currentDate, { weekStartsOn: 1 })
     return `${format(ws, 'd. MMM', { locale: de })} – ${format(we, 'd. MMM yyyy', { locale: de })}`
-  }, [currentDate, isDayView])
+  }, [currentDate, isDay])
 
   // Filter toggle
   const toggleFilter = (artId) => {
@@ -160,7 +158,7 @@ export default function Kalender() {
 
   const handleDayClick = (date) => {
     setCurrentDate(date)
-    setView('tag')
+    setZeitraum('tag')
   }
 
   // Drag & Drop with confirmation dialog
@@ -203,14 +201,19 @@ export default function Kalender() {
 
   const cancelDrop = () => {
     setPendingDrop(null)
-    loadTermine() // Reload to revert visual position
+    loadTermine()
   }
 
-  // Monteur cell click
+  // Monteur cell click in Auslastung
   const handleMonteurCellClick = (monteurId, date) => {
     setCurrentDate(date)
-    setView('monteur')
+    setZeitraum('tag')
+    setSpalten('monteure')
   }
+
+  // Determine active columns for TagesAnsicht
+  const activeColumns = spalten === 'monteure' ? monteure : fahrzeuge
+  const columnType = spalten === 'monteure' ? 'monteur' : 'fahrzeug'
 
   return (
     <div className="min-h-screen bg-surface-main p-6">
@@ -221,34 +224,60 @@ export default function Kalender() {
           <h1 className="text-2xl font-bold text-text-primary">Kalender</h1>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* View Toggle */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Zeitraum: Woche / Tag */}
           <div className="flex rounded-lg border border-border-default bg-surface-card overflow-hidden">
-            {Object.entries(VIEWS).map(([key, { label, icon: Icon }]) => (
-              <button
-                key={key}
-                onClick={() => setView(key)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors ${
-                  view === key
-                    ? 'bg-brand text-white'
-                    : 'text-text-secondary hover:bg-surface-hover'
-                }`}
-              >
-                <Icon className="h-3.5 w-3.5" />
-                {label}
-              </button>
-            ))}
+            <button
+              onClick={() => setZeitraum('woche')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors ${
+                zeitraum === 'woche' ? 'bg-brand text-white' : 'text-text-secondary hover:bg-surface-hover'
+              }`}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              Woche
+            </button>
+            <button
+              onClick={() => setZeitraum('tag')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors ${
+                zeitraum === 'tag' ? 'bg-brand text-white' : 'text-text-secondary hover:bg-surface-hover'
+              }`}
+            >
+              <Calendar className="h-3.5 w-3.5" />
+              Tag
+            </button>
           </div>
 
-          {/* Wochenansicht Modus Toggle */}
-          {view === 'woche' && (
-            <div className="flex rounded-lg border border-border-default bg-surface-card overflow-hidden ml-2">
+          {/* Spalten: Fahrzeuge / Monteure */}
+          <div className="flex rounded-lg border border-border-default bg-surface-card overflow-hidden">
+            <button
+              onClick={() => setSpalten('fahrzeuge')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors ${
+                spalten === 'fahrzeuge' ? 'bg-brand text-white' : 'text-text-secondary hover:bg-surface-hover'
+              }`}
+            >
+              <Car className="h-3.5 w-3.5" />
+              Fahrzeuge
+            </button>
+            <button
+              onClick={() => setSpalten('monteure')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors ${
+                spalten === 'monteure' ? 'bg-brand text-white' : 'text-text-secondary hover:bg-surface-hover'
+              }`}
+            >
+              <Users className="h-3.5 w-3.5" />
+              Monteure
+            </button>
+          </div>
+
+          {/* Wochenansicht Darstellung: Kacheln / Gruppe */}
+          {zeitraum === 'woche' && (
+            <div className="flex rounded-lg border border-border-default bg-surface-card overflow-hidden">
               <button
                 onClick={() => setWochenModus('kachel')}
                 className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium transition-colors ${
                   wochenModus === 'kachel' ? 'bg-brand text-white' : 'text-text-secondary hover:bg-surface-hover'
                 }`}
-                title="Kachel-Ansicht"
+                title="Kachel-Ansicht (Fahrzeug-Zeilen x Wochentag-Spalten)"
               >
                 <List className="h-3.5 w-3.5" />
                 Kacheln
@@ -258,7 +287,7 @@ export default function Kalender() {
                 className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium transition-colors ${
                   wochenModus === 'gruppe' ? 'bg-brand text-white' : 'text-text-secondary hover:bg-surface-hover'
                 }`}
-                title="Gruppendarstellung mit Zeitraster"
+                title="Gruppendarstellung (Zeitraster mit ueberlagerten Terminen)"
               >
                 <Layers className="h-3.5 w-3.5" />
                 Gruppe
@@ -267,7 +296,7 @@ export default function Kalender() {
           )}
 
           {/* Navigation */}
-          <div className="flex items-center gap-1 ml-2">
+          <div className="flex items-center gap-1 ml-1">
             <button
               onClick={goToday}
               className="rounded-lg border border-border-default bg-surface-card px-3 py-1.5 text-sm font-medium text-text-primary hover:bg-surface-hover transition-colors"
@@ -331,7 +360,7 @@ export default function Kalender() {
           <div className="flex h-[500px] items-center justify-center text-text-muted">
             Laden...
           </div>
-        ) : view === 'woche' && wochenModus === 'gruppe' ? (
+        ) : zeitraum === 'woche' && wochenModus === 'gruppe' ? (
           <WochenZeitansicht
             termine={filteredTermine}
             currentDate={currentDate}
@@ -341,10 +370,10 @@ export default function Kalender() {
             onSlotClick={handleSlotClick}
             onDayClick={handleDayClick}
           />
-        ) : view === 'woche' ? (
+        ) : zeitraum === 'woche' ? (
           <WochenAnsicht
             termine={filteredTermine}
-            fahrzeuge={fahrzeuge}
+            fahrzeuge={spalten === 'monteure' ? monteure : fahrzeuge}
             monteure={monteure}
             currentDate={currentDate}
             onTerminClick={handleTerminClick}
@@ -352,26 +381,12 @@ export default function Kalender() {
             onTerminHoverEnd={handleTerminHoverEnd}
             onSlotClick={handleSlotClick}
             onDayClick={handleDayClick}
-          />
-        ) : view === 'tag' ? (
-          <TagesAnsicht
-            termine={filteredTermine}
-            fahrzeuge={fahrzeuge}
-            monteure={monteure}
-            arbeitszeitmodelle={arbeitszeitmodelle}
-            abwesenheiten={abwesenheiten}
-            selectedDate={currentDate}
-            onTerminClick={handleTerminClick}
-            onTerminHover={handleTerminHover}
-            onTerminHoverEnd={handleTerminHoverEnd}
-            onSlotClick={handleSlotClick}
-            onTerminDrop={handleTerminDrop}
+            columnType={columnType}
           />
         ) : (
-          /* Monteur view — reuse TagesAnsicht with monteure as columns */
           <TagesAnsicht
             termine={filteredTermine}
-            fahrzeuge={monteure}
+            fahrzeuge={activeColumns}
             monteure={monteure}
             arbeitszeitmodelle={arbeitszeitmodelle}
             abwesenheiten={abwesenheiten}
@@ -381,7 +396,7 @@ export default function Kalender() {
             onTerminHoverEnd={handleTerminHoverEnd}
             onSlotClick={handleSlotClick}
             onTerminDrop={handleTerminDrop}
-            columnType="monteur"
+            columnType={columnType}
           />
         )}
       </div>
@@ -400,7 +415,7 @@ export default function Kalender() {
           arbeitszeitmodelle={arbeitszeitmodelle}
           abwesenheiten={abwesenheiten}
           currentDate={currentDate}
-          highlightDate={isDayView ? currentDate : null}
+          highlightDate={isDay ? currentDate : null}
           onCellClick={handleMonteurCellClick}
         />
       </div>
