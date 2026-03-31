@@ -445,8 +445,18 @@ export default function TagesAnsicht({
         return
       }
 
-      const deltaY = e.clientY - drag.startMouseY
-      const newTop = drag.startTop + deltaY
+      const deltaX = Math.abs(e.clientX - drag.currentX)
+      const deltaY = Math.abs(e.clientY - drag.startMouseY)
+
+      // If barely moved (< 8px), treat as click — open detail instead of drag
+      if (deltaY < 8 && deltaX < 8) {
+        setDrag(null)
+        onTerminClick?.(drag.termin)
+        return
+      }
+
+      const netDeltaY = e.clientY - drag.startMouseY
+      const newTop = drag.startTop + netDeltaY
       const snappedTop = Math.round(newTop / SNAP_PX) * SNAP_PX
       const clampedTop = Math.max(0, Math.min(snappedTop, TOTAL_HEIGHT - SNAP_PX))
       const newTime = yToTime(clampedTop)
@@ -482,7 +492,7 @@ export default function TagesAnsicht({
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('mouseup', handleMouseUp)
     }
-  }, [drag, selectedDate, fahrzeuge, onTerminDrop])
+  }, [drag, selectedDate, fahrzeuge, onTerminDrop, onTerminClick])
 
   // Click-drag slot selection
   const [slotDrag, setSlotDrag] = useState(null) // { fahrzeugId, colEl, startY, currentY }

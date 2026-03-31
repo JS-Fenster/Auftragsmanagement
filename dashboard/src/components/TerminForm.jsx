@@ -139,25 +139,28 @@ export default function TerminForm() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Kontakt search debounced — searches firma1, firma2, AND person names
+  // Kontakt search debounced — splits terms and matches across all fields
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current)
     if (!kontaktSuche || kontaktSuche.length < 2) { setKontaktResults([]); return }
     timerRef.current = setTimeout(async () => {
-      const t = kontaktSuche.replace(/'/g, '')
-      // Search by firma name
+      const terms = kontaktSuche.replace(/'/g, '').trim().split(/\s+/).filter(Boolean)
+      if (terms.length === 0) return
+
+      // Use first term for DB query (broadest match), filter rest client-side
+      const first = terms[0]
       const { data: firmaResults } = await supabase
         .from('kontakte')
         .select('id, firma1, firma2, ort, kontakt_personen!kontakt_id(vorname, nachname, ist_hauptkontakt)')
-        .or(`firma1.ilike.%${t}%,firma2.ilike.%${t}%`)
-        .limit(8)
-      // Search by person name (finds kontakte where a person matches)
+        .or(`firma1.ilike.%${first}%,firma2.ilike.%${first}%,ort.ilike.%${first}%`)
+        .limit(30)
       const { data: personResults } = await supabase
         .from('kontakt_personen')
         .select('kontakt_id, vorname, nachname, ist_hauptkontakt, kontakte!kontakt_id(id, firma1, firma2, ort)')
-        .or(`vorname.ilike.%${t}%,nachname.ilike.%${t}%`)
-        .limit(8)
-      // Merge results, deduplicate by kontakt id
+        .or(`vorname.ilike.%${first}%,nachname.ilike.%${first}%`)
+        .limit(30)
+
+      // Merge and deduplicate
       const seen = new Set()
       const merged = []
       for (const k of (firmaResults || [])) {
@@ -170,7 +173,15 @@ export default function TerminForm() {
           merged.push({ ...k, kontakt_personen: [{ vorname: p.vorname, nachname: p.nachname, ist_hauptkontakt: p.ist_hauptkontakt }] })
         }
       }
-      setKontaktResults(merged.slice(0, 10))
+
+      // Client-side filter: ALL terms must match somewhere in the kontakt's searchable fields
+      const filtered = merged.filter(k => {
+        const hp = k.kontakt_personen?.find(p => p.ist_hauptkontakt) || k.kontakt_personen?.[0]
+        const searchable = [k.firma1, k.firma2, k.ort, hp?.vorname, hp?.nachname].filter(Boolean).join(' ').toLowerCase()
+        return terms.every(t => searchable.includes(t.toLowerCase()))
+      })
+
+      setKontaktResults(filtered.slice(0, 10))
       setShowKontaktDD(true)
     }, 300)
   }, [kontaktSuche])
