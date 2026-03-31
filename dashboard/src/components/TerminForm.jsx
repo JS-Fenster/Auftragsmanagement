@@ -16,7 +16,7 @@ export default function TerminForm() {
   const [startZeit, setStartZeit] = useState('08:00')
   const [endDatum, setEndDatum] = useState('')
   const [endZeit, setEndZeit] = useState('09:00')
-  const [ganztaegig, setGanztaegig] = useState(false)
+  const [ganztaegig, setGanztägig] = useState(false)
   const [fahrzeugId, setFahrzeugId] = useState('')
   const [selectedMonteure, setSelectedMonteure] = useState([])
   const [kontaktId, setKontaktId] = useState(null)
@@ -55,7 +55,7 @@ export default function TerminForm() {
 
   const reset = useCallback(() => {
     setArtId(''); setTitel(''); setStartDatum(''); setStartZeit('08:00')
-    setEndDatum(''); setEndZeit('09:00'); setGanztaegig(false)
+    setEndDatum(''); setEndZeit('09:00'); setGanztägig(false)
     setFahrzeugId(''); setSelectedMonteure([]); setKontaktId(null)
     setKontaktName(''); setKontaktSuche(''); setProjektId(null)
     setProjektSuche(''); setStatus('geplant'); setNotizen('')
@@ -93,7 +93,7 @@ export default function TerminForm() {
       setTitel(t.titel || '')
       setStatus(t.status || 'geplant')
       setNotizen(t.notizen || '')
-      setGanztaegig(t.ganztaegig || false)
+      setGanztägig(t.ganztaegig || false)
       if (t.start_zeit) {
         const s = new Date(t.start_zeit)
         setStartDatum(s.toISOString().slice(0, 10))
@@ -268,8 +268,8 @@ export default function TerminForm() {
   const handleSave = async () => {
     if (!artId || !titel || !startDatum) return
 
-    // Block save if overlaps exist and not confirmed
-    if (overlaps.length > 0 && !overlapConfirmed) return
+    // Block save if overlaps exist and not confirmed (only for new termine, not edits)
+    if (!editMode && overlaps.length > 0 && !overlapConfirmed) return
 
     setSaving(true)
 
@@ -292,7 +292,7 @@ export default function TerminForm() {
     let tId = editId
     if (editMode && editId) {
       const { error } = await supabase.from('termine').update(td).eq('id', editId)
-      if (error) { console.error(error); setSaving(false); return }
+      if (error) { console.error('Termin update error:', error); setSaving(false); return }
       await supabase.from('termin_ressourcen').delete().eq('termin_id', editId)
     } else {
       const { data, error } = await supabase.from('termine').insert(td).select('id').single()
@@ -396,9 +396,9 @@ export default function TerminForm() {
               </div>
             </div>
             <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={ganztaegig} onChange={e => setGanztaegig(e.target.checked)}
+              <input type="checkbox" checked={ganztaegig} onChange={e => setGanztägig(e.target.checked)}
                 className="w-4 h-4 rounded accent-[var(--brand)]" />
-              <span className="text-sm text-text-secondary">Ganztaegig</span>
+              <span className="text-sm text-text-secondary">Ganztägig</span>
             </label>
 
             {/* Fahrzeug */}
@@ -417,7 +417,7 @@ export default function TerminForm() {
                 Monteure
                 {Object.keys(monteurStatus).length > 0 && (
                   <span className="ml-2 text-[10px] font-normal normal-case tracking-normal text-text-muted">
-                    (Verfuegbarkeit fuer {startZeit}–{endZeit})
+                    (Verfügbarkeit für {startZeit}–{endZeit})
                   </span>
                 )}
               </label>
@@ -502,7 +502,7 @@ export default function TerminForm() {
                   })}
                 </div>
               )}
-              {kontaktId && <div className="mt-1 text-xs text-green-600">Ausgewaehlt: {kontaktName}</div>}
+              {kontaktId && <div className="mt-1 text-xs text-green-600">Ausgewählt: {kontaktName}</div>}
             </div>
 
             {/* Projekt-Suche */}
@@ -578,7 +578,7 @@ export default function TerminForm() {
           {/* Overlap Warning */}
           {overlaps.length > 0 && (
             <div className="mx-4 mb-2 p-3 rounded-lg bg-red-50 border border-red-200">
-              <p className="text-sm font-semibold text-red-800 mb-1">Ueberschneidung erkannt!</p>
+              <p className="text-sm font-semibold text-red-800 mb-1">Überschneidung erkannt!</p>
               <ul className="text-xs text-red-700 space-y-0.5 mb-2">
                 {overlaps.map((o, i) => (
                   <li key={i}>{o.monteur}: {o.termin} ({o.zeit})</li>
@@ -588,7 +588,7 @@ export default function TerminForm() {
                 <input type="checkbox" checked={overlapConfirmed}
                   onChange={e => setOverlapConfirmed(e.target.checked)}
                   className="w-4 h-4 rounded accent-red-600" />
-                <span className="text-xs text-red-700 font-medium">Trotzdem anlegen (Doppelbelegung bestaetigen)</span>
+                <span className="text-xs text-red-700 font-medium">Trotzdem anlegen (Doppelbelegung bestätigen)</span>
               </label>
             </div>
           )}
@@ -600,7 +600,7 @@ export default function TerminForm() {
               Abbrechen
             </button>
             <button onClick={handleSave}
-              disabled={saving || !artId || !titel || !startDatum || (overlaps.length > 0 && !overlapConfirmed)}
+              disabled={saving || !artId || !titel || !startDatum || (!editMode && overlaps.length > 0 && !overlapConfirmed)}
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-[var(--brand)] text-[#1f2937] rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
               {saving
                 ? <span className="w-4 h-4 border-2 border-[#1f2937] border-t-transparent rounded-full animate-spin" />

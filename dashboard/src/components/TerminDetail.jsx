@@ -42,7 +42,7 @@ const AKTION_LABELS = {
   storniert: 'Storniert',
   bestaetigt: 'Bestaetigt',
   abgeschlossen: 'Abgeschlossen',
-  ressourcen_geaendert: 'Ressourcen geaendert',
+  ressourcen_geaendert: 'Ressourcen geändert',
 }
 
 const AKTION_COLORS = {
@@ -372,7 +372,7 @@ export default function TerminDetail() {
                 <textarea
                   value={stornoGrund}
                   onChange={e => setStornoGrund(e.target.value)}
-                  placeholder="Grund fuer Stornierung (optional)..."
+                  placeholder="Grund für Stornierung (optional)..."
                   rows={2}
                   className="w-full px-2 py-1.5 text-sm border border-red-200 rounded-lg bg-white dark:bg-red-900/10 text-text-primary outline-none resize-none"
                 />
@@ -407,7 +407,7 @@ export default function TerminDetail() {
                       className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm text-green-700 bg-green-50 hover:bg-green-100 dark:text-green-300 dark:bg-green-900/20 dark:hover:bg-green-900/30 rounded-lg transition-colors"
                     >
                       <CheckCircle className="w-3.5 h-3.5" />
-                      Abschliessen
+                      Abschließen
                     </button>
                   )}
                   {termin.status !== 'abgesagt' && (

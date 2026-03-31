@@ -195,7 +195,7 @@ export default function WochenAnsicht({
                     isToday ? 'text-brand bg-brand/5' : 'text-text-primary bg-surface-main'
                   }`}
                   onClick={() => onDayClick?.(day)}
-                  title="Klick fuer Tagesansicht"
+                  title="Klick für Tagesansicht"
                 >
                   {WEEKDAYS[i]} {format(day, 'dd.MM', { locale: de })}
                 </th>

@@ -282,7 +282,7 @@ export default function WochenZeitansicht({
                 today ? 'bg-brand/5 text-brand font-bold' : 'bg-surface-main text-text-primary'
               }`}
               onClick={() => onDayClick?.(day)}
-              title="Klick fuer Tagesansicht"
+              title="Klick für Tagesansicht"
             >
               <span className="text-sm font-semibold">
                 {WEEKDAYS[dIdx]} {format(day, 'dd.MM', { locale: de })}
