@@ -405,7 +405,7 @@ export default function Kalender() {
       </div>
 
       {/* Monteur Availability Strip */}
-      <div className="shrink-0 mt-1 rounded-lg bg-surface-card shadow-sm border border-border-default overflow-hidden">
+      <div className="shrink-0 mt-3 mb-4 rounded-lg bg-surface-card shadow-sm border border-border-default overflow-hidden">
         <div className="px-3 py-1.5 border-b border-border-default">
           <h2 className="text-xs font-semibold text-text-primary flex items-center gap-1.5">
             <Users className="h-3.5 w-3.5 text-text-muted" />
