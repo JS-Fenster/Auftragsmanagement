@@ -358,7 +358,8 @@ export default function TagesAnsicht({
   columnType = 'fahrzeug',
 }) {
   const gridRef = useRef(null)
-  const [drag, setDrag] = useState(null)
+  const [pendingDrag, setPendingDrag] = useState(null) // mousedown intent, not yet a real drag
+  const [drag, setDrag] = useState(null) // active drag (after 8px threshold)
 
   const showToday = isToday(selectedDate)
   const isMonteurView = columnType === 'monteur'
@@ -409,30 +410,63 @@ export default function TagesAnsicht({
     return cols
   }, [dayTermine, fahrzeuge, abwesenheiten, selectedDate, isMonteurView])
 
-  // Drag handlers
+  // Drag handlers — two-phase: pendingDrag (mousedown) → drag (after 8px movement)
   const handleDragStart = useCallback(
     (termin, e) => {
-      const gridEl = gridRef.current
-      if (!gridEl) return
-      const gridRect = gridEl.getBoundingClientRect()
-      const fzId = getFahrzeugId(termin)
-      const colIdx = fahrzeuge.findIndex((f) => f.id === fzId)
-
-      setDrag({
+      setPendingDrag({
         termin,
         startMouseX: e.clientX,
         startMouseY: e.clientY,
         startTop: timeToY(parseISO(termin.start_zeit)),
-        colIdx,
-        originColIdx: colIdx,
-        currentY: e.clientY,
-        currentX: e.clientX,
-        gridRect,
       })
     },
-    [fahrzeuge],
+    [],
   )
 
+  // Phase 1: pendingDrag — detect if it becomes a real drag or just a click
+  useEffect(() => {
+    if (!pendingDrag) return
+
+    const handleMouseMove = (e) => {
+      const dx = Math.abs(e.clientX - pendingDrag.startMouseX)
+      const dy = Math.abs(e.clientY - pendingDrag.startMouseY)
+      if (dx >= 8 || dy >= 8) {
+        // Threshold exceeded — promote to real drag
+        const gridEl = gridRef.current
+        if (!gridEl) { setPendingDrag(null); return }
+        const gridRect = gridEl.getBoundingClientRect()
+        const fzId = getFahrzeugId(pendingDrag.termin)
+        const colIdx = fahrzeuge.findIndex((f) => f.id === fzId)
+        setDrag({
+          termin: pendingDrag.termin,
+          startMouseX: pendingDrag.startMouseX,
+          startMouseY: pendingDrag.startMouseY,
+          startTop: pendingDrag.startTop,
+          colIdx,
+          originColIdx: colIdx,
+          currentY: e.clientY,
+          currentX: e.clientX,
+          gridRect,
+        })
+        setPendingDrag(null)
+      }
+    }
+
+    const handleMouseUp = () => {
+      // Released without exceeding threshold — treat as click
+      onTerminClick?.(pendingDrag.termin)
+      setPendingDrag(null)
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [pendingDrag, fahrzeuge, onTerminClick])
+
+  // Phase 2: active drag — track mouse and handle drop
   useEffect(() => {
     if (!drag) return
 
@@ -441,20 +475,7 @@ export default function TagesAnsicht({
     }
 
     const handleMouseUp = (e) => {
-      if (!drag || !gridRef.current) {
-        setDrag(null)
-        return
-      }
-
-      const deltaX = Math.abs(e.clientX - drag.startMouseX)
-      const deltaY = Math.abs(e.clientY - drag.startMouseY)
-
-      // If barely moved (< 8px), treat as click — open detail instead of drag
-      if (deltaY < 8 && deltaX < 8) {
-        setDrag(null)
-        onTerminClick?.(drag.termin)
-        return
-      }
+      if (!drag || !gridRef.current) { setDrag(null); return }
 
       const netDeltaY = e.clientY - drag.startMouseY
       const newTop = drag.startTop + netDeltaY
@@ -470,10 +491,9 @@ export default function TagesAnsicht({
       newStart.setHours(newTime.h, newTime.m, 0, 0)
       const newEnd = new Date(newStart.getTime() + durationMs)
 
-      // Determine target column from X position
       const gridRect = gridRef.current.getBoundingClientRect()
       const colCount = fahrzeuge.length
-      const timeColWidth = 48 // time label width
+      const timeColWidth = 48
       const contentWidth = gridRect.width - timeColWidth
       const relX = e.clientX - gridRect.left - timeColWidth
       let targetColIdx = Math.floor((relX / contentWidth) * colCount)
@@ -483,7 +503,6 @@ export default function TagesAnsicht({
       if (onTerminDrop) {
         onTerminDrop(drag.termin.id, newStart.toISOString(), newEnd.toISOString(), targetFahrzeugId)
       }
-
       setDrag(null)
     }
 
@@ -493,7 +512,7 @@ export default function TagesAnsicht({
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('mouseup', handleMouseUp)
     }
-  }, [drag, selectedDate, fahrzeuge, onTerminDrop, onTerminClick])
+  }, [drag, selectedDate, fahrzeuge, onTerminDrop])
 
   // Click-drag slot selection
   const [slotDrag, setSlotDrag] = useState(null) // { fahrzeugId, colEl, startY, currentY }
@@ -557,17 +576,9 @@ export default function TagesAnsicht({
     )
   }
 
-  // Ghost position for drag — only show after 8px threshold exceeded
-  const dragExceeded = drag && (
-    Math.abs(drag.currentY - drag.startMouseY) >= 8 ||
-    Math.abs(drag.currentX - drag.startMouseX) >= 8
-  )
-  const ghostStyle = dragExceeded
-    ? {
-        top: drag.currentY - 12,
-        left: drag.currentX + 8,
-        width: 160,
-      }
+  // Ghost position — drag is only set after 8px threshold, so always show
+  const ghostStyle = drag
+    ? { top: drag.currentY - 12, left: drag.currentX + 8, width: 160 }
     : null
 
   return (
