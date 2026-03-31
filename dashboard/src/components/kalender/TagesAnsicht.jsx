@@ -557,8 +557,12 @@ export default function TagesAnsicht({
     )
   }
 
-  // Ghost position for drag
-  const ghostStyle = drag
+  // Ghost position for drag — only show after 8px threshold exceeded
+  const dragExceeded = drag && (
+    Math.abs(drag.currentY - drag.startMouseY) >= 8 ||
+    Math.abs(drag.currentX - drag.startMouseX) >= 8
+  )
+  const ghostStyle = dragExceeded
     ? {
         top: drag.currentY - 12,
         left: drag.currentX + 8,
