@@ -66,6 +66,17 @@ Auftragsmanagement/
 
 ---
 
+## Dashboard Shared Helpers (ZUERST PRUEFEN)
+
+Vor dem Bauen neuer Supabase-Queries oder UI-Helper ZUERST pruefen ob es schon existiert:
+
+| Helper | Pfad | Zweck |
+|--------|------|-------|
+| `searchKontakte()` | `pages/budgetangebot/KundenSuche.jsx` | Multi-term Kontaktsuche (firma, name, ort, telefon, email). Splittet Begriffe und filtert client-seitig |
+| `KundenSuchModal` | `pages/budgetangebot/KundenSuche.jsx` | Vollstaendiges Such-Modal mit Tabellen-Ergebnis |
+
+---
+
 ## Setup
 
 ```bash
