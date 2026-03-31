@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { X, Search, Plus, History, CheckCircle, XCircle } from 'lucide-react'
+import { X, Search, Plus, History } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { searchKontakte } from '../pages/budgetangebot/KundenSuche'
 
@@ -9,8 +9,6 @@ export default function TerminForm() {
   const [editId, setEditId] = useState(null)
   const [saving, setSaving] = useState(false)
   const [historie, setHistorie] = useState([])
-  const [stornoGrund, setStornoGrund] = useState('')
-  const [showStorno, setShowStorno] = useState(false)
 
   const [artId, setArtId] = useState('')
   const [titel, setTitel] = useState('')
@@ -61,7 +59,7 @@ export default function TerminForm() {
     setFahrzeugId(''); setSelectedMonteure([]); setKontaktId(null)
     setKontaktName(''); setKontaktSuche(''); setProjektId(null)
     setProjektSuche(''); setStatus('geplant'); setNotizen('')
-    setEditMode(false); setEditId(null); setHistorie([]); setStornoGrund(''); setShowStorno(false)
+    setEditMode(false); setEditId(null); setHistorie([])
   }, [])
 
   useEffect(() => {
@@ -550,56 +548,6 @@ export default function TerminForm() {
                 className="w-full px-3 py-2 text-sm border border-border-default rounded-lg bg-surface-main text-text-primary outline-none resize-none"
               />
             </div>
-            {/* Quick Actions (edit mode only) */}
-            {editMode && (
-              <div className="flex gap-2">
-                {status !== 'abgeschlossen' && (
-                  <button type="button"
-                    onClick={async () => {
-                      const { error } = await supabase.from('termine').update({ status: 'abgeschlossen', bearbeitet_von: 'Dashboard' }).eq('id', editId)
-                      if (!error) { setOpen(false); window.dispatchEvent(new CustomEvent('termin-saved')) }
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors">
-                    <CheckCircle className="w-3.5 h-3.5" />
-                    Abschliessen
-                  </button>
-                )}
-                {status !== 'abgesagt' && !showStorno && (
-                  <button type="button" onClick={() => setShowStorno(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors">
-                    <XCircle className="w-3.5 h-3.5" />
-                    Absagen
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* Storno reason */}
-            {showStorno && (
-              <div className="p-3 rounded-lg bg-red-50 border border-red-200 space-y-2">
-                <p className="text-xs font-medium text-red-800">Storno-Grund (optional):</p>
-                <textarea value={stornoGrund} onChange={e => setStornoGrund(e.target.value)} rows={2}
-                  placeholder="Warum wird der Termin abgesagt?"
-                  className="w-full px-2 py-1 text-xs border border-red-200 rounded bg-white text-text-primary outline-none resize-none" />
-                <div className="flex gap-2">
-                  <button type="button"
-                    onClick={async () => {
-                      const upd = { status: 'abgesagt', bearbeitet_von: 'Dashboard' }
-                      if (stornoGrund) upd.storno_grund = stornoGrund
-                      const { error } = await supabase.from('termine').update(upd).eq('id', editId)
-                      if (!error) { setOpen(false); setShowStorno(false); window.dispatchEvent(new CustomEvent('termin-saved')) }
-                    }}
-                    className="px-3 py-1 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700">
-                    Termin absagen
-                  </button>
-                  <button type="button" onClick={() => setShowStorno(false)}
-                    className="px-3 py-1 text-xs text-text-secondary hover:bg-surface-hover rounded">
-                    Abbrechen
-                  </button>
-                </div>
-              </div>
-            )}
-
             {/* Verlauf (edit mode only) */}
             {editMode && historie.length > 0 && (
               <div>
