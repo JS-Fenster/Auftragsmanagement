@@ -114,7 +114,16 @@ function VertragSection({ mitarbeiterId }) {
   const wochenstunden = calcWochenstunden(form.tagesarbeitszeit)
   const arbeitstage = countArbeitstage(form.tagesarbeitszeit)
 
+  // Check overlap with existing periods
+  const hasOverlap = form.gueltig_ab && vertraege.some(v => {
+    if (!v.gueltig_bis) return false // open period will be auto-closed
+    return form.gueltig_ab <= v.gueltig_bis && (!form.gueltig_bis || form.gueltig_bis >= v.gueltig_ab)
+  })
+
   const save = async () => {
+    if (hasOverlap) {
+      if (!confirm('Achtung: Diese Periode überlappt mit einer bestehenden. Trotzdem anlegen?')) return
+    }
     // Close previous open period
     const openVertrag = vertraege.find(v => !v.gueltig_bis)
     if (openVertrag && form.gueltig_ab) {
