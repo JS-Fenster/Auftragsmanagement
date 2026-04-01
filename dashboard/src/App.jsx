@@ -1,5 +1,5 @@
 import { Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom'
-import { FolderKanban, CalendarDays, ArrowLeft, Home, Search, LayoutDashboard, Moon, Sun, Euro, Package, FileText, Truck, LogOut } from 'lucide-react'
+import { FolderKanban, CalendarDays, ArrowLeft, Home, Search, LayoutDashboard, Moon, Sun, Euro, Package, FileText, Truck, LogOut, Users } from 'lucide-react'
 import { useState, useEffect, lazy, Suspense } from 'react'
 import { useIsStandalone } from './hooks/usePopout'
 import { useAuth } from './contexts/AuthContext'
@@ -31,6 +31,7 @@ const Bestellungen = lazy(() => import('./pages/Bestellungen'))
 const BelegListe = lazy(() => import('./pages/BelegListe'))
 const BelegErstellen = lazy(() => import('./pages/BelegErstellen'))
 const Lieferanten = lazy(() => import('./pages/Lieferanten'))
+const Mitarbeiter = lazy(() => import('./pages/Mitarbeiter'))
 
 const NAV_ITEMS = [
   { to: '/', label: 'Cockpit', icon: LayoutDashboard },
@@ -40,6 +41,7 @@ const NAV_ITEMS = [
   { to: '/bestellungen', label: 'Bestellungen', icon: Package },
   { to: '/belege', label: 'Belege', icon: FileText },
   { to: '/lieferanten', label: 'Lieferanten', icon: Truck },
+  { to: '/mitarbeiter', label: 'Mitarbeiter', icon: Users },
 ]
 
 const PAGE_TITLES = {
@@ -59,6 +61,7 @@ const PAGE_TITLES = {
   '/bestellungen': 'Bestellungen',
   '/belege': 'Belege',
   '/lieferanten': 'Lieferanten',
+  '/mitarbeiter': 'Mitarbeiter',
 }
 
 function StandaloneHeader() {
@@ -195,6 +198,7 @@ function AppRoutes() {
       <Route path="/belege/neu" element={<BelegErstellen />} />
       <Route path="/belege/:id" element={<BelegErstellen />} />
       <Route path="/lieferanten" element={<Lieferanten />} />
+      <Route path="/mitarbeiter" element={<Mitarbeiter />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
     </Suspense>
