@@ -7,6 +7,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Users, Search, X, Plus, ChevronDown, ChevronUp, Clock, Calendar, FileText, Briefcase, UserCheck, Shield, Phone, CreditCard, Settings } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import AbwesenheitenSection from '../components/AbwesenheitenSection'
 
 const ROLLEN_LABELS = {
   monteur: 'Monteur', buero: 'Buero', geschaeftsfuehrung: 'Geschaeftsfuehrung',
@@ -608,6 +609,7 @@ export default function Mitarbeiter() {
                 </div>
                 <VertragSection mitarbeiterId={ma.id} />
                 <UrlaubSection mitarbeiterId={ma.id} />
+                <AbwesenheitenSection mitarbeiterId={ma.id} mitarbeiterName={`${ma.vorname} ${ma.nachname}`} />
               </div>
             )
           })()}
