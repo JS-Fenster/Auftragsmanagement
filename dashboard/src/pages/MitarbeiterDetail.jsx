@@ -237,21 +237,32 @@ function SkillsSection({ mitarbeiterId, editing }) {
   )
 }
 
+const BLOCKED_ZEICHEN = new Set(['SS', 'SA', 'HH', 'KZ', 'NS', 'SD'])
+
 function generateZeichen(vorname, nachname) {
   if (!vorname || !nachname) return ''
-  return (vorname.substring(0, 2) + nachname.substring(0, 2)).toUpperCase()
+  const v = vorname.charAt(0).toUpperCase()
+  const n = nachname.charAt(0).toUpperCase()
+  const candidate = v + n
+  if (BLOCKED_ZEICHEN.has(candidate)) {
+    // Alternative: Vorname 1. + Nachname 1.+2.
+    return (v + nachname.substring(0, 2)).toUpperCase()
+  }
+  return candidate
 }
 
 function generateZeichenAlternativen(vorname, nachname) {
   if (!vorname || !nachname) return []
   const v = vorname.toUpperCase(), n = nachname.toUpperCase()
-  return [
-    v.substring(0, 2) + n.substring(0, 2),           // CHBE
-    v.substring(0, 1) + n.substring(0, 3),           // CBEC
-    v.substring(0, 3) + n.substring(0, 1),           // CHRB
-    v.substring(0, 2) + n.substring(0, 1) + v.charAt(2), // CHBI
-    v.substring(0, 1) + n.substring(0, 1) + v.charAt(1) + n.charAt(1), // CBHE
-  ].filter((z, i, arr) => z.length >= 3 && arr.indexOf(z) === i)
+  const candidates = [
+    v.charAt(0) + n.charAt(0),                        // CS
+    v.charAt(0) + n.substring(0, 2),                  // CSC
+    v.substring(0, 2) + n.charAt(0),                  // CHS
+    v.charAt(0) + n.charAt(0) + v.charAt(1),          // CSH
+    v.charAt(0) + n.charAt(n.length - 1),             // CD (letzter Buchstabe Nachname)
+  ]
+  return candidates
+    .filter((z, i, arr) => z.length >= 2 && arr.indexOf(z) === i && !BLOCKED_ZEICHEN.has(z))
 }
 
 export default function MitarbeiterDetail() {
