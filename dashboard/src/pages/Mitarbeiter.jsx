@@ -438,7 +438,6 @@ export default function Mitarbeiter() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('aktiv')
   const [showCreate, setShowCreate] = useState(false)
-  const [editId, setEditId] = useState(null)
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -475,7 +474,7 @@ export default function Mitarbeiter() {
           <Users className="h-7 w-7 text-brand" />
           <h1 className="text-2xl font-bold text-text-primary">Mitarbeiter</h1>
         </div>
-        <button onClick={() => { setShowCreate(true); setEditId(null); setExpandedId(null) }}
+        <button onClick={() => setShowCreate(true)}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-[var(--brand)] text-[#1f2937] rounded-lg hover:opacity-90">
           <Plus className="w-4 h-4" /> Neuer Mitarbeiter
         </button>
@@ -488,13 +487,13 @@ export default function Mitarbeiter() {
         <KpiCard label="Geschäftsführung" value={kpis.gf} icon={UserCheck} color="#F59E0B" />
       </div>
 
-      {(showCreate || editId) && (
+      {showCreate && (
         <div className="mb-6">
           <MitarbeiterForm
-            mitarbeiter={editId ? mitarbeiter.find(m => m.id === editId) : null}
+            mitarbeiter={null}
             allMitarbeiter={mitarbeiter}
-            onSave={() => { setShowCreate(false); setEditId(null); loadData() }}
-            onCancel={() => { setShowCreate(false); setEditId(null) }} />
+            onSave={() => { setShowCreate(false); loadData() }}
+            onCancel={() => setShowCreate(false)} />
         </div>
       )}
 
@@ -534,7 +533,6 @@ export default function Mitarbeiter() {
             </thead>
             <tbody>
               {filtered.map(ma => {
-                const expanded = expandedId === ma.id
                 const vertrag = getVertrag(ma)
                 return (
                   <tr key={ma.id} className="border-b border-border-default last:border-b-0 cursor-pointer hover:bg-surface-hover/50 transition-colors"
