@@ -4,13 +4,24 @@
  */
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, User, FileText, Calendar, Clock, Shield, Briefcase, CreditCard, Phone, MapPin } from 'lucide-react'
+import { ArrowLeft, User, FileText, Calendar, Clock, Shield, Briefcase, CreditCard, Phone, MapPin, Wrench, X, Plus } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import AbwesenheitenSection from '../components/AbwesenheitenSection'
 
-const ROLLEN_LABELS = {
+const ABTEILUNG_LABELS = {
   monteur: 'Monteur', buero: 'Büro', geschaeftsfuehrung: 'Geschäftsführung',
-  azubi: 'Azubi', teilzeit: 'Teilzeit', minijob: 'Minijob',
+  lager: 'Lager', vertrieb: 'Vertrieb',
+}
+const BESCHAEFTIGUNGSART_OPTIONS = {
+  vollzeit: 'Vollzeit', teilzeit: 'Teilzeit', minijob: 'Minijob',
+  azubi: 'Azubi', praktikant: 'Praktikant', werkstudent: 'Werkstudent',
+}
+const STEUERKLASSE_OPTIONS = { '1': '1', '2': '2', '3': '3', '4': '4', '5': '5', '6': '6' }
+const KONFESSION_OPTIONS = { ev: 'Evangelisch', rk: 'Römisch-Katholisch', keine: 'Keine' }
+const SKILL_PRESETS = ['Fenster', 'Türen', 'Raffstore', 'Markise', 'Haustür', 'Reparatur', 'Service', 'Rollläden', 'Elektro', 'Glas']
+const SKILL_LEVELS = { lehrling: 'Lehrling', junior: 'Junior', standard: 'Standard', senior: 'Senior', meister: 'Meister' }
+const SKILL_LEVEL_COLORS = {
+  lehrling: '#F3F4F6', junior: '#DBEAFE', standard: '#D1FAE5', senior: '#FDE68A', meister: '#C4B5FD',
 }
 const STATUS_STYLES = {
   aktiv: { bg: '#ECFDF5', text: '#065F46', label: 'Aktiv' },
@@ -23,6 +34,7 @@ const TABS = [
   { key: 'vertrag', label: 'Vertrag & Arbeitszeit', icon: Briefcase },
   { key: 'urlaub', label: 'Urlaub & Abwesenheiten', icon: Calendar },
   { key: 'personal', label: 'Personaldaten', icon: CreditCard },
+  { key: 'steuer', label: 'Steuer & Soziales', icon: Shield },
 ]
 
 const inputCls = "w-full px-3 py-1.5 text-sm border border-border-default rounded-lg bg-surface-main text-text-primary outline-none focus:ring-2 focus:ring-brand/30"
@@ -131,6 +143,106 @@ function UrlaubSection({ mitarbeiterId }) {
   )
 }
 
+function SkillsSection({ mitarbeiterId, editing }) {
+  const [skills, setSkills] = useState([])
+  const [adding, setAdding] = useState(false)
+  const [newSkill, setNewSkill] = useState('')
+  const [newLevel, setNewLevel] = useState('standard')
+
+  const loadSkills = useCallback(async () => {
+    const { data } = await supabase.from('mitarbeiter_skills').select('*').eq('mitarbeiter_id', mitarbeiterId).order('skill')
+    setSkills(data || [])
+  }, [mitarbeiterId])
+
+  useEffect(() => { loadSkills() }, [loadSkills])
+
+  const addSkill = async () => {
+    if (!newSkill.trim()) return
+    await supabase.from('mitarbeiter_skills').insert({ mitarbeiter_id: mitarbeiterId, skill: newSkill.trim(), level: newLevel })
+    setNewSkill('')
+    setNewLevel('standard')
+    setAdding(false)
+    loadSkills()
+  }
+
+  const removeSkill = async (skillId) => {
+    await supabase.from('mitarbeiter_skills').delete().eq('id', skillId)
+    loadSkills()
+  }
+
+  const updateLevel = async (skillId, level) => {
+    await supabase.from('mitarbeiter_skills').update({ level }).eq('id', skillId)
+    loadSkills()
+  }
+
+  const availablePresets = SKILL_PRESETS.filter(s => !skills.some(sk => sk.skill === s))
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5">
+          <Wrench className="w-4 h-4 text-text-muted" /> Fähigkeiten
+        </h3>
+        {editing && (
+          <button onClick={() => setAdding(!adding)} className="text-xs text-brand hover:underline flex items-center gap-1">
+            <Plus className="w-3 h-3" /> Skill hinzufügen
+          </button>
+        )}
+      </div>
+      {adding && editing && (
+        <div className="flex items-end gap-2 p-3 rounded-lg bg-surface-main border border-border-default">
+          <div className="flex-1">
+            <label className={labelCls}>Skill</label>
+            <input list="skill-presets" value={newSkill} onChange={e => setNewSkill(e.target.value)}
+              placeholder="Skill eingeben..." className={inputCls} />
+            <datalist id="skill-presets">
+              {availablePresets.map(s => <option key={s} value={s} />)}
+            </datalist>
+          </div>
+          <div>
+            <label className={labelCls}>Level</label>
+            <select value={newLevel} onChange={e => setNewLevel(e.target.value)} className={inputCls}>
+              {Object.entries(SKILL_LEVELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </div>
+          <button onClick={addSkill} disabled={!newSkill.trim()} className="px-3 py-1.5 text-xs bg-brand text-white rounded-lg disabled:opacity-50">Hinzufügen</button>
+          <button onClick={() => setAdding(false)} className="px-3 py-1.5 text-xs text-text-secondary hover:bg-surface-hover rounded-lg">Abbrechen</button>
+        </div>
+      )}
+      <div className="flex flex-wrap gap-2">
+        {skills.length === 0 && <p className="text-xs text-text-muted">Keine Skills hinterlegt</p>}
+        {skills.map(sk => (
+          <div key={sk.id} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border-default text-xs">
+            <span className="font-medium text-text-primary">{sk.skill}</span>
+            {editing ? (
+              <select value={sk.level} onChange={e => updateLevel(sk.id, e.target.value)}
+                className="text-xs border-none bg-transparent outline-none cursor-pointer px-1 py-0 rounded"
+                style={{ backgroundColor: SKILL_LEVEL_COLORS[sk.level] || '#F3F4F6' }}>
+                {Object.entries(SKILL_LEVELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            ) : (
+              <span className="px-1.5 py-0.5 rounded text-xs font-medium"
+                style={{ backgroundColor: SKILL_LEVEL_COLORS[sk.level] || '#F3F4F6' }}>
+                {SKILL_LEVELS[sk.level] || sk.level}
+              </span>
+            )}
+            {editing && (
+              <button onClick={() => removeSkill(sk.id)} className="text-text-muted hover:text-red-500 ml-1">
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function generateZeichen(vorname, nachname) {
+  if (!vorname || !nachname) return ''
+  return (vorname.substring(0, 2) + nachname.substring(0, 2)).toUpperCase()
+}
+
 export default function MitarbeiterDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -184,7 +296,7 @@ export default function MitarbeiterDetail() {
             <div className="flex items-center gap-2 mt-0.5">
               <span className="text-sm text-text-muted">Nr. {ma.personalnummer || '-'}</span>
               <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: st.bg, color: st.text }}>{st.label}</span>
-              <span className="text-sm text-text-secondary">{ROLLEN_LABELS[ma.rolle] || ma.rolle}</span>
+              <span className="text-sm text-text-secondary">{ABTEILUNG_LABELS[ma.rolle] || ma.rolle}</span>
             </div>
           </div>
         </div>
@@ -232,8 +344,10 @@ export default function MitarbeiterDetail() {
               <Field label="Personalnummer" value={form.personalnummer} onChange={v => set('personalnummer', v)} disabled={!editing} />
               <Field label="Anrede" value={form.anrede} onChange={v => set('anrede', v)} disabled={!editing}
                 options={{ herr: 'Herr', frau: 'Frau', divers: 'Divers' }} />
-              <Field label="Rolle" value={form.rolle} onChange={v => set('rolle', v)} disabled={!editing}
-                options={ROLLEN_LABELS} />
+              <Field label="Abteilung" value={form.rolle} onChange={v => set('rolle', v)} disabled={!editing}
+                options={ABTEILUNG_LABELS} />
+              <Field label="Beschäftigungsart" value={form.beschaeftigungsart} onChange={v => set('beschaeftigungsart', v)} disabled={!editing}
+                options={BESCHAEFTIGUNGSART_OPTIONS} />
               <Field label="Status" value={form.status} onChange={v => set('status', v)} disabled={!editing}
                 options={{ aktiv: 'Aktiv', inaktiv: 'Inaktiv', ausgeschieden: 'Ausgeschieden', elternzeit: 'Elternzeit' }} />
               <Field label="Eintrittsdatum *" value={form.eintrittsdatum} type="date" onChange={v => set('eintrittsdatum', v)} disabled={!editing} />
@@ -243,7 +357,8 @@ export default function MitarbeiterDetail() {
               <Field label="Telefon (Firma)" value={form.telefon} onChange={v => set('telefon', v)} disabled={!editing} />
               <Field label="Abteilung" value={form.abteilung} onChange={v => set('abteilung', v)} disabled={!editing} />
               <Field label="Funktion" value={form.funktion} onChange={v => set('funktion', v)} disabled={!editing} />
-              <Field label="Zeichen" value={form.zeichen} onChange={v => set('zeichen', v)} disabled={!editing} />
+              <Field label="Zeichen" value={form.zeichen} onChange={v => set('zeichen', v)} disabled={!editing}
+                placeholder={generateZeichen(form.vorname, form.nachname) || 'z.B. ANST'} />
               <Field label="Vergütung" value={form.verguetungsart} onChange={v => set('verguetungsart', v)} disabled={!editing}
                 options={{ gehalt: 'Gehalt', stundenlohn: 'Stundenlohn' }} />
             </div>
@@ -251,6 +366,9 @@ export default function MitarbeiterDetail() {
               <label className={labelCls}>Notizen</label>
               <textarea value={form.notizen || ''} onChange={e => set('notizen', e.target.value)} rows={3}
                 className={inputCls + ' resize-none'} disabled={!editing} />
+            </div>
+            <div className="border-t border-border-default pt-4">
+              <SkillsSection mitarbeiterId={id} editing={editing} />
             </div>
           </div>
         )}
@@ -311,6 +429,31 @@ export default function MitarbeiterDetail() {
               <Field label="Bank" value={form.bank} onChange={v => set('bank', v)} disabled={!editing} />
               <Field label="IBAN" value={form.iban} onChange={v => set('iban', v)} disabled={!editing} />
               <Field label="BIC" value={form.bic} onChange={v => set('bic', v)} disabled={!editing} />
+            </div>
+          </div>
+        )}
+
+        {tab === 'steuer' && (
+          <div className="space-y-6">
+            <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5">
+              <CreditCard className="w-4 h-4 text-text-muted" /> Steuer
+            </h3>
+            <div className="grid grid-cols-3 gap-4">
+              <Field label="Steuer-ID" value={form.steuer_id} onChange={v => set('steuer_id', v)} disabled={!editing} placeholder="z.B. 12345678901" />
+              <Field label="Steuerklasse" value={form.steuerklasse} onChange={v => set('steuerklasse', v)} disabled={!editing}
+                options={STEUERKLASSE_OPTIONS} />
+              <Field label="Kinderfreibeträge" value={form.kinderfreibetraege} type="number" onChange={v => set('kinderfreibetraege', v)} disabled={!editing} />
+              <Field label="Konfession" value={form.konfession} onChange={v => set('konfession', v)} disabled={!editing}
+                options={KONFESSION_OPTIONS} />
+            </div>
+
+            <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5 pt-4 border-t border-border-default">
+              <Shield className="w-4 h-4 text-text-muted" /> Sozialversicherung
+            </h3>
+            <div className="grid grid-cols-3 gap-4">
+              <Field label="SV-Nummer" value={form.sv_nummer} onChange={v => set('sv_nummer', v)} disabled={!editing} />
+              <Field label="RV-Nummer" value={form.rv_nummer} onChange={v => set('rv_nummer', v)} disabled={!editing} />
+              <Field label="Krankenkasse" value={form.krankenkasse} onChange={v => set('krankenkasse', v)} disabled={!editing} />
             </div>
           </div>
         )}
