@@ -5,9 +5,9 @@
  * Tabs: Allgemeines, Personaldaten, Arbeitszeiten, Vertrag, Urlaub
  */
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Users, Search, X, Plus, ChevronDown, ChevronUp, Clock, Calendar, FileText, Briefcase, UserCheck, Shield, Phone, CreditCard, Settings } from 'lucide-react'
+import { Users, Search, X, Plus, Clock, Calendar, FileText, Briefcase, UserCheck, Shield, Phone, CreditCard, Settings } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import AbwesenheitenSection from '../components/AbwesenheitenSection'
 
 const ROLLEN_LABELS = {
   monteur: 'Monteur', buero: 'Büro', geschaeftsfuehrung: 'Geschäftsführung',
@@ -432,11 +432,11 @@ function UrlaubSection({ mitarbeiterId }) {
 // MAIN PAGE
 // =========================================================
 export default function Mitarbeiter() {
+  const navigate = useNavigate()
   const [mitarbeiter, setMitarbeiter] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('aktiv')
-  const [expandedId, setExpandedId] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
   const [editId, setEditId] = useState(null)
 
@@ -537,8 +537,8 @@ export default function Mitarbeiter() {
                 const expanded = expandedId === ma.id
                 const vertrag = getVertrag(ma)
                 return (
-                  <tr key={ma.id} className={`border-b border-border-default last:border-b-0 cursor-pointer hover:bg-surface-hover/50 transition-colors ${expanded ? 'bg-surface-main/50' : ''}`}
-                    onClick={() => setExpandedId(ma.id)}>
+                  <tr key={ma.id} className="border-b border-border-default last:border-b-0 cursor-pointer hover:bg-surface-hover/50 transition-colors"
+                    onClick={() => navigate(`/mitarbeiter/${ma.id}`)}>
                     <td className="px-4 py-3">
                       <div className="font-medium text-text-primary">{ma.vorname} {ma.nachname}</div>
                       {ma.email && <div className="text-xs text-text-muted">{ma.email}</div>}
@@ -550,9 +550,7 @@ export default function Mitarbeiter() {
                     <td className="px-4 py-3 text-text-secondary">{formatDate(ma.eintrittsdatum)}</td>
                     <td className="px-4 py-3 text-text-secondary">{vertrag ? `${vertrag.wochenstunden}h / ${vertrag.urlaubstage_jahr}T` : '-'}</td>
                     <td className="px-4 py-3">
-                      <button onClick={() => setExpandedId(ma.id)} className="p-1 hover:bg-surface-hover rounded text-brand">
-                        <FileText className="w-4 h-4" />
-                      </button>
+                      <span className="text-text-muted text-xs">→</span>
                     </td>
                   </tr>
                 )
@@ -560,79 +558,6 @@ export default function Mitarbeiter() {
             </tbody>
           </table>
 
-          {/* Mitarbeiter Detail Modal */}
-          {expandedId && (() => {
-            const ma = filtered.find(m => m.id === expandedId)
-            if (!ma) return null
-            return (
-              <>
-                <div className="fixed inset-0 z-50 bg-black/30" onClick={() => setExpandedId(null)} />
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 pointer-events-none">
-                  <div className="bg-surface-card rounded-xl shadow-2xl border border-border-default w-full max-w-2xl max-h-[90vh] overflow-y-auto pointer-events-auto"
-                    onClick={e => e.stopPropagation()}>
-                    {/* Modal Header */}
-                    <div className="flex items-center justify-between p-4 border-b border-border-default sticky top-0 bg-surface-card z-10">
-                      <div>
-                        <h2 className="text-lg font-semibold text-text-primary">{ma.vorname} {ma.nachname}</h2>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-xs text-text-muted">Nr. {ma.personalnummer}</span>
-                          <span className="text-xs text-text-muted">·</span>
-                          <span className="text-xs text-text-secondary">{ROLLEN_LABELS[ma.rolle] || ma.rolle}</span>
-                          <StatusBadge status={ma.status} />
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => { setEditId(ma.id); setExpandedId(null) }}
-                          className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-brand text-white rounded-lg hover:opacity-90">
-                          <FileText className="w-3.5 h-3.5" /> Bearbeiten
-                        </button>
-                        <button onClick={() => setExpandedId(null)} className="p-1.5 rounded-lg hover:bg-surface-hover text-text-secondary">
-                          <X className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Modal Body */}
-                    <div className="p-5 space-y-6">
-                      {/* Stammdaten Übersicht */}
-                      <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
-                        {ma.email && <div><span className="text-text-muted">Email:</span> <span className="text-text-primary ml-1">{ma.email}</span></div>}
-                        {ma.telefon && <div><span className="text-text-muted">Telefon:</span> <span className="text-text-primary ml-1">{ma.telefon}</span></div>}
-                        {ma.eintrittsdatum && <div><span className="text-text-muted">Eintritt:</span> <span className="text-text-primary ml-1">{formatDate(ma.eintrittsdatum)}</span></div>}
-                        {ma.geburtsdatum && <div><span className="text-text-muted">Geburtstag:</span> <span className="text-text-primary ml-1">{formatDate(ma.geburtsdatum)}</span></div>}
-                        {ma.abteilung && <div><span className="text-text-muted">Abteilung:</span> <span className="text-text-primary ml-1">{ma.abteilung}</span></div>}
-                        {ma.funktion && <div><span className="text-text-muted">Funktion:</span> <span className="text-text-primary ml-1">{ma.funktion}</span></div>}
-                      </div>
-
-                      {/* Auth-Zugang */}
-                      <div className="flex items-center gap-2 p-3 rounded-lg bg-surface-main">
-                        <Shield className="w-4 h-4 text-text-muted" />
-                        {!ma.auth_user_id ? (
-                          <button onClick={async () => {
-                            if (!ma.email) { alert('Bitte zuerst eine Firmen-Email hinterlegen.'); return }
-                            const res = await supabase.functions.invoke('manage-auth', {
-                              body: { action: 'create', mitarbeiter_id: ma.id, email: ma.email, vorname: ma.vorname, nachname: ma.nachname }
-                            })
-                            if (res.data?.success) { alert(`Einladung an ${ma.email} gesendet!`); loadData() }
-                            else alert('Fehler: ' + (res.data?.error || 'Unbekannt'))
-                          }}
-                            className="text-xs font-medium text-emerald-700 hover:underline">
-                            Zugang erstellen (Einladung senden)
-                          </button>
-                        ) : (
-                          <span className="text-xs text-emerald-600">Zugang aktiv</span>
-                        )}
-                      </div>
-
-                      <VertragSection mitarbeiterId={ma.id} />
-                      <UrlaubSection mitarbeiterId={ma.id} />
-                      <AbwesenheitenSection mitarbeiterId={ma.id} mitarbeiterName={`${ma.vorname} ${ma.nachname}`} />
-                    </div>
-                  </div>
-                </div>
-              </>
-            )
-          })()}
         </div>
       )}
     </div>

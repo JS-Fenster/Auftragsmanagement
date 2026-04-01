@@ -32,6 +32,7 @@ const BelegListe = lazy(() => import('./pages/BelegListe'))
 const BelegErstellen = lazy(() => import('./pages/BelegErstellen'))
 const Lieferanten = lazy(() => import('./pages/Lieferanten'))
 const Mitarbeiter = lazy(() => import('./pages/Mitarbeiter'))
+const MitarbeiterDetail = lazy(() => import('./pages/MitarbeiterDetail'))
 
 const NAV_ITEMS = [
   { to: '/', label: 'Cockpit', icon: LayoutDashboard },
@@ -199,6 +200,7 @@ function AppRoutes() {
       <Route path="/belege/:id" element={<BelegErstellen />} />
       <Route path="/lieferanten" element={<Lieferanten />} />
       <Route path="/mitarbeiter" element={<Mitarbeiter />} />
+      <Route path="/mitarbeiter/:id" element={<MitarbeiterDetail />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
     </Suspense>
