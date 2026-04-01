@@ -237,7 +237,7 @@ function SkillsSection({ mitarbeiterId, editing }) {
   )
 }
 
-const BLOCKED_ZEICHEN = new Set(['SS', 'SA', 'HH', 'KZ', 'NS', 'SD'])
+const BLOCKED_ZEICHEN = new Set(['SS', 'SA', 'HH', 'KZ', 'NS', 'SD', 'AH', 'HJ'])
 
 function generateZeichen(vorname, nachname) {
   if (!vorname || !nachname) return ''
