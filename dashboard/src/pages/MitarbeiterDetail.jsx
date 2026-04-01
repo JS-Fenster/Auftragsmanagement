@@ -61,25 +61,78 @@ function Field({ label, value, type = 'text', onChange, options, placeholder, di
   )
 }
 
+const WOCHENTAGE = [
+  { key: 'mo', label: 'Mo' }, { key: 'di', label: 'Di' }, { key: 'mi', label: 'Mi' },
+  { key: 'do', label: 'Do' }, { key: 'fr', label: 'Fr' },
+]
+const DEFAULT_TAG = { start: '07:00', ende: '16:00' }
+
+function calcWochenstunden(tagesarbeitszeit) {
+  if (!tagesarbeitszeit) return 0
+  return WOCHENTAGE.reduce((sum, { key }) => {
+    const tag = tagesarbeitszeit[key]
+    if (!tag) return sum
+    const [sh, sm] = tag.start.split(':').map(Number)
+    const [eh, em] = tag.ende.split(':').map(Number)
+    return sum + (eh + em / 60) - (sh + sm / 60)
+  }, 0)
+}
+
+function countArbeitstage(tagesarbeitszeit) {
+  if (!tagesarbeitszeit) return 0
+  return WOCHENTAGE.filter(({ key }) => tagesarbeitszeit[key]).length
+}
+
 function VertragSection({ mitarbeiterId }) {
   const [vertraege, setVertraege] = useState([])
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ gueltig_ab: '', wochenstunden: '40', arbeitstage_pro_woche: '5', urlaubstage_jahr: '30', notiz: '' })
+  const [form, setForm] = useState({
+    gueltig_ab: '', urlaubstage_jahr: '30', notiz: '',
+    tagesarbeitszeit: { mo: { ...DEFAULT_TAG }, di: { ...DEFAULT_TAG }, mi: { ...DEFAULT_TAG }, do: { ...DEFAULT_TAG }, fr: { ...DEFAULT_TAG } },
+  })
 
-  useEffect(() => {
-    supabase.from('arbeitsvertraege').select('*').eq('mitarbeiter_id', mitarbeiterId).order('gueltig_ab', { ascending: false })
-      .then(({ data }) => setVertraege(data || []))
-  }, [mitarbeiterId])
-
-  const save = async () => {
-    await supabase.from('arbeitsvertraege').insert({
-      mitarbeiter_id: mitarbeiterId, gueltig_ab: form.gueltig_ab,
-      wochenstunden: parseFloat(form.wochenstunden), arbeitstage_pro_woche: parseInt(form.arbeitstage_pro_woche),
-      urlaubstage_jahr: parseInt(form.urlaubstage_jahr), notiz: form.notiz || null,
-    })
-    setShowForm(false)
+  const loadVertraege = useCallback(async () => {
     const { data } = await supabase.from('arbeitsvertraege').select('*').eq('mitarbeiter_id', mitarbeiterId).order('gueltig_ab', { ascending: false })
     setVertraege(data || [])
+  }, [mitarbeiterId])
+
+  useEffect(() => { loadVertraege() }, [loadVertraege])
+
+  const setTag = (key, field, value) => {
+    setForm(f => ({
+      ...f,
+      tagesarbeitszeit: { ...f.tagesarbeitszeit, [key]: f.tagesarbeitszeit[key] ? { ...f.tagesarbeitszeit[key], [field]: value } : { start: '07:00', ende: '16:00', [field]: value } }
+    }))
+  }
+  const toggleTag = (key) => {
+    setForm(f => ({
+      ...f,
+      tagesarbeitszeit: { ...f.tagesarbeitszeit, [key]: f.tagesarbeitszeit[key] ? null : { ...DEFAULT_TAG } }
+    }))
+  }
+
+  const wochenstunden = calcWochenstunden(form.tagesarbeitszeit)
+  const arbeitstage = countArbeitstage(form.tagesarbeitszeit)
+
+  const save = async () => {
+    // Close previous open period
+    const openVertrag = vertraege.find(v => !v.gueltig_bis)
+    if (openVertrag && form.gueltig_ab) {
+      const bisDate = new Date(form.gueltig_ab + 'T00:00:00')
+      bisDate.setDate(bisDate.getDate() - 1)
+      await supabase.from('arbeitsvertraege').update({ gueltig_bis: bisDate.toISOString().slice(0, 10) }).eq('id', openVertrag.id)
+    }
+
+    await supabase.from('arbeitsvertraege').insert({
+      mitarbeiter_id: mitarbeiterId, gueltig_ab: form.gueltig_ab,
+      wochenstunden: Math.round(wochenstunden * 10) / 10,
+      arbeitstage_pro_woche: arbeitstage,
+      urlaubstage_jahr: parseInt(form.urlaubstage_jahr),
+      tagesarbeitszeit: form.tagesarbeitszeit,
+      notiz: form.notiz || null,
+    })
+    setShowForm(false)
+    loadVertraege()
   }
 
   return (
@@ -88,31 +141,88 @@ function VertragSection({ mitarbeiterId }) {
         <h3 className="text-sm font-semibold text-text-primary">Arbeitsverträge</h3>
         <button onClick={() => setShowForm(!showForm)} className="text-xs text-brand hover:underline">+ Neue Periode</button>
       </div>
+
       {showForm && (
-        <div className="grid grid-cols-4 gap-2 p-3 rounded-lg bg-surface-main border border-border-default">
-          <Field label="Gültig ab *" value={form.gueltig_ab} type="date" onChange={v => setForm(f => ({ ...f, gueltig_ab: v }))} />
-          <Field label="Stunden/Woche" value={form.wochenstunden} type="number" onChange={v => setForm(f => ({ ...f, wochenstunden: v }))} />
-          <Field label="Tage/Woche" value={form.arbeitstage_pro_woche} type="number" onChange={v => setForm(f => ({ ...f, arbeitstage_pro_woche: v }))} />
-          <Field label="Urlaubstage/Jahr" value={form.urlaubstage_jahr} type="number" onChange={v => setForm(f => ({ ...f, urlaubstage_jahr: v }))} />
-          <div className="col-span-4 flex gap-2">
-            <button onClick={save} disabled={!form.gueltig_ab} className="px-3 py-1 text-xs bg-brand text-white rounded-lg disabled:opacity-50">Speichern</button>
-            <button onClick={() => setShowForm(false)} className="px-3 py-1 text-xs text-text-secondary hover:bg-surface-hover rounded-lg">Abbrechen</button>
+        <div className="p-4 rounded-lg bg-surface-main border border-border-default space-y-4">
+          <div className="grid grid-cols-3 gap-3">
+            <Field label="Gültig ab *" value={form.gueltig_ab} type="date" onChange={v => setForm(f => ({ ...f, gueltig_ab: v }))} />
+            <Field label="Urlaubstage/Jahr" value={form.urlaubstage_jahr} type="number" onChange={v => setForm(f => ({ ...f, urlaubstage_jahr: v }))} />
+            <div className="flex items-end pb-1">
+              <div className="text-xs text-text-muted">
+                <span className="font-semibold text-text-primary">{Math.round(wochenstunden * 10) / 10}h</span> / Woche · {arbeitstage} Tage
+              </div>
+            </div>
+          </div>
+
+          {/* Wochentag-Grid */}
+          <div>
+            <label className={labelCls}>Arbeitszeiten pro Tag</label>
+            <div className="grid grid-cols-5 gap-2">
+              {WOCHENTAGE.map(({ key, label }) => {
+                const tag = form.tagesarbeitszeit[key]
+                const aktiv = !!tag
+                return (
+                  <div key={key} className={`rounded-lg border p-2 text-center transition-colors ${aktiv ? 'border-brand/30 bg-brand/5' : 'border-border-default bg-surface-card opacity-50'}`}>
+                    <button onClick={() => toggleTag(key)} className="w-full">
+                      <span className={`text-xs font-bold ${aktiv ? 'text-brand' : 'text-text-muted'}`}>{label}</span>
+                    </button>
+                    {aktiv && (
+                      <div className="mt-2 space-y-1">
+                        <input type="time" value={tag.start} onChange={e => setTag(key, 'start', e.target.value)}
+                          className="w-full px-1 py-0.5 text-[11px] border border-border-default rounded bg-surface-card text-center outline-none" />
+                        <input type="time" value={tag.ende} onChange={e => setTag(key, 'ende', e.target.value)}
+                          className="w-full px-1 py-0.5 text-[11px] border border-border-default rounded bg-surface-card text-center outline-none" />
+                        <div className="text-[10px] text-text-muted">
+                          {(() => { const [sh,sm]=tag.start.split(':').map(Number); const [eh,em]=tag.ende.split(':').map(Number); return `${(eh+em/60)-(sh+sm/60)}h` })()}
+                        </div>
+                      </div>
+                    )}
+                    {!aktiv && <div className="mt-2 text-[10px] text-text-muted">frei</div>}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <button onClick={save} disabled={!form.gueltig_ab} className="px-3 py-1.5 text-xs bg-brand text-white rounded-lg disabled:opacity-50">Speichern</button>
+            <button onClick={() => setShowForm(false)} className="px-3 py-1.5 text-xs text-text-secondary hover:bg-surface-hover rounded-lg">Abbrechen</button>
           </div>
         </div>
       )}
-      {vertraege.map(v => (
-        <div key={v.id} className="flex items-center justify-between p-3 rounded-lg bg-surface-main border border-border-default text-xs">
-          <div>
-            <span className="font-semibold">{v.wochenstunden}h/Woche</span>
-            <span className="text-text-muted ml-2">{v.arbeitstage_pro_woche} Tage</span>
-            <span className="text-text-muted ml-2">{v.urlaubstage_jahr} Urlaubstage</span>
+
+      {/* Bestehende Verträge */}
+      {vertraege.map(v => {
+        const az = v.tagesarbeitszeit
+        return (
+          <div key={v.id} className="p-3 rounded-lg bg-surface-main border border-border-default text-xs space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="font-semibold">{v.wochenstunden}h/Woche</span>
+                <span className="text-text-muted ml-2">{v.arbeitstage_pro_woche} Tage</span>
+                <span className="text-text-muted ml-2">{v.urlaubstage_jahr} Urlaubstage</span>
+              </div>
+              <div className="text-text-muted">
+                {formatDate(v.gueltig_ab)} – {v.gueltig_bis ? formatDate(v.gueltig_bis) : 'heute'}
+                {!v.gueltig_bis && <span className="ml-1 text-emerald-600 font-medium">aktuell</span>}
+              </div>
+            </div>
+            {az && (
+              <div className="flex gap-1">
+                {WOCHENTAGE.map(({ key, label }) => {
+                  const tag = az[key]
+                  return (
+                    <span key={key} className={`px-1.5 py-0.5 rounded text-[10px] ${tag ? 'bg-brand/10 text-brand font-medium' : 'bg-surface-card text-text-muted'}`}>
+                      {label}{tag ? ` ${tag.start}–${tag.ende}` : ' frei'}
+                    </span>
+                  )
+                })}
+              </div>
+            )}
+            {v.notiz && <div className="text-text-muted">{v.notiz}</div>}
           </div>
-          <div className="text-text-muted">
-            {formatDate(v.gueltig_ab)} – {v.gueltig_bis ? formatDate(v.gueltig_bis) : 'heute'}
-            {!v.gueltig_bis && <span className="ml-1 text-emerald-600 font-medium">aktuell</span>}
-          </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
