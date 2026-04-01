@@ -563,7 +563,44 @@ export default function Mitarbeiter() {
             if (!ma) return null
             return (
               <div className="border-t border-border-default bg-surface-main p-5 space-y-6">
-                <div className="flex justify-end">
+                <div className="flex items-center justify-between">
+                  {/* Auth-Zugang */}
+                  <div className="flex items-center gap-2">
+                    {!ma.auth_user_id ? (
+                      <button onClick={async () => {
+                        if (!ma.email) { alert('Bitte zuerst eine Firmen-Email hinterlegen.'); return }
+                        const res = await supabase.functions.invoke('manage-auth', {
+                          body: { action: 'create', mitarbeiter_id: ma.id, email: ma.email, vorname: ma.vorname, nachname: ma.nachname }
+                        })
+                        if (res.data?.success) { alert(`Einladung an ${ma.email} gesendet!`); loadData() }
+                        else alert('Fehler: ' + (res.data?.error || 'Unbekannt'))
+                      }}
+                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100">
+                        <Shield className="w-3.5 h-3.5" /> Zugang erstellen
+                      </button>
+                    ) : ma.status === 'aktiv' ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-emerald-600 flex items-center gap-1"><Shield className="w-3 h-3" /> Zugang aktiv</span>
+                        <button onClick={async () => {
+                          if (!confirm('Zugang fuer ' + ma.vorname + ' ' + ma.nachname + ' sperren?')) return
+                          const res = await supabase.functions.invoke('manage-auth', { body: { action: 'disable', mitarbeiter_id: ma.id } })
+                          if (res.data?.success) { alert('Zugang gesperrt.'); loadData() }
+                          else alert('Fehler: ' + (res.data?.error || 'Unbekannt'))
+                        }}
+                          className="text-[10px] text-red-500 hover:text-red-700 underline">Sperren</button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-red-500 flex items-center gap-1"><Shield className="w-3 h-3" /> Zugang gesperrt</span>
+                        <button onClick={async () => {
+                          const res = await supabase.functions.invoke('manage-auth', { body: { action: 'enable', mitarbeiter_id: ma.id } })
+                          if (res.data?.success) { alert('Zugang freigeschalten.'); loadData() }
+                          else alert('Fehler: ' + (res.data?.error || 'Unbekannt'))
+                        }}
+                          className="text-[10px] text-emerald-500 hover:text-emerald-700 underline">Freischalten</button>
+                      </div>
+                    )}
+                  </div>
                   <button onClick={() => setEditId(ma.id)}
                     className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-brand hover:bg-brand/10 rounded-lg">
                     <FileText className="w-3.5 h-3.5" /> Bearbeiten
