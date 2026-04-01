@@ -215,7 +215,7 @@ function ProtectedApp() {
       <ChatContextProvider>
         <div className="flex flex-col h-screen bg-surface-main">
           <StandaloneHeader />
-          <main className="flex-1 overflow-hidden h-full">
+          <main className="flex-1 overflow-y-auto h-full">
             <AppRoutes />
           </main>
           <Suspense fallback={null}><TerminDetail /></Suspense>
@@ -231,7 +231,7 @@ function ProtectedApp() {
     <ChatContextProvider>
       <div className="flex h-screen bg-surface-main">
         <Sidebar />
-        <main className="flex-1 overflow-hidden h-full">
+        <main className="flex-1 overflow-y-auto h-full">
           <AppRoutes />
         </main>
         <Suspense fallback={null}><TerminDetail /></Suspense>
