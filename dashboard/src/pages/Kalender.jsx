@@ -74,7 +74,7 @@ export default function Kalender() {
         .order('start_zeit'),
       supabase
         .from('abwesenheiten')
-        .select('*, ressourcen(*), abwesenheitsarten(*), mitarbeiter(vorname, nachname)')
+        .select('*, ressourcen(*), abwesenheitsarten(*), mitarbeiter(vorname, nachname, ressource_id)')
         .gte('datum', startStr)
         .lte('datum', endStr)
         .in('status', ['genehmigt', 'beantragt']),

@@ -27,8 +27,8 @@ const getVerfuegbareStunden = (azm, date) => {
 const getAbwesenheit = (abwesenheiten, ressourceId, date) => {
   const dateStr = format(date, 'yyyy-MM-dd')
   return abwesenheiten.find(a =>
-    a.ressource_id === ressourceId &&
-    a.datum === dateStr
+    a.datum === dateStr &&
+    (a.ressource_id === ressourceId || a.mitarbeiter?.ressource_id === ressourceId)
   )
 }
 

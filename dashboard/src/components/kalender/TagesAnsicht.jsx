@@ -240,7 +240,11 @@ export default function TagesAnsicht({
     }
     for (const ab of abwesenheiten) {
       if (!isSameDay(parseISO(ab.datum), selectedDate)) continue
-      const idx = colIndexMap.get(ab.ressource_id)
+      // Match by ressource_id (direct) or by mitarbeiter→ressource link
+      let idx = colIndexMap.get(ab.ressource_id)
+      if (idx === undefined && ab.mitarbeiter?.ressource_id) {
+        idx = colIndexMap.get(ab.mitarbeiter.ressource_id)
+      }
       if (idx !== undefined) cols[idx].abwesenheiten.push(ab)
     }
     return cols
