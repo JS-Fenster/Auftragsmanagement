@@ -2,37 +2,9 @@ import { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 import { startOfWeek, addDays, format, isSameDay, parseISO } from 'date-fns'
 import { de } from 'date-fns/locale'
 import { ArrowRight } from 'lucide-react'
+import { getKontaktName, getMonteurKuerzel, getFahrzeugId, formatTime } from '../../lib/helpers'
 
 const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr']
-
-const getKontaktName = (kontakt) => {
-  if (!kontakt) return 'Unbekannt'
-  if (kontakt.firma1) return kontakt.firma1
-  const hp = kontakt.kontakt_personen?.find((p) => p.ist_hauptkontakt) || kontakt.kontakt_personen?.[0]
-  return hp ? [hp.vorname, hp.nachname].filter(Boolean).join(' ') : 'Unbekannt'
-}
-
-const formatTime = (isoString) => {
-  const d = typeof isoString === 'string' ? parseISO(isoString) : isoString
-  return format(d, 'HH:mm')
-}
-
-const getMonteurKuerzel = (termin) => {
-  if (!termin.termin_ressourcen) return []
-  return termin.termin_ressourcen
-    .filter((r) => r.ressourcen?.typ === 'monteur')
-    .map((r) => ({
-      kuerzel: r.ressourcen.kuerzel,
-      farbe: r.ressourcen.farbe,
-    }))
-}
-
-const getFahrzeugId = (termin) => {
-  const fahrzeug = termin.termin_ressourcen?.find(
-    (r) => r.ressourcen?.typ === 'fahrzeug'
-  )
-  return fahrzeug?.ressource_id ?? null
-}
 
 function TerminKachel({ termin, isContinuation, onTerminClick, onTerminHover, onTerminHoverEnd, onDragStart }) {
   const abgesagt = termin.status === 'abgesagt'

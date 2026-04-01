@@ -157,7 +157,7 @@ export default function Lieferanten() {
           </div>
           {searchTerm && (
             <button onClick={() => setSearchTerm('')} className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700">
-              <X size={14} /> Zuruecksetzen
+              <X size={14} /> Zurücksetzen
             </button>
           )}
           <span className="text-sm text-text-muted self-center">{filtered.length} Ergebnis{filtered.length !== 1 ? 'se' : ''}</span>

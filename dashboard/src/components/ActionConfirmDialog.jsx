@@ -76,7 +76,7 @@ export default function ActionConfirmDialog({ action, onConfirm, onCancel }) {
             className={`px-3 py-1.5 text-sm text-btn-primary-text rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50 ${executing ? 'bg-text-muted' : 'bg-brand hover:bg-brand-hover'}`}
           >
             {executing ? (
-              <>Wird ausgefuehrt...</>
+              <>Wird ausgeführt...</>
             ) : (
               <>
                 <Check className="w-3.5 h-3.5" />

@@ -82,7 +82,7 @@ export default function BelegVorschau({ belegId, onClose }) {
           className="inline-flex items-center gap-2 px-4 py-2 text-sm text-text-secondary border border-border-default hover:bg-surface-main rounded-lg transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          Zurueck
+          Zurück
         </button>
       </div>
     )
@@ -125,7 +125,7 @@ export default function BelegVorschau({ belegId, onClose }) {
           className="inline-flex items-center gap-2 px-4 py-2 text-sm text-text-secondary border border-border-default hover:bg-surface-main rounded-lg transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          Zurueck
+          Zurück
         </button>
         <div className="flex items-center gap-3">
           <button

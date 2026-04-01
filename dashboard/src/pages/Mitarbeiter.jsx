@@ -10,7 +10,7 @@ import { supabase } from '../lib/supabase'
 import AbwesenheitenSection from '../components/AbwesenheitenSection'
 
 const ROLLEN_LABELS = {
-  monteur: 'Monteur', buero: 'Buero', geschaeftsfuehrung: 'Geschaeftsfuehrung',
+  monteur: 'Monteur', buero: 'Büro', geschaeftsfuehrung: 'Geschäftsführung',
   azubi: 'Azubi', teilzeit: 'Teilzeit', minijob: 'Minijob',
 }
 const STATUS_STYLES = {
@@ -255,7 +255,7 @@ function MitarbeiterForm({ mitarbeiter, allMitarbeiter = [], onSave, onCancel })
           <div className="grid grid-cols-4 gap-3">
             <Input label="Geburtsdatum" value={form.geburtsdatum} onChange={v => set('geburtsdatum', v)} type="date" />
             <Input label="Geburtsort" value={form.geburtsort} onChange={v => set('geburtsort', v)} />
-            <Input label="Staatsangehoerigkeit" value={form.staatsangehoerigkeit} onChange={v => set('staatsangehoerigkeit', v)} />
+            <Input label="Staatsangehörigkeit" value={form.staatsangehoerigkeit} onChange={v => set('staatsangehoerigkeit', v)} />
             <Input label="Sozialversicherungsnr." value={form.sv_nummer} onChange={v => set('sv_nummer', v)} />
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -278,7 +278,7 @@ function MitarbeiterForm({ mitarbeiter, allMitarbeiter = [], onSave, onCancel })
         {tab === 'privat' && (<>
           <p className={sectionCls}>Privatadresse</p>
           <div className="grid grid-cols-4 gap-3">
-            <Input label="Strasse" value={form.priv_strasse} onChange={v => set('priv_strasse', v)} className="col-span-2" />
+            <Input label="Straße" value={form.priv_strasse} onChange={v => set('priv_strasse', v)} className="col-span-2" />
             <Input label="PLZ" value={form.priv_plz} onChange={v => set('priv_plz', v)} />
             <Input label="Ort" value={form.priv_ort} onChange={v => set('priv_ort', v)} />
           </div>
@@ -484,8 +484,8 @@ export default function Mitarbeiter() {
       <div className="grid grid-cols-4 gap-4 mb-6">
         <KpiCard label="Aktive Mitarbeiter" value={kpis.aktiv} icon={UserCheck} color="#10B981" />
         <KpiCard label="Monteure" value={kpis.monteure} icon={Users} color="#3B82F6" />
-        <KpiCard label="Buero / Teilzeit" value={kpis.buero} icon={Briefcase} color="#8B5CF6" />
-        <KpiCard label="Geschaeftsfuehrung" value={kpis.gf} icon={UserCheck} color="#F59E0B" />
+        <KpiCard label="Büro / Teilzeit" value={kpis.buero} icon={Briefcase} color="#8B5CF6" />
+        <KpiCard label="Geschäftsführung" value={kpis.gf} icon={UserCheck} color="#F59E0B" />
       </div>
 
       {(showCreate || editId) && (
@@ -583,7 +583,7 @@ export default function Mitarbeiter() {
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-emerald-600 flex items-center gap-1"><Shield className="w-3 h-3" /> Zugang aktiv</span>
                         <button onClick={async () => {
-                          if (!confirm('Zugang fuer ' + ma.vorname + ' ' + ma.nachname + ' sperren?')) return
+                          if (!confirm('Zugang für ' + ma.vorname + ' ' + ma.nachname + ' sperren?')) return
                           const res = await supabase.functions.invoke('manage-auth', { body: { action: 'disable', mitarbeiter_id: ma.id } })
                           if (res.data?.success) { alert('Zugang gesperrt.'); loadData() }
                           else alert('Fehler: ' + (res.data?.error || 'Unbekannt'))

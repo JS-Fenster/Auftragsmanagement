@@ -106,7 +106,7 @@ export function StepVorschau({ documentHtml, documentUrl, onReset, onSave, saveL
             className="inline-flex items-center gap-2 px-5 py-2.5 text-sm text-text-primary border border-border-default hover:bg-surface-main rounded-lg transition-colors"
             onClick={() => {
               // Placeholder for future email functionality
-              alert('E-Mail-Versand wird in einer zukuenftigen Version implementiert.')
+              alert('E-Mail-Versand wird in einer zukünftigen Version implementiert.')
             }}
           >
             <Mail className="w-4 h-4" />

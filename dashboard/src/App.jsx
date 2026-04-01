@@ -51,12 +51,12 @@ const PAGE_TITLES = {
   '/montageplanung': 'Montageplanung',
   '/budgetangebot': 'Budgetangebot',
   '/budgetangebot-verlauf': 'Angebotsverlauf',
-  '/auftraege': 'Auftraege',
+  '/auftraege': 'Aufträge',
   '/dokumente': 'Dokumente',
   '/kunden': 'Kunden',
   '/emails': 'E-Mail',
   '/einstellungen': 'Einstellungen',
-  '/uebersicht': 'Uebersicht',
+  '/uebersicht': 'Übersicht',
   '/finanzen': 'Finanzen',
   '/bestellungen': 'Bestellungen',
   '/belege': 'Belege',
@@ -102,7 +102,7 @@ function Sidebar() {
   return (
     <nav className="w-56 bg-surface-sidebar border-r border-border-default flex flex-col">
       <div className="px-4 pt-4 pb-3 border-b border-border-default">
-        <img src="/js-logo.svg" alt="J.S. Fenster & Tueren" className="w-44 dark:brightness-200" />
+        <img src="/js-logo.svg" alt="J.S. Fenster & Türen" className="w-44 dark:brightness-200" />
         <p className="text-xs text-text-muted mt-1.5 pl-0.5">Auftragsmanagement</p>
       </div>
       <div className="flex-1 py-2">

@@ -1,5 +1,6 @@
 import { useState, useRef, useMemo, useCallback, useEffect } from 'react'
 import { format, parseISO, isSameDay, isToday } from 'date-fns'
+import { getKontaktName, getMonteurKuerzel, getFahrzeugId } from '../../lib/helpers'
 
 const SLOT_START = 7
 const SLOT_END = 17
@@ -21,25 +22,6 @@ const pctToTime = (pct) => {
   const h = Math.floor(snapped / 60)
   const m = snapped % 60
   return { h, m, str: `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}` }
-}
-
-const getKontaktName = (kontakt) => {
-  if (!kontakt) return 'Unbekannt'
-  if (kontakt.firma1) return kontakt.firma1
-  const hp = kontakt.kontakt_personen?.find((p) => p.ist_hauptkontakt) || kontakt.kontakt_personen?.[0]
-  return hp ? [hp.vorname, hp.nachname].filter(Boolean).join(' ') : 'Unbekannt'
-}
-
-const getMonteurKuerzel = (termin) => {
-  if (!termin.termin_ressourcen) return []
-  return termin.termin_ressourcen
-    .filter((r) => r.ressourcen?.typ === 'monteur')
-    .map((r) => ({ kuerzel: r.ressourcen.kuerzel, farbe: r.ressourcen.farbe, id: r.ressource_id }))
-}
-
-const getFahrzeugId = (termin) => {
-  const fz = termin.termin_ressourcen?.find((r) => r.ressourcen?.typ === 'fahrzeug')
-  return fz?.ressource_id ?? null
 }
 
 const isAbgesagt = (termin) => termin.status === 'abgesagt'

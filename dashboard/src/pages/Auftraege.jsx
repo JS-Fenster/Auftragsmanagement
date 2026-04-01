@@ -208,10 +208,10 @@ function useFormWithUndo(initialValues) {
 
 const FIELD_LABELS = {
   beschreibung: 'Beschreibung',
-  prioritaet: 'Prioritaet',
+  prioritaet: 'Priorität',
   notizen: 'Notizen',
   auftragstyp: 'Auftragstyp',
-  adresse_strasse: 'Strasse',
+  adresse_strasse: 'Straße',
   adresse_plz: 'PLZ',
   adresse_ort: 'Ort',
   erp_kunde_id: 'Bestandskunde',
@@ -219,7 +219,7 @@ const FIELD_LABELS = {
   neukunde_name: 'Neukunde Name',
   neukunde_telefon: 'Neukunde Telefon',
   neukunde_email: 'Neukunde E-Mail',
-  einsatzort_strasse: 'Einsatzort Strasse',
+  einsatzort_strasse: 'Einsatzort Straße',
   einsatzort_plz: 'Einsatzort PLZ',
   einsatzort_ort: 'Einsatzort Ort',
 }
@@ -233,9 +233,9 @@ function UnsavedChangesDialog({ dirtyFields, onSaveAndClose, onDiscard, onBack }
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-black/60" />
       <div className="relative bg-surface-card rounded-xl max-w-md w-full shadow-xl p-6" onClick={e => e.stopPropagation()}>
-        <h3 className="text-lg font-bold text-text-primary mb-3">Ungespeicherte Aenderungen</h3>
+        <h3 className="text-lg font-bold text-text-primary mb-3">Ungespeicherte Änderungen</h3>
         <p className="text-sm text-text-secondary mb-4">
-          Es gibt {Object.keys(dirtyFields).length} ungespeicherte Aenderung{Object.keys(dirtyFields).length !== 1 ? 'en' : ''}:
+          Es gibt {Object.keys(dirtyFields).length} ungespeicherte Änderung{Object.keys(dirtyFields).length !== 1 ? 'en' : ''}:
         </p>
         <ul className="text-sm text-text-primary space-y-1 mb-5 max-h-40 overflow-y-auto">
           {Object.entries(dirtyFields).map(([field, { oldValue, newValue }]) => (
@@ -252,7 +252,7 @@ function UnsavedChangesDialog({ dirtyFields, onSaveAndClose, onDiscard, onBack }
             className="px-3 py-1.5 text-sm text-text-secondary hover:text-text-primary"
             onClick={onBack}
           >
-            Zurueck
+            Zurück
           </button>
           <button
             className="px-3 py-1.5 text-sm text-red-600 hover:text-red-800 border border-red-200 rounded-lg"
@@ -403,10 +403,10 @@ function AuftragDetailModal({ auftrag, onClose, onRefresh }) {
               <button
                 className="inline-flex items-center gap-1 px-2 py-1 text-xs text-text-secondary bg-surface-hover hover:bg-surface-hover rounded-lg transition-colors"
                 onClick={form.undo}
-                title="Letzte Aenderung rueckgaengig"
+                title="Letzte Änderung rückgängig"
               >
                 <Undo2 className="w-3.5 h-3.5" />
-                Zurueck ({form.undoStack.length})
+                Zurück ({form.undoStack.length})
               </button>
             )}
           </div>
@@ -537,7 +537,7 @@ function AuftragDetailModal({ auftrag, onClose, onRefresh }) {
                 <div className="grid grid-cols-1 gap-2 pl-6">
                   <input
                     type="text"
-                    placeholder="Strasse"
+                    placeholder="Straße"
                     value={form.values.einsatzort_strasse}
                     onChange={e => form.setValue('einsatzort_strasse', e.target.value)}
                     className={`px-2 py-1 border border-border-default rounded text-sm ${dirtyBg('einsatzort_strasse')}`}
@@ -576,7 +576,7 @@ function AuftragDetailModal({ auftrag, onClose, onRefresh }) {
 
           {/* 3b. Prioritaet (editierbar) */}
           <div className="border-t border-border-default pt-4 mt-4">
-            <h3 className="text-sm font-semibold text-text-primary mb-2">Prioritaet</h3>
+            <h3 className="text-sm font-semibold text-text-primary mb-2">Priorität</h3>
             <select
               className={`border border-border-default rounded-lg px-3 py-1.5 text-sm ${dirtyBg('prioritaet')}`}
               value={form.values.prioritaet}
@@ -601,7 +601,7 @@ function AuftragDetailModal({ auftrag, onClose, onRefresh }) {
 
           {/* Save-Feedback */}
           {saveError && <p className="text-sm text-red-600 mt-2">{saveError}</p>}
-          {saveSuccess && <p className="text-sm text-green-600 mt-2">Aenderungen gespeichert!</p>}
+          {saveSuccess && <p className="text-sm text-green-600 mt-2">Änderungen gespeichert!</p>}
 
           {/* Speichern-Button (nur wenn dirty) */}
           {form.isDirty && (
@@ -612,7 +612,7 @@ function AuftragDetailModal({ auftrag, onClose, onRefresh }) {
                 onClick={() => handleSave(false)}
               >
                 <Save className="w-4 h-4" />
-                {saving ? 'Speichern...' : `${form.dirtyCount} Aenderung${form.dirtyCount !== 1 ? 'en' : ''} speichern`}
+                {saving ? 'Speichern...' : `${form.dirtyCount} Änderung${form.dirtyCount !== 1 ? 'en' : ''} speichern`}
               </button>
             </div>
           )}
@@ -620,7 +620,7 @@ function AuftragDetailModal({ auftrag, onClose, onRefresh }) {
           {/* 4. Status aendern */}
           {transitions.length > 0 && (
             <div className="border-t border-border-default pt-4 mt-4">
-              <h3 className="text-sm font-semibold text-text-primary mb-2">Status aendern</h3>
+              <h3 className="text-sm font-semibold text-text-primary mb-2">Status ändern</h3>
               <div className="flex items-center gap-2">
                 <select
                   className="border border-border-default rounded-lg px-3 py-1.5 text-sm"
@@ -666,7 +666,7 @@ function AuftragDetailModal({ auftrag, onClose, onRefresh }) {
                     value={zeitfenster}
                     onChange={e => setZeitfenster(e.target.value)}
                   >
-                    <option value="">– waehlen –</option>
+                    <option value="">– wählen –</option>
                     {Object.entries(ZEITFENSTER).map(([k, v]) => (
                       <option key={k} value={k}>{v.label}</option>
                     ))}
@@ -743,7 +743,7 @@ function AuftragDetailModal({ auftrag, onClose, onRefresh }) {
 
           {/* 8. Mannstaerke */}
           <div className="border-t border-border-default pt-4 mt-4">
-            <h3 className="text-sm font-semibold text-text-primary mb-2">Mannstaerke</h3>
+            <h3 className="text-sm font-semibold text-text-primary mb-2">Mannstärke</h3>
             <div className="flex items-center gap-2">
               <select
                 className="border border-border-default rounded-lg px-3 py-1.5 text-sm"
@@ -883,7 +883,7 @@ function NeuAuftragModal({ onClose, onRefresh }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <input placeholder="Name *" className="border border-border-default rounded-lg px-3 py-1.5 text-sm" value={neukunde.name} onChange={e => setNeukunde({ ...neukunde, name: e.target.value })} />
                 <input placeholder="Telefon" className="border border-border-default rounded-lg px-3 py-1.5 text-sm" value={neukunde.telefon} onChange={e => setNeukunde({ ...neukunde, telefon: e.target.value })} />
-                <input placeholder="Strasse" className="border border-border-default rounded-lg px-3 py-1.5 text-sm" value={neukunde.strasse} onChange={e => setNeukunde({ ...neukunde, strasse: e.target.value })} />
+                <input placeholder="Straße" className="border border-border-default rounded-lg px-3 py-1.5 text-sm" value={neukunde.strasse} onChange={e => setNeukunde({ ...neukunde, strasse: e.target.value })} />
                 <div className="flex gap-2">
                   <input placeholder="PLZ" className="border border-border-default rounded-lg px-3 py-1.5 text-sm w-24" value={neukunde.plz} onChange={e => setNeukunde({ ...neukunde, plz: e.target.value })} />
                   <input placeholder="Ort" className="border border-border-default rounded-lg px-3 py-1.5 text-sm flex-1" value={neukunde.ort} onChange={e => setNeukunde({ ...neukunde, ort: e.target.value })} />
@@ -925,7 +925,7 @@ function NeuAuftragModal({ onClose, onRefresh }) {
 
           {/* Prioritaet */}
           <div className="mb-4">
-            <label className="block text-sm font-medium text-text-primary mb-1">Prioritaet</label>
+            <label className="block text-sm font-medium text-text-primary mb-1">Priorität</label>
             <select
               className="border border-border-default rounded-lg px-3 py-1.5 text-sm"
               value={prioritaet}
@@ -1100,8 +1100,8 @@ export default function Auftraege() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary">Auftraege</h1>
-          <p className="text-sm text-text-secondary mt-0.5">{filtered.length} von {auftraege.length} Auftraegen</p>
+          <h1 className="text-2xl font-bold text-text-primary">Aufträge</h1>
+          <p className="text-sm text-text-secondary mt-0.5">{filtered.length} von {auftraege.length} Aufträgen</p>
         </div>
         <button
           className="inline-flex items-center gap-1.5 px-4 py-2 bg-btn-primary text-white text-sm font-medium rounded-lg hover:bg-btn-primary-hover"
@@ -1152,7 +1152,7 @@ export default function Auftraege() {
           value={priorityFilter}
           onChange={e => setPriorityFilter(e.target.value)}
         >
-          <option value="">Alle Prioritaeten</option>
+          <option value="">Alle Prioritäten</option>
           {Object.entries(PRIORITAETEN).map(([k, v]) => (
             <option key={k} value={k}>{v.label}</option>
           ))}
@@ -1160,14 +1160,14 @@ export default function Auftraege() {
       </div>
 
       {/* Loading / Error */}
-      {loading && <p className="text-sm text-text-secondary py-8 text-center">Lade Auftraege...</p>}
+      {loading && <p className="text-sm text-text-secondary py-8 text-center">Lade Aufträge...</p>}
       {error && <p className="text-sm text-red-600 py-4 text-center">{error}</p>}
 
       {/* Table */}
       {!loading && !error && (
         <div className="bg-surface-card rounded-xl border border-border-default overflow-hidden">
           {filtered.length === 0 ? (
-            <p className="text-sm text-text-secondary py-12 text-center">Keine Auftraege gefunden.</p>
+            <p className="text-sm text-text-secondary py-12 text-center">Keine Aufträge gefunden.</p>
           ) : (
             <table className="w-full text-sm">
               <thead>

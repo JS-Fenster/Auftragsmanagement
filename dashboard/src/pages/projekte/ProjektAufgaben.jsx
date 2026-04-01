@@ -113,7 +113,7 @@ export default function ProjektAufgaben({ projektId }) {
                 {a.faellig_am && (
                   <span className={`flex items-center gap-1 text-xs ${isOverdue ? 'text-red-500 font-medium' : 'text-text-muted'}`}>
                     <Calendar size={10} /> {new Date(a.faellig_am).toLocaleDateString('de-DE')}
-                    {isOverdue && ' (ueberfaellig)'}
+                    {isOverdue && ' (überfällig)'}
                   </span>
                 )}
               </div>
@@ -145,7 +145,7 @@ export default function ProjektAufgaben({ projektId }) {
               type="text"
               value={form.zustaendig}
               onChange={e => setForm(p => ({ ...p, zustaendig: e.target.value }))}
-              placeholder="Zustaendig (optional)"
+              placeholder="Zuständig (optional)"
               className="flex-1 rounded-lg border border-border-default px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
             />
             <input

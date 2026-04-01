@@ -143,7 +143,7 @@ function HistorieItem({ entry, onNavigate }) {
     const label = PROJEKT_STATUS[entry.neuer_wert]?.label || entry.neuer_wert
     text = `${projektNr}: Status -> ${label}`
   } else if (entry.feld) {
-    text = `${projektNr}: ${entry.feld} geaendert`
+    text = `${projektNr}: ${entry.feld} geändert`
   }
 
   return (
@@ -417,7 +417,7 @@ export default function Cockpit() {
               </div>
               <p className="text-lg font-bold text-text-primary">{formatEuro(finanzKpis.offeneAR)}</p>
               {finanzKpis.ueberfaelligAR > 0 && (
-                <p className="text-xs text-red-500 mt-0.5">{finanzKpis.ueberfaelligAR} ueberfaellig</p>
+                <p className="text-xs text-red-500 mt-0.5">{finanzKpis.ueberfaelligAR} überfällig</p>
               )}
             </div>
             <div
@@ -430,7 +430,7 @@ export default function Cockpit() {
               </div>
               <p className="text-lg font-bold text-text-primary">{formatEuro(finanzKpis.offeneER)}</p>
               {finanzKpis.skontoMoeglich > 0 && (
-                <p className="text-xs text-green-600 mt-0.5">{formatEuro(finanzKpis.skontoMoeglich)} Skonto moeglich</p>
+                <p className="text-xs text-green-600 mt-0.5">{formatEuro(finanzKpis.skontoMoeglich)} Skonto möglich</p>
               )}
             </div>
             <div
@@ -451,7 +451,7 @@ export default function Cockpit() {
               >
                 <div className="flex items-center gap-2 mb-1">
                   <AlertTriangle size={14} className="text-red-500" />
-                  <span className="text-xs text-red-700">Lieferung ueberfaellig</span>
+                  <span className="text-xs text-red-700">Lieferung überfällig</span>
                 </div>
                 <p className="text-lg font-bold text-red-700">{finanzKpis.ueberfaelligBest}</p>
                 <p className="text-xs text-red-500 mt-0.5">Lieferanten kontaktieren!</p>
@@ -475,7 +475,7 @@ export default function Cockpit() {
             >
               <div className="flex items-center gap-2 mb-1">
                 <FileText size={14} className="text-gray-400" />
-                <span className="text-xs text-text-secondary">Entwuerfe</span>
+                <span className="text-xs text-text-secondary">Entwürfe</span>
               </div>
               <p className="text-lg font-bold text-text-primary">{belegeKpis.entwuerfe}</p>
               <p className="text-xs text-text-muted mt-0.5">Noch nicht freigegeben</p>

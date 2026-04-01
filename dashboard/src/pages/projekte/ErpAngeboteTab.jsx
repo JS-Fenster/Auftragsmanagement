@@ -74,7 +74,7 @@ export default function ErpAngeboteTab({ firma }) {
   }
 
   if (angebote.length === 0) {
-    return <p className="text-sm text-text-muted">Keine W4A-Angebote fuer "{firma}" gefunden.</p>
+    return <p className="text-sm text-text-muted">Keine W4A-Angebote für "{firma}" gefunden.</p>
   }
 
   return (

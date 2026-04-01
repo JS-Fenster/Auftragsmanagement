@@ -248,7 +248,7 @@ export default function ProjektDetail() {
     if (projekt.updated_at) {
       const { data: current } = await supabase.from('projekte').select('updated_at').eq('id', id).single()
       if (current && current.updated_at !== projekt.updated_at) {
-        const confirmed = window.confirm('Dieses Projekt wurde zwischenzeitlich von jemand anderem geaendert. Trotzdem speichern? (Aenderungen des anderen koennten ueberschrieben werden)')
+        const confirmed = window.confirm('Dieses Projekt wurde zwischenzeitlich von jemand anderem geändert. Trotzdem speichern? (Änderungen des anderen könnten überschrieben werden)')
         if (!confirmed) return
       }
     }
@@ -294,7 +294,7 @@ export default function ProjektDetail() {
   }
 
   const handleDelete = async () => {
-    if (!window.confirm('Projekt wirklich loeschen?')) return
+    if (!window.confirm('Projekt wirklich löschen?')) return
     await supabase.from('projekte').delete().eq('id', id)
     navigate('/projekte')
   }
@@ -534,12 +534,12 @@ export default function ProjektDetail() {
                 <Edit2 className="h-4 w-4" /> Bearbeiten
               </button>
               <button onClick={handleDelete} className="px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1.5">
-                <Trash2 className="h-4 w-4" /> Loeschen
+                <Trash2 className="h-4 w-4" /> Löschen
               </button>
               <button
                 onClick={() => window.open(`/projekte/${id}?standalone=1`, '_blank', 'width=1200,height=800')}
                 className="flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary"
-                title="In neuem Fenster oeffnen"
+                title="In neuem Fenster öffnen"
               >
                 <ExternalLink size={16} />
               </button>
@@ -570,7 +570,7 @@ export default function ProjektDetail() {
 
               {editing ? (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Field label="Strasse" value={adresse.strasse} editing editValue={editData.einsatzort_strasse} onChange={v => setEditData(d => ({ ...d, einsatzort_strasse: v }))} />
+                  <Field label="Straße" value={adresse.strasse} editing editValue={editData.einsatzort_strasse} onChange={v => setEditData(d => ({ ...d, einsatzort_strasse: v }))} />
                   <Field label="PLZ" value={adresse.plz} editing editValue={editData.einsatzort_plz} onChange={v => setEditData(d => ({ ...d, einsatzort_plz: v }))} />
                   <Field label="Ort" value={adresse.ort} editing editValue={editData.einsatzort_ort} onChange={v => setEditData(d => ({ ...d, einsatzort_ort: v }))} />
                 </div>
@@ -1006,7 +1006,7 @@ export default function ProjektDetail() {
                         )}
                         <button onClick={() => handleUnlinkDokument(d.id)}
                           className="p-1 text-text-muted hover:text-red-500"
-                          title="Verknuepfung entfernen">
+                          title="Verknüpfung entfernen">
                           <Unlink className="h-4 w-4" />
                         </button>
                       </div>

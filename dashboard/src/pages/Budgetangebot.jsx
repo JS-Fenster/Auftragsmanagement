@@ -559,7 +559,7 @@ export default function Budgetangebot() {
           <p className="text-sm text-text-secondary mt-1">
             {savedAngebotId
               ? 'Gespeichertes Angebot wird bearbeitet.'
-              : 'Beschreiben Sie die gewuenschten Fenster und Tueren im Freitext. Die KI erstellt daraus ein vollstaendiges Budgetangebot mit Preisen.'
+              : 'Beschreiben Sie die gewünschten Fenster und Türen im Freitext. Die KI erstellt daraus ein vollständiges Budgetangebot mit Preisen.'
             }
           </p>
         </div>

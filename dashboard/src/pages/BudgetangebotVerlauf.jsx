@@ -391,7 +391,7 @@ export default function BudgetangebotVerlauf() {
                           <button
                             onClick={() => navigate(`/budgetangebot?id=${a.id}`)}
                             className="p-1.5 text-text-muted hover:text-brand hover:bg-brand-light rounded-lg transition-colors"
-                            title="Angebot oeffnen/bearbeiten"
+                            title="Angebot öffnen/bearbeiten"
                           >
                             <Pencil className="w-4 h-4" />
                           </button>
@@ -415,7 +415,7 @@ export default function BudgetangebotVerlauf() {
                           <button
                             onClick={() => setDeleteId(a.id)}
                             className="p-1.5 text-text-muted hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Angebot loeschen"
+                            title="Angebot löschen"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -459,9 +459,9 @@ export default function BudgetangebotVerlauf() {
       {deleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setDeleteId(null)}>
           <div className="bg-surface-card rounded-xl shadow-2xl p-6 max-w-sm m-4" onClick={e => e.stopPropagation()}>
-            <h3 className="text-base font-semibold text-text-primary mb-2">Angebot loeschen?</h3>
+            <h3 className="text-base font-semibold text-text-primary mb-2">Angebot löschen?</h3>
             <p className="text-sm text-text-secondary mb-6">
-              Dieses Budgetangebot wird unwiderruflich geloescht. Moechten Sie fortfahren?
+              Dieses Budgetangebot wird unwiderruflich gelöscht. Möchten Sie fortfahren?
             </p>
             <div className="flex items-center justify-end gap-3">
               <button
@@ -475,7 +475,7 @@ export default function BudgetangebotVerlauf() {
                 disabled={deleting}
                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-lg transition-colors"
               >
-                {deleting ? 'Loesche...' : 'Loeschen'}
+                {deleting ? 'Lösche...' : 'Löschen'}
               </button>
             </div>
           </div>

@@ -372,7 +372,7 @@ export default function TerminForm() {
               <label className="block text-xs font-medium text-text-secondary uppercase tracking-wider mb-1">Titel *</label>
               <input
                 type="text" value={titel} onChange={e => setTitel(e.target.value)}
-                placeholder="z.B. Fenster-Montage Mueller"
+                placeholder="z.B. Fenster-Montage Müller"
                 className="w-full px-3 py-2 text-sm border border-border-default rounded-lg bg-surface-main text-text-primary focus:ring-2 focus:ring-[var(--brand)] outline-none"
               />
             </div>
@@ -545,7 +545,7 @@ export default function TerminForm() {
               <select value={status} onChange={e => setStatus(e.target.value)}
                 className="w-full px-3 py-2 text-sm border border-border-default rounded-lg bg-surface-main text-text-primary outline-none">
                 <option value="geplant">Geplant</option>
-                <option value="bestaetigt">Bestaetigt</option>
+                <option value="bestaetigt">Bestätigt</option>
                 <option value="abgeschlossen">Abgeschlossen</option>
                 <option value="abgesagt">Abgesagt</option>
               </select>
@@ -568,7 +568,7 @@ export default function TerminForm() {
                 </div>
                 <div className="space-y-1 max-h-24 overflow-y-auto">
                   {historie.map(h => {
-                    const labels = { erstellt: 'Erstellt', bearbeitet: 'Bearbeitet', verschoben: 'Verschoben', storniert: 'Storniert', bestaetigt: 'Bestaetigt', abgeschlossen: 'Abgeschlossen' }
+                    const labels = { erstellt: 'Erstellt', bearbeitet: 'Bearbeitet', verschoben: 'Verschoben', storniert: 'Storniert', bestaetigt: 'Bestätigt', abgeschlossen: 'Abgeschlossen' }
                     const zeit = new Date(h.created_at).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
                     return (
                       <div key={h.id} className="text-[10px] text-text-muted">

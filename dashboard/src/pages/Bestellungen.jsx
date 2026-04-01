@@ -212,12 +212,12 @@ export default function Bestellungen() {
           <KpiCard
             label="Wartend auf AB"
             value={kpis.wartendAB}
-            subtitle={kpis.wartendAB > 0 ? 'AB nachfassen!' : 'Alles bestaetigt'}
+            subtitle={kpis.wartendAB > 0 ? 'AB nachfassen!' : 'Alles bestätigt'}
             icon={Clock}
             color="#F59E0B"
           />
           <KpiCard
-            label="Ueberfaellig"
+            label="Überfällig"
             value={kpis.ueberfaellig}
             subtitle={kpis.ueberfaellig > 0 ? 'Lieferant kontaktieren!' : 'Im Zeitplan'}
             icon={AlertTriangle}
@@ -237,8 +237,8 @@ export default function Bestellungen() {
           <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3 flex items-center gap-3">
             <AlertTriangle size={20} className="text-red-500 shrink-0" />
             <div>
-              <p className="text-sm font-medium text-red-800">{kpis.ueberfaellig} Bestellungen ueberfaellig!</p>
-              <p className="text-xs text-red-600">Liefertermine ueberschritten — bitte Lieferanten kontaktieren.</p>
+              <p className="text-sm font-medium text-red-800">{kpis.ueberfaellig} Bestellungen überfällig!</p>
+              <p className="text-xs text-red-600">Liefertermine überschritten — bitte Lieferanten kontaktieren.</p>
             </div>
           </div>
         )}
@@ -271,7 +271,7 @@ export default function Bestellungen() {
           )}
           {(searchTerm || filterStatus) && (
             <button onClick={() => { setSearchTerm(''); setFilterStatus('') }} className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700">
-              <X size={14} /> Zuruecksetzen
+              <X size={14} /> Zurücksetzen
             </button>
           )}
         </div>

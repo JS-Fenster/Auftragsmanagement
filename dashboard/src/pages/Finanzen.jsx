@@ -211,7 +211,7 @@ export default function Finanzen() {
         ].join(';')
       })
 
-    const header = 'Rechnungsnummer;Datum;Brutto;Kunde;Kundennummer;Bezahlt;Mahnstufe;Faellig'
+    const header = 'Rechnungsnummer;Datum;Brutto;Kunde;Kundennummer;Bezahlt;Mahnstufe;Fällig'
     const csv = [header, ...rows].join('\n')
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
@@ -306,7 +306,7 @@ export default function Finanzen() {
           </div>
           {searchTerm && (
             <button onClick={() => setSearchTerm('')} className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700">
-              <X size={14} /> Zuruecksetzen
+              <X size={14} /> Zurücksetzen
             </button>
           )}
         </div>
@@ -343,7 +343,7 @@ export default function Finanzen() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase">Kunde</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-text-secondary uppercase">Netto</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-text-secondary uppercase">Brutto</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase">Faellig</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase">Fällig</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-text-secondary uppercase">Bezahlt</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase">Status</th>
                 </tr>
@@ -422,8 +422,8 @@ export default function Finanzen() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase">Kunde</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-text-secondary uppercase">Brutto</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-text-secondary uppercase">Offen</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase">Faellig</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase">Ueberfaellig</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase">Fällig</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase">Überfällig</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -477,7 +477,7 @@ export default function Finanzen() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase">Lieferant</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-text-secondary uppercase">Brutto</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-text-secondary uppercase">Offen</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase">Faellig</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase">Fällig</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase">Skonto</th>
                 </tr>
               </thead>
@@ -533,10 +533,10 @@ export default function Finanzen() {
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase">Beleg-Nr.</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase">Typ</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase">Empfaenger</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase">Empfänger</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-text-secondary uppercase">Restbetrag</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase">Faellig am</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase">Ueberfaellig</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase">Fällig am</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase">Überfällig</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase">Mahnstufe</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase">Aktion</th>
                 </tr>

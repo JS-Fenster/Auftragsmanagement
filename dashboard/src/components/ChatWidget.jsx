@@ -148,7 +148,7 @@ export default function ChatWidget() {
       } else {
         setMessages(prev => [...prev, {
           role: 'assistant',
-          content: data.answer || 'Aktion ausgefuehrt.',
+          content: data.answer || 'Aktion ausgeführt.',
           toolCalls: data.tool_calls,
         }])
         // Refresh current page data after successful action
@@ -192,7 +192,7 @@ export default function ChatWidget() {
       <button
         onClick={() => setIsOpen(true)}
         className="fixed bottom-6 right-6 z-50 w-16 h-16 rounded-full shadow-md flex items-center justify-center transition-all hover:scale-105 hover:shadow-lg border-2 border-brand bg-[#C4C7C7] dark:bg-[#9E9E9E]"
-        title={`${ASSISTANT_NAME} oeffnen`}
+        title={`${ASSISTANT_NAME} öffnen`}
       >
         <img src={ASSISTANT_AVATAR} alt={ASSISTANT_NAME} className="w-12 h-12 rounded-full object-cover" />
         {messages.length > 0 && (
@@ -240,8 +240,8 @@ export default function ChatWidget() {
             <p className="mt-2 text-xs">Beispiele:</p>
             <div className="mt-2 space-y-1">
               {[
-                'Kontaktdaten von Mueller',
-                'Offene Projekte mit hoher Prioritaet',
+                'Kontaktdaten von Müller',
+                'Offene Projekte mit hoher Priorität',
                 'Rechnungen von letzter Woche',
               ].map(example => (
                 <button
@@ -362,11 +362,11 @@ export default function ChatWidget() {
 function formatActionDescription(name, args) {
   switch (name) {
     case 'update_document_kategorie':
-      return `Kategorie aendern auf "${(args.neue_kategorie || '').replace(/_/g, ' ')}"`
+      return `Kategorie ändern auf "${(args.neue_kategorie || '').replace(/_/g, ' ')}"`
     case 'add_project_note':
-      return `Notiz zum Projekt hinzufuegen`
+      return `Notiz zum Projekt hinzufügen`
     case 'update_project_status':
-      return `Projekt-Status aendern auf "${(args.neuer_status || '').replace(/_/g, ' ')}"`
+      return `Projekt-Status ändern auf "${(args.neuer_status || '').replace(/_/g, ' ')}"`
     case 'update_contact_data':
       return `Kontaktdaten aktualisieren: ${(args.field || '').replace(/_/g, ' ')}`
     case 'assign_document_to_project':
@@ -465,7 +465,7 @@ function formatInline(text, keyPrefix = '', navigate) {
           key={`${keyPrefix}dl${i}`}
           onClick={() => route && navigate(route)}
           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50 text-xs font-medium cursor-pointer transition-colors"
-          title={`${part.displayName} oeffnen`}
+          title={`${part.displayName} öffnen`}
         >
           {Icon && <Icon size={12} />}
           {part.displayName}

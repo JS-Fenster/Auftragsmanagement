@@ -363,7 +363,7 @@ function NeuerKontaktModal({ onClose, onCreated }) {
               className="w-full text-sm border border-border-default rounded-lg px-3 py-2 bg-surface-card">
               <option value="privat">Privat</option>
               <option value="gewerbe">Gewerbe</option>
-              <option value="oeffentlich">Oeffentlich</option>
+              <option value="oeffentlich">Öffentlich</option>
             </select>
           </div>
 
@@ -383,7 +383,7 @@ function NeuerKontaktModal({ onClose, onCreated }) {
 
           {/* Adresse */}
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Strasse</label>
+            <label className="block text-xs font-medium text-text-secondary mb-1">Straße</label>
             <input value={strasse} onChange={e => setStrasse(e.target.value)}
               className="w-full text-sm border border-border-default rounded-lg px-3 py-2" />
           </div>
@@ -691,7 +691,7 @@ function KontaktDetailModal({ kontaktId, onClose }) {
                   className="w-full text-sm border border-border-default rounded px-3 py-1.5" />
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-xs text-text-secondary mb-1">Strasse</label>
+                <label className="block text-xs text-text-secondary mb-1">Straße</label>
                 <input value={stammForm.strasse} onChange={e => setStammForm(f => ({ ...f, strasse: e.target.value }))}
                   className="w-full text-sm border border-border-default rounded px-3 py-1.5" />
               </div>
@@ -842,7 +842,7 @@ function KontaktDetailModal({ kontaktId, onClose }) {
           <div>
             {/* Reparatur-Auftraege */}
             <ExpandableSection
-              title="Reparatur-Auftraege (Neu)"
+              title="Reparatur-Aufträge (Neu)"
               icon={Wrench}
               color="#6B7280"
               defaultOpen={true}
@@ -896,7 +896,7 @@ function KontaktDetailModal({ kontaktId, onClose }) {
 
             {/* Angebote / Auftraege */}
             <ExpandableSection
-              title="Angebote / Auftraege (ERP)"
+              title="Angebote / Aufträge (ERP)"
               icon={ClipboardList}
               color="#6B7280"
               loading={relLoading}
@@ -1177,7 +1177,7 @@ export default function Kunden() {
       ) : results.length === 0 ? (
         <div className="text-center py-20 text-text-muted">
           <User className="w-12 h-12 mx-auto mb-3 opacity-30" />
-          <p>Keine Kontakte gefunden fuer &ldquo;{debouncedTerm}&rdquo;</p>
+          <p>Keine Kontakte gefunden für &ldquo;{debouncedTerm}&rdquo;</p>
         </div>
       ) : (
         <>

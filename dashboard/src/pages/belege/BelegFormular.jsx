@@ -251,7 +251,7 @@ export default function BelegFormular({ beleg, positionen: initialPositionen, on
             />
           </div>
           <div className="md:col-span-2">
-            <label className="text-xs font-medium text-text-secondary">Strasse</label>
+            <label className="text-xs font-medium text-text-secondary">Straße</label>
             <input
               type="text"
               value={formData.empfaenger_strasse}

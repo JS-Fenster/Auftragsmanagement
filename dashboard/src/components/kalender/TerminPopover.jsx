@@ -1,17 +1,11 @@
 import { format } from 'date-fns'
+import { getKontaktName } from '../../lib/helpers'
 
 const STATUS_CONFIG = {
   geplant:       { bg: '#EFF6FF', text: '#1E40AF', label: 'Geplant' },
-  bestaetigt:    { bg: '#ECFDF5', text: '#065F46', label: 'Bestaetigt' },
+  bestaetigt:    { bg: '#ECFDF5', text: '#065F46', label: 'Bestätigt' },
   abgeschlossen: { bg: '#F3F4F6', text: '#374151', label: 'Abgeschlossen' },
   abgesagt:      { bg: '#FEE2E2', text: '#991B1B', label: 'Abgesagt' },
-}
-
-const getKontaktName = (kontakt) => {
-  if (!kontakt) return 'Unbekannt'
-  if (kontakt.firma1) return kontakt.firma1
-  const hp = kontakt.kontakt_personen?.find(p => p.ist_hauptkontakt) || kontakt.kontakt_personen?.[0]
-  return hp ? [hp.vorname, hp.nachname].filter(Boolean).join(' ') : 'Unbekannt'
 }
 
 export default function TerminPopover({ termin, position }) {

@@ -92,7 +92,7 @@ export default function BelegListe() {
     setLoading(true)
     const { data, error } = await supabase
       .from('belege')
-      .select('*, projekte(id, projekt_name, projekt_nummer)')
+      .select('*, projekte!projekt_id(id, projekt_name, projekt_nummer)')
       .order('created_at', { ascending: false })
       .limit(500)
 

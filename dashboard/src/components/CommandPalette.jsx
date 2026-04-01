@@ -14,7 +14,7 @@ const ACTIONS = [
   { id: 'kalender', label: 'Kalender / Montageplanung', icon: CalendarDays, path: '/kalender' },
   { id: 'budgetangebot', label: 'Budgetangebot erstellen', icon: Calculator, path: '/budgetangebot' },
   { id: 'verlauf', label: 'Angebotsverlauf', icon: History, path: '/budgetangebot-verlauf' },
-  { id: 'auftraege', label: 'Auftraege / Reparaturen', icon: ClipboardList, path: '/auftraege' },
+  { id: 'auftraege', label: 'Aufträge / Reparaturen', icon: ClipboardList, path: '/auftraege' },
   { id: 'dokumente', label: 'Dokumente', icon: FileText, path: '/dokumente' },
   { id: 'kunden', label: 'Kunden', icon: Users, path: '/kunden' },
   { id: 'emails', label: 'E-Mails', icon: Mail, path: '/emails' },

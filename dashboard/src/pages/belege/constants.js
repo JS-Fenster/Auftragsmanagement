@@ -9,8 +9,8 @@ import { supabase } from '../../lib/supabase'
 // ── Firma-Info (wiederverwendet aus budgetangebot) ──────────
 
 export const FIRMA_INFO = {
-  firma: 'J.S. Fenster & Tueren GmbH',
-  strasse: 'Regensburger Strasse 59',
+  firma: 'J.S. Fenster & Türen GmbH',
+  strasse: 'Regensburger Straße 59',
   plz_ort: '92224 Amberg',
   telefon: '09621 / 76 35 33',
   fax: '09621 / 78 32 59',
@@ -22,7 +22,7 @@ export const FIRMA_INFO = {
 
 export const BELEG_TYPEN = {
   angebot:               { label: 'Angebot',               prefix: 'A',  color: '#8B5CF6', bg: '#F5F3FF', text: '#5B21B6' },
-  auftragsbestaetigung:  { label: 'Auftragsbestaetigung',  prefix: 'AB', color: '#3B82F6', bg: '#EFF6FF', text: '#1E40AF' },
+  auftragsbestaetigung:  { label: 'Auftragsbestätigung',   prefix: 'AB', color: '#3B82F6', bg: '#EFF6FF', text: '#1E40AF' },
   lieferschein:          { label: 'Lieferschein',          prefix: 'LS', color: '#14B8A6', bg: '#F0FDFA', text: '#115E59' },
   rechnung:              { label: 'Rechnung',              prefix: 'R',  color: '#F59E0B', bg: '#FFFBEB', text: '#92400E' },
   abschlagsrechnung:     { label: 'Abschlagsrechnung',     prefix: 'AR', color: '#F97316', bg: '#FFF7ED', text: '#9A3412' },
@@ -58,7 +58,7 @@ export const BELEG_KONVERSIONEN = {
 // ── Einheiten ───────────────────────────────────────────────
 
 export const BELEG_EINHEITEN = [
-  { value: 'Stk',      label: 'Stueck' },
+  { value: 'Stk',      label: 'Stück' },
   { value: 'lfm',      label: 'Laufmeter' },
   { value: 'm2',       label: 'Quadratmeter' },
   { value: 'pauschal', label: 'Pauschal' },
@@ -70,11 +70,11 @@ export const BELEG_EINHEITEN = [
 
 export const DEFAULT_TEXTE = {
   angebot: {
-    einleitung: 'Vielen Dank fuer Ihre Anfrage. Wir erlauben uns, Ihnen folgendes Angebot zu unterbreiten:',
-    schluss: 'Wir wuerden uns freuen, den Auftrag ausfuehren zu duerfen, und stehen fuer Rueckfragen jederzeit zur Verfuegung.',
+    einleitung: 'Vielen Dank für Ihre Anfrage. Wir erlauben uns, Ihnen folgendes Angebot zu unterbreiten:',
+    schluss: 'Wir würden uns freuen, den Auftrag ausführen zu dürfen, und stehen für Rückfragen jederzeit zur Verfügung.',
   },
   auftragsbestaetigung: {
-    einleitung: 'Vielen Dank fuer Ihren Auftrag. Wir bestaetigen hiermit die Ausfuehrung folgender Leistungen:',
+    einleitung: 'Vielen Dank für Ihren Auftrag. Wir bestätigen hiermit die Ausführung folgender Leistungen:',
     schluss: '',
   },
   lieferschein: {
@@ -82,16 +82,16 @@ export const DEFAULT_TEXTE = {
     schluss: '',
   },
   rechnung: {
-    einleitung: 'Fuer die erbrachten Leistungen erlauben wir uns, wie folgt abzurechnen:',
-    schluss: 'Bitte ueberweisen Sie den Gesamtbetrag innerhalb der angegebenen Zahlungsfrist auf unser Konto.',
+    einleitung: 'Für die erbrachten Leistungen erlauben wir uns, wie folgt abzurechnen:',
+    schluss: 'Bitte überweisen Sie den Gesamtbetrag innerhalb der angegebenen Zahlungsfrist auf unser Konto.',
   },
   abschlagsrechnung: {
-    einleitung: 'Gemaess Vereinbarung erlauben wir uns, folgende Abschlagsrechnung zu stellen:',
+    einleitung: 'Gemäß Vereinbarung erlauben wir uns, folgende Abschlagsrechnung zu stellen:',
     schluss: '',
   },
   schlussrechnung: {
-    einleitung: 'Wir erlauben uns, Ihnen die Schlussrechnung fuer die erbrachten Leistungen zu stellen:',
-    schluss: 'Bereits geleistete Abschlagszahlungen wurden beruecksichtigt.',
+    einleitung: 'Wir erlauben uns, Ihnen die Schlussrechnung für die erbrachten Leistungen zu stellen:',
+    schluss: 'Bereits geleistete Abschlagszahlungen wurden berücksichtigt.',
   },
   gutschrift: {
     einleitung: 'Wir erteilen Ihnen folgende Gutschrift:',
@@ -102,7 +102,7 @@ export const DEFAULT_TEXTE = {
 // ── Zahlungsarten ─────────────────────────────────────────────
 
 export const ZAHLUNGSARTEN = [
-  { value: 'ueberweisung', label: 'Ueberweisung' },
+  { value: 'ueberweisung', label: 'Überweisung' },
   { value: 'bar', label: 'Barzahlung' },
   { value: 'scheck', label: 'Scheck' },
   { value: 'lastschrift', label: 'Lastschrift' },
@@ -113,7 +113,7 @@ export const ZAHLUNGSARTEN = [
 export const MWST_STANDARD = 19.00
 export const MWST_OPTIONEN = [
   { value: 19.00, label: '19% (Standard)' },
-  { value: 7.00, label: '7% (Ermaessigt)' },
+  { value: 7.00, label: '7% (Ermäßigt)' },
   { value: 0.00, label: '0% (Reverse Charge / Steuerfrei)' },
 ]
 

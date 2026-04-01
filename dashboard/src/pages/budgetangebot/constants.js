@@ -19,8 +19,8 @@ export const SYSTEME = [
 export const MWST_SATZ = 0.19
 
 export const FIRMA_INFO = {
-  firma: 'J.S. Fenster & Tueren GmbH',
-  strasse: 'Regensburger Strasse 59',
+  firma: 'J.S. Fenster & Türen GmbH',
+  strasse: 'Regensburger Straße 59',
   plz_ort: '92224 Amberg',
   telefon: '09621 / 76 35 33',
   fax: '09621 / 78 32 59',

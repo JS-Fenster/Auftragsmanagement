@@ -106,7 +106,7 @@ export function StepPositionen({ editedPositions, setEditedPositions, onBack, on
                             key={zi}
                             className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-brand-light text-brand-dark border border-blue-100"
                           >
-                            {typeof z === 'string' ? z : z.bezeichnung || z.typ || 'Zubehoer'}
+                            {typeof z === 'string' ? z : z.bezeichnung || z.typ || 'Zubehör'}
                           </span>
                         ))}
                       </div>
@@ -151,7 +151,7 @@ export function StepPositionen({ editedPositions, setEditedPositions, onBack, on
                     <button
                       className="text-text-muted hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
                       onClick={() => deletePosition(idx)}
-                      title="Position loeschen"
+                      title="Position löschen"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -181,7 +181,7 @@ export function StepPositionen({ editedPositions, setEditedPositions, onBack, on
           onClick={onBack}
         >
           <ArrowLeft className="w-4 h-4" />
-          Zurueck zur Eingabe
+          Zurück zur Eingabe
         </button>
         <button
           className="inline-flex items-center gap-2 px-6 py-2.5 bg-btn-primary text-white text-sm font-medium rounded-lg hover:bg-btn-primary-hover disabled:opacity-50 transition-colors"

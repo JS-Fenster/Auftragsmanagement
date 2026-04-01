@@ -37,7 +37,7 @@ export default function ReportViewer({ report, onClose }) {
         {/* Print header */}
         <div className="hidden print:block px-6 py-4">
           <h1 className="text-2xl font-bold">{report.titel}</h1>
-          <p className="text-sm text-gray-500">JS Fenster & Tueren — Erstellt am {new Date().toLocaleDateString('de-DE')}</p>
+          <p className="text-sm text-gray-500">JS Fenster & Türen — Erstellt am {new Date().toLocaleDateString('de-DE')}</p>
         </div>
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-4">

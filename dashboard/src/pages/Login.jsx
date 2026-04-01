@@ -61,16 +61,16 @@ export default function Login() {
       <div className="w-full max-w-sm mx-4">
         <div className="bg-surface-card border border-border-default rounded-xl shadow-sm p-8">
           <div className="text-center mb-8">
-            <img src="/js-logo.svg" alt="J.S. Fenster & Tueren" className="w-48 mx-auto dark:brightness-200" />
+            <img src="/js-logo.svg" alt="J.S. Fenster & Türen" className="w-48 mx-auto dark:brightness-200" />
             <p className="text-sm text-text-muted mt-2">Auftragsmanagement</p>
           </div>
 
           {resetMode ? (
             <form onSubmit={handleResetPassword}>
-              <h2 className="text-lg font-semibold text-text-primary mb-4">Passwort zuruecksetzen</h2>
+              <h2 className="text-lg font-semibold text-text-primary mb-4">Passwort zurücksetzen</h2>
               {resetSent ? (
                 <div className="text-sm text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400 p-3 rounded-lg mb-4">
-                  E-Mail zum Zuruecksetzen wurde gesendet. Bitte Postfach pruefen.
+                  E-Mail zum Zurücksetzen wurde gesendet. Bitte Postfach prüfen.
                 </div>
               ) : (
                 <>
@@ -99,7 +99,7 @@ export default function Login() {
                 onClick={() => { setResetMode(false); setError(null); setResetSent(false) }}
                 className="w-full mt-3 text-sm text-text-muted hover:text-text-secondary cursor-pointer"
               >
-                Zurueck zur Anmeldung
+                Zurück zur Anmeldung
               </button>
             </form>
           ) : (
@@ -167,7 +167,7 @@ export default function Login() {
             </form>
           )}
         </div>
-        <p className="text-center text-xs text-text-muted mt-4">J.S. Fenster & Tueren GmbH</p>
+        <p className="text-center text-xs text-text-muted mt-4">J.S. Fenster & Türen GmbH</p>
       </div>
     </div>
   )

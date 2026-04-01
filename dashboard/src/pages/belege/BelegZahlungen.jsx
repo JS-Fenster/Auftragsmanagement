@@ -127,7 +127,7 @@ export default function BelegZahlungen({ belegId, bruttoSumme, status }) {
                     <button
                       onClick={() => handleDelete(z.id)}
                       className="p-1 text-text-muted hover:text-red-500 transition-colors"
-                      title="Zahlung loeschen"
+                      title="Zahlung löschen"
                     >
                       <Trash2 size={14} />
                     </button>

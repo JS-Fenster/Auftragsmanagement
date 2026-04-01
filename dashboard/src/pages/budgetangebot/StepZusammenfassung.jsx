@@ -101,7 +101,7 @@ export function StepZusammenfassung({
               <>
                 {(breakdown.fenster > 0 || positionenNetto > 0) && (
                   <div className="flex items-center justify-between py-1">
-                    <span className="text-sm text-text-secondary">Fenster/Tueren</span>
+                    <span className="text-sm text-text-secondary">Fenster/Türen</span>
                     <span className="text-sm text-text-primary">{formatPreis(breakdown.fenster || positionenNetto, showNetto, { isNetto: true })}</span>
                   </div>
                 )}
@@ -283,7 +283,7 @@ export function StepZusammenfassung({
           onClick={onBack}
         >
           <ArrowLeft className="w-4 h-4" />
-          Zurueck zu Positionen
+          Zurück zu Positionen
         </button>
         <div className="flex items-center gap-3">
           <button

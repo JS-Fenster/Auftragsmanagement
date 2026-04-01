@@ -483,7 +483,7 @@ export default function Dokumente() {
                       onClick={() => setEmailBodyExpanded(!emailBodyExpanded)}
                       className="text-xs text-brand hover:underline mt-2"
                     >
-                      {emailBodyExpanded ? 'Weniger anzeigen' : 'Vollstaendig anzeigen'}
+                      {emailBodyExpanded ? 'Weniger anzeigen' : 'Vollständig anzeigen'}
                     </button>
                   )}
                 </div>
@@ -589,16 +589,16 @@ export default function Dokumente() {
               <Section title="Aussteller" sectionKey="aussteller">
                 {renderDetailField('Firma', selectedDoc.aussteller_firma)}
                 {renderDetailField('Name', selectedDoc.aussteller_name)}
-                {renderDetailField('Strasse', selectedDoc.aussteller_strasse)}
+                {renderDetailField('Straße', selectedDoc.aussteller_strasse)}
                 {renderDetailField('PLZ / Ort', [selectedDoc.aussteller_plz, selectedDoc.aussteller_ort].filter(Boolean).join(' '))}
                 {renderDetailField('Telefon', selectedDoc.aussteller_telefon)}
                 {renderDetailField('E-Mail', selectedDoc.aussteller_email)}
               </Section>
 
-              <Section title="Empfaenger" sectionKey="empfaenger">
+              <Section title="Empfänger" sectionKey="empfaenger">
                 {renderDetailField('Firma', selectedDoc.empfaenger_firma)}
                 {renderDetailField('Name', selectedDoc.empfaenger_name)}
-                {renderDetailField('Strasse', selectedDoc.empfaenger_strasse)}
+                {renderDetailField('Straße', selectedDoc.empfaenger_strasse)}
                 {renderDetailField('PLZ / Ort', [selectedDoc.empfaenger_plz, selectedDoc.empfaenger_ort].filter(Boolean).join(' '))}
               </Section>
 
@@ -608,7 +608,7 @@ export default function Dokumente() {
                 {renderDetailField('MwSt', selectedDoc.mwst_betrag ? `${Number(selectedDoc.mwst_betrag).toFixed(2)} EUR` : null)}
               </Section>
 
-              <Section title="Bezuege" sectionKey="bezuege">
+              <Section title="Bezüge" sectionKey="bezuege">
                 {renderDetailField('Rechnungsnummer', selectedDoc.bezug_rechnungsnummer)}
                 {renderDetailField('Bestellnummer', selectedDoc.bezug_bestellnummer)}
                 {renderDetailField('Kundennummer', selectedDoc.bezug_kundennummer)}
@@ -633,7 +633,7 @@ export default function Dokumente() {
                       onClick={() => setOcrExpanded(!ocrExpanded)}
                       className="text-xs text-brand hover:underline mt-2"
                     >
-                      {ocrExpanded ? 'Weniger anzeigen' : 'Vollstaendig anzeigen'}
+                      {ocrExpanded ? 'Weniger anzeigen' : 'Vollständig anzeigen'}
                     </button>
                   )}
                 </Section>

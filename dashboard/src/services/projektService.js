@@ -152,7 +152,7 @@ export async function deleteProjekt(id) {
     .from('projekte')
     .delete()
     .eq('id', id)
-  if (error) throw new Error('Fehler beim Loeschen des Projekts: ' + error.message)
+  if (error) throw new Error('Fehler beim Löschen des Projekts: ' + error.message)
 }
 
 // ============ POSITIONEN ============
@@ -193,7 +193,7 @@ export async function deletePosition(id) {
     .from('projekt_positionen')
     .delete()
     .eq('id', id)
-  if (error) throw new Error('Fehler beim Loeschen der Position: ' + error.message)
+  if (error) throw new Error('Fehler beim Löschen der Position: ' + error.message)
 }
 
 // ============ BESTELLUNGEN ============
@@ -252,7 +252,7 @@ export async function linkDokument(projektId, documentId, dokumentTyp, istPflich
     })
     .select('*, documents(id, betreff, kategorie, dokument_url, created_at)')
     .single()
-  if (error) throw new Error('Fehler beim Verknuepfen des Dokuments: ' + error.message)
+  if (error) throw new Error('Fehler beim Verknüpfen des Dokuments: ' + error.message)
   return data
 }
 
@@ -261,7 +261,7 @@ export async function unlinkDokument(projektDokumentId) {
     .from('projekt_dokumente')
     .delete()
     .eq('id', projektDokumentId)
-  if (error) throw new Error('Fehler beim Entfernen der Verknuepfung: ' + error.message)
+  if (error) throw new Error('Fehler beim Entfernen der Verknüpfung: ' + error.message)
 }
 
 export async function checkPflichtGates(projekt, projektDokumente) {

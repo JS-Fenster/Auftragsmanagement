@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 
 const STATUS_MAP = {
   geplant:       { label: 'Geplant',       bg: '#EFF6FF', text: '#1E40AF', border: '#3B82F6' },
-  bestaetigt:    { label: 'Bestaetigt',    bg: '#ECFDF5', text: '#065F46', border: '#10B981' },
+  bestaetigt:    { label: 'Bestätigt',     bg: '#ECFDF5', text: '#065F46', border: '#10B981' },
   abgeschlossen: { label: 'Abgeschlossen', bg: '#F3F4F6', text: '#374151', border: '#6B7280' },
   abgesagt:      { label: 'Abgesagt',      bg: '#FEE2E2', text: '#991B1B', border: '#DC2626' },
 }
@@ -15,7 +15,7 @@ const formatDateTime = (start, end, ganztaegig) => {
   const opts = { day: '2-digit', month: '2-digit', year: 'numeric' }
   const timeOpts = { hour: '2-digit', minute: '2-digit' }
   const s = new Date(start)
-  if (ganztaegig) return s.toLocaleDateString('de-DE', opts) + ' (ganztaegig)'
+  if (ganztaegig) return s.toLocaleDateString('de-DE', opts) + ' (ganztägig)'
   const dateStr = s.toLocaleDateString('de-DE', opts)
   const startTime = s.toLocaleTimeString('de-DE', timeOpts)
   const endTime = end ? new Date(end).toLocaleTimeString('de-DE', timeOpts) : ''
@@ -40,7 +40,7 @@ const AKTION_LABELS = {
   bearbeitet: 'Bearbeitet',
   verschoben: 'Verschoben',
   storniert: 'Storniert',
-  bestaetigt: 'Bestaetigt',
+  bestaetigt: 'Bestätigt',
   abgeschlossen: 'Abgeschlossen',
   ressourcen_geaendert: 'Ressourcen geändert',
 }

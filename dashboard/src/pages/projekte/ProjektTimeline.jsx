@@ -33,8 +33,8 @@ function getTitle(item) {
       if (item.aktion === 'notiz')
         return item.neuer_wert || 'Notiz'
       if (item.feld)
-        return `${item.feld} geaendert`
-      return item.aktion || 'Aenderung'
+        return `${item.feld} geändert`
+      return item.aktion || 'Änderung'
     case 'beleg':
       return `${(item.beleg_typ || '').replace(/_/g, ' ')} ${item.beleg_nummer || ''} — ${formatEuro(item.brutto_summe)}`
     case 'bestellung':

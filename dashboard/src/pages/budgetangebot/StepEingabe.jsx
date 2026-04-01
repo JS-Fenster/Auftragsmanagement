@@ -48,11 +48,11 @@ export function StepEingabe({
       {/* Textarea Card */}
       <div className="bg-surface-card rounded-lg shadow-sm border border-border-default p-6">
         <label className="block text-sm font-semibold text-text-primary mb-2">
-          Beschreibung der gewuenschten Fenster und Tueren
+          Beschreibung der gewünschten Fenster und Türen
         </label>
         <textarea
           className="w-full border border-border-default rounded-lg px-4 py-3 text-sm min-h-[180px] resize-y focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-shadow"
-          placeholder={'Beschreiben Sie die gewuenschten Fenster und Tueren...\n\nBeispiel:\nWohnzimmer: 2x Fenster 1230x1480 mit Rollladen\nKueche: 1x Fenster 980x1180\nFlur: 1x Haustuer 1100x2100'}
+          placeholder={'Beschreiben Sie die gewünschten Fenster und Türen...\n\nBeispiel:\nWohnzimmer: 2x Fenster 1230x1480 mit Rollladen\nKüche: 1x Fenster 980x1180\nFlur: 1x Haustür 1100x2100'}
           value={inputText}
           onChange={e => setInputText(e.target.value)}
           rows={6}
@@ -167,7 +167,7 @@ export function StepEingabe({
             {/* Adresszeile */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs text-text-secondary mb-1">Strasse</label>
+                <label className="block text-xs text-text-secondary mb-1">Straße</label>
                 <input
                   type="text"
                   className="w-full border border-border-default rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"

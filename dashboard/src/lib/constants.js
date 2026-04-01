@@ -233,7 +233,7 @@ export const POSITIONS_EINHEITEN = {
 // A-005: Beleg-Typen (Angebot → Rechnung Workflow)
 export const BELEG_TYPEN = {
   angebot:               { label: 'Angebot',               prefix: 'A',  color: '#8B5CF6', bg: '#F5F3FF', text: '#5B21B6' },
-  auftragsbestaetigung:  { label: 'Auftragsbestaetigung',  prefix: 'AB', color: '#3B82F6', bg: '#EFF6FF', text: '#1E40AF' },
+  auftragsbestaetigung:  { label: 'Auftragsbestätigung',   prefix: 'AB', color: '#3B82F6', bg: '#EFF6FF', text: '#1E40AF' },
   lieferschein:          { label: 'Lieferschein',          prefix: 'LS', color: '#14B8A6', bg: '#F0FDFA', text: '#115E59' },
   rechnung:              { label: 'Rechnung',              prefix: 'R',  color: '#F59E0B', bg: '#FFFBEB', text: '#92400E' },
   abschlagsrechnung:     { label: 'Abschlagsrechnung',     prefix: 'AR', color: '#F97316', bg: '#FFF7ED', text: '#9A3412' },
@@ -255,7 +255,7 @@ export const BELEG_STATUS = {
 
 // A-005: Beleg-Einheiten
 export const BELEG_EINHEITEN = {
-  Stk:      { label: 'Stueck',       short: 'Stk' },
+  Stk:      { label: 'Stück',        short: 'Stk' },
   lfm:      { label: 'Laufmeter',    short: 'lfm' },
   m2:       { label: 'Quadratmeter', short: 'm2' },
   pauschal: { label: 'Pauschal',     short: 'psch' },
@@ -267,16 +267,16 @@ export const BELEG_EINHEITEN = {
 export const TERMIN_ARTEN = {
   montage:    { label: 'Montage',                 farbe: '#3B82F6', icon: 'Wrench' },
   reparatur:  { label: 'Reparatur',               farbe: '#EF4444', icon: 'AlertTriangle' },
-  aufmass:    { label: 'Aufmass',                  farbe: '#8B5CF6', icon: 'Ruler' },
+  aufmass:    { label: 'Aufmaß',                   farbe: '#8B5CF6', icon: 'Ruler' },
   lieferung:  { label: 'Lieferung / Abholung',    farbe: '#F59E0B', icon: 'Truck' },
   beratung:   { label: 'Kundenbesuch / Beratung',  farbe: '#10B981', icon: 'Users' },
-  intern:     { label: 'Intern / Buero',           farbe: '#6B7280', icon: 'Building' },
+  intern:     { label: 'Intern / Büro',            farbe: '#6B7280', icon: 'Building' },
   lieferant:  { label: 'Lieferanten-Termin',       farbe: '#EC4899', icon: 'Factory' },
 }
 
 export const TERMIN_STATUS = {
   geplant:       { label: 'Geplant',       color: '#3B82F6', bg: '#EFF6FF', text: '#1E40AF' },
-  bestaetigt:    { label: 'Bestaetigt',    color: '#10B981', bg: '#ECFDF5', text: '#065F46' },
+  bestaetigt:    { label: 'Bestätigt',     color: '#10B981', bg: '#ECFDF5', text: '#065F46' },
   abgeschlossen: { label: 'Abgeschlossen', color: '#6B7280', bg: '#F3F4F6', text: '#374151' },
   abgesagt:      { label: 'Abgesagt',      color: '#EF4444', bg: '#FEF2F2', text: '#991B1B' },
 }
