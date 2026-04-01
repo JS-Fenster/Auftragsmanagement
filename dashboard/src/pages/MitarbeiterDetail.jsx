@@ -33,8 +33,7 @@ const TABS = [
   { key: 'stamm', label: 'Stammdaten', icon: User },
   { key: 'vertrag', label: 'Vertrag & Arbeitszeit', icon: Briefcase },
   { key: 'urlaub', label: 'Urlaub & Abwesenheiten', icon: Calendar },
-  { key: 'personal', label: 'Personaldaten', icon: CreditCard },
-  { key: 'steuer', label: 'Steuer & Soziales', icon: Shield },
+  { key: 'personal', label: 'Persönliches & Finanzen', icon: CreditCard },
 ]
 
 const inputCls = "w-full px-3 py-1.5 text-sm border border-border-default rounded-lg bg-surface-main text-text-primary outline-none focus:ring-2 focus:ring-brand/30"
@@ -456,61 +455,70 @@ export default function MitarbeiterDetail() {
 
         {tab === 'personal' && (
           <div className="space-y-6">
-            <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5">
-              <MapPin className="w-4 h-4 text-text-muted" /> Privatadresse
-            </h3>
-            <div className="grid grid-cols-3 gap-4">
-              <Field label="Straße" value={form.priv_strasse} onChange={v => set('priv_strasse', v)} disabled={!editing} />
-              <Field label="PLZ" value={form.priv_plz} onChange={v => set('priv_plz', v)} disabled={!editing} />
-              <Field label="Ort" value={form.priv_ort} onChange={v => set('priv_ort', v)} disabled={!editing} />
-              <Field label="Privat-Telefon" value={form.priv_telefon} onChange={v => set('priv_telefon', v)} disabled={!editing} />
-              <Field label="Privat-Mobil" value={form.priv_mobil} onChange={v => set('priv_mobil', v)} disabled={!editing} />
-              <Field label="Privat-Email" value={form.priv_email} type="email" onChange={v => set('priv_email', v)} disabled={!editing} />
+            {/* Privatadresse */}
+            <div>
+              <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5 mb-3 pb-1 border-b border-border-default">
+                <MapPin className="w-4 h-4 text-text-muted" /> Privatadresse
+              </h3>
+              <div className="grid grid-cols-3 gap-4">
+                <Field label="Straße" value={form.priv_strasse} onChange={v => set('priv_strasse', v)} disabled={!editing} />
+                <Field label="PLZ" value={form.priv_plz} onChange={v => set('priv_plz', v)} disabled={!editing} />
+                <Field label="Ort" value={form.priv_ort} onChange={v => set('priv_ort', v)} disabled={!editing} />
+                <Field label="Privat-Telefon" value={form.priv_telefon} onChange={v => set('priv_telefon', v)} disabled={!editing} />
+                <Field label="Privat-Mobil" value={form.priv_mobil} onChange={v => set('priv_mobil', v)} disabled={!editing} />
+                <Field label="Privat-Email" value={form.priv_email} type="email" onChange={v => set('priv_email', v)} disabled={!editing} />
+                <Field label="Staatsangehörigkeit" value={form.staatsangehoerigkeit} onChange={v => set('staatsangehoerigkeit', v)} disabled={!editing} />
+              </div>
             </div>
 
-            <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5 pt-4 border-t border-border-default">
-              <Phone className="w-4 h-4 text-text-muted" /> Notfallkontakt
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Name" value={form.notfall_name} onChange={v => set('notfall_name', v)} disabled={!editing} />
-              <Field label="Telefon" value={form.notfall_telefon} onChange={v => set('notfall_telefon', v)} disabled={!editing} />
+            {/* Notfallkontakt */}
+            <div>
+              <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5 mb-3 pb-1 border-b border-border-default">
+                <Phone className="w-4 h-4 text-text-muted" /> Notfallkontakt
+              </h3>
+              <div className="grid grid-cols-3 gap-4">
+                <Field label="Name" value={form.notfall_name} onChange={v => set('notfall_name', v)} disabled={!editing} />
+                <Field label="Telefon" value={form.notfall_telefon} onChange={v => set('notfall_telefon', v)} disabled={!editing} />
+              </div>
             </div>
 
-            <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5 pt-4 border-t border-border-default">
-              <CreditCard className="w-4 h-4 text-text-muted" /> Bankverbindung & Sozialversicherung
-            </h3>
-            <div className="grid grid-cols-3 gap-4">
-              <Field label="SV-Nummer" value={form.sv_nummer} onChange={v => set('sv_nummer', v)} disabled={!editing} />
-              <Field label="Krankenkasse" value={form.krankenkasse} onChange={v => set('krankenkasse', v)} disabled={!editing} />
-              <Field label="Staatsangehörigkeit" value={form.staatsangehoerigkeit} onChange={v => set('staatsangehoerigkeit', v)} disabled={!editing} />
-              <Field label="Bank" value={form.bank} onChange={v => set('bank', v)} disabled={!editing} />
-              <Field label="IBAN" value={form.iban} onChange={v => set('iban', v)} disabled={!editing} />
-              <Field label="BIC" value={form.bic} onChange={v => set('bic', v)} disabled={!editing} />
-            </div>
-          </div>
-        )}
-
-        {tab === 'steuer' && (
-          <div className="space-y-6">
-            <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5">
-              <CreditCard className="w-4 h-4 text-text-muted" /> Steuer
-            </h3>
-            <div className="grid grid-cols-3 gap-4">
-              <Field label="Steuer-ID" value={form.steuer_id} onChange={v => set('steuer_id', v)} disabled={!editing} placeholder="z.B. 12345678901" />
-              <Field label="Steuerklasse" value={form.steuerklasse} onChange={v => set('steuerklasse', v)} disabled={!editing}
-                options={STEUERKLASSE_OPTIONS} />
-              <Field label="Kinderfreibeträge" value={form.kinderfreibetraege} type="number" onChange={v => set('kinderfreibetraege', v)} disabled={!editing} />
-              <Field label="Konfession" value={form.konfession} onChange={v => set('konfession', v)} disabled={!editing}
-                options={KONFESSION_OPTIONS} />
+            {/* Bankverbindung */}
+            <div>
+              <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5 mb-3 pb-1 border-b border-border-default">
+                <CreditCard className="w-4 h-4 text-text-muted" /> Bankverbindung
+              </h3>
+              <div className="grid grid-cols-3 gap-4">
+                <Field label="Bank" value={form.bank} onChange={v => set('bank', v)} disabled={!editing} />
+                <Field label="IBAN" value={form.iban} onChange={v => set('iban', v)} disabled={!editing} />
+                <Field label="BIC" value={form.bic} onChange={v => set('bic', v)} disabled={!editing} />
+              </div>
             </div>
 
-            <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5 pt-4 border-t border-border-default">
-              <Shield className="w-4 h-4 text-text-muted" /> Sozialversicherung
-            </h3>
-            <div className="grid grid-cols-3 gap-4">
-              <Field label="SV-Nummer" value={form.sv_nummer} onChange={v => set('sv_nummer', v)} disabled={!editing} />
-              <Field label="RV-Nummer" value={form.rv_nummer} onChange={v => set('rv_nummer', v)} disabled={!editing} />
-              <Field label="Krankenkasse" value={form.krankenkasse} onChange={v => set('krankenkasse', v)} disabled={!editing} />
+            {/* Steuer */}
+            <div>
+              <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5 mb-3 pb-1 border-b border-border-default">
+                <Shield className="w-4 h-4 text-text-muted" /> Steuer
+              </h3>
+              <div className="grid grid-cols-3 gap-4">
+                <Field label="Steuer-ID" value={form.steuer_id} onChange={v => set('steuer_id', v)} disabled={!editing} placeholder="11-stellig" />
+                <Field label="Steuerklasse" value={form.steuerklasse} onChange={v => set('steuerklasse', v)} disabled={!editing}
+                  options={STEUERKLASSE_OPTIONS} />
+                <Field label="Kinderfreibeträge" value={form.kinderfreibetraege} type="number" onChange={v => set('kinderfreibetraege', v)} disabled={!editing} />
+                <Field label="Konfession (KiSt)" value={form.konfession} onChange={v => set('konfession', v)} disabled={!editing}
+                  options={KONFESSION_OPTIONS} />
+              </div>
+            </div>
+
+            {/* Sozialversicherung */}
+            <div>
+              <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5 mb-3 pb-1 border-b border-border-default">
+                <Shield className="w-4 h-4 text-text-muted" /> Sozialversicherung
+              </h3>
+              <div className="grid grid-cols-3 gap-4">
+                <Field label="SV-Nummer" value={form.sv_nummer} onChange={v => set('sv_nummer', v)} disabled={!editing} />
+                <Field label="RV-Nummer" value={form.rv_nummer} onChange={v => set('rv_nummer', v)} disabled={!editing} />
+                <Field label="Krankenkasse" value={form.krankenkasse} onChange={v => set('krankenkasse', v)} disabled={!editing} />
+              </div>
             </div>
           </div>
         )}
