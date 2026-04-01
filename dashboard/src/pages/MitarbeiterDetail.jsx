@@ -243,6 +243,18 @@ function generateZeichen(vorname, nachname) {
   return (vorname.substring(0, 2) + nachname.substring(0, 2)).toUpperCase()
 }
 
+function generateZeichenAlternativen(vorname, nachname) {
+  if (!vorname || !nachname) return []
+  const v = vorname.toUpperCase(), n = nachname.toUpperCase()
+  return [
+    v.substring(0, 2) + n.substring(0, 2),           // CHBE
+    v.substring(0, 1) + n.substring(0, 3),           // CBEC
+    v.substring(0, 3) + n.substring(0, 1),           // CHRB
+    v.substring(0, 2) + n.substring(0, 1) + v.charAt(2), // CHBI
+    v.substring(0, 1) + n.substring(0, 1) + v.charAt(1) + n.charAt(1), // CBHE
+  ].filter((z, i, arr) => z.length >= 3 && arr.indexOf(z) === i)
+}
+
 export default function MitarbeiterDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -251,6 +263,7 @@ export default function MitarbeiterDetail() {
   const [tab, setTab] = useState('stamm')
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({})
+  const [zeichenConflict, setZeichenConflict] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const load = useCallback(async () => {
@@ -265,6 +278,7 @@ export default function MitarbeiterDetail() {
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
 
   const save = async () => {
+    if (zeichenConflict) { alert('Zeichen ist bereits vergeben. Bitte ändern.'); return }
     setSaving(true)
     const update = { ...form }
     delete update.id; delete update.created_at; delete update.updated_at
@@ -338,34 +352,77 @@ export default function MitarbeiterDetail() {
       <div className="rounded-lg bg-surface-card border border-border-default p-5">
         {tab === 'stamm' && (
           <div className="space-y-6">
-            <div className="grid grid-cols-3 gap-4">
-              <Field label="Vorname *" value={form.vorname} onChange={v => set('vorname', v)} disabled={!editing} />
-              <Field label="Nachname *" value={form.nachname} onChange={v => set('nachname', v)} disabled={!editing} />
-              <Field label="Personalnummer" value={form.personalnummer} onChange={v => set('personalnummer', v)} disabled={!editing} />
-              <Field label="Anrede" value={form.anrede} onChange={v => set('anrede', v)} disabled={!editing}
-                options={{ herr: 'Herr', frau: 'Frau', divers: 'Divers' }} />
-              <Field label="Abteilung" value={form.rolle} onChange={v => set('rolle', v)} disabled={!editing}
-                options={ABTEILUNG_LABELS} />
-              <Field label="Beschäftigungsart" value={form.beschaeftigungsart} onChange={v => set('beschaeftigungsart', v)} disabled={!editing}
-                options={BESCHAEFTIGUNGSART_OPTIONS} />
-              <Field label="Status" value={form.status} onChange={v => set('status', v)} disabled={!editing}
-                options={{ aktiv: 'Aktiv', inaktiv: 'Inaktiv', ausgeschieden: 'Ausgeschieden', elternzeit: 'Elternzeit' }} />
-              <Field label="Eintrittsdatum *" value={form.eintrittsdatum} type="date" onChange={v => set('eintrittsdatum', v)} disabled={!editing} />
-              <Field label="Austrittsdatum" value={form.austrittsdatum} type="date" onChange={v => set('austrittsdatum', v)} disabled={!editing} />
-              <Field label="Geburtsdatum" value={form.geburtsdatum} type="date" onChange={v => set('geburtsdatum', v)} disabled={!editing} />
-              <Field label="E-Mail (Firma)" value={form.email} type="email" onChange={v => set('email', v)} disabled={!editing} />
-              <Field label="Telefon (Firma)" value={form.telefon} onChange={v => set('telefon', v)} disabled={!editing} />
-              <Field label="Abteilung" value={form.abteilung} onChange={v => set('abteilung', v)} disabled={!editing} />
-              <Field label="Funktion" value={form.funktion} onChange={v => set('funktion', v)} disabled={!editing} />
-              <Field label="Zeichen" value={form.zeichen} onChange={v => set('zeichen', v)} disabled={!editing}
-                placeholder={generateZeichen(form.vorname, form.nachname) || 'z.B. ANST'} />
-              <Field label="Vergütung" value={form.verguetungsart} onChange={v => set('verguetungsart', v)} disabled={!editing}
-                options={{ gehalt: 'Gehalt', stundenlohn: 'Stundenlohn' }} />
-            </div>
+            {/* Person */}
             <div>
-              <label className={labelCls}>Notizen</label>
+              <h3 className="text-sm font-semibold text-text-primary mb-3 pb-1 border-b border-border-default">Person</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <Field label="Anrede" value={form.anrede} onChange={v => set('anrede', v)} disabled={!editing}
+                  options={{ herr: 'Herr', frau: 'Frau', divers: 'Divers' }} />
+                <Field label="Vorname *" value={form.vorname} onChange={v => set('vorname', v)} disabled={!editing} />
+                <Field label="Nachname *" value={form.nachname} onChange={v => set('nachname', v)} disabled={!editing} />
+                <Field label="Geburtsdatum" value={form.geburtsdatum} type="date" onChange={v => set('geburtsdatum', v)} disabled={!editing} />
+                <div>
+                  <Field label="Zeichen (Kürzel)" value={form.zeichen} disabled={!editing}
+                    placeholder={generateZeichen(form.vorname, form.nachname) || 'z.B. ANST'}
+                    onChange={async (v) => {
+                      const upper = v.toUpperCase()
+                      set('zeichen', upper)
+                      if (upper.length >= 2) {
+                        const { data } = await supabase.from('mitarbeiter').select('id').eq('zeichen', upper).neq('id', id).limit(1)
+                        setZeichenConflict(data && data.length > 0)
+                      } else {
+                        setZeichenConflict(false)
+                      }
+                    }} />
+                  {zeichenConflict && (
+                    <p className="text-[10px] text-red-600 mt-0.5">Bereits vergeben! Alternativen: {generateZeichenAlternativen(form.vorname, form.nachname).join(', ')}</p>
+                  )}
+                </div>
+                <Field label="Personalnummer" value={form.personalnummer} onChange={v => set('personalnummer', v)} disabled={!editing} />
+              </div>
+            </div>
+
+            {/* Beschäftigung */}
+            <div>
+              <h3 className="text-sm font-semibold text-text-primary mb-3 pb-1 border-b border-border-default">Beschäftigung</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <Field label="Bereich" value={form.rolle} onChange={v => set('rolle', v)} disabled={!editing}
+                  options={ABTEILUNG_LABELS} />
+                <Field label="Funktion / Position" value={form.funktion} onChange={v => set('funktion', v)} disabled={!editing}
+                  placeholder="z.B. Vorarbeiter, Büroleitung" />
+                <Field label="Beschäftigungsart" value={form.beschaeftigungsart} onChange={v => set('beschaeftigungsart', v)} disabled={!editing}
+                  options={BESCHAEFTIGUNGSART_OPTIONS} />
+                <Field label="Vergütung" value={form.verguetungsart} onChange={v => set('verguetungsart', v)} disabled={!editing}
+                  options={{ gehalt: 'Gehalt', stundenlohn: 'Stundenlohn' }} />
+                <Field label="Status" value={form.status} onChange={v => set('status', v)} disabled={!editing}
+                  options={{ aktiv: 'Aktiv', inaktiv: 'Inaktiv', ausgeschieden: 'Ausgeschieden', gekuendigt: 'Gekündigt' }} />
+              </div>
+            </div>
+
+            {/* Daten */}
+            <div>
+              <h3 className="text-sm font-semibold text-text-primary mb-3 pb-1 border-b border-border-default">Termine & Daten</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <Field label="Eintrittsdatum *" value={form.eintrittsdatum} type="date" onChange={v => set('eintrittsdatum', v)} disabled={!editing} />
+                <Field label="Austrittsdatum" value={form.austrittsdatum} type="date" onChange={v => set('austrittsdatum', v)} disabled={!editing} />
+                <Field label="Probezeit bis" value={form.probezeit_ende} type="date" onChange={v => set('probezeit_ende', v)} disabled={!editing} />
+              </div>
+            </div>
+
+            {/* Kontakt (Firma) */}
+            <div>
+              <h3 className="text-sm font-semibold text-text-primary mb-3 pb-1 border-b border-border-default">Kontakt (Firma)</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <Field label="E-Mail" value={form.email} type="email" onChange={v => set('email', v)} disabled={!editing} />
+                <Field label="Telefon" value={form.telefon} onChange={v => set('telefon', v)} disabled={!editing} />
+              </div>
+            </div>
+
+            {/* Notizen */}
+            <div>
+              <h3 className="text-sm font-semibold text-text-primary mb-3 pb-1 border-b border-border-default">Notizen</h3>
               <textarea value={form.notizen || ''} onChange={e => set('notizen', e.target.value)} rows={3}
-                className={inputCls + ' resize-none'} disabled={!editing} />
+                className={inputCls + ' resize-none'} disabled={!editing} placeholder="Freitext-Notizen zum Mitarbeiter..." />
             </div>
             <div className="border-t border-border-default pt-4">
               <SkillsSection mitarbeiterId={id} editing={editing} />
