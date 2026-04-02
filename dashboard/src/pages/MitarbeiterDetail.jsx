@@ -214,7 +214,7 @@ function VertragSection({ mitarbeiterId, editing }) {
       return
     }
     if (hasOverlap) {
-      if (!confirm('Achtung: Diese Periode ueberschneidet sich mit einer bestehenden. Trotzdem anlegen?')) return
+      if (!confirm('Achtung: Diese Periode überschneidet sich mit einer bestehenden. Trotzdem anlegen?')) return
     }
     const openVertrag = vertraege.find(v => !v.gueltig_bis)
     if (openVertrag && form.gueltig_ab) {
@@ -238,7 +238,7 @@ function VertragSection({ mitarbeiterId, editing }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-text-primary">Arbeitsvertraege</h3>
+        <h3 className="text-sm font-semibold text-text-primary">Arbeitsverträge</h3>
         {editing && (
           <button onClick={() => {
             const current = vertraege.find(v => !v.gueltig_bis) || vertraege[0]
@@ -960,9 +960,9 @@ export default function MitarbeiterDetail() {
             <div className="border-t border-border-default pt-4">
               <h3 className="text-sm font-semibold text-text-primary mb-3">Zeiterfassung-Einstellungen</h3>
               <div className="grid grid-cols-3 gap-4">
-                <Field label="Fruehester Beginn" value={maForm.fruehester_beginn} type="time" onChange={v => setMF('fruehester_beginn', v)} disabled={!editing} />
+                <Field label="Frühester Beginn" value={maForm.fruehester_beginn} type="time" onChange={v => setMF('fruehester_beginn', v)} disabled={!editing} />
                 <Field label="Rundung Taktung (Min)" value={maForm.rundung_taktung} type="number" onChange={v => setMF('rundung_taktung', v)} disabled={!editing} />
-                <Field label="Rundung Kommen" value={maForm.rundung_kommen} onChange={v => setMF('rundung_kommen', v)} disabled={!editing}
+                <Field label="Rundung (Kommen/Gehen)" value={maForm.rundung_kommen} onChange={v => { setMF('rundung_kommen', v); setMF('rundung_gehen', v) }} disabled={!editing}
                   options={{ aufrunden: 'Aufrunden', abrunden: 'Abrunden', auf_ab: 'Auf-/Abrunden' }} />
               </div>
             </div>
