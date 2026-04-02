@@ -93,7 +93,7 @@ function calcPause(brutto) {
 function formatStunden(dezimal) {
   const h = Math.floor(dezimal)
   const m = Math.round((dezimal - h) * 60)
-  return m > 0 ? `${h}:${String(m).padStart(2, '0')}h` : `${h}h`
+  return m > 0 ? `${h}:${String(m).padStart(2, '0')} Std.` : `${h} Std.`
 }
 
 function calcWochenstunden(tagesarbeitszeit, mitPause = true) {
