@@ -9,7 +9,7 @@ import { supabase } from '../lib/supabase'
 import AbwesenheitenSection from '../components/AbwesenheitenSection'
 
 const ABTEILUNG_LABELS = {
-  monteur: 'Monteur', buero: 'Büro', geschaeftsfuehrung: 'Geschäftsführung',
+  monteur: 'Montage', buero: 'Verwaltung', geschaeftsfuehrung: 'Geschäftsführung',
   lager: 'Lager', vertrieb: 'Vertrieb',
 }
 const BESCHAEFTIGUNGSART_OPTIONS = {
@@ -85,9 +85,15 @@ function calcBruttoTag(tag) {
 }
 
 function calcPause(brutto) {
-  if (brutto >= 9) return 0.75  // 45min
-  if (brutto >= 6) return 0.5   // 30min
+  if (brutto > 9) return 0.75  // 45min bei ueber 9h
+  if (brutto > 6) return 0.5   // 30min bei ueber 6h
   return 0
+}
+
+function formatStunden(dezimal) {
+  const h = Math.floor(dezimal)
+  const m = Math.round((dezimal - h) * 60)
+  return m > 0 ? `${h}:${String(m).padStart(2, '0')}h` : `${h}h`
 }
 
 function calcWochenstunden(tagesarbeitszeit, mitPause = true) {
@@ -200,8 +206,8 @@ function VertragSection({ mitarbeiterId }) {
             <Field label="Urlaubstage/Jahr" value={form.urlaubstage_jahr} type="number" onChange={v => setForm(f => ({ ...f, urlaubstage_jahr: v }))} />
             <div className="flex items-end pb-1">
               <div className="text-xs text-text-muted">
-                <span className="font-semibold text-text-primary">{Math.round(wochenstundenNetto * 10) / 10}h netto</span>
-                {' '}({Math.round(wochenstundenBrutto * 10) / 10}h brutto) / Woche · {arbeitstage} Tage
+                <span className="font-semibold text-text-primary">{formatStunden(wochenstundenNetto)} netto</span>
+                {' '}({formatStunden(wochenstundenBrutto)} brutto) / Woche · {arbeitstage} Tage
               </div>
             </div>
           </div>
@@ -225,7 +231,7 @@ function VertragSection({ mitarbeiterId }) {
                         <input type="time" value={tag.ende} onChange={e => setTag(key, 'ende', e.target.value)}
                           className="w-full px-1 py-0.5 text-[11px] border border-border-default rounded bg-surface-card text-center outline-none" />
                         <div className="text-[10px] text-text-muted">
-                          {(() => { const b = calcBruttoTag(tag); const p = calcPause(b); const n = b - p; return p > 0 ? `${Math.round(n*10)/10}h (${Math.round(b*10)/10}h brutto)` : `${Math.round(b*10)/10}h` })()}
+                          {(() => { const b = calcBruttoTag(tag); const p = calcPause(b); const n = b - p; return p > 0 ? `${formatStunden(n)} (${formatStunden(b)} brutto)` : formatStunden(b) })()}
                         </div>
                       </div>
                     )}
