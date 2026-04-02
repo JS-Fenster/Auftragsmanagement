@@ -44,7 +44,9 @@ function formatDate(d) {
   return new Date(d + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
-function Field({ label, value, type = 'text', onChange, options, placeholder, disabled }) {
+let fieldIdCounter = 0
+function Field({ label, value, type = 'text', onChange, options, placeholder, disabled, suggestions }) {
+  const [listId] = useState(() => `dl-${++fieldIdCounter}`)
   return (
     <div>
       <label className={labelCls}>{label}</label>
@@ -54,8 +56,16 @@ function Field({ label, value, type = 'text', onChange, options, placeholder, di
           {Object.entries(options).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
       ) : (
-        <input type={type} value={value || ''} onChange={e => onChange(e.target.value)}
-          placeholder={placeholder} className={inputCls} disabled={disabled} />
+        <>
+          <input type={type} value={value || ''} onChange={e => onChange(e.target.value)}
+            placeholder={placeholder} className={inputCls} disabled={disabled}
+            list={suggestions?.length ? listId : undefined} />
+          {suggestions?.length > 0 && (
+            <datalist id={listId}>
+              {suggestions.map(s => <option key={s} value={s} />)}
+            </datalist>
+          )}
+        </>
       )}
     </div>
   )
@@ -67,14 +77,27 @@ const WOCHENTAGE = [
 ]
 const DEFAULT_TAG = { start: '07:00', ende: '16:00' }
 
-function calcWochenstunden(tagesarbeitszeit) {
+function calcBruttoTag(tag) {
+  if (!tag) return 0
+  const [sh, sm] = tag.start.split(':').map(Number)
+  const [eh, em] = tag.ende.split(':').map(Number)
+  return (eh + em / 60) - (sh + sm / 60)
+}
+
+function calcPause(brutto) {
+  if (brutto >= 9) return 0.75  // 45min
+  if (brutto >= 6) return 0.5   // 30min
+  return 0
+}
+
+function calcWochenstunden(tagesarbeitszeit, mitPause = true) {
   if (!tagesarbeitszeit) return 0
   return WOCHENTAGE.reduce((sum, { key }) => {
     const tag = tagesarbeitszeit[key]
     if (!tag) return sum
-    const [sh, sm] = tag.start.split(':').map(Number)
-    const [eh, em] = tag.ende.split(':').map(Number)
-    return sum + (eh + em / 60) - (sh + sm / 60)
+    let brutto = calcBruttoTag(tag)
+    if (mitPause) brutto -= calcPause(brutto)
+    return sum + brutto
   }, 0)
 }
 
@@ -111,7 +134,9 @@ function VertragSection({ mitarbeiterId }) {
     }))
   }
 
-  const wochenstunden = calcWochenstunden(form.tagesarbeitszeit)
+  const wochenstundenNetto = calcWochenstunden(form.tagesarbeitszeit, true)
+  const wochenstundenBrutto = calcWochenstunden(form.tagesarbeitszeit, false)
+  const wochenstunden = wochenstundenNetto
   const arbeitstage = countArbeitstage(form.tagesarbeitszeit)
 
   // Check overlap with existing periods
@@ -121,6 +146,12 @@ function VertragSection({ mitarbeiterId }) {
   })
 
   const save = async () => {
+    // Validate: new start must be after latest start
+    const latestVertrag = vertraege[0] // sorted by gueltig_ab DESC
+    if (latestVertrag && form.gueltig_ab <= latestVertrag.gueltig_ab) {
+      alert('Neue Periode muss nach der letzten beginnen (' + formatDate(latestVertrag.gueltig_ab) + ')')
+      return
+    }
     if (hasOverlap) {
       if (!confirm('Achtung: Diese Periode überlappt mit einer bestehenden. Trotzdem anlegen?')) return
     }
@@ -148,7 +179,18 @@ function VertragSection({ mitarbeiterId }) {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-text-primary">Arbeitsverträge</h3>
-        <button onClick={() => setShowForm(!showForm)} className="text-xs text-brand hover:underline">+ Neue Periode</button>
+        <button onClick={() => {
+          const current = vertraege.find(v => !v.gueltig_bis) || vertraege[0]
+          if (current) {
+            setForm({
+              gueltig_ab: '',
+              urlaubstage_jahr: String(current.urlaubstage_jahr || 30),
+              notiz: '',
+              tagesarbeitszeit: current.tagesarbeitszeit || { mo: {...DEFAULT_TAG}, di: {...DEFAULT_TAG}, mi: {...DEFAULT_TAG}, do: {...DEFAULT_TAG}, fr: {...DEFAULT_TAG} },
+            })
+          }
+          setShowForm(!showForm)
+        }} className="text-xs text-brand hover:underline">+ Neue Periode</button>
       </div>
 
       {showForm && (
@@ -158,7 +200,8 @@ function VertragSection({ mitarbeiterId }) {
             <Field label="Urlaubstage/Jahr" value={form.urlaubstage_jahr} type="number" onChange={v => setForm(f => ({ ...f, urlaubstage_jahr: v }))} />
             <div className="flex items-end pb-1">
               <div className="text-xs text-text-muted">
-                <span className="font-semibold text-text-primary">{Math.round(wochenstunden * 10) / 10}h</span> / Woche · {arbeitstage} Tage
+                <span className="font-semibold text-text-primary">{Math.round(wochenstundenNetto * 10) / 10}h netto</span>
+                {' '}({Math.round(wochenstundenBrutto * 10) / 10}h brutto) / Woche · {arbeitstage} Tage
               </div>
             </div>
           </div>
@@ -182,7 +225,7 @@ function VertragSection({ mitarbeiterId }) {
                         <input type="time" value={tag.ende} onChange={e => setTag(key, 'ende', e.target.value)}
                           className="w-full px-1 py-0.5 text-[11px] border border-border-default rounded bg-surface-card text-center outline-none" />
                         <div className="text-[10px] text-text-muted">
-                          {(() => { const [sh,sm]=tag.start.split(':').map(Number); const [eh,em]=tag.ende.split(':').map(Number); return `${(eh+em/60)-(sh+sm/60)}h` })()}
+                          {(() => { const b = calcBruttoTag(tag); const p = calcPause(b); const n = b - p; return p > 0 ? `${Math.round(n*10)/10}h (${Math.round(b*10)/10}h brutto)` : `${Math.round(b*10)/10}h` })()}
                         </div>
                       </div>
                     )}
@@ -394,6 +437,20 @@ export default function MitarbeiterDetail() {
   const [form, setForm] = useState({})
   const [zeichenConflict, setZeichenConflict] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [suggestions, setSuggestions] = useState({})
+
+  useEffect(() => {
+    const loadSuggestions = async () => {
+      const fields = ['abteilung', 'funktion', 'krankenkasse', 'bank']
+      const result = {}
+      for (const f of fields) {
+        const { data } = await supabase.from('mitarbeiter').select(f).not(f, 'is', null).not(f, 'eq', '')
+        result[f] = [...new Set((data || []).map(d => d[f]).filter(Boolean))]
+      }
+      setSuggestions(result)
+    }
+    loadSuggestions()
+  }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -517,8 +574,10 @@ export default function MitarbeiterDetail() {
               <div className="grid grid-cols-3 gap-4">
                 <Field label="Bereich" value={form.rolle} onChange={v => set('rolle', v)} disabled={!editing}
                   options={ABTEILUNG_LABELS} />
+                <Field label="Abteilung" value={form.abteilung} onChange={v => set('abteilung', v)} disabled={!editing}
+                  placeholder="z.B. Werkstatt, Verwaltung" suggestions={suggestions.abteilung} />
                 <Field label="Funktion / Position" value={form.funktion} onChange={v => set('funktion', v)} disabled={!editing}
-                  placeholder="z.B. Vorarbeiter, Büroleitung" />
+                  placeholder="z.B. Vorarbeiter, Büroleitung" suggestions={suggestions.funktion} />
                 <Field label="Beschäftigungsart" value={form.beschaeftigungsart} onChange={v => set('beschaeftigungsart', v)} disabled={!editing}
                   options={BESCHAEFTIGUNGSART_OPTIONS} />
                 <Field label="Vergütung" value={form.verguetungsart} onChange={v => set('verguetungsart', v)} disabled={!editing}
@@ -618,7 +677,7 @@ export default function MitarbeiterDetail() {
                 <CreditCard className="w-4 h-4 text-text-muted" /> Bankverbindung
               </h3>
               <div className="grid grid-cols-3 gap-4">
-                <Field label="Bank" value={form.bank} onChange={v => set('bank', v)} disabled={!editing} />
+                <Field label="Bank" value={form.bank} onChange={v => set('bank', v)} disabled={!editing} suggestions={suggestions.bank} />
                 <Field label="IBAN" value={form.iban} onChange={v => set('iban', v)} disabled={!editing} />
                 <Field label="BIC" value={form.bic} onChange={v => set('bic', v)} disabled={!editing} />
               </div>
@@ -647,7 +706,7 @@ export default function MitarbeiterDetail() {
               <div className="grid grid-cols-3 gap-4">
                 <Field label="SV-Nummer" value={form.sv_nummer} onChange={v => set('sv_nummer', v)} disabled={!editing} />
                 <Field label="RV-Nummer" value={form.rv_nummer} onChange={v => set('rv_nummer', v)} disabled={!editing} />
-                <Field label="Krankenkasse" value={form.krankenkasse} onChange={v => set('krankenkasse', v)} disabled={!editing} />
+                <Field label="Krankenkasse" value={form.krankenkasse} onChange={v => set('krankenkasse', v)} disabled={!editing} suggestions={suggestions.krankenkasse} />
               </div>
             </div>
           </div>
