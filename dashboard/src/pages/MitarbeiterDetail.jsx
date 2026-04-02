@@ -1,15 +1,23 @@
 /**
  * MitarbeiterDetail — Eigene Seite pro Mitarbeiter mit Tabs
  * Route: /mitarbeiter/:id
+ *
+ * Datenmodell (neu):
+ *   personen (vorname, nachname, anrede, geburtsdatum, zeichen, foto_url, notizen)
+ *   mitarbeiter_daten (person_id, personalnummer, beschaeftigungsart, abteilung, funktion, ...)
+ *   person_kontaktdaten (person_id, typ, wert, label, ist_primaer)
+ *   person_adressen (person_id, typ, strasse, plz, ort, land, ist_primaer)
+ *
+ * Legacy tables (arbeitsvertraege, mitarbeiter_skills, abwesenheiten) still use mitarbeiter_id (old table).
  */
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, User, FileText, Calendar, Clock, Shield, Briefcase, CreditCard, Phone, MapPin, Wrench, X, Plus } from 'lucide-react'
+import { ArrowLeft, User, FileText, Calendar, Shield, Briefcase, CreditCard, Phone, MapPin, Wrench, X, Plus, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import AbwesenheitenSection from '../components/AbwesenheitenSection'
 
 const ABTEILUNG_LABELS = {
-  monteur: 'Montage', buero: 'Verwaltung', geschaeftsfuehrung: 'Geschäftsführung',
+  monteur: 'Montage', buero: 'Verwaltung', geschaeftsfuehrung: 'Geschaeftsfuehrung',
   lager: 'Lager', vertrieb: 'Vertrieb',
 }
 const BESCHAEFTIGUNGSART_OPTIONS = {
@@ -17,8 +25,8 @@ const BESCHAEFTIGUNGSART_OPTIONS = {
   azubi: 'Azubi', praktikant: 'Praktikant', werkstudent: 'Werkstudent',
 }
 const STEUERKLASSE_OPTIONS = { '1': '1', '2': '2', '3': '3', '4': '4', '5': '5', '6': '6' }
-const KONFESSION_OPTIONS = { ev: 'Evangelisch', rk: 'Römisch-Katholisch', keine: 'Keine' }
-const SKILL_PRESETS = ['Fenster', 'Türen', 'Raffstore', 'Markise', 'Haustür', 'Reparatur', 'Service', 'Rollläden', 'Elektro', 'Glas']
+const KONFESSION_OPTIONS = { ev: 'Evangelisch', rk: 'Roemisch-Katholisch', keine: 'Keine' }
+const SKILL_PRESETS = ['Fenster', 'Tueren', 'Raffstore', 'Markise', 'Haustuer', 'Reparatur', 'Service', 'Rolllaeden', 'Elektro', 'Glas']
 const SKILL_LEVELS = { lehrling: 'Lehrling', junior: 'Junior', standard: 'Standard', senior: 'Senior', meister: 'Meister' }
 const SKILL_LEVEL_COLORS = {
   lehrling: '#F3F4F6', junior: '#DBEAFE', standard: '#D1FAE5', senior: '#FDE68A', meister: '#C4B5FD',
@@ -33,8 +41,24 @@ const TABS = [
   { key: 'stamm', label: 'Stammdaten', icon: User },
   { key: 'vertrag', label: 'Vertrag & Arbeitszeit', icon: Briefcase },
   { key: 'urlaub', label: 'Urlaub & Abwesenheiten', icon: Calendar },
-  { key: 'personal', label: 'Persönliches & Finanzen', icon: CreditCard },
+  { key: 'personal', label: 'Persoenliches & Finanzen', icon: CreditCard },
 ]
+
+const KONTAKT_TYP_OPTIONS = {
+  telefon_fest: 'Telefon (Festnetz)',
+  telefon_mobil: 'Telefon (Mobil)',
+  email: 'E-Mail',
+  whatsapp: 'WhatsApp',
+  fax: 'Fax',
+  sonstiges: 'Sonstiges',
+}
+
+const ADRESS_TYP_OPTIONS = {
+  privat: 'Privat',
+  arbeit: 'Arbeit',
+  lieferung: 'Lieferadresse',
+  rechnungsadresse: 'Rechnungsadresse',
+}
 
 const inputCls = "w-full px-3 py-1.5 text-sm border border-border-default rounded-lg bg-surface-main text-text-primary outline-none focus:ring-2 focus:ring-brand/30"
 const labelCls = "block text-xs font-medium text-text-secondary mb-1"
@@ -85,8 +109,8 @@ function calcBruttoTag(tag) {
 }
 
 function calcPause(brutto) {
-  if (brutto > 9) return 0.75  // 45min bei ueber 9h
-  if (brutto > 6) return 0.5   // 30min bei ueber 6h
+  if (brutto > 9) return 0.75
+  if (brutto > 6) return 0.5
   return 0
 }
 
@@ -170,23 +194,20 @@ function VertragSection({ mitarbeiterId, editing }) {
   const wochenstunden = wochenstundenNetto
   const arbeitstage = countArbeitstage(form.tagesarbeitszeit)
 
-  // Check overlap with existing periods
   const hasOverlap = form.gueltig_ab && vertraege.some(v => {
-    if (!v.gueltig_bis) return false // open period will be auto-closed
+    if (!v.gueltig_bis) return false
     return form.gueltig_ab <= v.gueltig_bis && (!form.gueltig_bis || form.gueltig_bis >= v.gueltig_ab)
   })
 
   const save = async () => {
-    // Validate: new start must be after latest start
-    const latestVertrag = vertraege[0] // sorted by gueltig_ab DESC
+    const latestVertrag = vertraege[0]
     if (latestVertrag && form.gueltig_ab <= latestVertrag.gueltig_ab) {
       alert('Neue Periode muss nach der letzten beginnen (' + formatDate(latestVertrag.gueltig_ab) + ')')
       return
     }
     if (hasOverlap) {
-      if (!confirm('Achtung: Diese Periode überlappt mit einer bestehenden. Trotzdem anlegen?')) return
+      if (!confirm('Achtung: Diese Periode ueberschneidet sich mit einer bestehenden. Trotzdem anlegen?')) return
     }
-    // Close previous open period
     const openVertrag = vertraege.find(v => !v.gueltig_bis)
     if (openVertrag && form.gueltig_ab) {
       const bisDate = new Date(form.gueltig_ab + 'T00:00:00')
@@ -209,7 +230,7 @@ function VertragSection({ mitarbeiterId, editing }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-text-primary">Arbeitsverträge</h3>
+        <h3 className="text-sm font-semibold text-text-primary">Arbeitsvertraege</h3>
         {editing && (
           <button onClick={() => {
             const current = vertraege.find(v => !v.gueltig_bis) || vertraege[0]
@@ -229,7 +250,7 @@ function VertragSection({ mitarbeiterId, editing }) {
       {showForm && (
         <div className="p-4 rounded-lg bg-surface-main border border-border-default space-y-4">
           <div className="grid grid-cols-3 gap-3">
-            <Field label="Gültig ab *" value={form.gueltig_ab} type="date" onChange={v => setForm(f => ({ ...f, gueltig_ab: v }))} />
+            <Field label="Gueltig ab *" value={form.gueltig_ab} type="date" onChange={v => setForm(f => ({ ...f, gueltig_ab: v }))} />
             <Field label="Urlaubstage/Jahr" value={form.urlaubstage_jahr} type="number" onChange={v => setForm(f => ({ ...f, urlaubstage_jahr: v }))} />
             <div className="flex items-end pb-1">
               <div className="text-xs text-text-muted">
@@ -239,7 +260,6 @@ function VertragSection({ mitarbeiterId, editing }) {
             </div>
           </div>
 
-          {/* Wochentag-Grid */}
           <div>
             <label className={labelCls}>Arbeitszeiten pro Tag</label>
             <div className="grid grid-cols-5 gap-2">
@@ -276,7 +296,6 @@ function VertragSection({ mitarbeiterId, editing }) {
         </div>
       )}
 
-      {/* Bestehende Verträge */}
       {vertraege.map(v => {
         const az = v.tagesarbeitszeit
         return (
@@ -328,7 +347,7 @@ function UrlaubSection({ mitarbeiterId }) {
       <h3 className="text-sm font-semibold text-text-primary">Urlaubskonto {jahr}</h3>
       {!konto ? <p className="text-xs text-text-muted">Wird berechnet...</p> : (
         <div className="grid grid-cols-4 gap-3">
-          {[['Anspruch', konto.anspruch], ['Übertrag', konto.uebertrag], ['Genommen', konto.genommen], ['Rest', konto.rest]].map(([l, v], i) => (
+          {[['Anspruch', konto.anspruch], ['Uebertrag', konto.uebertrag], ['Genommen', konto.genommen], ['Rest', konto.rest]].map(([l, v], i) => (
             <div key={i} className={`rounded-lg p-3 text-center ${i === 3 ? 'bg-brand/5 border border-brand/20' : 'bg-surface-main'}`}>
               <p className={`text-xs ${i === 3 ? 'text-brand' : 'text-text-muted'}`}>{l}</p>
               <p className={`text-xl font-bold ${i === 3 ? 'text-brand' : 'text-text-primary'}`}>{v}</p>
@@ -378,11 +397,11 @@ function SkillsSection({ mitarbeiterId, editing }) {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5">
-          <Wrench className="w-4 h-4 text-text-muted" /> Fähigkeiten
+          <Wrench className="w-4 h-4 text-text-muted" /> Faehigkeiten
         </h3>
         {editing && (
           <button onClick={() => setAdding(!adding)} className="text-xs text-brand hover:underline flex items-center gap-1">
-            <Plus className="w-3 h-3" /> Skill hinzufügen
+            <Plus className="w-3 h-3" /> Skill hinzufuegen
           </button>
         )}
       </div>
@@ -402,7 +421,7 @@ function SkillsSection({ mitarbeiterId, editing }) {
               {Object.entries(SKILL_LEVELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </div>
-          <button onClick={addSkill} disabled={!newSkill.trim()} className="px-3 py-1.5 text-xs bg-brand text-white rounded-lg disabled:opacity-50">Hinzufügen</button>
+          <button onClick={addSkill} disabled={!newSkill.trim()} className="px-3 py-1.5 text-xs bg-brand text-white rounded-lg disabled:opacity-50">Hinzufuegen</button>
           <button onClick={() => setAdding(false)} className="px-3 py-1.5 text-xs text-text-secondary hover:bg-surface-hover rounded-lg">Abbrechen</button>
         </div>
       )}
@@ -435,6 +454,192 @@ function SkillsSection({ mitarbeiterId, editing }) {
   )
 }
 
+// --- Kontaktdaten Section (dynamic list) ---
+
+function KontaktdatenSection({ kontaktdaten, setKontaktdaten, editing, personId }) {
+  const addRow = () => {
+    setKontaktdaten([...kontaktdaten, { _new: true, person_id: personId, typ: 'email', wert: '', label: '', ist_primaer: false }])
+  }
+
+  const updateRow = (idx, field, value) => {
+    setKontaktdaten(kontaktdaten.map((k, i) => i === idx ? { ...k, [field]: value } : k))
+  }
+
+  const removeRow = (idx) => {
+    const item = kontaktdaten[idx]
+    if (item.id) {
+      // Mark existing row for deletion
+      setKontaktdaten(kontaktdaten.map((k, i) => i === idx ? { ...k, _deleted: true } : k))
+    } else {
+      // Remove unsaved new row
+      setKontaktdaten(kontaktdaten.filter((_, i) => i !== idx))
+    }
+  }
+
+  const visibleRows = kontaktdaten.filter(k => !k._deleted)
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3 pb-1 border-b border-border-default">
+        <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5">
+          <Phone className="w-4 h-4 text-text-muted" /> Kontaktdaten
+        </h3>
+        {editing && (
+          <button onClick={addRow} className="text-xs text-brand hover:underline flex items-center gap-1">
+            <Plus className="w-3 h-3" /> Kontaktdaten hinzufuegen
+          </button>
+        )}
+      </div>
+
+      {visibleRows.length === 0 && (
+        <p className="text-xs text-text-muted">Keine Kontaktdaten hinterlegt</p>
+      )}
+
+      <div className="space-y-2">
+        {kontaktdaten.map((k, idx) => {
+          if (k._deleted) return null
+          return (
+            <div key={k.id || `new-${idx}`} className="flex items-center gap-2">
+              {editing ? (
+                <>
+                  <select value={k.typ} onChange={e => updateRow(idx, 'typ', e.target.value)}
+                    className={inputCls + ' w-40 flex-shrink-0'}>
+                    {Object.entries(KONTAKT_TYP_OPTIONS).map(([val, lbl]) => (
+                      <option key={val} value={val}>{lbl}</option>
+                    ))}
+                  </select>
+                  <input value={k.wert} onChange={e => updateRow(idx, 'wert', e.target.value)}
+                    placeholder="Wert (z.B. +49...)" className={inputCls + ' flex-1'} />
+                  <input value={k.label || ''} onChange={e => updateRow(idx, 'label', e.target.value)}
+                    placeholder="z.B. Privat, Arbeit" className={inputCls + ' w-32 flex-shrink-0'} />
+                  <label className="flex items-center gap-1 text-xs text-text-secondary flex-shrink-0 cursor-pointer">
+                    <input type="checkbox" checked={k.ist_primaer || false}
+                      onChange={e => updateRow(idx, 'ist_primaer', e.target.checked)}
+                      className="rounded border-border-default" />
+                    Primaer
+                  </label>
+                  <button onClick={() => removeRow(idx)} className="text-text-muted hover:text-red-500 flex-shrink-0">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span className="text-xs font-medium text-text-secondary w-32 flex-shrink-0">
+                    {KONTAKT_TYP_OPTIONS[k.typ] || k.typ}
+                    {k.label ? ` (${k.label})` : ''}
+                  </span>
+                  <span className="text-sm text-text-primary">{k.wert}</span>
+                  {k.ist_primaer && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-brand/10 text-brand font-medium flex-shrink-0">Primaer</span>
+                  )}
+                </>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// --- Adressen Section (dynamic list) ---
+
+function AdressenSection({ adressen, setAdressen, editing, personId }) {
+  const addRow = () => {
+    setAdressen([...adressen, { _new: true, person_id: personId, typ: 'privat', strasse: '', plz: '', ort: '', land: 'DE', ist_primaer: false }])
+  }
+
+  const updateRow = (idx, field, value) => {
+    setAdressen(adressen.map((a, i) => i === idx ? { ...a, [field]: value } : a))
+  }
+
+  const removeRow = (idx) => {
+    const item = adressen[idx]
+    if (item.id) {
+      setAdressen(adressen.map((a, i) => i === idx ? { ...a, _deleted: true } : a))
+    } else {
+      setAdressen(adressen.filter((_, i) => i !== idx))
+    }
+  }
+
+  const visibleRows = adressen.filter(a => !a._deleted)
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3 pb-1 border-b border-border-default">
+        <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5">
+          <MapPin className="w-4 h-4 text-text-muted" /> Adressen
+        </h3>
+        {editing && (
+          <button onClick={addRow} className="text-xs text-brand hover:underline flex items-center gap-1">
+            <Plus className="w-3 h-3" /> Adresse hinzufuegen
+          </button>
+        )}
+      </div>
+
+      {visibleRows.length === 0 && (
+        <p className="text-xs text-text-muted">Keine Adressen hinterlegt</p>
+      )}
+
+      <div className="space-y-3">
+        {adressen.map((a, idx) => {
+          if (a._deleted) return null
+          return (
+            <div key={a.id || `new-${idx}`} className="p-3 rounded-lg bg-surface-main border border-border-default">
+              {editing ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <select value={a.typ} onChange={e => updateRow(idx, 'typ', e.target.value)}
+                      className={inputCls + ' w-40'}>
+                      {Object.entries(ADRESS_TYP_OPTIONS).map(([val, lbl]) => (
+                        <option key={val} value={val}>{lbl}</option>
+                      ))}
+                    </select>
+                    <label className="flex items-center gap-1 text-xs text-text-secondary cursor-pointer">
+                      <input type="checkbox" checked={a.ist_primaer || false}
+                        onChange={e => updateRow(idx, 'ist_primaer', e.target.checked)}
+                        className="rounded border-border-default" />
+                      Primaer
+                    </label>
+                    <div className="flex-1" />
+                    <button onClick={() => removeRow(idx)} className="text-text-muted hover:text-red-500">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    <div className="col-span-2">
+                      <input value={a.strasse || ''} onChange={e => updateRow(idx, 'strasse', e.target.value)}
+                        placeholder="Strasse" className={inputCls} />
+                    </div>
+                    <input value={a.plz || ''} onChange={e => updateRow(idx, 'plz', e.target.value)}
+                      placeholder="PLZ" className={inputCls} />
+                    <input value={a.ort || ''} onChange={e => updateRow(idx, 'ort', e.target.value)}
+                      placeholder="Ort" className={inputCls} />
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-medium text-text-secondary w-28 flex-shrink-0">
+                    {ADRESS_TYP_OPTIONS[a.typ] || a.typ}
+                  </span>
+                  <span className="text-sm text-text-primary">
+                    {[a.strasse, a.plz, a.ort].filter(Boolean).join(', ') || '-'}
+                  </span>
+                  {a.ist_primaer && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-brand/10 text-brand font-medium flex-shrink-0">Primaer</span>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// --- Zeichen helpers ---
+
 const BLOCKED_ZEICHEN = new Set(['SS', 'SA', 'HH', 'KZ', 'NS', 'SD', 'AH', 'HJ'])
 
 function generateZeichen(vorname, nachname) {
@@ -443,7 +648,6 @@ function generateZeichen(vorname, nachname) {
   const n = nachname.charAt(0).toUpperCase()
   const candidate = v + n
   if (BLOCKED_ZEICHEN.has(candidate)) {
-    // Alternative: Vorname 1. + Nachname 1.+2.
     return (v + nachname.substring(0, 2)).toUpperCase()
   }
   return candidate
@@ -453,26 +657,41 @@ function generateZeichenAlternativen(vorname, nachname) {
   if (!vorname || !nachname) return []
   const v = vorname.toUpperCase(), n = nachname.toUpperCase()
   const candidates = [
-    v.charAt(0) + n.charAt(0),                        // CS
-    v.charAt(0) + n.substring(0, 2),                  // CSC
-    v.substring(0, 2) + n.charAt(0),                  // CHS
-    v.charAt(0) + n.charAt(0) + v.charAt(1),          // CSH
-    v.charAt(0) + n.charAt(n.length - 1),             // CD (letzter Buchstabe Nachname)
+    v.charAt(0) + n.charAt(0),
+    v.charAt(0) + n.substring(0, 2),
+    v.substring(0, 2) + n.charAt(0),
+    v.charAt(0) + n.charAt(0) + v.charAt(1),
+    v.charAt(0) + n.charAt(n.length - 1),
   ]
   return candidates
     .filter((z, i, arr) => z.length >= 2 && arr.indexOf(z) === i && !BLOCKED_ZEICHEN.has(z))
 }
 
+// =============================================================================
+// Main component
+// =============================================================================
+
 export default function MitarbeiterDetail() {
-  const { id } = useParams()
+  const { id } = useParams() // This is the old mitarbeiter.id
   const navigate = useNavigate()
-  const [ma, setMa] = useState(null)
+
+  // Data from new tables
+  const [person, setPerson] = useState(null)
+  const [maDaten, setMaDaten] = useState(null)
+  const [kontaktdaten, setKontaktdaten] = useState([])
+  const [adressen, setAdressen] = useState([])
+
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('stamm')
   const [editing, setEditing] = useState(false)
-  const [form, setForm] = useState({})
-  const [zeichenConflict, setZeichenConflict] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [zeichenConflict, setZeichenConflict] = useState(false)
+
+  // Edit forms — separate for person fields and ma fields
+  const [personForm, setPersonForm] = useState({})
+  const [maForm, setMaForm] = useState({})
+
+  // Suggestions for autocomplete fields
   const [suggestions, setSuggestions] = useState({})
 
   useEffect(() => {
@@ -480,7 +699,7 @@ export default function MitarbeiterDetail() {
       const fields = ['abteilung', 'funktion', 'krankenkasse', 'bank']
       const result = {}
       for (const f of fields) {
-        const { data } = await supabase.from('mitarbeiter').select(f).not(f, 'is', null).not(f, 'eq', '')
+        const { data } = await supabase.from('mitarbeiter_daten').select(f).not(f, 'is', null).not(f, 'eq', '')
         result[f] = [...new Set((data || []).map(d => d[f]).filter(Boolean))]
       }
       setSuggestions(result)
@@ -490,34 +709,110 @@ export default function MitarbeiterDetail() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const { data } = await supabase.from('mitarbeiter').select('*').eq('id', id).single()
-    if (data) { setMa(data); setForm(data) }
+
+    // Load person and mitarbeiter_daten in parallel via mitarbeiter_alt_id
+    const [personResult, maResult] = await Promise.all([
+      supabase.from('personen').select('*').eq('mitarbeiter_alt_id', id).single(),
+      supabase.from('mitarbeiter_daten').select('*').eq('mitarbeiter_alt_id', id).single(),
+    ])
+
+    const personData = personResult.data
+    const maData = maResult.data
+
+    if (personData) {
+      setPerson(personData)
+      setPersonForm(personData)
+
+      // Load kontaktdaten and adressen using person_id
+      const [kontaktResult, adressenResult] = await Promise.all([
+        supabase.from('person_kontaktdaten').select('*').eq('person_id', personData.id).order('ist_primaer', { ascending: false }),
+        supabase.from('person_adressen').select('*').eq('person_id', personData.id).order('ist_primaer', { ascending: false }),
+      ])
+      setKontaktdaten(kontaktResult.data || [])
+      setAdressen(adressenResult.data || [])
+    }
+
+    if (maData) {
+      setMaDaten(maData)
+      setMaForm(maData)
+    }
+
     setLoading(false)
   }, [id])
 
   useEffect(() => { load() }, [load])
 
-  const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
+  const setPF = (key, val) => setPersonForm(f => ({ ...f, [key]: val }))
+  const setMF = (key, val) => setMaForm(f => ({ ...f, [key]: val }))
 
   const save = async () => {
-    if (zeichenConflict) { alert('Zeichen ist bereits vergeben. Bitte ändern.'); return }
+    if (zeichenConflict) { alert('Zeichen ist bereits vergeben. Bitte aendern.'); return }
     setSaving(true)
-    const update = { ...form }
-    delete update.id; delete update.created_at; delete update.updated_at
-    // Clean empty strings to null
-    for (const k of Object.keys(update)) {
-      if (update[k] === '') update[k] = null
+
+    try {
+      // 1. Update personen
+      const personUpdate = { ...personForm }
+      delete personUpdate.id; delete personUpdate.created_at; delete personUpdate.updated_at
+      delete personUpdate.mitarbeiter_alt_id; delete personUpdate.w4a_kontakt_person_id
+      for (const k of Object.keys(personUpdate)) {
+        if (personUpdate[k] === '') personUpdate[k] = null
+      }
+      await supabase.from('personen').update(personUpdate).eq('id', person.id)
+
+      // 2. Update mitarbeiter_daten
+      const maUpdate = { ...maForm }
+      delete maUpdate.id; delete maUpdate.created_at; delete maUpdate.updated_at
+      delete maUpdate.person_id; delete maUpdate.mitarbeiter_alt_id
+      delete maUpdate.ressource_id; delete maUpdate.auth_user_id
+      delete maUpdate.vorgesetzter_id; delete maUpdate.urlaubsgenehmiger_id
+      for (const k of Object.keys(maUpdate)) {
+        if (maUpdate[k] === '') maUpdate[k] = null
+      }
+      await supabase.from('mitarbeiter_daten').update(maUpdate).eq('id', maDaten.id)
+
+      // 3. Save kontaktdaten (insert new, update existing, delete marked)
+      const kontaktOps = []
+      for (const k of kontaktdaten) {
+        if (k._deleted && k.id) {
+          kontaktOps.push(supabase.from('person_kontaktdaten').delete().eq('id', k.id))
+        } else if (k._new && !k._deleted) {
+          const { _new, ...row } = k
+          kontaktOps.push(supabase.from('person_kontaktdaten').insert({ ...row, person_id: person.id }))
+        } else if (k.id && !k._deleted) {
+          const { _new, _deleted, ...row } = k
+          delete row.created_at
+          kontaktOps.push(supabase.from('person_kontaktdaten').update(row).eq('id', k.id))
+        }
+      }
+      await Promise.all(kontaktOps)
+
+      // 4. Save adressen (insert new, update existing, delete marked)
+      const adressenOps = []
+      for (const a of adressen) {
+        if (a._deleted && a.id) {
+          adressenOps.push(supabase.from('person_adressen').delete().eq('id', a.id))
+        } else if (a._new && !a._deleted) {
+          const { _new, ...row } = a
+          adressenOps.push(supabase.from('person_adressen').insert({ ...row, person_id: person.id }))
+        } else if (a.id && !a._deleted) {
+          const { _new, _deleted, ...row } = a
+          delete row.created_at
+          adressenOps.push(supabase.from('person_adressen').update(row).eq('id', a.id))
+        }
+      }
+      await Promise.all(adressenOps)
+    } finally {
+      setSaving(false)
     }
-    await supabase.from('mitarbeiter').update(update).eq('id', id)
-    setSaving(false)
+
     setEditing(false)
     load()
   }
 
   if (loading) return <div className="flex items-center justify-center h-64 text-text-muted">Laden...</div>
-  if (!ma) return <div className="flex items-center justify-center h-64 text-text-muted">Mitarbeiter nicht gefunden</div>
+  if (!person || !maDaten) return <div className="flex items-center justify-center h-64 text-text-muted">Mitarbeiter nicht gefunden</div>
 
-  const st = STATUS_STYLES[ma.status] || STATUS_STYLES.aktiv
+  const st = STATUS_STYLES[maDaten.status] || STATUS_STYLES.aktiv
 
   return (
     <div className="min-h-screen bg-surface-main p-6">
@@ -528,11 +823,11 @@ export default function MitarbeiterDetail() {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-text-primary">{ma.vorname} {ma.nachname}</h1>
+            <h1 className="text-2xl font-bold text-text-primary">{person.vorname} {person.nachname}</h1>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-sm text-text-muted">Nr. {ma.personalnummer || '-'}</span>
+              <span className="text-sm text-text-muted">Nr. {maDaten.personalnummer || '-'}</span>
               <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: st.bg, color: st.text }}>{st.label}</span>
-              <span className="text-sm text-text-secondary">{ABTEILUNG_LABELS[ma.rolle] || ma.rolle}</span>
+              <span className="text-sm text-text-secondary">{ABTEILUNG_LABELS[maDaten.abteilung] || maDaten.abteilung || '-'}</span>
             </div>
           </div>
         </div>
@@ -543,7 +838,7 @@ export default function MitarbeiterDetail() {
                 className="px-4 py-2 text-sm font-medium bg-brand text-white rounded-lg hover:opacity-90 disabled:opacity-50">
                 {saving ? 'Speichern...' : 'Speichern'}
               </button>
-              <button onClick={() => { setEditing(false); setForm(ma) }}
+              <button onClick={() => { setEditing(false); setPersonForm(person); setMaForm(maDaten); load() }}
                 className="px-4 py-2 text-sm text-text-secondary hover:bg-surface-hover rounded-lg">
                 Abbrechen
               </button>
@@ -578,74 +873,70 @@ export default function MitarbeiterDetail() {
             <div>
               <h3 className="text-sm font-semibold text-text-primary mb-3 pb-1 border-b border-border-default">Person</h3>
               <div className="grid grid-cols-3 gap-4">
-                <Field label="Anrede" value={form.anrede} onChange={v => set('anrede', v)} disabled={!editing}
+                <Field label="Anrede" value={personForm.anrede} onChange={v => setPF('anrede', v)} disabled={!editing}
                   options={{ herr: 'Herr', frau: 'Frau', divers: 'Divers' }} />
-                <Field label="Vorname *" value={form.vorname} onChange={v => set('vorname', v)} disabled={!editing} />
-                <Field label="Nachname *" value={form.nachname} onChange={v => set('nachname', v)} disabled={!editing} />
-                <Field label="Geburtsdatum" value={form.geburtsdatum} type="date" onChange={v => set('geburtsdatum', v)} disabled={!editing} />
+                <Field label="Vorname *" value={personForm.vorname} onChange={v => setPF('vorname', v)} disabled={!editing} />
+                <Field label="Nachname *" value={personForm.nachname} onChange={v => setPF('nachname', v)} disabled={!editing} />
+                <Field label="Geburtsdatum" value={personForm.geburtsdatum} type="date" onChange={v => setPF('geburtsdatum', v)} disabled={!editing} />
                 <div>
-                  <Field label="Zeichen (Kürzel)" value={form.zeichen} disabled={!editing}
-                    placeholder={generateZeichen(form.vorname, form.nachname) || 'z.B. ANST'}
+                  <Field label="Zeichen (Kuerzel)" value={personForm.zeichen} disabled={!editing}
+                    placeholder={generateZeichen(personForm.vorname, personForm.nachname) || 'z.B. ANST'}
                     onChange={async (v) => {
                       const upper = v.toUpperCase()
-                      set('zeichen', upper)
+                      setPF('zeichen', upper)
                       if (upper.length >= 2) {
-                        const { data } = await supabase.from('mitarbeiter').select('id').eq('zeichen', upper).neq('id', id).limit(1)
+                        const { data } = await supabase.from('personen').select('id').eq('zeichen', upper).neq('id', person.id).limit(1)
                         setZeichenConflict(data && data.length > 0)
                       } else {
                         setZeichenConflict(false)
                       }
                     }} />
                   {zeichenConflict && (
-                    <p className="text-[10px] text-red-600 mt-0.5">Bereits vergeben! Alternativen: {generateZeichenAlternativen(form.vorname, form.nachname).join(', ')}</p>
+                    <p className="text-[10px] text-red-600 mt-0.5">Bereits vergeben! Alternativen: {generateZeichenAlternativen(personForm.vorname, personForm.nachname).join(', ')}</p>
                   )}
                 </div>
-                <Field label="Personalnummer" value={form.personalnummer} onChange={v => set('personalnummer', v)} disabled={!editing} />
+                <Field label="Personalnummer" value={maForm.personalnummer} onChange={v => setMF('personalnummer', v)} disabled={!editing} />
               </div>
             </div>
 
-            {/* Beschäftigung */}
+            {/* Beschaeftigung */}
             <div>
-              <h3 className="text-sm font-semibold text-text-primary mb-3 pb-1 border-b border-border-default">Beschäftigung</h3>
+              <h3 className="text-sm font-semibold text-text-primary mb-3 pb-1 border-b border-border-default">Beschaeftigung</h3>
               <div className="grid grid-cols-3 gap-4">
-                <Field label="Bereich" value={form.rolle} onChange={v => set('rolle', v)} disabled={!editing}
-                  options={ABTEILUNG_LABELS} />
-                <Field label="Abteilung" value={form.abteilung} onChange={v => set('abteilung', v)} disabled={!editing}
+                <Field label="Abteilung" value={maForm.abteilung} onChange={v => setMF('abteilung', v)} disabled={!editing}
                   placeholder="z.B. Werkstatt, Verwaltung" suggestions={suggestions.abteilung} />
-                <Field label="Funktion / Position" value={form.funktion} onChange={v => set('funktion', v)} disabled={!editing}
-                  placeholder="z.B. Vorarbeiter, Büroleitung" suggestions={suggestions.funktion} />
-                <Field label="Beschäftigungsart" value={form.beschaeftigungsart} onChange={v => set('beschaeftigungsart', v)} disabled={!editing}
+                <Field label="Funktion / Position" value={maForm.funktion} onChange={v => setMF('funktion', v)} disabled={!editing}
+                  placeholder="z.B. Vorarbeiter, Bueroleitung" suggestions={suggestions.funktion} />
+                <Field label="Beschaeftigungsart" value={maForm.beschaeftigungsart} onChange={v => setMF('beschaeftigungsart', v)} disabled={!editing}
                   options={BESCHAEFTIGUNGSART_OPTIONS} />
-                <Field label="Vergütung" value={form.verguetungsart} onChange={v => set('verguetungsart', v)} disabled={!editing}
+                <Field label="Verguetung" value={maForm.verguetungsart} onChange={v => setMF('verguetungsart', v)} disabled={!editing}
                   options={{ gehalt: 'Gehalt', stundenlohn: 'Stundenlohn' }} />
-                <Field label="Status" value={form.status} onChange={v => set('status', v)} disabled={!editing}
-                  options={{ aktiv: 'Aktiv', inaktiv: 'Inaktiv', ausgeschieden: 'Ausgeschieden', gekuendigt: 'Gekündigt' }} />
+                <Field label="Status" value={maForm.status} onChange={v => setMF('status', v)} disabled={!editing}
+                  options={{ aktiv: 'Aktiv', inaktiv: 'Inaktiv', ausgeschieden: 'Ausgeschieden', gekuendigt: 'Gekuendigt' }} />
               </div>
             </div>
 
-            {/* Daten */}
+            {/* Termine & Daten */}
             <div>
               <h3 className="text-sm font-semibold text-text-primary mb-3 pb-1 border-b border-border-default">Termine & Daten</h3>
               <div className="grid grid-cols-3 gap-4">
-                <Field label="Eintrittsdatum *" value={form.eintrittsdatum} type="date" onChange={v => set('eintrittsdatum', v)} disabled={!editing} />
-                <Field label="Austrittsdatum" value={form.austrittsdatum} type="date" onChange={v => set('austrittsdatum', v)} disabled={!editing} />
-                <Field label="Probezeit bis" value={form.probezeit_ende} type="date" onChange={v => set('probezeit_ende', v)} disabled={!editing} />
+                <Field label="Eintrittsdatum *" value={maForm.eintrittsdatum} type="date" onChange={v => setMF('eintrittsdatum', v)} disabled={!editing} />
+                <Field label="Austrittsdatum" value={maForm.austrittsdatum} type="date" onChange={v => setMF('austrittsdatum', v)} disabled={!editing} />
               </div>
             </div>
 
-            {/* Kontakt (Firma) */}
-            <div>
-              <h3 className="text-sm font-semibold text-text-primary mb-3 pb-1 border-b border-border-default">Kontakt (Firma)</h3>
-              <div className="grid grid-cols-3 gap-4">
-                <Field label="E-Mail" value={form.email} type="email" onChange={v => set('email', v)} disabled={!editing} />
-                <Field label="Telefon" value={form.telefon} onChange={v => set('telefon', v)} disabled={!editing} />
-              </div>
-            </div>
+            {/* Kontaktdaten (dynamic) */}
+            <KontaktdatenSection
+              kontaktdaten={kontaktdaten}
+              setKontaktdaten={setKontaktdaten}
+              editing={editing}
+              personId={person?.id}
+            />
 
             {/* Notizen */}
             <div>
               <h3 className="text-sm font-semibold text-text-primary mb-3 pb-1 border-b border-border-default">Notizen</h3>
-              <textarea value={form.notizen || ''} onChange={e => set('notizen', e.target.value)} rows={3}
+              <textarea value={personForm.notizen || ''} onChange={e => setPF('notizen', e.target.value)} rows={3}
                 className={inputCls + ' resize-none'} disabled={!editing} placeholder="Freitext-Notizen zum Mitarbeiter..." />
             </div>
             <div className="border-t border-border-default pt-4">
@@ -660,9 +951,9 @@ export default function MitarbeiterDetail() {
             <div className="border-t border-border-default pt-4">
               <h3 className="text-sm font-semibold text-text-primary mb-3">Zeiterfassung-Einstellungen</h3>
               <div className="grid grid-cols-3 gap-4">
-                <Field label="Frühester Beginn" value={form.fruehester_beginn} type="time" onChange={v => set('fruehester_beginn', v)} disabled={!editing} />
-                <Field label="Rundung Taktung (Min)" value={form.rundung_taktung} type="number" onChange={v => set('rundung_taktung', v)} disabled={!editing} />
-                <Field label="Rundung Kommen" value={form.rundung_kommen} onChange={v => set('rundung_kommen', v)} disabled={!editing}
+                <Field label="Fruehester Beginn" value={maForm.fruehester_beginn} type="time" onChange={v => setMF('fruehester_beginn', v)} disabled={!editing} />
+                <Field label="Rundung Taktung (Min)" value={maForm.rundung_taktung} type="number" onChange={v => setMF('rundung_taktung', v)} disabled={!editing} />
+                <Field label="Rundung Kommen" value={maForm.rundung_kommen} onChange={v => setMF('rundung_kommen', v)} disabled={!editing}
                   options={{ aufrunden: 'Aufrunden', abrunden: 'Abrunden', auf_ab: 'Auf-/Abrunden' }} />
               </div>
             </div>
@@ -673,37 +964,29 @@ export default function MitarbeiterDetail() {
           <div className="space-y-6">
             <UrlaubSection mitarbeiterId={id} />
             <div className="border-t border-border-default pt-4">
-              <AbwesenheitenSection mitarbeiterId={id} mitarbeiterName={`${ma.vorname} ${ma.nachname}`} />
+              <AbwesenheitenSection mitarbeiterId={id} mitarbeiterName={`${person.vorname} ${person.nachname}`} />
             </div>
           </div>
         )}
 
         {tab === 'personal' && (
           <div className="space-y-6">
-            {/* Privatadresse */}
-            <div>
-              <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5 mb-3 pb-1 border-b border-border-default">
-                <MapPin className="w-4 h-4 text-text-muted" /> Privatadresse
-              </h3>
-              <div className="grid grid-cols-3 gap-4">
-                <Field label="Straße" value={form.priv_strasse} onChange={v => set('priv_strasse', v)} disabled={!editing} />
-                <Field label="PLZ" value={form.priv_plz} onChange={v => set('priv_plz', v)} disabled={!editing} />
-                <Field label="Ort" value={form.priv_ort} onChange={v => set('priv_ort', v)} disabled={!editing} />
-                <Field label="Privat-Telefon" value={form.priv_telefon} onChange={v => set('priv_telefon', v)} disabled={!editing} />
-                <Field label="Privat-Mobil" value={form.priv_mobil} onChange={v => set('priv_mobil', v)} disabled={!editing} />
-                <Field label="Privat-Email" value={form.priv_email} type="email" onChange={v => set('priv_email', v)} disabled={!editing} />
-                <Field label="Staatsangehörigkeit" value={form.staatsangehoerigkeit} onChange={v => set('staatsangehoerigkeit', v)} disabled={!editing} />
-              </div>
-            </div>
+            {/* Adressen (dynamic) */}
+            <AdressenSection
+              adressen={adressen}
+              setAdressen={setAdressen}
+              editing={editing}
+              personId={person?.id}
+            />
 
-            {/* Notfallkontakt */}
+            {/* Notfallkontakt — stays in mitarbeiter_daten for now */}
             <div>
               <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5 mb-3 pb-1 border-b border-border-default">
                 <Phone className="w-4 h-4 text-text-muted" /> Notfallkontakt
               </h3>
               <div className="grid grid-cols-3 gap-4">
-                <Field label="Name" value={form.notfall_name} onChange={v => set('notfall_name', v)} disabled={!editing} />
-                <Field label="Telefon" value={form.notfall_telefon} onChange={v => set('notfall_telefon', v)} disabled={!editing} />
+                {/* Notfallkontakt fields are not in mitarbeiter_daten schema yet — show as read-only hint */}
+                <p className="text-xs text-text-muted col-span-3">Notfallkontakt wird kuenftig ueber Kontaktdaten abgebildet.</p>
               </div>
             </div>
 
@@ -713,9 +996,9 @@ export default function MitarbeiterDetail() {
                 <CreditCard className="w-4 h-4 text-text-muted" /> Bankverbindung
               </h3>
               <div className="grid grid-cols-3 gap-4">
-                <Field label="Bank" value={form.bank} onChange={v => set('bank', v)} disabled={!editing} suggestions={suggestions.bank} />
-                <Field label="IBAN" value={form.iban} onChange={v => set('iban', v)} disabled={!editing} />
-                <Field label="BIC" value={form.bic} onChange={v => set('bic', v)} disabled={!editing} />
+                <Field label="Bank" value={maForm.bank} onChange={v => setMF('bank', v)} disabled={!editing} suggestions={suggestions.bank} />
+                <Field label="IBAN" value={maForm.iban} onChange={v => setMF('iban', v)} disabled={!editing} />
+                <Field label="BIC" value={maForm.bic} onChange={v => setMF('bic', v)} disabled={!editing} />
               </div>
             </div>
 
@@ -725,11 +1008,11 @@ export default function MitarbeiterDetail() {
                 <Shield className="w-4 h-4 text-text-muted" /> Steuer
               </h3>
               <div className="grid grid-cols-3 gap-4">
-                <Field label="Steuer-ID" value={form.steuer_id} onChange={v => set('steuer_id', v)} disabled={!editing} placeholder="11-stellig" />
-                <Field label="Steuerklasse" value={form.steuerklasse} onChange={v => set('steuerklasse', v)} disabled={!editing}
+                <Field label="Steuer-ID" value={maForm.steuer_id} onChange={v => setMF('steuer_id', v)} disabled={!editing} placeholder="11-stellig" />
+                <Field label="Steuerklasse" value={maForm.steuerklasse} onChange={v => setMF('steuerklasse', v)} disabled={!editing}
                   options={STEUERKLASSE_OPTIONS} />
-                <Field label="Kinderfreibeträge" value={form.kinderfreibetraege} type="number" onChange={v => set('kinderfreibetraege', v)} disabled={!editing} />
-                <Field label="Konfession (KiSt)" value={form.konfession} onChange={v => set('konfession', v)} disabled={!editing}
+                <Field label="Kinderfreibetraege" value={maForm.kinderfreibetraege} type="number" onChange={v => setMF('kinderfreibetraege', v)} disabled={!editing} />
+                <Field label="Konfession (KiSt)" value={maForm.konfession} onChange={v => setMF('konfession', v)} disabled={!editing}
                   options={KONFESSION_OPTIONS} />
               </div>
             </div>
@@ -740,9 +1023,9 @@ export default function MitarbeiterDetail() {
                 <Shield className="w-4 h-4 text-text-muted" /> Sozialversicherung
               </h3>
               <div className="grid grid-cols-3 gap-4">
-                <Field label="SV-Nummer" value={form.sv_nummer} onChange={v => set('sv_nummer', v)} disabled={!editing} />
-                <Field label="RV-Nummer" value={form.rv_nummer} onChange={v => set('rv_nummer', v)} disabled={!editing} />
-                <Field label="Krankenkasse" value={form.krankenkasse} onChange={v => set('krankenkasse', v)} disabled={!editing} suggestions={suggestions.krankenkasse} />
+                <Field label="SV-Nummer" value={maForm.sv_nummer} onChange={v => setMF('sv_nummer', v)} disabled={!editing} />
+                <Field label="RV-Nummer" value={maForm.rv_nummer} onChange={v => setMF('rv_nummer', v)} disabled={!editing} />
+                <Field label="Krankenkasse" value={maForm.krankenkasse} onChange={v => setMF('krankenkasse', v)} disabled={!editing} suggestions={suggestions.krankenkasse} />
               </div>
             </div>
           </div>
