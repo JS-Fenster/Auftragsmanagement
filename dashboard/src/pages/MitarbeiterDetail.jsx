@@ -136,7 +136,7 @@ function VertragDetail({ az }) {
   )
 }
 
-function VertragSection({ mitarbeiterId }) {
+function VertragSection({ mitarbeiterId, editing }) {
   const [vertraege, setVertraege] = useState([])
   const [showForm, setShowForm] = useState(false)
   const [expandedVertragId, setExpandedVertragId] = useState(null)
@@ -210,18 +210,20 @@ function VertragSection({ mitarbeiterId }) {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-text-primary">Arbeitsverträge</h3>
-        <button onClick={() => {
-          const current = vertraege.find(v => !v.gueltig_bis) || vertraege[0]
-          if (current) {
-            setForm({
-              gueltig_ab: '',
-              urlaubstage_jahr: String(current.urlaubstage_jahr || 30),
-              notiz: '',
-              tagesarbeitszeit: current.tagesarbeitszeit || { mo: {...DEFAULT_TAG}, di: {...DEFAULT_TAG}, mi: {...DEFAULT_TAG}, do: {...DEFAULT_TAG}, fr: {...DEFAULT_TAG} },
-            })
-          }
-          setShowForm(!showForm)
-        }} className="text-xs text-brand hover:underline">+ Neue Periode</button>
+        {editing && (
+          <button onClick={() => {
+            const current = vertraege.find(v => !v.gueltig_bis) || vertraege[0]
+            if (current) {
+              setForm({
+                gueltig_ab: '',
+                urlaubstage_jahr: String(current.urlaubstage_jahr || 30),
+                notiz: '',
+                tagesarbeitszeit: current.tagesarbeitszeit || { mo: {...DEFAULT_TAG}, di: {...DEFAULT_TAG}, mi: {...DEFAULT_TAG}, do: {...DEFAULT_TAG}, fr: {...DEFAULT_TAG} },
+              })
+            }
+            setShowForm(!showForm)
+          }} className="text-xs text-brand hover:underline">+ Neue Periode</button>
+        )}
       </div>
 
       {showForm && (
@@ -654,7 +656,7 @@ export default function MitarbeiterDetail() {
 
         {tab === 'vertrag' && (
           <div className="space-y-6">
-            <VertragSection mitarbeiterId={id} />
+            <VertragSection mitarbeiterId={id} editing={editing} />
             <div className="border-t border-border-default pt-4">
               <h3 className="text-sm font-semibold text-text-primary mb-3">Zeiterfassung-Einstellungen</h3>
               <div className="grid grid-cols-3 gap-4">
