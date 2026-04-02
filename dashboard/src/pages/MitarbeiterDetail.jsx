@@ -112,9 +112,34 @@ function countArbeitstage(tagesarbeitszeit) {
   return WOCHENTAGE.filter(({ key }) => tagesarbeitszeit[key]).length
 }
 
+function VertragDetail({ az }) {
+  if (!az) return <p className="text-[10px] text-text-muted mt-2">Keine Tageszeiten hinterlegt</p>
+  return (
+    <div className="grid grid-cols-5 gap-2 mt-2">
+      {WOCHENTAGE.map(({ key, label }) => {
+        const tag = az[key]
+        return (
+          <div key={key} className={`rounded-lg border p-2 text-center text-[10px] ${tag ? 'border-brand/20 bg-brand/5' : 'border-border-default bg-surface-card opacity-50'}`}>
+            <div className={`font-bold ${tag ? 'text-brand' : 'text-text-muted'}`}>{label}</div>
+            {tag ? (
+              <>
+                <div className="text-text-secondary mt-1">{tag.start} – {tag.ende}</div>
+                <div className="text-text-muted">{(() => { const b = calcBruttoTag(tag); const p = calcPause(b); return p > 0 ? `${formatStunden(b - p)} netto` : formatStunden(b) })()}</div>
+              </>
+            ) : (
+              <div className="text-text-muted mt-1">frei</div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function VertragSection({ mitarbeiterId }) {
   const [vertraege, setVertraege] = useState([])
   const [showForm, setShowForm] = useState(false)
+  const [expandedVertragId, setExpandedVertragId] = useState(null)
   const [form, setForm] = useState({
     gueltig_ab: '', urlaubstage_jahr: '30', notiz: '',
     tagesarbeitszeit: { mo: { ...DEFAULT_TAG }, di: { ...DEFAULT_TAG }, mi: { ...DEFAULT_TAG }, do: { ...DEFAULT_TAG }, fr: { ...DEFAULT_TAG } },
@@ -253,10 +278,11 @@ function VertragSection({ mitarbeiterId }) {
       {vertraege.map(v => {
         const az = v.tagesarbeitszeit
         return (
-          <div key={v.id} className="p-3 rounded-lg bg-surface-main border border-border-default text-xs space-y-2">
+          <div key={v.id} className="p-3 rounded-lg bg-surface-main border border-border-default text-xs space-y-2 cursor-pointer hover:border-brand/30 transition-colors"
+            onClick={() => setExpandedVertragId(expandedVertragId === v.id ? null : v.id)}>
             <div className="flex items-center justify-between">
               <div>
-                <span className="font-semibold">{v.wochenstunden}h/Woche</span>
+                <span className="font-semibold">{formatStunden(v.wochenstunden)}/Woche</span>
                 <span className="text-text-muted ml-2">{v.arbeitstage_pro_woche} Tage</span>
                 <span className="text-text-muted ml-2">{v.urlaubstage_jahr} Urlaubstage</span>
               </div>
@@ -265,7 +291,9 @@ function VertragSection({ mitarbeiterId }) {
                 {!v.gueltig_bis && <span className="ml-1 text-emerald-600 font-medium">aktuell</span>}
               </div>
             </div>
-            {az && (
+            {expandedVertragId === v.id ? (
+              <VertragDetail az={az} />
+            ) : az && (
               <div className="flex gap-1">
                 {WOCHENTAGE.map(({ key, label }) => {
                   const tag = az[key]
