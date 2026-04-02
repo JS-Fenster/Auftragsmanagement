@@ -16,18 +16,25 @@ import { ArrowLeft, User, FileText, Calendar, Shield, Briefcase, CreditCard, Pho
 import { supabase } from '../lib/supabase'
 import AbwesenheitenSection from '../components/AbwesenheitenSection'
 
+// HARDCODE: Spaeter aus DB/Einstellungen — Backlog AM-149
 const ABTEILUNG_LABELS = {
-  monteur: 'Montage', buero: 'Verwaltung', geschaeftsfuehrung: 'Geschaeftsfuehrung',
+  monteur: 'Montage', buero: 'Verwaltung', geschaeftsfuehrung: 'Geschäftsführung',
   lager: 'Lager', vertrieb: 'Vertrieb',
 }
+// HARDCODE: Spaeter aus DB/Einstellungen — Backlog AM-149
 const BESCHAEFTIGUNGSART_OPTIONS = {
   vollzeit: 'Vollzeit', teilzeit: 'Teilzeit', minijob: 'Minijob',
   azubi: 'Azubi', praktikant: 'Praktikant', werkstudent: 'Werkstudent',
 }
+// OK: Steuerklassen 1-6 sind gesetzlich fest
 const STEUERKLASSE_OPTIONS = { '1': '1', '2': '2', '3': '3', '4': '4', '5': '5', '6': '6' }
-const KONFESSION_OPTIONS = { ev: 'Evangelisch', rk: 'Roemisch-Katholisch', keine: 'Keine' }
-const SKILL_PRESETS = ['Fenster', 'Tueren', 'Raffstore', 'Markise', 'Haustuer', 'Reparatur', 'Service', 'Rolllaeden', 'Elektro', 'Glas']
+// OK: Konfessionen sind fest (ev/rk/keine)
+const KONFESSION_OPTIONS = { ev: 'Evangelisch', rk: 'Römisch-Katholisch', keine: 'Keine' }
+// HARDCODE: Spaeter aus DB (DISTINCT oder eigene Tabelle) — Backlog AM-149
+const SKILL_PRESETS = ['Fenster', 'Türen', 'Raffstore', 'Markise', 'Haustür', 'Reparatur', 'Service', 'Rollläden', 'Elektro', 'Glas']
+// HARDCODE: Spaeter aus DB/Einstellungen — Backlog AM-149
 const SKILL_LEVELS = { lehrling: 'Lehrling', junior: 'Junior', standard: 'Standard', senior: 'Senior', meister: 'Meister' }
+// OK: Design-Tokens (Layout-Farben)
 const SKILL_LEVEL_COLORS = {
   lehrling: '#F3F4F6', junior: '#DBEAFE', standard: '#D1FAE5', senior: '#FDE68A', meister: '#C4B5FD',
 }
@@ -35,13 +42,13 @@ const STATUS_STYLES = {
   aktiv: { bg: '#ECFDF5', text: '#065F46', label: 'Aktiv' },
   inaktiv: { bg: '#FEF3C7', text: '#92400E', label: 'Inaktiv' },
   ausgeschieden: { bg: '#F3F4F6', text: '#374151', label: 'Ausgeschieden' },
-  elternzeit: { bg: '#EDE9FE', text: '#5B21B6', label: 'Elternzeit' },
+  gekuendigt: { bg: '#FEE2E2', text: '#991B1B', label: 'Gekündigt' },
 }
 const TABS = [
   { key: 'stamm', label: 'Stammdaten', icon: User },
   { key: 'vertrag', label: 'Vertrag & Arbeitszeit', icon: Briefcase },
   { key: 'urlaub', label: 'Urlaub & Abwesenheiten', icon: Calendar },
-  { key: 'personal', label: 'Persoenliches & Finanzen', icon: CreditCard },
+  { key: 'personal', label: 'Persönliches & Finanzen', icon: CreditCard },
 ]
 
 const KONTAKT_TYP_OPTIONS = {
@@ -108,6 +115,7 @@ function calcBruttoTag(tag) {
   return (eh + em / 60) - (sh + sm / 60)
 }
 
+// HARDCODE: Pausenregel gesetzlich (>6h=30min, >9h=45min). Spaeter aus mitarbeiter_daten.pausenregel — Backlog AM-155
 function calcPause(brutto) {
   if (brutto > 9) return 0.75
   if (brutto > 6) return 0.5
@@ -640,6 +648,7 @@ function AdressenSection({ adressen, setAdressen, editing, personId }) {
 
 // --- Zeichen helpers ---
 
+// HARDCODE: Spaeter aus DB/Einstellungen — Backlog AM-149
 const BLOCKED_ZEICHEN = new Set(['SS', 'SA', 'HH', 'KZ', 'NS', 'SD', 'AH', 'HJ'])
 
 function generateZeichen(vorname, nachname) {
