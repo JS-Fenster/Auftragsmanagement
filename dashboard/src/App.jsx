@@ -253,7 +253,7 @@ function ProtectedApp() {
             <button onClick={() => setMobileMenuOpen(true)} className="p-1.5 rounded-lg hover:bg-surface-hover text-text-secondary">
               <Menu size={20} />
             </button>
-            <img src="/js-logo.svg" alt="JS Fenster" className="h-6 dark:brightness-200" />
+            <img src="/js-logo.svg" alt="JS Fenster" className="h-7" />
             <div className="flex-1" />
             <button onClick={() => setJessOpen(!jessOpen)} className="p-1.5 rounded-lg hover:bg-surface-hover text-text-secondary">
               <img src="/jess-avatar.png" alt="Jess" className="w-6 h-6 rounded-full" onError={e => { e.target.style.display = 'none' }} />
