@@ -291,11 +291,11 @@ export default function ChatWidget({ embedded = false, onClose }) {
   // Chat Panel
   return (
     <div className={embedded
-      ? "flex flex-col h-full bg-surface-card"
+      ? "flex flex-col bg-surface-card" + " h-[100dvh]"
       : "fixed bottom-6 right-6 z-50 w-[420px] h-[560px] bg-surface-card rounded-xl shadow-2xl border border-border-default flex flex-col overflow-hidden"
     }>
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b-3 border-b-brand" style={{ backgroundColor: '#9E9E9E' }}>
+      {/* Header — sticky, always visible */}
+      <div className="flex items-center justify-between px-4 py-3 border-b-3 border-b-brand shrink-0 sticky top-0 z-10" style={{ backgroundColor: '#9E9E9E' }}>
         <div className="flex items-center gap-2.5">
           <img src={ASSISTANT_AVATAR} alt={ASSISTANT_NAME} className="w-10 h-10 rounded-full object-cover" />
           <div>
@@ -409,8 +409,8 @@ export default function ChatWidget({ embedded = false, onClose }) {
         />
       )}
 
-      {/* Input */}
-      <div className="border-t border-border-default px-3 py-2">
+      {/* Input — sticky bottom, above keyboard */}
+      <div className="border-t border-border-default px-3 py-2 shrink-0 sticky bottom-0 bg-surface-card z-10">
         <div className="flex items-end gap-1.5">
           <textarea
             ref={inputRef}
