@@ -265,30 +265,17 @@ function ProtectedApp() {
           </main>
         </div>
 
-        {/* Jess Panel Toggle (Desktop: rechter Rand) */}
-        <div className="hidden lg:flex items-center">
-          <button
-            onClick={() => setJessOpen(!jessOpen)}
-            className="w-8 h-16 flex items-center justify-center bg-surface-sidebar border border-border-default rounded-l-lg hover:bg-surface-hover transition-colors -mr-px"
-            title={jessOpen ? 'Jess schließen' : 'Jess öffnen'}
-          >
-            <img src="/jess-avatar.png" alt="" className="w-5 h-5 rounded-full mb-0.5" onError={e => { e.target.style.display = 'none' }} />
-            {jessOpen ? <ChevronRight size={12} className="text-text-muted" /> : <ChevronLeft size={12} className="text-text-muted" />}
-          </button>
-        </div>
-
-        {/* Jess Chat Panel */}
+        {/* Mobile: Jess Fullscreen Panel */}
         {jessOpen && (
-          <div className={`
-            bg-surface-card border-l border-border-default flex flex-col
-            fixed inset-0 z-50 lg:relative lg:inset-auto lg:w-96 lg:h-full
-          `}>
+          <div className="fixed inset-0 z-50 bg-surface-card flex flex-col lg:hidden">
             <ChatWidget embedded onClose={() => setJessOpen(false)} />
           </div>
         )}
 
-        {/* Non-Jess Chat (old floating widget, hidden when panel mode) */}
-        {!jessOpen && <div className="hidden"><ChatWidget /></div>}
+        {/* Desktop: Original floating ChatWidget (unten rechts) */}
+        <div className="hidden lg:block">
+          <ChatWidget />
+        </div>
 
         <Suspense fallback={null}><TerminDetail /></Suspense>
         <Suspense fallback={null}><TerminForm /></Suspense>

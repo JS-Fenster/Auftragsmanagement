@@ -457,7 +457,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { message, history = [], context = null, confirm_action = null } = await req.json();
+    const { message, history = [], context = null, confirm_action = null, image_url = null, page_context = null } = await req.json();
 
     if (!message || typeof message !== "string") {
       return jsonResponse({ error: "message is required" }, 400, corsHeaders);
@@ -490,15 +490,26 @@ Deno.serve(async (req) => {
     } else if (context && typeof context === 'string') {
       contextStr = context;
     }
+    if (page_context && typeof page_context === 'string') {
+      contextStr += contextStr ? ` Aktuelle Seite: ${page_context}` : `Der User befindet sich auf der Seite '${page_context}'.`;
+    }
 
     const systemContent = contextStr
       ? `${systemWithDate}\n\nAktueller Dashboard-Kontext:\n${contextStr}`
       : systemWithDate;
 
-    const messages: Array<{ role: string; content: string | null; tool_calls?: unknown[]; tool_call_id?: string }> = [
+    // Build user message — with Vision support if image_url provided
+    const userContent = image_url
+      ? [
+          { type: "text", text: message },
+          { type: "image_url", image_url: { url: image_url } },
+        ]
+      : message;
+
+    const messages: Array<{ role: string; content: unknown; tool_calls?: unknown[]; tool_call_id?: string }> = [
       { role: "system", content: systemContent },
       ...history.slice(-20), // Keep last 20 messages for context
-      { role: "user", content: message },
+      { role: "user", content: userContent },
     ];
 
     // Tool execution loop (max 2 rounds — more causes reasoning loops)
