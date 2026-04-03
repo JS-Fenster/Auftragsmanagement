@@ -82,6 +82,19 @@ export default function ChatWidget({ embedded = false, onClose }) {
     }
   }, [embedded])
 
+  // Lock body scroll when embedded (mobile fullscreen)
+  useEffect(() => {
+    if (!embedded || !isOpen) return
+    document.body.style.overflow = 'hidden'
+    document.body.style.position = 'fixed'
+    document.body.style.width = '100%'
+    return () => {
+      document.body.style.overflow = ''
+      document.body.style.position = ''
+      document.body.style.width = ''
+    }
+  }, [embedded, isOpen])
+
   // Speech Recognition init
   useEffect(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -317,10 +330,14 @@ export default function ChatWidget({ embedded = false, onClose }) {
   return (
     <div
       className={embedded
-        ? "flex flex-col bg-surface-card overflow-hidden z-50"
+        ? "flex flex-col bg-surface-card overflow-hidden z-50 touch-none"
         : "fixed bottom-6 right-6 z-50 w-[420px] h-[560px] bg-surface-card rounded-xl shadow-2xl border border-border-default flex flex-col overflow-hidden"
       }
       style={embedded ? vpStyle : undefined}
+      onTouchMove={embedded ? (e) => {
+        // Only allow scroll inside the messages area, block everywhere else
+        if (!e.target.closest('[data-messages]')) e.preventDefault()
+      } : undefined}
     >
       {/* Header — fixed height, never scrolls */}
       <div className="flex items-center justify-between px-4 py-3 border-b-3 border-b-brand shrink-0" style={{ backgroundColor: '#9E9E9E' }}>
@@ -349,7 +366,7 @@ export default function ChatWidget({ embedded = false, onClose }) {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+      <div data-messages="true" className="flex-1 overflow-y-auto px-4 py-3 space-y-3 touch-auto overscroll-contain">
         {messages.length <= 1 && (
           <div className="text-center text-text-muted text-sm mt-8">
             <img src={ASSISTANT_AVATAR} alt={ASSISTANT_NAME} className="w-16 h-16 rounded-full mx-auto mb-3" />
