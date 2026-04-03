@@ -293,6 +293,84 @@ async function executeTool(
       if (error) throw new Error("save_feedback failed: " + error.message);
       return { saved: true, ...data };
     }
+    case "create_contact_from_image": {
+      // Create person + kontaktdaten + adresse from extracted image data
+      const { data: person, error: personError } = await supabase
+        .from("personen")
+        .insert({
+          vorname: args.vorname,
+          nachname: args.nachname,
+          anrede: (args.anrede as string) || null,
+          notizen: (args.notiz as string) || "Aus Visitenkarte/Bild erfasst via Jess",
+        })
+        .select("id, vorname, nachname")
+        .single();
+      if (personError) throw new Error("Person erstellen fehlgeschlagen: " + personError.message);
+
+      // Insert kontaktdaten
+      const kontaktdaten = (args.kontaktdaten as Array<{typ: string, wert: string, label?: string}>) || [];
+      if (kontaktdaten.length > 0) {
+        const rows = kontaktdaten.map((k, i) => ({
+          person_id: person.id,
+          typ: k.typ,
+          wert: k.wert,
+          label: k.label || null,
+          ist_primaer: i === 0,
+        }));
+        await supabase.from("person_kontaktdaten").insert(rows);
+      }
+
+      // Insert adresse if provided
+      const adresse = args.adresse as {strasse?: string, plz?: string, ort?: string} | undefined;
+      if (adresse && (adresse.strasse || adresse.plz || adresse.ort)) {
+        await supabase.from("person_adressen").insert({
+          person_id: person.id,
+          typ: "arbeit",
+          strasse: adresse.strasse || null,
+          plz: adresse.plz || null,
+          ort: adresse.ort || null,
+          ist_primaer: true,
+        });
+      }
+
+      // If firma provided, create/link kontakt
+      const firma = args.firma as string | undefined;
+      if (firma) {
+        // Check if kontakt with this firma exists
+        const { data: existing } = await supabase
+          .from("kontakte")
+          .select("id")
+          .ilike("firma1", firma)
+          .limit(1);
+
+        let kontaktId: string;
+        if (existing && existing.length > 0) {
+          kontaktId = existing[0].id;
+        } else {
+          const { data: newKontakt } = await supabase
+            .from("kontakte")
+            .insert({ firma1: firma, anzeigename: firma, kontakt_typ: "firma", ist_kunde: true })
+            .select("id")
+            .single();
+          kontaktId = newKontakt!.id;
+        }
+
+        await supabase.from("kontakt_personen_zuordnung").insert({
+          kontakt_id: kontaktId,
+          person_id: person.id,
+          ist_hauptkontakt: true,
+        });
+      }
+
+      return {
+        created: true,
+        person_id: person.id,
+        name: `${person.vorname} ${person.nachname}`,
+        kontaktdaten_count: kontaktdaten.length,
+        firma: firma || null,
+      };
+    }
+
     // LLM-013: Semantic email search via Voyage AI embeddings
     case "search_emails": {
       const voyageResp = await fetch("https://api.voyageai.com/v1/embeddings", {

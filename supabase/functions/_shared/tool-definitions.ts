@@ -12,6 +12,7 @@ export const ACTION_TOOLS = new Set([
   "update_project_status",
   "update_contact_data",
   "assign_document_to_project",
+  "create_contact_from_image",
 ]);
 
 export const TOOL_DEFINITIONS = [
@@ -578,12 +579,54 @@ export const TOOL_DEFINITIONS = [
       },
     },
   },
+  {
+    type: "function" as const,
+    function: {
+      name: "create_contact_from_image",
+      description:
+        "Erstellt eine neue Person mit Kontaktdaten aus extrahierten Informationen (z.B. Visitenkarte, Screenshot). Nutze dieses Tool wenn der User ein Bild mit Kontaktdaten hochlaedt und die Person anlegen moechte.",
+      parameters: {
+        type: "object",
+        properties: {
+          vorname: { type: "string", description: "Vorname der Person" },
+          nachname: { type: "string", description: "Nachname der Person" },
+          anrede: { type: "string", enum: ["herr", "frau", "divers"], description: "Anrede" },
+          firma: { type: "string", description: "Firmenname (optional)" },
+          kontaktdaten: {
+            type: "array",
+            description: "Kontaktdaten (Telefon, Email, etc.)",
+            items: {
+              type: "object",
+              properties: {
+                typ: { type: "string", enum: ["telefon_fest", "telefon_mobil", "email", "fax", "webseite"], description: "Typ" },
+                wert: { type: "string", description: "Telefonnummer, Email-Adresse, etc." },
+                label: { type: "string", description: "Label (z.B. Buero, Privat, Mobil)" },
+              },
+              required: ["typ", "wert"],
+            },
+          },
+          adresse: {
+            type: "object",
+            description: "Adresse (optional)",
+            properties: {
+              strasse: { type: "string" },
+              plz: { type: "string" },
+              ort: { type: "string" },
+            },
+          },
+          notiz: { type: "string", description: "Quelle/Notiz (z.B. 'Aus Visitenkarte erfasst')" },
+        },
+        required: ["vorname", "nachname"],
+        additionalProperties: false,
+      },
+    },
+  },
 ];
 
 export const SYSTEM_PROMPT = `Du bist Jess, die digitale Assistentin von JS Fenster & Tueren (Fensterbau, Amberg).
 Du hilfst Sachbearbeitern bei Fragen zu Auftraegen, Kunden, Dokumenten und internen Prozessen.
 
-Dir stehen GENAU 15 Tools zur Verfuegung:
+Dir stehen GENAU 16 Tools zur Verfuegung:
 
 Firmenwissen durchsuchen (KB):
 1. search_knowledge: Semantische Suche — fuer konzeptuelle Fragen ("Wie funktioniert X?")
@@ -611,6 +654,7 @@ Reports (ohne Bestaetigung):
 
 Feedback (ohne Bestaetigung):
 15. save_feedback: Speichert Verbesserungsvorschlaege, Bugs, Feature-Wuensche. Nutze es wenn der User ein Problem meldet oder du selbst einen UX-Fehler bemerkst waehrend der Konversation.
+16. create_contact_from_image: Erstellt eine neue Person mit Kontaktdaten (z.B. aus Visitenkarte). Nutze es wenn der User ein Bild mit Kontaktdaten hochlaedt. Extrahiere Vorname, Nachname, Telefon, Email, Adresse aus dem Bild/Text und erstelle die Person. ERFORDERT BESTAETIGUNG.
 
 Du hast KEINE anderen Tools. Erfinde keine Tools die nicht existieren.
 Bei Aktionen: Rufe das Tool SOFORT auf wenn die Anweisung klar ist. Frage NICHT vorher im Text nach Bestaetigung — das Dashboard zeigt automatisch einen Bestaetigungs-Dialog mit allen Details. Der User bestaetigt dort per Klick.
