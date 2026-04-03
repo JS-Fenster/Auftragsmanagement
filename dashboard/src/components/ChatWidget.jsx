@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { MessageCircle, Send, X, Minimize2, Loader2, Trash2, StopCircle, User, FolderKanban, FileText, Mail, Receipt } from 'lucide-react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { MessageCircle, Send, X, Minimize2, Loader2, Trash2, StopCircle, User, FolderKanban, FileText, Mail, Receipt, Mic, MicOff, Image } from 'lucide-react'
+import { createClient } from '@supabase/supabase-js'
 import { supabaseUrl, supabaseAnonKey } from '../lib/supabase'
 import { useChatContext } from '../lib/chatContext'
 import { getEntityRoute } from '../lib/entityRoutes'
@@ -10,6 +11,14 @@ import ReportViewer from './ReportViewer' // LLM-012
 const LLM_CHAT_URL = `${supabaseUrl}/functions/v1/llm-chat`
 const ASSISTANT_NAME = 'Jess'
 const ASSISTANT_AVATAR = '/jess-avatar.png'
+const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
+
+const QUICK_ACTIONS = [
+  { label: 'Heutige Termine', prompt: 'Was sind meine heutigen Termine?' },
+  { label: 'Offene Aufträge', prompt: 'Zeige mir offene Aufträge' },
+  { label: 'Überfällige Rechnungen', prompt: 'Gibt es überfällige Rechnungen?' },
+  { label: 'Neuer Termin', prompt: 'Ich möchte einen neuen Termin anlegen' },
+]
 
 // Deep-link icon map for entity chips
 const DEEP_LINK_ICONS = {
@@ -22,16 +31,21 @@ const DEEP_LINK_ICONS = {
 
 export default function ChatWidget({ embedded = false, onClose }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const [isOpen, setIsOpen] = useState(embedded)
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [pendingAction, setPendingAction] = useState(null) // LLM-011
   const [activeReport, setActiveReport] = useState(null) // LLM-012
+  const [isListening, setIsListening] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
   const { context: chatContext } = useChatContext()
   const abortRef = useRef(null)
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
+  const recognitionRef = useRef(null)
+  const fileInputRef = useRef(null)
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -43,6 +57,71 @@ export default function ChatWidget({ embedded = false, onClose }) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  // Speech Recognition init
+  useEffect(() => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!SR) return
+    const recognition = new SR()
+    recognition.lang = 'de-DE'
+    recognition.continuous = false
+    recognition.interimResults = true
+    recognition.onresult = (event) => {
+      const transcript = Array.from(event.results).map(r => r[0].transcript).join('')
+      setInput(transcript)
+    }
+    recognition.onend = () => setIsListening(false)
+    recognitionRef.current = recognition
+  }, [])
+
+  // Greeting when chat opens with no messages
+  useEffect(() => {
+    if (isOpen && messages.length === 0) {
+      const hour = new Date().getHours()
+      const greeting = hour < 12 ? 'Morgen' : hour < 17 ? 'Tag' : 'Abend'
+      setMessages([{
+        role: 'assistant',
+        content: `Guten ${greeting}! Ich bin Jess, deine Assistentin. Wie kann ich dir helfen?`
+      }])
+    }
+  }, [isOpen])
+
+  const toggleListening = () => {
+    if (!recognitionRef.current) return
+    if (isListening) {
+      recognitionRef.current.stop()
+    } else {
+      recognitionRef.current.start()
+      setIsListening(true)
+    }
+  }
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingImage(true)
+
+    try {
+      const filename = `jess-feedback/${Date.now()}_${file.name}`
+      const { error: uploadError } = await supabaseClient
+        .storage.from('documents').upload(filename, file, { contentType: file.type })
+
+      if (uploadError) { console.error(uploadError); setUploadingImage(false); return }
+
+      const { data: urlData } = supabaseClient.storage.from('documents').getPublicUrl(filename)
+      const imageUrl = urlData?.publicUrl
+
+      const userMsg = { role: 'user', content: `[Bild hochgeladen: ${file.name}]\n${input || 'Bitte analysiere dieses Bild.'}`, imageUrl }
+      setMessages(prev => [...prev, userMsg])
+      setInput('')
+      setUploadingImage(false)
+
+      await sendMessage(userMsg.content, imageUrl)
+    } catch (err) {
+      console.error('Image upload failed:', err)
+      setUploadingImage(false)
+    }
+  }
+
   const cancelRequest = () => {
     if (abortRef.current) {
       abortRef.current.abort()
@@ -50,10 +129,11 @@ export default function ChatWidget({ embedded = false, onClose }) {
     }
   }
 
-  const callLLM = async (text, confirmAction = null) => {
+  const callLLM = async (text, confirmAction = null, imageUrl = null) => {
     const history = messages.map(m => ({ role: m.role, content: m.content }))
-    const body = { message: text, history, context: chatContext }
+    const body = { message: text, history, context: chatContext, page_context: location.pathname }
     if (confirmAction) body.confirm_action = confirmAction
+    if (imageUrl) body.image_url = imageUrl
 
     const controller = new AbortController()
     abortRef.current = controller
@@ -71,18 +151,20 @@ export default function ChatWidget({ embedded = false, onClose }) {
     return await resp.json()
   }
 
-  const sendMessage = async () => {
-    const text = input.trim()
+  const sendMessage = async (overrideText = null, imageUrl = null) => {
+    const text = overrideText || input.trim()
     if (!text || loading) return
 
-    const userMsg = { role: 'user', content: text }
-    setMessages(prev => [...prev, userMsg])
-    setInput('')
-    if (inputRef.current) inputRef.current.style.height = 'auto'
+    if (!overrideText) {
+      const userMsg = { role: 'user', content: text }
+      setMessages(prev => [...prev, userMsg])
+      setInput('')
+      if (inputRef.current) inputRef.current.style.height = 'auto'
+    }
     setLoading(true)
 
     try {
-      const data = await callLLM(text)
+      const data = await callLLM(text, null, imageUrl)
 
       if (data.error) {
         setMessages(prev => [...prev, { role: 'assistant', content: `Fehler: ${data.error}`, isError: true }])
@@ -240,23 +322,14 @@ export default function ChatWidget({ embedded = false, onClose }) {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-        {messages.length === 0 && (
+        {messages.length <= 1 && (
           <div className="text-center text-text-muted text-sm mt-8">
             <img src={ASSISTANT_AVATAR} alt={ASSISTANT_NAME} className="w-16 h-16 rounded-full mx-auto mb-3" />
-            <p className="font-medium text-text-secondary">Hallo! Ich bin {ASSISTANT_NAME}. Wie kann ich helfen?</p>
-            <p className="mt-2 text-xs">Beispiele:</p>
-            <div className="mt-2 space-y-1">
-              {[
-                'Kontaktdaten von Müller',
-                'Offene Projekte mit hoher Priorität',
-                'Rechnungen von letzter Woche',
-              ].map(example => (
-                <button
-                  key={example}
-                  onClick={() => { setInput(example); inputRef.current?.focus() }}
-                  className="block mx-auto text-xs hover:underline text-text-primary"
-                >
-                  &quot;{example}&quot;
+            <div className="flex flex-wrap justify-center gap-2 mt-4 px-4">
+              {QUICK_ACTIONS.map((qa, i) => (
+                <button key={i} onClick={() => { setInput(qa.prompt); sendMessage(qa.prompt) }}
+                  className="px-3 py-1.5 text-xs rounded-full border border-brand/30 text-brand hover:bg-brand/10 transition-colors">
+                  {qa.label}
                 </button>
               ))}
             </div>
@@ -274,6 +347,9 @@ export default function ChatWidget({ embedded = false, onClose }) {
                     : 'bg-surface-hover text-text-primary'
               }`}
             >
+              {msg.imageUrl && (
+                <img src={msg.imageUrl} alt="Hochgeladen" className="max-w-full rounded mb-1 max-h-40 object-contain" />
+              )}
               {msg.role === 'assistant' ? (
                 <FormattedMessage content={msg.content} navigate={navigate} />
               ) : (
@@ -335,7 +411,7 @@ export default function ChatWidget({ embedded = false, onClose }) {
 
       {/* Input */}
       <div className="border-t border-border-default px-3 py-2">
-        <div className="flex items-end gap-2">
+        <div className="flex items-end gap-1.5">
           <textarea
             ref={inputRef}
             value={input}
@@ -352,8 +428,24 @@ export default function ChatWidget({ embedded = false, onClose }) {
             style={{ maxHeight: '160px' }}
             disabled={loading}
           />
+          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
           <button
-            onClick={sendMessage}
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadingImage}
+            className="p-2 rounded-lg text-text-muted hover:text-text-secondary transition-colors disabled:opacity-50"
+            title="Bild hochladen"
+          >
+            <Image size={18} />
+          </button>
+          <button
+            onClick={toggleListening}
+            className={`p-2 rounded-lg transition-colors ${isListening ? 'bg-red-500 text-white animate-pulse' : 'text-text-muted hover:text-text-secondary'}`}
+            title={isListening ? 'Aufnahme stoppen' : 'Spracheingabe'}
+          >
+            {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+          </button>
+          <button
+            onClick={() => sendMessage()}
             disabled={!input.trim() || loading}
             className="p-2 text-btn-primary-text rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors bg-brand hover:bg-brand-hover"
           >
