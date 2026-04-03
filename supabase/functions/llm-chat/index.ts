@@ -498,18 +498,16 @@ Deno.serve(async (req) => {
       ? `${systemWithDate}\n\nAktueller Dashboard-Kontext:\n${contextStr}`
       : systemWithDate;
 
-    // Build user message — with Vision support if image_url provided
-    const userContent = image_url
-      ? [
-          { type: "text", text: message },
-          { type: "image_url", image_url: { url: image_url } },
-        ]
+    // Build user message — image_url is included as text reference
+    // (GPT-5.x with reasoning_effort doesn't support Vision array format)
+    const userText = image_url
+      ? `${message}\n\n[Der User hat ein Bild hochgeladen: ${image_url}]\nBitte speichere dieses Feedback mit dem Bild-Link in jess_feedback. Analysiere den sichtbaren Text im Bildnamen und Kontext.`
       : message;
 
-    const messages: Array<{ role: string; content: unknown; tool_calls?: unknown[]; tool_call_id?: string }> = [
+    const messages: Array<{ role: string; content: string | null; tool_calls?: unknown[]; tool_call_id?: string }> = [
       { role: "system", content: systemContent },
       ...history.slice(-20), // Keep last 20 messages for context
-      { role: "user", content: userContent },
+      { role: "user", content: userText },
     ];
 
     // Tool execution loop (max 2 rounds — more causes reasoning loops)
