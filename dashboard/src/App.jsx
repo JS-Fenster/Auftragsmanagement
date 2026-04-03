@@ -265,9 +265,9 @@ function ProtectedApp() {
           </main>
         </div>
 
-        {/* Mobile: Jess Fullscreen Panel */}
+        {/* Mobile: Jess Fullscreen (ChatWidget positions itself via visualViewport) */}
         {jessOpen && (
-          <div className="fixed inset-0 z-50 bg-surface-card flex flex-col lg:hidden">
+          <div className="lg:hidden">
             <ChatWidget embedded onClose={() => setJessOpen(false)} />
           </div>
         )}

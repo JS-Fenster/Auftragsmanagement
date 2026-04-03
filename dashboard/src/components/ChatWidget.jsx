@@ -57,14 +57,29 @@ export default function ChatWidget({ embedded = false, onClose }) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // Mobile keyboard: adjust height dynamically via visualViewport
-  const [viewportHeight, setViewportHeight] = useState(null)
+  // Mobile keyboard: lock the chat to the visual viewport using top+height
+  // This prevents the keyboard from pushing content up
+  const [vpStyle, setVpStyle] = useState({})
   useEffect(() => {
-    if (!embedded || !window.visualViewport) return
-    const onResize = () => setViewportHeight(window.visualViewport.height)
-    window.visualViewport.addEventListener('resize', onResize)
-    onResize()
-    return () => window.visualViewport.removeEventListener('resize', onResize)
+    if (!embedded) return
+    const vv = window.visualViewport
+    if (!vv) return
+    const update = () => {
+      setVpStyle({
+        position: 'fixed',
+        top: vv.offsetTop + 'px',
+        left: 0,
+        width: '100%',
+        height: vv.height + 'px',
+      })
+    }
+    vv.addEventListener('resize', update)
+    vv.addEventListener('scroll', update)
+    update()
+    return () => {
+      vv.removeEventListener('resize', update)
+      vv.removeEventListener('scroll', update)
+    }
   }, [embedded])
 
   // Speech Recognition init
@@ -302,10 +317,10 @@ export default function ChatWidget({ embedded = false, onClose }) {
   return (
     <div
       className={embedded
-        ? "flex flex-col bg-surface-card overflow-hidden"
+        ? "flex flex-col bg-surface-card overflow-hidden z-50"
         : "fixed bottom-6 right-6 z-50 w-[420px] h-[560px] bg-surface-card rounded-xl shadow-2xl border border-border-default flex flex-col overflow-hidden"
       }
-      style={embedded && viewportHeight ? { height: viewportHeight + 'px' } : embedded ? { height: '100dvh' } : undefined}
+      style={embedded ? vpStyle : undefined}
     >
       {/* Header — fixed height, never scrolls */}
       <div className="flex items-center justify-between px-4 py-3 border-b-3 border-b-brand shrink-0" style={{ backgroundColor: '#9E9E9E' }}>
