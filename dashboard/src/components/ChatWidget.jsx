@@ -57,6 +57,16 @@ export default function ChatWidget({ embedded = false, onClose }) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  // Mobile keyboard: adjust height dynamically via visualViewport
+  const [viewportHeight, setViewportHeight] = useState(null)
+  useEffect(() => {
+    if (!embedded || !window.visualViewport) return
+    const onResize = () => setViewportHeight(window.visualViewport.height)
+    window.visualViewport.addEventListener('resize', onResize)
+    onResize()
+    return () => window.visualViewport.removeEventListener('resize', onResize)
+  }, [embedded])
+
   // Speech Recognition init
   useEffect(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -290,10 +300,13 @@ export default function ChatWidget({ embedded = false, onClose }) {
 
   // Chat Panel
   return (
-    <div className={embedded
-      ? "flex flex-col bg-surface-card h-[100dvh] overflow-hidden"
-      : "fixed bottom-6 right-6 z-50 w-[420px] h-[560px] bg-surface-card rounded-xl shadow-2xl border border-border-default flex flex-col overflow-hidden"
-    }>
+    <div
+      className={embedded
+        ? "flex flex-col bg-surface-card overflow-hidden"
+        : "fixed bottom-6 right-6 z-50 w-[420px] h-[560px] bg-surface-card rounded-xl shadow-2xl border border-border-default flex flex-col overflow-hidden"
+      }
+      style={embedded && viewportHeight ? { height: viewportHeight + 'px' } : embedded ? { height: '100dvh' } : undefined}
+    >
       {/* Header — fixed height, never scrolls */}
       <div className="flex items-center justify-between px-4 py-3 border-b-3 border-b-brand shrink-0" style={{ backgroundColor: '#9E9E9E' }}>
         <div className="flex items-center gap-2.5">
