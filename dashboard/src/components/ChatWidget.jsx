@@ -172,11 +172,12 @@ export default function ChatWidget({ embedded = false, onClose }) {
     }
   }
 
-  const callLLM = async (text, confirmAction = null, imageUrl = null) => {
+  const callLLM = async (text, confirmAction = null, imageUrl = null, storagePath = null) => {
     const history = messages.map(m => ({ role: m.role, content: m.content }))
     const body = { message: text, history, context: chatContext, page_context: location.pathname }
     if (confirmAction) body.confirm_action = confirmAction
     if (imageUrl) body.image_url = imageUrl
+    if (storagePath) body.image_storage_path = storagePath
 
     const controller = new AbortController()
     abortRef.current = controller
@@ -200,6 +201,7 @@ export default function ChatWidget({ embedded = false, onClose }) {
 
     // Use staged image if no explicit imageUrl
     const imgUrl = imageUrl || stagedImage?.url || null
+    const imgPath = stagedImage?.storagePath || null
     const imgName = stagedImage?.filename
 
     if (!overrideText) {
@@ -214,7 +216,7 @@ export default function ChatWidget({ embedded = false, onClose }) {
     const msgToSend = imgUrl ? `${text}\n[Bild: ${imgName || 'Anhang'}]` : text
 
     try {
-      const data = await callLLM(msgToSend, null, imgUrl)
+      const data = await callLLM(msgToSend, null, imgUrl, imgPath)
 
       if (data.error) {
         setMessages(prev => [...prev, { role: 'assistant', content: `Fehler: ${data.error}`, isError: true }])

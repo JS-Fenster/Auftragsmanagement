@@ -457,7 +457,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { message, history = [], context = null, confirm_action = null, image_url = null, page_context = null } = await req.json();
+    const { message, history = [], context = null, confirm_action = null, image_url = null, image_storage_path = null, page_context = null } = await req.json();
 
     if (!message || typeof message !== "string") {
       return jsonResponse({ error: "message is required" }, 400, corsHeaders);
@@ -498,16 +498,43 @@ Deno.serve(async (req) => {
       ? `${systemWithDate}\n\nAktueller Dashboard-Kontext:\n${contextStr}`
       : systemWithDate;
 
-    // Build user message — image_url is included as text reference
-    // (GPT-5.x with reasoning_effort doesn't support Vision array format)
-    const userText = image_url
-      ? `${message}\n\n[Der User hat ein Bild hochgeladen: ${image_url}]\nBitte speichere dieses Feedback mit dem Bild-Link in jess_feedback. Analysiere den sichtbaren Text im Bildnamen und Kontext.`
-      : message;
+    // Build user message — with Vision support if image provided
+    let imageBase64: string | null = null;
+    if (image_storage_path) {
+      try {
+        // Download image from Supabase Storage and convert to base64
+        const { data: imgData, error: imgError } = await supabase.storage
+          .from('documents')
+          .download(image_storage_path);
+        if (!imgError && imgData) {
+          const buffer = await imgData.arrayBuffer();
+          const bytes = new Uint8Array(buffer);
+          let binary = '';
+          for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+          imageBase64 = btoa(binary);
+        }
+      } catch (e) {
+        console.error('Image download failed:', e);
+      }
+    }
 
-    const messages: Array<{ role: string; content: string | null; tool_calls?: unknown[]; tool_call_id?: string }> = [
+    // GPT-5.4 Vision: content as array with text + base64 image
+    const userContent: unknown = imageBase64
+      ? [
+          { type: "text", text: message },
+          { type: "image_url", image_url: { url: `data:image/jpeg;base64,${imageBase64}` } },
+        ]
+      : image_url
+        ? [
+            { type: "text", text: message },
+            { type: "image_url", image_url: { url: image_url } },
+          ]
+        : message;
+
+    const messages: Array<{ role: string; content: unknown; tool_calls?: unknown[]; tool_call_id?: string }> = [
       { role: "system", content: systemContent },
-      ...history.slice(-20), // Keep last 20 messages for context
-      { role: "user", content: userText },
+      ...history.slice(-20),
+      { role: "user", content: userContent },
     ];
 
     // Tool execution loop (max 2 rounds — more causes reasoning loops)
