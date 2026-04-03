@@ -148,8 +148,15 @@ export default function ChatWidget({ embedded = false, onClose }) {
 
       if (uploadError) { console.error(uploadError); setUploadingImage(false); return }
 
-      const { data: urlData } = supabaseClient.storage.from('documents').getPublicUrl(filename)
-      setStagedImage({ url: urlData?.publicUrl, filename: file.name })
+      // Private bucket: use signed URL (valid 1 hour)
+      const { data: signedData, error: signedError } = await supabaseClient.storage.from('documents').createSignedUrl(filename, 3600)
+      if (signedError) {
+        // Fallback to public URL
+        const { data: urlData } = supabaseClient.storage.from('documents').getPublicUrl(filename)
+        setStagedImage({ url: urlData?.publicUrl, filename: file.name, storagePath: filename })
+      } else {
+        setStagedImage({ url: signedData.signedUrl, filename: file.name, storagePath: filename })
+      }
       setUploadingImage(false)
       if (inputRef.current) inputRef.current.focus()
     } catch (err) {
