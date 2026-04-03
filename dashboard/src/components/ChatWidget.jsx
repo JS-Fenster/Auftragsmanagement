@@ -20,9 +20,9 @@ const DEEP_LINK_ICONS = {
   beleg: Receipt,
 }
 
-export default function ChatWidget() {
+export default function ChatWidget({ embedded = false, onClose }) {
   const navigate = useNavigate()
-  const [isOpen, setIsOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(embedded)
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -186,8 +186,8 @@ export default function ChatWidget() {
     setMessages([])
   }
 
-  // Floating Button
-  if (!isOpen) {
+  // Floating Button (only in non-embedded mode)
+  if (!isOpen && !embedded) {
     return (
       <button
         onClick={() => setIsOpen(true)}
@@ -204,9 +204,14 @@ export default function ChatWidget() {
     )
   }
 
+  if (!isOpen) return null
+
   // Chat Panel
   return (
-    <div className="fixed bottom-6 right-6 z-50 w-[420px] h-[560px] bg-surface-card rounded-xl shadow-2xl border border-border-default flex flex-col overflow-hidden">
+    <div className={embedded
+      ? "flex flex-col h-full bg-surface-card"
+      : "fixed bottom-6 right-6 z-50 w-[420px] h-[560px] bg-surface-card rounded-xl shadow-2xl border border-border-default flex flex-col overflow-hidden"
+    }>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b-3 border-b-brand" style={{ backgroundColor: '#9E9E9E' }}>
         <div className="flex items-center gap-2.5">
@@ -222,10 +227,12 @@ export default function ChatWidget() {
               <Trash2 size={14} />
             </button>
           )}
-          <button onClick={() => setIsOpen(false)} className="p-1.5 text-white/70 hover:text-white hover:bg-gray-600 rounded transition-colors" title="Minimieren">
-            <Minimize2 size={14} />
-          </button>
-          <button onClick={() => { setIsOpen(false); setMessages([]) }} className="p-1.5 text-white/70 hover:text-white hover:bg-gray-600 rounded transition-colors" title="Schliessen">
+          {!embedded && (
+            <button onClick={() => setIsOpen(false)} className="p-1.5 text-white/70 hover:text-white hover:bg-gray-600 rounded transition-colors" title="Minimieren">
+              <Minimize2 size={14} />
+            </button>
+          )}
+          <button onClick={() => { if (embedded && onClose) onClose(); else { setIsOpen(false); setMessages([]) } }} className="p-1.5 text-white/70 hover:text-white hover:bg-gray-600 rounded transition-colors" title="Schließen">
             <X size={14} />
           </button>
         </div>

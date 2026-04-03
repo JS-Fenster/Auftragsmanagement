@@ -1,5 +1,5 @@
 import { Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom'
-import { FolderKanban, CalendarDays, ArrowLeft, Home, Search, LayoutDashboard, Moon, Sun, Euro, Package, FileText, Truck, LogOut, Users } from 'lucide-react'
+import { FolderKanban, CalendarDays, ArrowLeft, Home, Search, LayoutDashboard, Moon, Sun, Euro, Package, FileText, Truck, LogOut, Users, Menu, X as XIcon, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useState, useEffect, lazy, Suspense } from 'react'
 import { useIsStandalone } from './hooks/usePopout'
 import { useAuth } from './contexts/AuthContext'
@@ -96,12 +96,23 @@ function useDarkMode() {
   return [dark, () => setDark(prev => !prev)]
 }
 
-function Sidebar() {
+function Sidebar({ mobileOpen, onClose }) {
   const [dark, toggleDark] = useDarkMode()
   const { user, signOut } = useAuth()
+  const location = useLocation()
+
+  // Auto-close mobile sidebar on navigation
+  useEffect(() => { if (onClose) onClose() }, [location.pathname])
 
   return (
-    <nav className="w-56 bg-surface-sidebar border-r border-border-default flex flex-col">
+    <>
+      {/* Mobile backdrop */}
+      {mobileOpen && <div className="fixed inset-0 z-40 bg-black/30 lg:hidden" onClick={onClose} />}
+      <nav className={`
+        bg-surface-sidebar border-r border-border-default flex flex-col
+        fixed inset-y-0 left-0 z-50 w-56 transition-transform duration-200 lg:relative lg:translate-x-0
+        ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
       <div className="px-4 pt-4 pb-3 border-b border-border-default">
         <img src="/js-logo.svg" alt="J.S. Fenster & Türen" className="w-44 dark:brightness-200" />
         <p className="text-xs text-text-muted mt-1.5 pl-0.5">Auftragsmanagement</p>
@@ -166,6 +177,7 @@ function Sidebar() {
         </div>
       </div>
     </nav>
+    </>
   )
 }
 
@@ -227,17 +239,60 @@ function ProtectedApp() {
     )
   }
 
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [jessOpen, setJessOpen] = useState(false)
+
   return (
     <ChatContextProvider>
       <div className="flex h-screen bg-surface-main">
-        <Sidebar />
-        <main className="flex-1 overflow-y-auto h-full">
-          <AppRoutes />
-        </main>
+        <Sidebar mobileOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
+
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Mobile header with hamburger */}
+          <div className="lg:hidden flex items-center gap-3 px-3 py-2 border-b border-border-default bg-surface-sidebar shrink-0">
+            <button onClick={() => setMobileMenuOpen(true)} className="p-1.5 rounded-lg hover:bg-surface-hover text-text-secondary">
+              <Menu size={20} />
+            </button>
+            <img src="/js-logo.svg" alt="JS Fenster" className="h-6 dark:brightness-200" />
+            <div className="flex-1" />
+            <button onClick={() => setJessOpen(!jessOpen)} className="p-1.5 rounded-lg hover:bg-surface-hover text-text-secondary">
+              <img src="/jess-avatar.png" alt="Jess" className="w-6 h-6 rounded-full" onError={e => { e.target.style.display = 'none' }} />
+            </button>
+          </div>
+
+          <main className="flex-1 overflow-y-auto">
+            <AppRoutes />
+          </main>
+        </div>
+
+        {/* Jess Panel Toggle (Desktop: rechter Rand) */}
+        <div className="hidden lg:flex items-center">
+          <button
+            onClick={() => setJessOpen(!jessOpen)}
+            className="w-8 h-16 flex items-center justify-center bg-surface-sidebar border border-border-default rounded-l-lg hover:bg-surface-hover transition-colors -mr-px"
+            title={jessOpen ? 'Jess schließen' : 'Jess öffnen'}
+          >
+            <img src="/jess-avatar.png" alt="" className="w-5 h-5 rounded-full mb-0.5" onError={e => { e.target.style.display = 'none' }} />
+            {jessOpen ? <ChevronRight size={12} className="text-text-muted" /> : <ChevronLeft size={12} className="text-text-muted" />}
+          </button>
+        </div>
+
+        {/* Jess Chat Panel */}
+        {jessOpen && (
+          <div className={`
+            bg-surface-card border-l border-border-default flex flex-col
+            fixed inset-0 z-50 lg:relative lg:inset-auto lg:w-96 lg:h-full
+          `}>
+            <ChatWidget embedded onClose={() => setJessOpen(false)} />
+          </div>
+        )}
+
+        {/* Non-Jess Chat (old floating widget, hidden when panel mode) */}
+        {!jessOpen && <div className="hidden"><ChatWidget /></div>}
+
         <Suspense fallback={null}><TerminDetail /></Suspense>
         <Suspense fallback={null}><TerminForm /></Suspense>
         <CommandPalette />
-        <ChatWidget />
       </div>
     </ChatContextProvider>
   )
