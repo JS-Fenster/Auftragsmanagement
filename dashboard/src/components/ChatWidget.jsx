@@ -133,6 +133,9 @@ export default function ChatWidget({ embedded = false, onClose }) {
     }
   }
 
+  // Staged image: uploaded but not sent yet — user adds text then presses send
+  const [stagedImage, setStagedImage] = useState(null) // { url, filename }
+
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -146,14 +149,9 @@ export default function ChatWidget({ embedded = false, onClose }) {
       if (uploadError) { console.error(uploadError); setUploadingImage(false); return }
 
       const { data: urlData } = supabaseClient.storage.from('documents').getPublicUrl(filename)
-      const imageUrl = urlData?.publicUrl
-
-      const userMsg = { role: 'user', content: `[Bild hochgeladen: ${file.name}]\n${input || 'Bitte analysiere dieses Bild.'}`, imageUrl }
-      setMessages(prev => [...prev, userMsg])
-      setInput('')
+      setStagedImage({ url: urlData?.publicUrl, filename: file.name })
       setUploadingImage(false)
-
-      await sendMessage(userMsg.content, imageUrl)
+      if (inputRef.current) inputRef.current.focus()
     } catch (err) {
       console.error('Image upload failed:', err)
       setUploadingImage(false)
@@ -193,16 +191,23 @@ export default function ChatWidget({ embedded = false, onClose }) {
     const text = overrideText || input.trim()
     if (!text || loading) return
 
+    // Use staged image if no explicit imageUrl
+    const imgUrl = imageUrl || stagedImage?.url || null
+    const imgName = stagedImage?.filename
+
     if (!overrideText) {
-      const userMsg = { role: 'user', content: text }
+      const userMsg = { role: 'user', content: text, imageUrl: imgUrl }
       setMessages(prev => [...prev, userMsg])
       setInput('')
+      setStagedImage(null)
       if (inputRef.current) inputRef.current.style.height = 'auto'
     }
     setLoading(true)
 
+    const msgToSend = imgUrl ? `${text}\n[Bild: ${imgName || 'Anhang'}]` : text
+
     try {
-      const data = await callLLM(text, null, imageUrl)
+      const data = await callLLM(msgToSend, null, imgUrl)
 
       if (data.error) {
         setMessages(prev => [...prev, { role: 'assistant', content: `Fehler: ${data.error}`, isError: true }])
@@ -452,6 +457,20 @@ export default function ChatWidget({ embedded = false, onClose }) {
           onConfirm={handleConfirmAction}
           onCancel={handleCancelAction}
         />
+      )}
+
+      {/* Staged image preview */}
+      {stagedImage && (
+        <div className="px-3 py-2 border-t border-border-default bg-surface-main shrink-0 flex items-center gap-2">
+          <img src={stagedImage.url} alt="" className="w-12 h-12 rounded-lg object-cover border border-border-default" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium text-text-primary truncate">{stagedImage.filename}</p>
+            <p className="text-[10px] text-text-muted">Text eingeben und Senden drücken</p>
+          </div>
+          <button onClick={() => setStagedImage(null)} className="p-1 text-text-muted hover:text-red-500">
+            <X size={14} />
+          </button>
+        </div>
       )}
 
       {/* Input — fixed at bottom, never scrolls */}
