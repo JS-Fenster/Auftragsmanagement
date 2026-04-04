@@ -98,10 +98,10 @@ Abhaengig von:
 1.4 Hauptmonteur-Skill (DB + UI, klein)              ✓ DONE 2026-04-04
 1.2 Abwesenheiten verschieben (bestehende Komponente) ✓ DONE 2026-04-04
 1.3 MA-Tabs aufraeumen                               ✓ DONE 2026-04-04
-2.1 DB-Schema (zeitstempel pruefen + zeit_korrekturen)
-2.2 Tagesuebersicht
-2.3 Stempel-Protokoll
-2.4 Monats-Auswertung
+2.1 DB-Schema (zeitstempel pruefen + zeit_korrekturen)  ✓ DONE 2026-04-04
+2.2 Tagesuebersicht                                     ✓ DONE 2026-04-04
+2.3 Stempel-Protokoll                                   ✓ DONE 2026-04-04
+2.4 Monats-Auswertung                                   ✓ DONE 2026-04-04
 ```
 
 ---
