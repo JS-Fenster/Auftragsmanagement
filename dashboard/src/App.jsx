@@ -1,5 +1,5 @@
 import { Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom'
-import { FolderKanban, CalendarDays, ArrowLeft, Home, Search, LayoutDashboard, Moon, Sun, Euro, Package, FileText, Truck, LogOut, Users, Menu, X as XIcon, ChevronLeft, ChevronRight } from 'lucide-react'
+import { FolderKanban, CalendarDays, ArrowLeft, Home, Search, LayoutDashboard, Moon, Sun, Euro, Package, FileText, Truck, LogOut, Users, Menu, X as XIcon, ChevronLeft, ChevronRight, Clock } from 'lucide-react'
 import { useState, useEffect, lazy, Suspense } from 'react'
 import { useIsStandalone } from './hooks/usePopout'
 import { useAuth } from './contexts/AuthContext'
@@ -33,6 +33,7 @@ const BelegErstellen = lazy(() => import('./pages/BelegErstellen'))
 const Lieferanten = lazy(() => import('./pages/Lieferanten'))
 const Mitarbeiter = lazy(() => import('./pages/Mitarbeiter'))
 const MitarbeiterDetail = lazy(() => import('./pages/MitarbeiterDetail'))
+const Zeiterfassung = lazy(() => import('./pages/Zeiterfassung'))
 
 const NAV_ITEMS = [
   { to: '/', label: 'Cockpit', icon: LayoutDashboard },
@@ -42,6 +43,7 @@ const NAV_ITEMS = [
   { to: '/bestellungen', label: 'Bestellungen', icon: Package },
   { to: '/belege', label: 'Belege', icon: FileText },
   { to: '/lieferanten', label: 'Lieferanten', icon: Truck },
+  { to: '/zeiterfassung', label: 'Zeiterfassung', icon: Clock },
   { to: '/mitarbeiter', label: 'Mitarbeiter', icon: Users },
 ]
 
@@ -62,6 +64,7 @@ const PAGE_TITLES = {
   '/bestellungen': 'Bestellungen',
   '/belege': 'Belege',
   '/lieferanten': 'Lieferanten',
+  '/zeiterfassung': 'Zeiterfassung',
   '/mitarbeiter': 'Mitarbeiter',
 }
 
@@ -211,6 +214,7 @@ function AppRoutes() {
       <Route path="/belege/neu" element={<BelegErstellen />} />
       <Route path="/belege/:id" element={<BelegErstellen />} />
       <Route path="/lieferanten" element={<Lieferanten />} />
+      <Route path="/zeiterfassung" element={<Zeiterfassung />} />
       <Route path="/mitarbeiter" element={<Mitarbeiter />} />
       <Route path="/mitarbeiter/:id" element={<MitarbeiterDetail />} />
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -12,9 +12,9 @@
  */
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, User, FileText, Calendar, Shield, Briefcase, CreditCard, Phone, MapPin, Wrench, X, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, User, FileText, Calendar, Shield, Briefcase, CreditCard, Phone, MapPin, Wrench, X, Plus, Trash2, Clock } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import AbwesenheitenSection from '../components/AbwesenheitenSection'
+import { Link } from 'react-router-dom'
 
 // HARDCODE: Spaeter aus DB/Einstellungen — Backlog AM-149
 const ABTEILUNG_LABELS = {
@@ -47,7 +47,7 @@ const STATUS_STYLES = {
 const TABS = [
   { key: 'stamm', label: 'Stammdaten', icon: User },
   { key: 'vertrag', label: 'Vertrag & Arbeitszeit', icon: Briefcase },
-  { key: 'urlaub', label: 'Urlaub & Abwesenheiten', icon: Calendar },
+  { key: 'skills', label: 'Skills & Qualifikationen', icon: Wrench },
   { key: 'personal', label: 'Persönliches & Finanzen', icon: CreditCard },
 ]
 
@@ -948,9 +948,6 @@ export default function MitarbeiterDetail() {
               <textarea value={personForm.notizen || ''} onChange={e => setPF('notizen', e.target.value)} rows={3}
                 className={inputCls + ' resize-none'} disabled={!editing} placeholder="Freitext-Notizen zum Mitarbeiter..." />
             </div>
-            <div className="border-t border-border-default pt-4">
-              <SkillsSection mitarbeiterId={id} editing={editing} />
-            </div>
           </div>
         )}
 
@@ -966,15 +963,44 @@ export default function MitarbeiterDetail() {
                   options={{ aufrunden: 'Aufrunden', abrunden: 'Abrunden', auf_ab: 'Auf-/Abrunden' }} />
               </div>
             </div>
+            <div className="border-t border-border-default pt-4">
+              <UrlaubSection mitarbeiterId={id} />
+            </div>
+            <div className="border-t border-border-default pt-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-text-primary">Abwesenheiten</h3>
+                <Link to="/zeiterfassung" className="flex items-center gap-1 text-xs text-brand hover:underline">
+                  <Clock className="w-3 h-3" /> In Zeiterfassung anzeigen
+                </Link>
+              </div>
+              <p className="text-xs text-text-muted mt-1">Abwesenheiten werden jetzt zentral unter Zeiterfassung verwaltet.</p>
+            </div>
           </div>
         )}
 
-        {tab === 'urlaub' && (
+        {tab === 'skills' && (
           <div className="space-y-6">
-            <UrlaubSection mitarbeiterId={id} />
-            <div className="border-t border-border-default pt-4">
-              <AbwesenheitenSection mitarbeiterId={id} mitarbeiterName={`${person.vorname} ${person.nachname}`} />
+            {/* Hauptmonteur Toggle */}
+            <div className="flex items-center justify-between p-3 rounded-lg bg-surface-main border border-border-default">
+              <div className="flex items-center gap-2">
+                <Shield className="w-4 h-4 text-text-muted" />
+                <div>
+                  <span className="text-sm font-medium text-text-primary">Hauptmonteur-Befähigung</span>
+                  <p className="text-xs text-text-muted">Darf als Teamleiter auf Baustellen eingesetzt werden</p>
+                </div>
+              </div>
+              <button
+                onClick={() => editing && setMF('hauptmonteur_befaehigt', !maForm.hauptmonteur_befaehigt)}
+                className={`relative w-10 h-5 rounded-full transition-colors ${
+                  maForm.hauptmonteur_befaehigt ? 'bg-brand' : 'bg-gray-300'
+                } ${editing ? 'cursor-pointer' : 'cursor-default opacity-70'}`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                  maForm.hauptmonteur_befaehigt ? 'translate-x-5' : ''
+                }`} />
+              </button>
             </div>
+            <SkillsSection mitarbeiterId={id} editing={editing} />
           </div>
         )}
 
