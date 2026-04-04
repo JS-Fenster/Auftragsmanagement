@@ -1,10 +1,13 @@
 /**
  * ProjektStammdaten — Stammdaten card with dates, values, address, and status transitions
  */
-import { ArrowLeft, ChevronRight, AlertCircle } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { ArrowLeft, ChevronRight, AlertCircle, Building2, Plus, ExternalLink } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { PROJEKT_PHASEN } from '../../components/StatusBadge'
 import { PROJEKT_DOKUMENT_TYPEN } from '../../lib/constants'
 import { formatEuro, formatDate, DATE_FIELDS, VALUE_FIELDS, STATUS_FLOW, SONDER_STATUS } from './projektConstants'
+import { supabase } from '../../lib/supabase'
 
 function Field({ label, value, editing, editValue, onChange, type = 'text' }) {
   return (
@@ -146,6 +149,172 @@ function StatusTransitions({ projekt, blockedGates, onStatusChange }) {
   )
 }
 
+function ObjektSelector({ projekt, kontakt, editing, editData, setEditData }) {
+  const navigate = useNavigate()
+  const [suggestions, setSuggestions] = useState([])
+  const [search, setSearch] = useState('')
+  const [searchResults, setSearchResults] = useState([])
+  const [objektDetail, setObjektDetail] = useState(null)
+  const [showSearch, setShowSearch] = useState(false)
+
+  // Load current objekt detail
+  useEffect(() => {
+    const objId = editData?.objekt_id || projekt?.objekt_id
+    if (!objId) { setObjektDetail(null); return }
+    supabase.from('objekte').select('*').eq('id', objId).single()
+      .then(({ data }) => setObjektDetail(data))
+  }, [editData?.objekt_id, projekt?.objekt_id])
+
+  // Load suggestions when kontakt changes
+  useEffect(() => {
+    if (!kontakt?.id) { setSuggestions([]); return }
+    const loadSuggestions = async () => {
+      // 1. Objekte where this kontakt is eigentuemer
+      const { data: owned } = await supabase.from('objekte').select('*').eq('eigentuemer_kontakt_id', kontakt.id)
+      // 2. Objekte from other projects of this kontakt
+      const { data: fromProjects } = await supabase.from('projekte').select('objekt_id, objekte!projekte_objekt_id_fkey(*)').eq('kontakt_id', kontakt.id).not('objekt_id', 'is', null)
+      // 3. Objekte matching kontakt address
+      let addrMatches = []
+      if (kontakt.plz || kontakt.ort) {
+        const q = supabase.from('objekte').select('*')
+        if (kontakt.plz) q.eq('adresse_plz', kontakt.plz)
+        if (kontakt.ort) q.ilike('adresse_ort', kontakt.ort)
+        const { data } = await q
+        addrMatches = data || []
+      }
+
+      const allObj = [...(owned || []), ...(fromProjects || []).map(p => p.objekte).filter(Boolean), ...addrMatches]
+      const unique = allObj.filter((o, i, arr) => o && arr.findIndex(x => x.id === o.id) === i)
+      setSuggestions(unique)
+    }
+    loadSuggestions()
+  }, [kontakt?.id])
+
+  // Search objekte
+  useEffect(() => {
+    if (!search || search.length < 2) { setSearchResults([]); return }
+    const q = search.toLowerCase()
+    supabase.from('objekte').select('*')
+      .or(`adresse_strasse.ilike.%${q}%,adresse_ort.ilike.%${q}%,adresse_plz.ilike.%${q}%,bezeichnung.ilike.%${q}%`)
+      .limit(10)
+      .then(({ data }) => setSearchResults(data || []))
+  }, [search])
+
+  const selectObjekt = (obj) => {
+    setEditData(d => ({
+      ...d,
+      objekt_id: obj.id,
+      einsatzort_strasse: obj.adresse_strasse || d.einsatzort_strasse,
+      einsatzort_plz: obj.adresse_plz || d.einsatzort_plz,
+      einsatzort_ort: obj.adresse_ort || d.einsatzort_ort,
+    }))
+    setShowSearch(false)
+    setSearch('')
+  }
+
+  const clearObjekt = () => {
+    setEditData(d => ({ ...d, objekt_id: null }))
+  }
+
+  if (!editing) {
+    return (
+      <div>
+        <span className="text-xs font-medium text-text-secondary uppercase tracking-wide flex items-center gap-1">
+          <Building2 className="w-3 h-3" /> Objekt / Einsatzort
+        </span>
+        {objektDetail ? (
+          <div className="mt-1 flex items-center gap-2">
+            <button onClick={() => navigate('/objekte')} className="text-sm text-brand hover:underline font-medium">
+              {objektDetail.adresse_strasse}, {objektDetail.adresse_plz} {objektDetail.adresse_ort}
+            </button>
+            {objektDetail.bezeichnung && <span className="text-xs text-text-muted">({objektDetail.bezeichnung})</span>}
+          </div>
+        ) : (
+          <p className="mt-1 text-sm text-text-primary">
+            {projekt.einsatzort_strasse ? `${projekt.einsatzort_strasse}, ${projekt.einsatzort_plz} ${projekt.einsatzort_ort}` : '-'}
+          </p>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <span className="text-xs font-medium text-text-secondary uppercase tracking-wide flex items-center gap-1 mb-2">
+        <Building2 className="w-3 h-3" /> Objekt / Einsatzort
+      </span>
+
+      {/* Current selection */}
+      {(editData?.objekt_id || objektDetail) && (
+        <div className="flex items-center gap-2 mb-2 p-2 rounded-lg bg-brand/5 border border-brand/20">
+          <Building2 className="w-4 h-4 text-brand" />
+          <span className="text-sm font-medium text-text-primary flex-1">
+            {objektDetail?.adresse_strasse}, {objektDetail?.adresse_plz} {objektDetail?.adresse_ort}
+            {objektDetail?.bezeichnung && <span className="text-xs text-text-muted ml-1">({objektDetail.bezeichnung})</span>}
+          </span>
+          <button onClick={clearObjekt} className="text-xs text-red-500 hover:underline">Entfernen</button>
+        </div>
+      )}
+
+      {/* Suggestions from Kunde */}
+      {!editData?.objekt_id && suggestions.length > 0 && (
+        <div className="mb-2">
+          <p className="text-[10px] text-text-muted mb-1">Bekannte Objekte für diesen Kunden:</p>
+          <div className="flex flex-wrap gap-1">
+            {suggestions.map(obj => (
+              <button key={obj.id} onClick={() => selectObjekt(obj)}
+                className="px-2 py-1 text-xs bg-surface-card border border-border-default rounded-lg hover:bg-brand/5 hover:border-brand/30 transition-colors">
+                {obj.adresse_strasse}, {obj.adresse_plz} {obj.adresse_ort}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Search / Manual */}
+      {!editData?.objekt_id && (
+        <div>
+          <div className="flex gap-2 mb-2">
+            <button onClick={() => setShowSearch(!showSearch)}
+              className="text-xs text-brand hover:underline flex items-center gap-1">
+              <Building2 className="w-3 h-3" /> Objekt suchen
+            </button>
+          </div>
+
+          {showSearch && (
+            <div className="mb-2">
+              <input value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Adresse, PLZ, Ort suchen..."
+                className="w-full px-3 py-1.5 text-sm border border-border-default rounded-lg bg-surface-main outline-none mb-1" />
+              {searchResults.length > 0 && (
+                <div className="border border-border-default rounded-lg overflow-hidden">
+                  {searchResults.map(obj => (
+                    <button key={obj.id} onClick={() => selectObjekt(obj)}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-surface-hover border-b border-border-default last:border-b-0">
+                      <span className="font-medium">{obj.adresse_strasse}</span>
+                      <span className="text-text-muted ml-1">{obj.adresse_plz} {obj.adresse_ort}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Fallback: Manual address */}
+          <div className="grid grid-cols-3 gap-2">
+            <input value={editData.einsatzort_strasse || ''} onChange={e => setEditData(d => ({ ...d, einsatzort_strasse: e.target.value }))}
+              placeholder="Straße" className="px-3 py-1.5 text-sm border border-border-default rounded-lg bg-surface-main outline-none" />
+            <input value={editData.einsatzort_plz || ''} onChange={e => setEditData(d => ({ ...d, einsatzort_plz: e.target.value }))}
+              placeholder="PLZ" className="px-3 py-1.5 text-sm border border-border-default rounded-lg bg-surface-main outline-none" />
+            <input value={editData.einsatzort_ort || ''} onChange={e => setEditData(d => ({ ...d, einsatzort_ort: e.target.value }))}
+              placeholder="Ort" className="px-3 py-1.5 text-sm border border-border-default rounded-lg bg-surface-main outline-none" />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function ProjektStammdaten({ projekt, kontakt, adresse, editing, editData, setEditData, blockedGates, onStatusChange }) {
   return (
     <>
@@ -164,20 +333,7 @@ export default function ProjektStammdaten({ projekt, kontakt, adresse, editing, 
             </div>
           </div>
 
-          {editing ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Field label="Straße" value={adresse.strasse} editing editValue={editData.einsatzort_strasse} onChange={v => setEditData(d => ({ ...d, einsatzort_strasse: v }))} />
-              <Field label="PLZ" value={adresse.plz} editing editValue={editData.einsatzort_plz} onChange={v => setEditData(d => ({ ...d, einsatzort_plz: v }))} />
-              <Field label="Ort" value={adresse.ort} editing editValue={editData.einsatzort_ort} onChange={v => setEditData(d => ({ ...d, einsatzort_ort: v }))} />
-            </div>
-          ) : (
-            <div>
-              <span className="text-xs font-medium text-text-secondary uppercase tracking-wide">Einsatzort</span>
-              <p className="mt-1 text-sm text-text-primary">
-                {adresse.strasse ? `${adresse.strasse}, ${adresse.plz} ${adresse.ort}` : '-'}
-              </p>
-            </div>
-          )}
+          <ObjektSelector projekt={projekt} kontakt={kontakt} editing={editing} editData={editData} setEditData={setEditData} />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Field label="Verantwortlich" value={projekt.verantwortlich} editing={editing} editValue={editData.verantwortlich} onChange={v => setEditData(d => ({ ...d, verantwortlich: v }))} />
