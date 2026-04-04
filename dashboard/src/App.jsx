@@ -1,5 +1,5 @@
 import { Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom'
-import { FolderKanban, CalendarDays, ArrowLeft, Home, Search, LayoutDashboard, Moon, Sun, Euro, Package, FileText, Truck, LogOut, Users, Menu, X as XIcon, ChevronLeft, ChevronRight, Clock } from 'lucide-react'
+import { FolderKanban, CalendarDays, ArrowLeft, Home, Search, LayoutDashboard, Moon, Sun, Euro, Package, FileText, Truck, LogOut, Users, Menu, X as XIcon, ChevronLeft, ChevronRight, Clock, Building2 } from 'lucide-react'
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
 import { supabase } from './lib/supabase'
 import { useIsStandalone } from './hooks/usePopout'
@@ -35,10 +35,12 @@ const Lieferanten = lazy(() => import('./pages/Lieferanten'))
 const Mitarbeiter = lazy(() => import('./pages/Mitarbeiter'))
 const MitarbeiterDetail = lazy(() => import('./pages/MitarbeiterDetail'))
 const Zeiterfassung = lazy(() => import('./pages/Zeiterfassung'))
+const Objekte = lazy(() => import('./pages/Objekte'))
 
 const NAV_ITEMS = [
   { to: '/', label: 'Cockpit', icon: LayoutDashboard },
   { to: '/projekte', label: 'Projekte', icon: FolderKanban },
+  { to: '/objekte', label: 'Objekte', icon: Building2 },
   { to: '/kalender', label: 'Kalender', icon: CalendarDays },
   { to: '/finanzen', label: 'Finanzen', icon: Euro },
   { to: '/bestellungen', label: 'Bestellungen', icon: Package },
@@ -65,6 +67,7 @@ const PAGE_TITLES = {
   '/bestellungen': 'Bestellungen',
   '/belege': 'Belege',
   '/lieferanten': 'Lieferanten',
+  '/objekte': 'Objekte',
   '/zeiterfassung': 'Zeiterfassung',
   '/mitarbeiter': 'Mitarbeiter',
 }
@@ -244,6 +247,7 @@ function AppRoutes() {
       <Route path="/belege/neu" element={<BelegErstellen />} />
       <Route path="/belege/:id" element={<BelegErstellen />} />
       <Route path="/lieferanten" element={<Lieferanten />} />
+      <Route path="/objekte" element={<Objekte />} />
       <Route path="/zeiterfassung" element={<Zeiterfassung />} />
       <Route path="/mitarbeiter" element={<Mitarbeiter />} />
       <Route path="/mitarbeiter/:id" element={<MitarbeiterDetail />} />
