@@ -92,6 +92,9 @@ function TagesuebersichtTab() {
   const [datum, setDatum] = useState(toLocalDateStr(new Date()))
   const [stempel, setStempel] = useState([])
   const [loading, setLoading] = useState(true)
+  const [stamping, setStamping] = useState(null)
+
+  const isToday = datum === toLocalDateStr(new Date())
 
   const loadStempel = useCallback(async () => {
     setLoading(true)
@@ -108,6 +111,25 @@ function TagesuebersichtTab() {
   }, [datum])
 
   useEffect(() => { loadStempel() }, [loadStempel])
+
+  const handleStempel = async (maId, typ) => {
+    setStamping(maId)
+    await supabase.from('zeitstempel').insert({
+      mitarbeiter_id: maId,
+      zeitpunkt: new Date().toISOString(),
+      typ,
+      quelle: 'dashboard',
+    })
+    await loadStempel()
+    setStamping(null)
+  }
+
+  const getNextAction = (status) => {
+    if (status === 'nicht_gestempelt' || status === 'ausgestempelt') return { typ: 'kommen', label: 'Einstempeln', color: '#065F46', bg: '#ECFDF5' }
+    if (status === 'aktiv') return { typ: 'gehen', label: 'Ausstempeln', color: '#991B1B', bg: '#FEE2E2' }
+    if (status === 'pause') return { typ: 'pause_ende', label: 'Pause beenden', color: '#065F46', bg: '#ECFDF5' }
+    return null
+  }
 
   const shiftDate = (days) => {
     const d = new Date(datum + 'T12:00:00')
@@ -177,6 +199,7 @@ function TagesuebersichtTab() {
               <th className="text-left px-4 py-2.5 font-medium">Pause</th>
               <th className="text-right px-4 py-2.5 font-medium">Netto</th>
               <th className="text-left px-4 py-2.5 font-medium">Letzte Aktion</th>
+              {isToday && <th className="text-center px-4 py-2.5 font-medium">Aktion</th>}
             </tr>
           </thead>
           <tbody>
@@ -184,6 +207,7 @@ function TagesuebersichtTab() {
               const st = statusStyles[ma.status]
               const kommen = ma.stempel.find(s => s.typ === 'kommen')
               const gehen = [...ma.stempel].reverse().find(s => s.typ === 'gehen')
+              const nextAction = getNextAction(ma.status)
               return (
                 <tr key={ma.id} className="border-t border-border-default hover:bg-surface-hover/50 transition-colors">
                   <td className="px-4 py-2.5">
@@ -205,6 +229,28 @@ function TagesuebersichtTab() {
                   <td className="px-4 py-2.5 text-xs text-text-muted">
                     {ma.lastAction ? `${TYP_LABELS[ma.lastAction.typ] || ma.lastAction.typ} ${formatTime(ma.lastAction.zeitpunkt)}` : '-'}
                   </td>
+                  {isToday && nextAction && (
+                    <td className="px-4 py-2.5 text-center">
+                      <button
+                        onClick={() => handleStempel(ma.id, nextAction.typ)}
+                        disabled={stamping === ma.id}
+                        className="px-3 py-1 text-xs font-medium rounded-lg border transition-colors disabled:opacity-50"
+                        style={{ color: nextAction.color, backgroundColor: nextAction.bg, borderColor: nextAction.color + '30' }}
+                      >
+                        {stamping === ma.id ? '...' : nextAction.label}
+                      </button>
+                      {ma.status === 'aktiv' && (
+                        <button
+                          onClick={() => handleStempel(ma.id, 'pause_start')}
+                          disabled={stamping === ma.id}
+                          className="ml-1 px-2 py-1 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 disabled:opacity-50"
+                        >
+                          Pause
+                        </button>
+                      )}
+                    </td>
+                  )}
+                  {isToday && !nextAction && <td />}
                 </tr>
               )
             })}
@@ -238,6 +284,25 @@ function StempelProtokollTab() {
   const [formTyp, setFormTyp] = useState('kommen')
   const [formNotiz, setFormNotiz] = useState('')
 
+  // Korrektur state
+  const [korrekturStempel, setKorrekturStempel] = useState(null)
+  const [korrekturZeit, setKorrekturZeit] = useState('')
+  const [korrekturTyp, setKorrekturTyp] = useState('')
+  const [korrekturGrund, setKorrekturGrund] = useState('')
+  const [korrekturSaving, setKorrekturSaving] = useState(false)
+  const [korrekturen, setKorrekturen] = useState([])
+
+  const loadKorrekturen = useCallback(async () => {
+    const { data } = await supabase
+      .from('zeit_korrekturen')
+      .select('*, zeitstempel(zeitpunkt, typ, mitarbeiter(vorname, nachname))')
+      .order('beantragt_am', { ascending: false })
+      .limit(20)
+    setKorrekturen(data || [])
+  }, [])
+
+  useEffect(() => { loadKorrekturen() }, [loadKorrekturen])
+
   const loadStempel = useCallback(async () => {
     setLoading(true)
     let q = supabase
@@ -268,6 +333,55 @@ function StempelProtokollTab() {
     setSaving(false)
     setShowForm(false)
     setFormNotiz('')
+    loadStempel()
+  }
+
+  const openKorrektur = (s) => {
+    setKorrekturStempel(s)
+    setKorrekturZeit(formatTime(s.zeitpunkt))
+    setKorrekturTyp(s.typ)
+    setKorrekturGrund('')
+  }
+
+  const handleKorrektur = async () => {
+    if (!korrekturGrund.trim() || !korrekturStempel) return
+    setKorrekturSaving(true)
+    // Use Andreas as default requester (GF)
+    const { data: gf } = await supabase.from('mitarbeiter').select('id').eq('vorname', 'Andreas').eq('nachname', 'Stolarczyk').single()
+    const requesterId = gf?.id || korrekturStempel.mitarbeiter_id
+
+    await supabase.from('zeit_korrekturen').insert({
+      zeitstempel_id: korrekturStempel.id,
+      beantragt_von: requesterId,
+      grund: korrekturGrund.trim(),
+      alter_zeitpunkt: korrekturStempel.zeitpunkt,
+      neuer_zeitpunkt: `${toLocalDateStr(korrekturStempel.zeitpunkt)}T${korrekturZeit}:00`,
+      alter_typ: korrekturStempel.typ,
+      neuer_typ: korrekturTyp,
+    })
+    setKorrekturSaving(false)
+    setKorrekturStempel(null)
+    loadKorrekturen()
+  }
+
+  const handleKorrekturAction = async (korrekturId, action) => {
+    const { data: gf } = await supabase.from('mitarbeiter').select('id').eq('vorname', 'Andreas').eq('nachname', 'Stolarczyk').single()
+    const updates = { status: action, genehmigt_von: gf?.id, genehmigt_am: new Date().toISOString() }
+    await supabase.from('zeit_korrekturen').update(updates).eq('id', korrekturId)
+
+    if (action === 'genehmigt') {
+      const korrektur = korrekturen.find(k => k.id === korrekturId)
+      if (korrektur) {
+        const updateData = {}
+        if (korrektur.neuer_zeitpunkt) updateData.zeitpunkt = korrektur.neuer_zeitpunkt
+        if (korrektur.neuer_typ) updateData.typ = korrektur.neuer_typ
+        if (Object.keys(updateData).length > 0) {
+          updateData.quelle = 'korrektur'
+          await supabase.from('zeitstempel').update(updateData).eq('id', korrektur.zeitstempel_id)
+        }
+      }
+    }
+    loadKorrekturen()
     loadStempel()
   }
 
@@ -375,6 +489,9 @@ function StempelProtokollTab() {
                             {s.quelle === 'nachgetragen' && <span className="ml-1 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-medium">Nachgetragen</span>}
                           </td>
                           <td className="px-4 py-2 text-xs text-text-muted truncate max-w-[200px]">{s.notiz || ''}</td>
+                          <td className="px-2 py-2">
+                            <button onClick={() => openKorrektur(s)} className="text-[10px] text-text-muted hover:text-brand hover:underline">Korrektur</button>
+                          </td>
                         </tr>
                       )
                     })}
@@ -383,6 +500,103 @@ function StempelProtokollTab() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Korrektur-Formular (inline) */}
+      {korrekturStempel && (
+        <div className="mt-4 p-4 rounded-lg border border-amber-200 bg-amber-50">
+          <h3 className="text-sm font-semibold text-text-primary mb-3">Korrektur beantragen</h3>
+          <p className="text-xs text-text-muted mb-3">
+            Stempel: {korrekturStempel.mitarbeiter?.vorname} {korrekturStempel.mitarbeiter?.nachname} — {TYP_LABELS[korrekturStempel.typ]} um {formatTime(korrekturStempel.zeitpunkt)}
+          </p>
+          <div className="flex items-end gap-3 flex-wrap">
+            <div>
+              <label className="block text-xs text-text-secondary mb-1">Neue Uhrzeit</label>
+              <input type="time" value={korrekturZeit} onChange={e => setKorrekturZeit(e.target.value)} className={inputCls} />
+            </div>
+            <div>
+              <label className="block text-xs text-text-secondary mb-1">Neuer Typ</label>
+              <select value={korrekturTyp} onChange={e => setKorrekturTyp(e.target.value)} className={selectCls}>
+                <option value="kommen">Kommen</option>
+                <option value="gehen">Gehen</option>
+                <option value="pause_start">Pause Start</option>
+                <option value="pause_ende">Pause Ende</option>
+              </select>
+            </div>
+            <div className="flex-1 min-w-[200px]">
+              <label className="block text-xs text-text-secondary mb-1">Grund *</label>
+              <input value={korrekturGrund} onChange={e => setKorrekturGrund(e.target.value)} placeholder="Warum muss korrigiert werden?" className={inputCls + ' w-full'} />
+            </div>
+            <button onClick={handleKorrektur} disabled={korrekturSaving || !korrekturGrund.trim()}
+              className="px-4 py-1.5 text-xs font-medium bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50">
+              {korrekturSaving ? '...' : 'Korrektur beantragen'}
+            </button>
+            <button onClick={() => setKorrekturStempel(null)} className="px-3 py-1.5 text-xs text-text-secondary hover:bg-surface-hover rounded-lg">Abbrechen</button>
+          </div>
+        </div>
+      )}
+
+      {/* Offene Korrekturen */}
+      {korrekturen.length > 0 && (
+        <div className="mt-6">
+          <h3 className="text-sm font-semibold text-text-primary mb-3">Korrekturen</h3>
+          <div className="rounded-lg border border-border-default overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-surface-card text-text-secondary text-xs">
+                  <th className="text-left px-4 py-2 font-medium">Mitarbeiter</th>
+                  <th className="text-left px-4 py-2 font-medium">Original</th>
+                  <th className="text-left px-4 py-2 font-medium">Korrektur</th>
+                  <th className="text-left px-4 py-2 font-medium">Grund</th>
+                  <th className="text-left px-4 py-2 font-medium">Status</th>
+                  <th className="text-center px-4 py-2 font-medium">Aktion</th>
+                </tr>
+              </thead>
+              <tbody>
+                {korrekturen.map(k => {
+                  const statusStyle = k.status === 'beantragt'
+                    ? { bg: '#FEF3C7', text: '#92400E', label: 'Offen' }
+                    : k.status === 'genehmigt'
+                    ? { bg: '#ECFDF5', text: '#065F46', label: 'Genehmigt' }
+                    : { bg: '#FEE2E2', text: '#991B1B', label: 'Abgelehnt' }
+                  return (
+                    <tr key={k.id} className="border-t border-border-default">
+                      <td className="px-4 py-2 text-text-primary">
+                        {k.zeitstempel?.mitarbeiter ? `${k.zeitstempel.mitarbeiter.vorname} ${k.zeitstempel.mitarbeiter.nachname}` : '-'}
+                      </td>
+                      <td className="px-4 py-2 text-text-muted text-xs">
+                        {TYP_LABELS[k.alter_typ] || k.alter_typ} {k.alter_zeitpunkt ? formatTime(k.alter_zeitpunkt) : ''}
+                      </td>
+                      <td className="px-4 py-2 text-text-primary text-xs font-medium">
+                        {TYP_LABELS[k.neuer_typ] || k.neuer_typ} {k.neuer_zeitpunkt ? formatTime(k.neuer_zeitpunkt) : ''}
+                      </td>
+                      <td className="px-4 py-2 text-xs text-text-secondary truncate max-w-[200px]">{k.grund}</td>
+                      <td className="px-4 py-2">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium" style={{ backgroundColor: statusStyle.bg, color: statusStyle.text }}>
+                          {statusStyle.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-center">
+                        {k.status === 'beantragt' && (
+                          <div className="flex gap-1 justify-center">
+                            <button onClick={() => handleKorrekturAction(k.id, 'genehmigt')}
+                              className="px-2 py-0.5 text-[10px] font-medium text-green-700 bg-green-50 border border-green-200 rounded hover:bg-green-100">
+                              Genehmigen
+                            </button>
+                            <button onClick={() => handleKorrekturAction(k.id, 'abgelehnt')}
+                              className="px-2 py-0.5 text-[10px] font-medium text-red-700 bg-red-50 border border-red-200 rounded hover:bg-red-100">
+                              Ablehnen
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
@@ -472,10 +686,13 @@ function MonatsAuswertungTab() {
   const auswertung = useMemo(() => {
     const [year, month] = monat.split('-').map(Number)
     const lastDay = new Date(year, month, 0).getDate()
+    const today = new Date()
+    const isCurrentMonth = today.getFullYear() === year && today.getMonth() + 1 === month
+    const bisTag = isCurrentMonth ? Math.min(today.getDate(), lastDay) : lastDay
 
-    // Count workdays in month
+    // Count workdays — only up to today for current month
     let workdays = 0
-    for (let d = 1; d <= lastDay; d++) {
+    for (let d = 1; d <= bisTag; d++) {
       const dow = new Date(year, month - 1, d).getDay()
       if (dow !== 0 && dow !== 6) workdays++
     }
