@@ -94,10 +94,10 @@ Abhaengig von:
 ## Reihenfolge (empfohlen)
 
 ```
-1.1 Menuepunkt + Route + Seite (Grundgeruest)
-1.4 Hauptmonteur-Skill (DB + UI, klein)
-1.2 Abwesenheiten verschieben (bestehende Komponente)
-1.3 MA-Tabs aufraeumen
+1.1 Menuepunkt + Route + Seite (Grundgeruest)       ✓ DONE 2026-04-04
+1.4 Hauptmonteur-Skill (DB + UI, klein)              ✓ DONE 2026-04-04
+1.2 Abwesenheiten verschieben (bestehende Komponente) ✓ DONE 2026-04-04
+1.3 MA-Tabs aufraeumen                               ✓ DONE 2026-04-04
 2.1 DB-Schema (zeitstempel pruefen + zeit_korrekturen)
 2.2 Tagesuebersicht
 2.3 Stempel-Protokoll
