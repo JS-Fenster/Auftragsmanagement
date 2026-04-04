@@ -441,8 +441,34 @@ export default function Mitarbeiter() {
 
   const loadData = useCallback(async () => {
     setLoading(true)
-    const { data } = await supabase.from('mitarbeiter').select('*, arbeitsvertraege(*)').order('nachname')
-    setMitarbeiter(data || [])
+    // Load from new tables (personen + mitarbeiter_daten) with fallback to old mitarbeiter for fields not yet migrated
+    const [personenRes, maDatenRes, altRes] = await Promise.all([
+      supabase.from('personen').select('*').order('nachname'),
+      supabase.from('mitarbeiter_daten').select('*, arbeitsvertraege:arbeitsvertraege(*)'),
+      supabase.from('mitarbeiter').select('id, vorname, nachname, rolle, status, eintrittsdatum, personalnummer, email, funktion, arbeitsvertraege(*)').order('nachname'),
+    ])
+    const personen = personenRes.data || []
+    const maDaten = maDatenRes.data || []
+
+    // Merge: use personen for name fields, mitarbeiter_daten for employment fields, fallback to old table
+    const merged = (altRes.data || []).map(alt => {
+      const md = maDaten.find(d => d.mitarbeiter_alt_id === alt.id)
+      const p = personen.find(pp => pp.mitarbeiter_alt_id === alt.id)
+      return {
+        ...alt,
+        vorname: p?.vorname || alt.vorname,
+        nachname: p?.nachname || alt.nachname,
+        anrede: p?.anrede || alt.anrede,
+        zeichen: p?.zeichen || alt.zeichen,
+        personalnummer: md?.personalnummer || alt.personalnummer,
+        status: md?.status || alt.status,
+        rolle: alt.rolle,
+        funktion: md?.funktion || alt.funktion,
+        eintrittsdatum: md?.eintrittsdatum || alt.eintrittsdatum,
+        arbeitsvertraege: alt.arbeitsvertraege,
+      }
+    })
+    setMitarbeiter(merged)
     setLoading(false)
   }, [])
 
