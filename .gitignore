@@ -46,3 +46,8 @@ backend/_extras_prices.json
 backend/_parse_calido.py
 backend/_preisliste_fenster.txt
 backend/_preisliste_extras.txt
+
+# Playwright
+playwright-report/
+test-results/
+blob-report/

@@ -45,6 +45,7 @@ Auftragsmanagement/
 ├── supabase/
 │   └── functions/          # Edge Functions (process-document, process-email, etc.)
 ├── sync/                   # ERP-zu-Supabase Sync (Python, SQL Server → Supabase)
+├── e2e/                    # Playwright E2E Tests (Smoke, Navigation, Features)
 ├── tests/                  # Regressionstests (Kategorisierungs-Fixtures, Modellvergleiche)
 ├── tools/                  # Standalone Tools (Scanner-Webhook, Subscription-Management)
 ├── workflows/              # Workflow-Dokumentation + Backtests (Kategorisierung, Reparaturen)
