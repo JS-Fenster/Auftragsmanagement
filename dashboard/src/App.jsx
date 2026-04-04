@@ -1,6 +1,7 @@
 import { Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom'
 import { FolderKanban, CalendarDays, ArrowLeft, Home, Search, LayoutDashboard, Moon, Sun, Euro, Package, FileText, Truck, LogOut, Users, Menu, X as XIcon, ChevronLeft, ChevronRight, Clock } from 'lucide-react'
-import { useState, useEffect, lazy, Suspense } from 'react'
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
+import { supabase } from './lib/supabase'
 import { useIsStandalone } from './hooks/usePopout'
 import { useAuth } from './contexts/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -99,10 +100,32 @@ function useDarkMode() {
   return [dark, () => setDark(prev => !prev)]
 }
 
+function useStempelStatus() {
+  const [status, setStatus] = useState(null) // null | 'aktiv' | 'pause' | 'feierabend'
+  const checkStatus = useCallback(async () => {
+    const today = new Date().toISOString().slice(0, 10)
+    // Find the logged-in user's mitarbeiter record via auth
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { data: ma } = await supabase.from('mitarbeiter').select('id').eq('auth_user_id', user.id).single()
+    if (!ma) return
+    const { data } = await supabase.from('zeitstempel').select('typ')
+      .eq('mitarbeiter_id', ma.id).gte('zeitpunkt', `${today}T00:00:00`).order('zeitpunkt', { ascending: false }).limit(1)
+    if (!data?.length) { setStatus(null); return }
+    const lastTyp = data[0].typ
+    if (lastTyp === 'kommen' || lastTyp === 'pause_ende' || lastTyp === 'rauchen_ende') setStatus('aktiv')
+    else if (lastTyp === 'pause_start' || lastTyp === 'rauchen_start') setStatus('pause')
+    else if (lastTyp === 'gehen') setStatus('feierabend')
+  }, [])
+  useEffect(() => { checkStatus(); const iv = setInterval(checkStatus, 60000); return () => clearInterval(iv) }, [checkStatus])
+  return status
+}
+
 function Sidebar({ mobileOpen, onClose }) {
   const [dark, toggleDark] = useDarkMode()
   const { user, signOut } = useAuth()
   const location = useLocation()
+  const stempelStatus = useStempelStatus()
 
   // Auto-close mobile sidebar on navigation
   useEffect(() => { if (onClose) onClose() }, [location.pathname])
@@ -153,8 +176,15 @@ function Sidebar({ mobileOpen, onClose }) {
       <div className="px-4 py-3 border-t border-border-default">
         {user && (
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-6 h-6 rounded-full bg-[#C4C7C7] dark:bg-[#9E9E9E] text-[#333] dark:text-[#1a1a1a] flex items-center justify-center text-xs font-semibold">
-              {user.email?.[0]?.toUpperCase() || '?'}
+            <div className="relative">
+              <div className="w-6 h-6 rounded-full bg-[#C4C7C7] dark:bg-[#9E9E9E] text-[#333] dark:text-[#1a1a1a] flex items-center justify-center text-xs font-semibold">
+                {user.email?.[0]?.toUpperCase() || '?'}
+              </div>
+              {stempelStatus && (
+                <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-surface-sidebar ${
+                  stempelStatus === 'aktiv' ? 'bg-green-500' : stempelStatus === 'pause' ? 'bg-amber-400' : 'bg-red-400'
+                }`} title={stempelStatus === 'aktiv' ? 'Eingestempelt' : stempelStatus === 'pause' ? 'Pause' : 'Ausgestempelt'} />
+              )}
             </div>
             <span className="text-xs text-text-secondary truncate flex-1">{user.email}</span>
           </div>

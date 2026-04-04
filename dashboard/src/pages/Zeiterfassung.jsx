@@ -4,7 +4,7 @@
  * Tabs: Tagesuebersicht, Stempel-Protokoll, Abwesenheiten, Monats-Auswertung
  * Datenquelle: zeitstempel, mitarbeiter, arbeitsvertraege, abwesenheiten
  */
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, Fragment } from 'react'
 import { Clock, List, CalendarOff, BarChart3, ExternalLink, Plus, ChevronLeft, ChevronRight, Coffee, LogIn, LogOut, Pause, Play } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -71,14 +71,31 @@ function fmtH(h) { return h > 0 ? `${Math.floor(h)}:${String(Math.round((h % 1) 
 const selectCls = "px-3 py-1.5 text-sm border border-border-default rounded-lg bg-surface-main text-text-primary outline-none"
 const inputCls = "px-3 py-1.5 text-sm border border-border-default rounded-lg bg-surface-main text-text-primary outline-none"
 
-// ─── Shared MA hook ───
+// ─── Shared MA hook (reads from personen + mitarbeiter_daten, fallback to mitarbeiter) ───
 function useMitarbeiter() {
   const [mitarbeiter, setMitarbeiter] = useState([])
   const [loading, setLoading] = useState(true)
   useEffect(() => {
-    supabase.from('mitarbeiter').select('id, vorname, nachname, status, rolle')
-      .eq('status', 'aktiv').order('nachname')
-      .then(({ data }) => { setMitarbeiter(data || []); setLoading(false) })
+    Promise.all([
+      supabase.from('mitarbeiter').select('id, vorname, nachname, status, rolle').eq('status', 'aktiv').order('nachname'),
+      supabase.from('personen').select('mitarbeiter_alt_id, vorname, nachname'),
+      supabase.from('mitarbeiter_daten').select('mitarbeiter_alt_id, personalnummer, status, funktion'),
+    ]).then(([altRes, pRes, mdRes]) => {
+      const personen = pRes.data || []
+      const maDaten = mdRes.data || []
+      const merged = (altRes.data || []).map(alt => {
+        const p = personen.find(pp => pp.mitarbeiter_alt_id === alt.id)
+        const md = maDaten.find(d => d.mitarbeiter_alt_id === alt.id)
+        return {
+          ...alt,
+          vorname: p?.vorname || alt.vorname,
+          nachname: p?.nachname || alt.nachname,
+          status: md?.status || alt.status,
+        }
+      })
+      setMitarbeiter(merged)
+      setLoading(false)
+    })
   }, [])
   return { mitarbeiter, loading }
 }
@@ -604,36 +621,162 @@ function StempelProtokollTab() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// Abwesenheiten Tab (unchanged)
+// Abwesenheiten Tab — Matrix aller MA + Einzelverwaltung
 // ═══════════════════════════════════════════════════════════════════
+const ABW_COLORS = {
+  urlaub: { bg: '#DBEAFE', text: '#1E40AF', short: 'U' },
+  krank: { bg: '#FEE2E2', text: '#991B1B', short: 'K' },
+  krank_kind: { bg: '#FCE7F3', text: '#9D174D', short: 'KK' },
+  elternzeit: { bg: '#EDE9FE', text: '#5B21B6', short: 'EZ' },
+  mutterschutz: { bg: '#FCE7F3', text: '#9D174D', short: 'MS' },
+  sonderurlaub: { bg: '#FEF3C7', text: '#92400E', short: 'SU' },
+  fortbildung: { bg: '#ECFDF5', text: '#065F46', short: 'FB' },
+  unbezahlt: { bg: '#F3F4F6', text: '#374151', short: 'UB' },
+}
+
 function AbwesenheitenTab() {
   const navigate = useNavigate()
-  const { mitarbeiter, loading } = useMitarbeiter()
+  const { mitarbeiter, loading: maLoading } = useMitarbeiter()
+  const [monat, setMonat] = useState(() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  })
+  const [abwesenheiten, setAbwesenheiten] = useState([])
+  const [arten, setArten] = useState([])
+  const [loading, setLoading] = useState(true)
   const [selectedMa, setSelectedMa] = useState('')
 
-  useEffect(() => {
-    if (mitarbeiter.length > 0 && !selectedMa) setSelectedMa(mitarbeiter[0].id)
-  }, [mitarbeiter, selectedMa])
+  const loadData = useCallback(async () => {
+    setLoading(true)
+    const [year, month] = monat.split('-').map(Number)
+    const lastDay = new Date(year, month, 0).getDate()
+    const [abwRes, artenRes] = await Promise.all([
+      supabase.from('abwesenheiten').select('*, abwesenheitsarten(name, kuerzel, farbe)')
+        .neq('status', 'storniert').neq('status', 'abgelehnt')
+        .lte('datum', `${monat}-${lastDay}`)
+        .or(`datum_bis.gte.${monat}-01,datum_bis.is.null`),
+      supabase.from('abwesenheitsarten').select('*').eq('aktiv', true).order('sort_order'),
+    ])
+    setAbwesenheiten(abwRes.data || [])
+    setArten(artenRes.data || [])
+    setLoading(false)
+  }, [monat])
 
-  if (loading) return <div className="text-sm text-text-muted py-8 text-center">Laden...</div>
-  const selected = mitarbeiter.find(m => m.id === selectedMa)
+  useEffect(() => { loadData() }, [loadData])
+
+  const shiftMonth = (dir) => {
+    const [y, m] = monat.split('-').map(Number)
+    const d = new Date(y, m - 1 + dir, 1)
+    setMonat(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
+  }
+
+  const [year, month] = monat.split('-').map(Number)
+  const lastDay = new Date(year, month, 0).getDate()
+  const days = Array.from({ length: lastDay }, (_, i) => i + 1)
+  const monatLabel = new Date(year, month - 1, 15).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })
+
+  const getAbwForDay = (maId, day) => {
+    const dateStr = `${monat}-${String(day).padStart(2, '0')}`
+    return abwesenheiten.find(a =>
+      a.mitarbeiter_id === maId &&
+      a.datum <= dateStr &&
+      (a.datum_bis ? a.datum_bis >= dateStr : a.datum >= dateStr)
+    )
+  }
+
+  if (maLoading) return <div className="text-sm text-text-muted py-8 text-center">Laden...</div>
 
   return (
     <div>
-      <div className="flex items-center gap-4 mb-6">
-        <label className="text-sm font-medium text-text-secondary">Mitarbeiter:</label>
-        <select value={selectedMa} onChange={e => setSelectedMa(e.target.value)} className={selectCls + ' min-w-[200px]'}>
-          {mitarbeiter.map(m => <option key={m.id} value={m.id}>{m.vorname} {m.nachname}</option>)}
-        </select>
-        {selected && (
-          <button onClick={() => navigate(`/mitarbeiter/${selectedMa}`)} className="flex items-center gap-1 text-xs text-brand hover:underline">
-            <ExternalLink size={12} /> Stammdaten
-          </button>
-        )}
+      {/* Month navigation */}
+      <div className="flex items-center gap-3 mb-4">
+        <button onClick={() => shiftMonth(-1)} className="p-1.5 rounded-lg hover:bg-surface-hover text-text-secondary"><ChevronLeft size={18} /></button>
+        <input type="month" value={monat} onChange={e => setMonat(e.target.value)} className={inputCls} />
+        <button onClick={() => shiftMonth(1)} className="p-1.5 rounded-lg hover:bg-surface-hover text-text-secondary"><ChevronRight size={18} /></button>
+        <span className="text-sm font-medium text-text-primary ml-2">{monatLabel}</span>
       </div>
+
+      {/* Legend */}
+      <div className="flex gap-2 mb-4 flex-wrap">
+        {Object.entries(ABW_COLORS).map(([key, style]) => (
+          <span key={key} className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium" style={{ backgroundColor: style.bg, color: style.text }}>
+            {style.short} = {key.charAt(0).toUpperCase() + key.slice(1).replace('_', ' ')}
+          </span>
+        ))}
+      </div>
+
+      {/* Matrix */}
+      {loading ? <div className="text-sm text-text-muted py-8 text-center">Laden...</div> : (
+        <div className="rounded-lg border border-border-default overflow-x-auto">
+          <table className="text-xs">
+            <thead>
+              <tr className="bg-surface-card text-text-secondary">
+                <th className="text-left px-3 py-2 font-medium sticky left-0 bg-surface-card z-10 min-w-[140px]">Mitarbeiter</th>
+                {days.map(d => {
+                  const dow = new Date(year, month - 1, d).getDay()
+                  const isWeekend = dow === 0 || dow === 6
+                  return (
+                    <th key={d} className={`px-1 py-2 text-center font-medium w-7 ${isWeekend ? 'bg-gray-100 text-text-muted' : ''}`}>
+                      {d}
+                    </th>
+                  )
+                })}
+                <th className="px-3 py-2 text-right font-medium">Tage</th>
+              </tr>
+            </thead>
+            <tbody>
+              {mitarbeiter.map(ma => {
+                let totalDays = 0
+                return (
+                  <tr key={ma.id} className="border-t border-border-default hover:bg-surface-hover/30">
+                    <td className="px-3 py-1.5 font-medium text-text-primary sticky left-0 bg-white z-10">
+                      <button onClick={() => setSelectedMa(selectedMa === ma.id ? '' : ma.id)} className="hover:text-brand">
+                        {ma.vorname} {ma.nachname}
+                      </button>
+                    </td>
+                    {days.map(d => {
+                      const dow = new Date(year, month - 1, d).getDay()
+                      const isWeekend = dow === 0 || dow === 6
+                      const abw = getAbwForDay(ma.id, d)
+                      if (abw && !isWeekend) totalDays++
+                      const kuerzel = abw?.abwesenheitsarten?.kuerzel?.toLowerCase() || ''
+                      const style = ABW_COLORS[kuerzel] || (abw ? { bg: '#E5E7EB', text: '#374151', short: '?' } : null)
+                      return (
+                        <td key={d} className={`px-0 py-1 text-center ${isWeekend ? 'bg-gray-50' : ''}`}>
+                          {style ? (
+                            <span className="inline-block w-5 h-5 leading-5 rounded text-[9px] font-bold" style={{ backgroundColor: style.bg, color: style.text }}>
+                              {style.short}
+                            </span>
+                          ) : null}
+                        </td>
+                      )
+                    })}
+                    <td className="px-3 py-1.5 text-right text-text-secondary font-medium">{totalDays || '-'}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Einzelverwaltung (aufklappbar pro MA) */}
       {selectedMa && (
-        <AbwesenheitenSection key={selectedMa} mitarbeiterId={selectedMa}
-          mitarbeiterName={selected ? `${selected.vorname} ${selected.nachname}` : ''} />
+        <div className="mt-6 p-4 rounded-lg border border-border-default bg-surface-card">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-text-primary">
+              {mitarbeiter.find(m => m.id === selectedMa)?.vorname} {mitarbeiter.find(m => m.id === selectedMa)?.nachname} — Abwesenheiten verwalten
+            </h3>
+            <div className="flex gap-2">
+              <button onClick={() => navigate(`/mitarbeiter/${selectedMa}`)} className="flex items-center gap-1 text-xs text-brand hover:underline">
+                <ExternalLink size={12} /> Stammdaten
+              </button>
+              <button onClick={() => setSelectedMa('')} className="text-xs text-text-muted hover:text-text-secondary">Schließen</button>
+            </div>
+          </div>
+          <AbwesenheitenSection key={selectedMa} mitarbeiterId={selectedMa}
+            mitarbeiterName={`${mitarbeiter.find(m => m.id === selectedMa)?.vorname || ''} ${mitarbeiter.find(m => m.id === selectedMa)?.nachname || ''}`} />
+        </div>
       )}
     </div>
   )
@@ -645,6 +788,7 @@ function AbwesenheitenTab() {
 function MonatsAuswertungTab() {
   const navigate = useNavigate()
   const { mitarbeiter } = useMitarbeiter()
+  const [expandedMa, setExpandedMa] = useState(null)
   const [monat, setMonat] = useState(() => {
     const d = new Date()
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
@@ -738,7 +882,16 @@ function MonatsAuswertungTab() {
       const sollBereinigt = (workdays - abwTage) * sollStundenTag
       const diff = istStunden - sollBereinigt
 
-      return { ...ma, sollStundenMonat, sollBereinigt, istStunden, diff, tageGearbeitet, abwTage, sollStundenTag }
+      // Prepare daily breakdown for detail view
+      const dailyDetail = Object.entries(byDay).map(([day, dayStempel]) => {
+        dayStempel.sort((a, b) => new Date(a.zeitpunkt) - new Date(b.zeitpunkt))
+        const h = calcHours(dayStempel)
+        const kommen = dayStempel.find(s => s.typ === 'kommen')
+        const gehen = [...dayStempel].reverse().find(s => s.typ === 'gehen')
+        return { day, kommen: kommen?.zeitpunkt, gehen: gehen?.zeitpunkt, pause: h.pause, netto: h.netto, brutto: h.brutto }
+      }).sort((a, b) => a.day.localeCompare(b.day))
+
+      return { ...ma, sollStundenMonat, sollBereinigt, istStunden, diff, tageGearbeitet, abwTage, sollStundenTag, dailyDetail }
     })
   }, [mitarbeiter, stempel, vertraege, abwesenheiten, monat])
 
@@ -772,22 +925,45 @@ function MonatsAuswertungTab() {
             </thead>
             <tbody>
               {auswertung.map(ma => (
-                <tr key={ma.id} className="border-t border-border-default hover:bg-surface-hover/50">
-                  <td className="px-4 py-2.5">
-                    <button onClick={() => navigate(`/mitarbeiter/${ma.id}`)} className="font-medium text-text-primary hover:text-brand">
-                      {ma.vorname} {ma.nachname}
-                    </button>
-                  </td>
-                  <td className="px-4 py-2.5 text-right text-text-secondary">{fmtH(ma.sollBereinigt)}</td>
-                  <td className="px-4 py-2.5 text-right font-medium text-text-primary">{fmtH(ma.istStunden)}</td>
-                  <td className={`px-4 py-2.5 text-right font-bold ${ma.diff >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {ma.diff >= 0 ? '+' : ''}{fmtH(Math.abs(ma.diff))}
-                    {ma.diff < 0 && <span className="text-red-600">-</span>}
-                  </td>
-                  <td className="px-4 py-2.5 text-right text-text-secondary">{ma.tageGearbeitet}</td>
-                  <td className="px-4 py-2.5 text-right text-text-secondary">{ma.abwTage > 0 ? `${ma.abwTage} Tage` : '-'}</td>
-                  <td className="px-4 py-2.5 text-right text-text-muted">{fmtH(ma.sollStundenTag)}</td>
-                </tr>
+                <Fragment key={ma.id}>
+                  <tr className="border-t border-border-default hover:bg-surface-hover/50 cursor-pointer"
+                    onClick={() => setExpandedMa(expandedMa === ma.id ? null : ma.id)}>
+                    <td className="px-4 py-2.5">
+                      <span className="font-medium text-text-primary">
+                        <span className={`inline-block w-4 text-xs text-text-muted transition-transform ${expandedMa === ma.id ? 'rotate-90' : ''}`}>▸</span>
+                        {ma.vorname} {ma.nachname}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 text-right text-text-secondary">{fmtH(ma.sollBereinigt)}</td>
+                    <td className="px-4 py-2.5 text-right font-medium text-text-primary">{fmtH(ma.istStunden)}</td>
+                    <td className={`px-4 py-2.5 text-right font-bold ${ma.diff >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {ma.diff >= 0 ? '+' : '-'}{fmtH(Math.abs(ma.diff))}
+                    </td>
+                    <td className="px-4 py-2.5 text-right text-text-secondary">{ma.tageGearbeitet}</td>
+                    <td className="px-4 py-2.5 text-right text-text-secondary">{ma.abwTage > 0 ? `${ma.abwTage} Tage` : '-'}</td>
+                    <td className="px-4 py-2.5 text-right text-text-muted">{fmtH(ma.sollStundenTag)}</td>
+                  </tr>
+                  {expandedMa === ma.id && ma.dailyDetail.length > 0 && (
+                    ma.dailyDetail.map(day => (
+                      <tr key={day.day} className="bg-surface-main/50 text-xs">
+                        <td className="pl-10 pr-4 py-1.5 text-text-muted">{formatDate(day.day + 'T12:00:00')}</td>
+                        <td className="px-4 py-1.5 text-right text-text-muted">{fmtH(ma.sollStundenTag)}</td>
+                        <td className="px-4 py-1.5 text-right text-text-primary font-medium">{fmtH(day.netto)}</td>
+                        <td className={`px-4 py-1.5 text-right ${day.netto - ma.sollStundenTag >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {day.netto - ma.sollStundenTag >= 0 ? '+' : '-'}{fmtH(Math.abs(day.netto - ma.sollStundenTag))}
+                        </td>
+                        <td className="px-4 py-1.5 text-right text-text-muted">{formatTime(day.kommen)} – {formatTime(day.gehen)}</td>
+                        <td className="px-4 py-1.5 text-right text-text-muted">{fmtH(day.pause)} Pause</td>
+                        <td />
+                      </tr>
+                    ))
+                  )}
+                  {expandedMa === ma.id && ma.dailyDetail.length === 0 && (
+                    <tr className="bg-surface-main/50 text-xs">
+                      <td colSpan={7} className="pl-10 pr-4 py-2 text-text-muted">Keine Stempel in diesem Monat</td>
+                    </tr>
+                  )}
+                </Fragment>
               ))}
             </tbody>
           </table>
