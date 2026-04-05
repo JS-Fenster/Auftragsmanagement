@@ -125,6 +125,19 @@ function groupByRolle(mitarbeiter) {
 // ═══════════════════════════════════════════════════════════════════
 // Tagesuebersicht
 // ═══════════════════════════════════════════════════════════════════
+function LiveClock() {
+  const [time, setTime] = useState(new Date())
+  useEffect(() => { const iv = setInterval(() => setTime(new Date()), 1000); return () => clearInterval(iv) }, [])
+  return (
+    <div className="text-right">
+      <div className="text-3xl font-bold font-mono text-text-primary tracking-tight">
+        {time.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+      </div>
+      <div className="text-xs text-text-muted">{time.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}</div>
+    </div>
+  )
+}
+
 function TagesuebersichtTab() {
   const navigate = useNavigate()
   const { mitarbeiter, loading: maLoading } = useMitarbeiter()
@@ -132,6 +145,7 @@ function TagesuebersichtTab() {
   const [stempel, setStempel] = useState([])
   const [loading, setLoading] = useState(true)
   const [stamping, setStamping] = useState(null)
+  const [viewMode, setViewMode] = useState('cards') // 'cards' | 'table'
   const isToday = datum === toLocalDateStr(new Date())
 
   const loadStempel = useCallback(async () => {
@@ -152,9 +166,9 @@ function TagesuebersichtTab() {
   }
 
   const getNextAction = (status) => {
-    if (status === 'nicht_gestempelt' || status === 'ausgestempelt') return { typ: 'kommen', label: 'Einstempeln', color: '#065F46', bg: '#ECFDF5' }
-    if (status === 'aktiv') return { typ: 'gehen', label: 'Ausstempeln', color: '#991B1B', bg: '#FEE2E2' }
-    if (status === 'pause') return { typ: 'pause_ende', label: 'Pause beenden', color: '#065F46', bg: '#ECFDF5' }
+    if (status === 'nicht_gestempelt' || status === 'ausgestempelt') return { typ: 'kommen', label: 'Einstempeln', color: '#065F46', bg: '#ECFDF5', border: '#10B981' }
+    if (status === 'aktiv') return { typ: 'gehen', label: 'Ausstempeln', color: '#991B1B', bg: '#FEE2E2', border: '#EF4444' }
+    if (status === 'pause') return { typ: 'pause_ende', label: 'Weiter', color: '#065F46', bg: '#ECFDF5', border: '#10B981' }
     return null
   }
 
@@ -176,10 +190,10 @@ function TagesuebersichtTab() {
   }, [mitarbeiter, stempel])
 
   const statusStyles = {
-    aktiv: { bg: '#ECFDF5', text: '#065F46', label: 'Aktiv', dot: '#10B981' },
-    pause: { bg: '#FEF3C7', text: '#92400E', label: 'Pause', dot: '#F59E0B' },
-    ausgestempelt: { bg: '#FEE2E2', text: '#991B1B', label: 'Feierabend', dot: '#EF4444' },
-    nicht_gestempelt: { bg: '#F3F4F6', text: '#6B7280', label: 'Nicht gestempelt', dot: '#9CA3AF' },
+    aktiv: { bg: '#ECFDF5', text: '#065F46', label: 'Aktiv', dot: '#10B981', border: '#10B981', avatarBg: '#D1FAE5' },
+    pause: { bg: '#FEF3C7', text: '#92400E', label: 'Pause', dot: '#F59E0B', border: '#F59E0B', avatarBg: '#FEF3C7' },
+    ausgestempelt: { bg: '#FEE2E2', text: '#991B1B', label: 'Feierabend', dot: '#EF4444', border: '#EF4444', avatarBg: '#FECACA' },
+    nicht_gestempelt: { bg: '#F9FAFB', text: '#6B7280', label: 'Nicht gestempelt', dot: '#9CA3AF', border: '#E5E7EB', avatarBg: '#F3F4F6' },
   }
 
   if (maLoading) return <div className="text-sm text-text-muted py-8 text-center">Laden...</div>
@@ -190,84 +204,159 @@ function TagesuebersichtTab() {
 
   return (
     <div>
-      <div className="flex items-center gap-3 mb-4">
-        <button onClick={() => shiftDate(-1)} className="p-1.5 rounded-lg hover:bg-surface-hover text-text-secondary"><ChevronLeft size={18} /></button>
-        <input type="date" value={datum} onChange={e => setDatum(e.target.value)} className={inputCls} />
-        <button onClick={() => shiftDate(1)} className="p-1.5 rounded-lg hover:bg-surface-hover text-text-secondary"><ChevronRight size={18} /></button>
-        <button onClick={() => setDatum(toLocalDateStr(new Date()))} className="text-xs text-brand hover:underline ml-2">Heute</button>
-        <span className="text-sm text-text-muted ml-auto">{formatDate(datum + 'T12:00:00')}</span>
+      {/* Header: Date nav + Live clock */}
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-3">
+          <button onClick={() => shiftDate(-1)} className="p-1.5 rounded-lg hover:bg-surface-hover text-text-secondary"><ChevronLeft size={18} /></button>
+          <input type="date" value={datum} onChange={e => setDatum(e.target.value)} className={inputCls} />
+          <button onClick={() => shiftDate(1)} className="p-1.5 rounded-lg hover:bg-surface-hover text-text-secondary"><ChevronRight size={18} /></button>
+          <button onClick={() => setDatum(toLocalDateStr(new Date()))} className="text-xs text-brand hover:underline ml-2">Heute</button>
+        </div>
+        {isToday && <LiveClock />}
+        {!isToday && <span className="text-sm text-text-muted">{formatDate(datum + 'T12:00:00')}</span>}
       </div>
 
-      <div className="flex gap-3 mb-5">
-        {Object.entries(statusStyles).map(([key, style]) => (
-          <div key={key} className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium" style={{ backgroundColor: style.bg, color: style.text }}>
-            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: style.dot }} /> {style.label}: {counts[key]}
-          </div>
-        ))}
+      {/* KPI chips + view toggle */}
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex gap-3">
+          {Object.entries(statusStyles).map(([key, style]) => (
+            <div key={key} className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium" style={{ backgroundColor: style.bg, color: style.text }}>
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: style.dot }} /> {style.label}: {counts[key]}
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-1 bg-surface-card border border-border-default rounded-lg p-0.5">
+          <button onClick={() => setViewMode('cards')} className={`px-3 py-1 text-xs font-medium rounded ${viewMode === 'cards' ? 'bg-brand text-white' : 'text-text-secondary hover:bg-surface-hover'}`}>Karten</button>
+          <button onClick={() => setViewMode('table')} className={`px-3 py-1 text-xs font-medium rounded ${viewMode === 'table' ? 'bg-brand text-white' : 'text-text-secondary hover:bg-surface-hover'}`}>Tabelle</button>
+        </div>
       </div>
 
-      <div className="rounded-lg border border-border-default overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-surface-card text-text-secondary text-xs">
-              <th className="text-left px-4 py-2.5 font-medium">Mitarbeiter</th>
-              <th className="text-left px-4 py-2.5 font-medium">Status</th>
-              <th className="text-left px-4 py-2.5 font-medium">Kommen</th>
-              <th className="text-left px-4 py-2.5 font-medium">Gehen</th>
-              <th className="text-left px-4 py-2.5 font-medium">Pause</th>
-              <th className="text-right px-4 py-2.5 font-medium">Netto</th>
-              <th className="text-left px-4 py-2.5 font-medium">Letzte Aktion</th>
-              {isToday && <th className="text-center px-4 py-2.5 font-medium">Aktion</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {grouped.map(grp => (
-              <Fragment key={grp.label}>
-                <tr className="bg-surface-main/80">
-                  <td colSpan={isToday ? 8 : 7} className="px-4 py-1.5 text-xs font-bold text-text-secondary uppercase tracking-wide">{grp.label}</td>
-                </tr>
+      {/* Card View */}
+      {viewMode === 'cards' && (
+        <div className="space-y-6">
+          {grouped.map(grp => (
+            <div key={grp.label}>
+              <h3 className="text-xs font-bold text-text-secondary uppercase tracking-widest mb-3 pb-2 border-b-2 border-border-default">{grp.label}</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                 {grp.items.map(ma => {
                   const st = statusStyles[ma.status]
                   const kommen = ma.stempel.find(s => s.typ === 'kommen')
                   const gehen = [...ma.stempel].reverse().find(s => s.typ === 'gehen')
                   const nextAction = getNextAction(ma.status)
+                  const initials = (ma.vorname?.[0] || '') + (ma.nachname?.[0] || '')
+
                   return (
-                    <tr key={ma.id} className="border-t border-border-default hover:bg-surface-hover/50 transition-colors">
-                      <td className="px-4 py-2.5">
-                        <button onClick={() => navigate(`/mitarbeiter/${ma.id}`)} className="font-medium text-text-primary hover:text-brand">{ma.vorname} {ma.nachname}</button>
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: st.bg, color: st.text }}>
-                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: st.dot }} /> {st.label}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2.5 text-text-secondary">{formatTime(kommen?.zeitpunkt)}</td>
-                      <td className="px-4 py-2.5 text-text-secondary">{formatTime(gehen?.zeitpunkt)}</td>
-                      <td className="px-4 py-2.5 text-text-secondary">{fmtH(ma.hours.pause)}</td>
-                      <td className="px-4 py-2.5 text-right font-medium text-text-primary">{fmtH(ma.hours.netto)}</td>
-                      <td className="px-4 py-2.5 text-xs text-text-muted">{ma.lastAction ? `${TYP_LABELS[ma.lastAction.typ] || ma.lastAction.typ} ${formatTime(ma.lastAction.zeitpunkt)}` : '-'}</td>
+                    <div key={ma.id}
+                      className="rounded-xl border-2 p-4 transition-all hover:shadow-md"
+                      style={{ borderColor: st.border, backgroundColor: st.bg + '40' }}>
+                      {/* Avatar + Name */}
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
+                          style={{ backgroundColor: st.avatarBg, color: st.text, border: `2px solid ${st.border}` }}>
+                          {initials}
+                        </div>
+                        <div className="min-w-0">
+                          <button onClick={() => navigate(`/mitarbeiter/${ma.id}`)}
+                            className="font-semibold text-sm text-text-primary hover:text-brand truncate block">
+                            {ma.nachname}
+                          </button>
+                          <div className="text-xs text-text-muted">{ma.vorname}</div>
+                        </div>
+                      </div>
+
+                      {/* Status badge */}
+                      <div className="flex items-center gap-1.5 mb-3">
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: st.dot }} />
+                        <span className="text-xs font-medium" style={{ color: st.text }}>{st.label}</span>
+                      </div>
+
+                      {/* Times */}
+                      {(kommen || gehen) && (
+                        <div className="flex items-center gap-3 mb-3 text-xs">
+                          {kommen && <span className="flex items-center gap-1 text-green-700"><LogIn size={11} /> {formatTime(kommen.zeitpunkt)}</span>}
+                          {gehen && <span className="flex items-center gap-1 text-red-700"><LogOut size={11} /> {formatTime(gehen.zeitpunkt)}</span>}
+                          {ma.hours.netto > 0 && <span className="text-text-muted font-mono">{fmtH(ma.hours.netto)}</span>}
+                        </div>
+                      )}
+
+                      {/* Action buttons */}
                       {isToday && nextAction && (
-                        <td className="px-4 py-2.5 text-center">
+                        <div className="flex gap-2">
                           <button onClick={() => handleStempel(ma.id, nextAction.typ)} disabled={stamping === ma.id}
-                            className="px-3 py-1 text-xs font-medium rounded-lg border transition-colors disabled:opacity-50"
-                            style={{ color: nextAction.color, backgroundColor: nextAction.bg, borderColor: nextAction.color + '30' }}>
+                            className="flex-1 py-2 text-xs font-semibold rounded-lg border-2 transition-all hover:scale-[1.02] disabled:opacity-50"
+                            style={{ color: nextAction.color, backgroundColor: nextAction.bg, borderColor: nextAction.border }}>
                             {stamping === ma.id ? '...' : nextAction.label}
                           </button>
                           {ma.status === 'aktiv' && (
                             <button onClick={() => handleStempel(ma.id, 'pause_start')} disabled={stamping === ma.id}
-                              className="ml-1 px-2 py-1 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 disabled:opacity-50">Pause</button>
+                              className="px-3 py-2 text-xs font-semibold text-amber-700 bg-amber-50 border-2 border-amber-300 rounded-lg hover:bg-amber-100 disabled:opacity-50">
+                              <Coffee size={14} />
+                            </button>
                           )}
-                        </td>
+                        </div>
                       )}
-                      {isToday && !nextAction && <td />}
-                    </tr>
+                    </div>
                   )
                 })}
-              </Fragment>
-            ))}
-          </tbody>
-        </table>
-      </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Table View (compact fallback) */}
+      {viewMode === 'table' && (
+        <div className="rounded-lg border border-border-default overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-surface-card text-text-secondary text-xs">
+                <th className="text-left px-4 py-2.5 font-medium">Mitarbeiter</th>
+                <th className="text-left px-4 py-2.5 font-medium">Status</th>
+                <th className="text-left px-4 py-2.5 font-medium">Kommen</th>
+                <th className="text-left px-4 py-2.5 font-medium">Gehen</th>
+                <th className="text-right px-4 py-2.5 font-medium">Netto</th>
+                {isToday && <th className="text-center px-4 py-2.5 font-medium">Aktion</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {grouped.map(grp => (
+                <Fragment key={grp.label}>
+                  <tr><td colSpan={isToday ? 6 : 5} className="px-4 py-2 text-xs font-bold text-text-secondary uppercase tracking-widest bg-surface-card border-t-2 border-border-default">{grp.label}</td></tr>
+                  {grp.items.map(ma => {
+                    const st = statusStyles[ma.status]
+                    const kommen = ma.stempel.find(s => s.typ === 'kommen')
+                    const gehen = [...ma.stempel].reverse().find(s => s.typ === 'gehen')
+                    const nextAction = getNextAction(ma.status)
+                    return (
+                      <tr key={ma.id} className="border-t border-border-default hover:bg-surface-hover/50">
+                        <td className="px-4 py-2.5 font-medium text-text-primary">{ma.vorname} {ma.nachname}</td>
+                        <td className="px-4 py-2.5">
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: st.bg, color: st.text }}>
+                            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: st.dot }} /> {st.label}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-text-secondary">{formatTime(kommen?.zeitpunkt)}</td>
+                        <td className="px-4 py-2.5 text-text-secondary">{formatTime(gehen?.zeitpunkt)}</td>
+                        <td className="px-4 py-2.5 text-right font-medium text-text-primary">{fmtH(ma.hours.netto)}</td>
+                        {isToday && nextAction && (
+                          <td className="px-4 py-2.5 text-center">
+                            <button onClick={() => handleStempel(ma.id, nextAction.typ)} disabled={stamping === ma.id}
+                              className="px-3 py-1 text-xs font-medium rounded-lg border disabled:opacity-50"
+                              style={{ color: nextAction.color, backgroundColor: nextAction.bg, borderColor: nextAction.border }}>
+                              {stamping === ma.id ? '...' : nextAction.label}
+                            </button>
+                          </td>
+                        )}
+                        {isToday && !nextAction && <td />}
+                      </tr>
+                    )
+                  })}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       {loading && <div className="text-xs text-text-muted text-center mt-2">Lade Stempel...</div>}
     </div>
   )
