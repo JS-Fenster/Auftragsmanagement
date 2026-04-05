@@ -625,22 +625,26 @@ function AbwesenheitenTab() {
   const [selectedMa, setSelectedMa] = useState('')
   const [ansicht, setAnsicht] = useState('gruppe') // 'gruppe' | 'einzel'
   const [urlaubskonten, setUrlaubskonten] = useState([])
+  const [feiertage, setFeiertage] = useState([])
 
   const [year, month] = monat.split('-').map(Number)
   const lastDay = new Date(year, month, 0).getDate()
   const days = Array.from({ length: lastDay }, (_, i) => i + 1)
+  const todayStr = toLocalDateStr(new Date())
 
   const loadData = useCallback(async () => {
     setLoading(true)
-    const [abwRes, kontenRes] = await Promise.all([
+    const [abwRes, kontenRes, ftRes] = await Promise.all([
       supabase.from('abwesenheiten').select('*, abwesenheitsarten(name, kuerzel, farbe)')
         .neq('status', 'storniert').neq('status', 'abgelehnt')
         .lte('datum', `${monat}-${lastDay}`)
         .or(`datum_bis.gte.${monat}-01,datum_bis.is.null`),
       supabase.from('arbeitsvertraege').select('mitarbeiter_id, urlaubstage_jahr').eq('ist_aktuell', true),
+      supabase.from('feiertage').select('datum, name').gte('datum', `${monat}-01`).lte('datum', `${monat}-${lastDay}`),
     ])
     setAbwesenheiten(abwRes.data || [])
     setUrlaubskonten(kontenRes.data || [])
+    setFeiertage(ftRes.data || [])
     setLoading(false)
   }, [monat, lastDay])
 
@@ -697,65 +701,88 @@ function AbwesenheitenTab() {
 
       {ansicht === 'gruppe' && !loading && (
         <div className="rounded-lg border border-border-default overflow-x-auto">
-          <table className="text-xs">
+          <table className="text-xs border-collapse">
             <thead>
-              <tr className="bg-surface-card text-text-secondary">
-                <th className="text-left px-3 py-2 font-medium sticky left-0 bg-surface-card z-10 min-w-[140px]">Mitarbeiter</th>
-                <th className="px-2 py-2 text-center font-medium text-[10px]">Ansp.</th>
-                <th className="px-2 py-2 text-center font-medium text-[10px]">Gen.</th>
-                <th className="px-2 py-2 text-center font-medium text-[10px] text-brand font-bold">Rest</th>
+              <tr className="bg-surface-card text-text-secondary border-b-2 border-border-default">
+                <th className="text-left px-3 py-2.5 font-semibold sticky left-0 bg-surface-card z-10 min-w-[150px]">Mitarbeiter</th>
+                <th className="px-2 py-2.5 text-center font-semibold text-[10px]">Ansp.</th>
+                <th className="px-2 py-2.5 text-center font-semibold text-[10px]">Gen.</th>
+                <th className="px-2 py-2.5 text-center font-semibold text-[10px] text-brand">Rest</th>
                 {Object.entries(kwMap).map(([kw, kwDays]) => (
-                  <th key={kw} colSpan={kwDays.length} className="text-center px-0 py-1 font-medium text-[10px] border-l border-border-default">KW {kw}</th>
+                  <th key={kw} colSpan={kwDays.length} className="text-center px-0 py-1.5 font-semibold text-[10px] border-l-2 border-border-default">KW {kw}</th>
                 ))}
-                <th className="px-3 py-2 text-right font-medium">Tage</th>
+                <th className="px-3 py-2.5 text-right font-semibold">Tage</th>
               </tr>
-              <tr className="bg-surface-card text-text-muted text-[10px]">
+              <tr className="bg-surface-card text-text-muted text-[10px] border-b border-border-default">
                 <th className="sticky left-0 bg-surface-card z-10" />
                 <th /><th /><th />
                 {days.map(d => {
                   const dow = new Date(year, month-1, d).getDay()
                   const isWeekend = dow === 0 || dow === 6
-                  return <th key={d} className={`px-0 py-0.5 text-center w-6 ${isWeekend ? 'bg-gray-100' : ''}`}>{d}</th>
+                  const dateStr = `${monat}-${String(d).padStart(2, '0')}`
+                  const isToday = dateStr === todayStr
+                  const ft = feiertage.find(f => f.datum === dateStr)
+                  return (
+                    <th key={d} className={`px-0 py-1 text-center w-7 ${isWeekend ? 'bg-gray-200/60' : ft ? 'bg-blue-100/60' : ''} ${isToday ? 'ring-2 ring-brand ring-inset rounded' : ''}`}
+                      title={ft ? ft.name : isWeekend ? 'Wochenende' : ''}>
+                      <span className={isToday ? 'font-bold text-brand' : ''}>{d}</span>
+                    </th>
+                  )
                 })}
                 <th />
               </tr>
             </thead>
             <tbody>
-              {grouped.map(grp => (
+              {grouped.map(grp => {
+                let rowIdx = 0
+                return (
                 <Fragment key={grp.label}>
-                  <tr className="bg-surface-main/80">
-                    <td colSpan={4 + days.length + 1} className="px-3 py-1 text-[10px] font-bold text-text-secondary uppercase tracking-wide sticky left-0 bg-surface-main/80 z-10">{grp.label}</td>
+                  <tr>
+                    <td colSpan={4 + days.length + 1} className="px-3 py-2 text-[11px] font-bold text-text-primary uppercase tracking-widest bg-surface-card border-t-2 border-b border-border-default sticky left-0 z-10">
+                      {grp.label}
+                    </td>
                   </tr>
                   {grp.items.map(ma => {
                     let totalDays = 0
                     const stats = getUrlaubStats(ma.id)
+                    const isEven = rowIdx++ % 2 === 0
+                    const rowBg = isEven ? 'bg-white' : 'bg-gray-50/50'
                     return (
-                      <tr key={ma.id} className="border-t border-border-default hover:bg-surface-hover/30">
-                        <td className="px-3 py-1.5 font-medium text-text-primary sticky left-0 bg-white z-10">
+                      <tr key={ma.id} className={`border-t border-border-default hover:bg-brand/5 transition-colors ${rowBg}`}>
+                        <td className={`px-3 py-2 font-medium text-text-primary sticky left-0 z-10 ${rowBg}`}>
                           <button onClick={() => { setSelectedMa(selectedMa === ma.id ? '' : ma.id); setAnsicht('einzel') }} className="hover:text-brand">{ma.nachname} {ma.vorname}</button>
                         </td>
-                        <td className="px-2 py-1.5 text-center text-text-secondary">{stats.anspruch}</td>
-                        <td className="px-2 py-1.5 text-center text-text-secondary">{stats.genommen}</td>
-                        <td className="px-2 py-1.5 text-center font-bold text-brand">{stats.rest}</td>
+                        <td className="px-2 py-2 text-center text-text-secondary">{stats.anspruch}</td>
+                        <td className="px-2 py-2 text-center text-text-secondary">{stats.genommen || '-'}</td>
+                        <td className="px-2 py-2 text-center font-bold text-brand">{stats.rest}</td>
                         {days.map(d => {
                           const dow = new Date(year, month-1, d).getDay()
                           const isWeekend = dow === 0 || dow === 6
+                          const dateStr = `${monat}-${String(d).padStart(2, '0')}`
+                          const isToday = dateStr === todayStr
+                          const ft = feiertage.find(f => f.datum === dateStr)
                           const abw = getAbwForDay(ma.id, d)
                           if (abw && !isWeekend) totalDays++
                           const kuerzel = abw?.abwesenheitsarten?.kuerzel?.toLowerCase() || ''
                           const style = ABW_COLORS[kuerzel] || (abw ? { bg: '#E5E7EB', text: '#374151', short: '?' } : null)
                           return (
-                            <td key={d} className={`px-0 py-1 text-center ${isWeekend ? 'bg-gray-50' : ''}`}>
-                              {style && <span className="inline-block w-5 h-5 leading-5 rounded text-[9px] font-bold" style={{ backgroundColor: style.bg, color: style.text }}>{style.short}</span>}
+                            <td key={d} className={`px-0 py-1 text-center ${isWeekend ? 'bg-gray-200/40' : ft && !style ? 'bg-blue-50/60' : ''} ${isToday ? 'ring-1 ring-brand/30 ring-inset' : ''}`}
+                              title={ft ? ft.name : ''}>
+                              {style ? (
+                                <span className="inline-block w-5 h-5 leading-5 rounded text-[9px] font-bold" style={{ backgroundColor: style.bg, color: style.text }}>{style.short}</span>
+                              ) : ft && !isWeekend ? (
+                                <span className="inline-block w-5 h-5 leading-5 rounded text-[9px] font-bold bg-blue-100 text-blue-700">F</span>
+                              ) : null}
                             </td>
                           )
                         })}
-                        <td className="px-3 py-1.5 text-right text-text-secondary font-medium">{totalDays || '-'}</td>
+                        <td className="px-3 py-2 text-right text-text-secondary font-medium">{totalDays || '-'}</td>
                       </tr>
                     )
                   })}
                 </Fragment>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         </div>
