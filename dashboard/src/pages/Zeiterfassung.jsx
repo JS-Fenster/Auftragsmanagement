@@ -395,6 +395,7 @@ function StempelProtokollTab() {
   const [formZeit, setFormZeit] = useState('07:00')
   const [formTyp, setFormTyp] = useState('kommen')
   const [formNotiz, setFormNotiz] = useState('')
+  const [filterAbt, setFilterAbt] = useState('')
   const [korrekturStempel, setKorrekturStempel] = useState(null)
   const [korrekturZeit, setKorrekturZeit] = useState('')
   const [korrekturTyp, setKorrekturTyp] = useState('')
@@ -413,14 +414,18 @@ function StempelProtokollTab() {
 
   const loadStempel = useCallback(async () => {
     setLoading(true)
-    let q = supabase.from('zeitstempel').select('*, mitarbeiter(vorname, nachname)')
+    let q = supabase.from('zeitstempel').select('*, mitarbeiter(vorname, nachname, rolle)')
       .gte('zeitpunkt', `${datumVon}T00:00:00`).lte('zeitpunkt', `${datumBis}T23:59:59`)
       .order('zeitpunkt', { ascending: false }).limit(200)
     if (filterMa) q = q.eq('mitarbeiter_id', filterMa)
+    if (filterAbt) {
+      const abtMaIds = mitarbeiter.filter(m => m.rolle === filterAbt).map(m => m.id)
+      if (abtMaIds.length > 0) q = q.in('mitarbeiter_id', abtMaIds)
+    }
     const { data } = await q
     setStempel(data || [])
     setLoading(false)
-  }, [datumVon, datumBis, filterMa])
+  }, [datumVon, datumBis, filterMa, filterAbt, mitarbeiter])
 
   useEffect(() => { loadStempel() }, [loadStempel])
 
@@ -481,6 +486,12 @@ function StempelProtokollTab() {
         <select value={filterMa} onChange={e => setFilterMa(e.target.value)} className={selectCls + ' min-w-[180px]'}>
           <option value="">Alle Mitarbeiter</option>
           {mitarbeiter.map(m => <option key={m.id} value={m.id}>{m.vorname} {m.nachname}</option>)}
+        </select>
+        <select value={filterAbt} onChange={e => setFilterAbt(e.target.value)} className={selectCls}>
+          <option value="">Alle Abteilungen</option>
+          <option value="geschaeftsfuehrung">Geschäftsführung</option>
+          <option value="buero">Büro / Verwaltung</option>
+          <option value="monteur">Montage</option>
         </select>
         <button onClick={() => setShowForm(!showForm)}
           className="ml-auto flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-brand text-white rounded-lg hover:opacity-90">
