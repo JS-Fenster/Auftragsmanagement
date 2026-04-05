@@ -112,11 +112,18 @@ function useMitarbeiter() {
   return { mitarbeiter, loading }
 }
 
-function groupByRolle(mitarbeiter) {
+const SORT_PRESETS = {
+  gf_first: { label: 'GF zuerst', order: { 'Geschäftsführung': 1, 'Büro / Verwaltung': 2, 'Montage': 3 } },
+  montage_first: { label: 'Montage zuerst', order: { 'Montage': 1, 'Büro / Verwaltung': 2, 'Geschäftsführung': 3 } },
+  buero_first: { label: 'Büro zuerst', order: { 'Büro / Verwaltung': 1, 'Geschäftsführung': 2, 'Montage': 3 } },
+}
+
+function groupByRolle(mitarbeiter, sortPreset = 'gf_first') {
   const groups = {}
+  const presetOrder = SORT_PRESETS[sortPreset]?.order || SORT_PRESETS.gf_first.order
   for (const ma of mitarbeiter) {
     const grp = ROLLE_GRUPPEN[ma.rolle] || { label: ma.rolle, order: 99 }
-    if (!groups[grp.label]) groups[grp.label] = { label: grp.label, order: grp.order, items: [] }
+    if (!groups[grp.label]) groups[grp.label] = { label: grp.label, order: presetOrder[grp.label] || 99, items: [] }
     groups[grp.label].items.push(ma)
   }
   return Object.values(groups).sort((a, b) => a.order - b.order)
@@ -146,7 +153,10 @@ function TagesuebersichtTab() {
   const [loading, setLoading] = useState(true)
   const [stamping, setStamping] = useState(null)
   const [viewMode, setViewMode] = useState('cards') // 'cards' | 'table'
+  const [sortPreset, setSortPreset] = useState(() => localStorage.getItem('zeiterfassung_sort') || 'gf_first')
   const isToday = datum === toLocalDateStr(new Date())
+
+  const handleSortChange = (preset) => { setSortPreset(preset); localStorage.setItem('zeiterfassung_sort', preset) }
 
   const loadStempel = useCallback(async () => {
     setLoading(true)
@@ -200,7 +210,7 @@ function TagesuebersichtTab() {
 
   const counts = { aktiv: 0, pause: 0, ausgestempelt: 0, nicht_gestempelt: 0 }
   maStatus.forEach(m => counts[m.status]++)
-  const grouped = groupByRolle(maStatus)
+  const grouped = groupByRolle(maStatus, sortPreset)
 
   return (
     <div>
@@ -225,9 +235,15 @@ function TagesuebersichtTab() {
             </div>
           ))}
         </div>
-        <div className="flex gap-1 bg-surface-card border border-border-default rounded-lg p-0.5">
-          <button onClick={() => setViewMode('cards')} className={`px-3 py-1 text-xs font-medium rounded ${viewMode === 'cards' ? 'bg-brand text-white' : 'text-text-secondary hover:bg-surface-hover'}`}>Karten</button>
-          <button onClick={() => setViewMode('table')} className={`px-3 py-1 text-xs font-medium rounded ${viewMode === 'table' ? 'bg-brand text-white' : 'text-text-secondary hover:bg-surface-hover'}`}>Tabelle</button>
+        <div className="flex items-center gap-3">
+          <select value={sortPreset} onChange={e => handleSortChange(e.target.value)}
+            className="text-xs border border-border-default rounded-lg px-2 py-1 bg-surface-card text-text-secondary outline-none">
+            {Object.entries(SORT_PRESETS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          </select>
+          <div className="flex gap-1 bg-surface-card border border-border-default rounded-lg p-0.5">
+            <button onClick={() => setViewMode('cards')} className={`px-3 py-1 text-xs font-medium rounded ${viewMode === 'cards' ? 'bg-brand text-white' : 'text-text-secondary hover:bg-surface-hover'}`}>Karten</button>
+            <button onClick={() => setViewMode('table')} className={`px-3 py-1 text-xs font-medium rounded ${viewMode === 'table' ? 'bg-brand text-white' : 'text-text-secondary hover:bg-surface-hover'}`}>Tabelle</button>
+          </div>
         </div>
       </div>
 
