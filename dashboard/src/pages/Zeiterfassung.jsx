@@ -692,7 +692,7 @@ function AbwesenheitenTab() {
 
       {/* Legend */}
       <div className="flex gap-2 mb-4 flex-wrap">
-        {Object.entries(ABW_COLORS).slice(0, 8).map(([key, style]) => (
+        {[...Object.entries(ABW_COLORS).slice(0, 8), ['feiertag', ABW_COLORS.feiertag]].map(([key, style]) => (
           <span key={key} className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium" style={{ backgroundColor: style.bg, color: style.text }}>
             {style.short} = {key.charAt(0).toUpperCase() + key.slice(1).replace('_', ' ')}
           </span>
