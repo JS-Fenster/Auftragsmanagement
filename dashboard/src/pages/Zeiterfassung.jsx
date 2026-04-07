@@ -903,34 +903,40 @@ function AbwesenheitenTab() {
                 </div>
               )})()}
               {/* Year overview: 12 months */}
+              {(() => { const today = new Date(); const todayDay = today.getDate(); const todayMonth = today.getMonth(); const todayYear = today.getFullYear(); return (
               <div className="rounded-lg border border-border-default overflow-x-auto mb-6">
                 <table className="text-xs w-full">
                   <thead>
                     <tr className="bg-surface-card text-text-secondary">
                       <th className="px-2 py-2 text-left font-medium w-8"></th>
                       {Array.from({ length: 12 }, (_, i) => (
-                        <th key={i} className="px-1 py-2 text-center font-medium">{new Date(year, i, 1).toLocaleDateString('de-DE', { month: 'short' })}</th>
+                        <th key={i} className={`px-1 py-2 text-center font-medium ${year === todayYear && i === todayMonth ? 'bg-brand/5 text-brand font-semibold' : ''}`}>{new Date(year, i, 1).toLocaleDateString('de-DE', { month: 'short' })}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {Array.from({ length: 31 }, (_, row) => row + 1).map(day => (
+                    {Array.from({ length: 31 }, (_, row) => row + 1).map(day => {
+                      const isRowToday = year === todayYear && day === todayDay
+                      return (
                       <tr key={day} className="border-t border-border-default">
-                        <td className="px-2 py-0.5 text-text-muted font-mono text-right">{day}</td>
+                        <td className={`px-2 py-0.5 font-mono text-right ${isRowToday ? 'bg-brand/5 text-brand font-bold' : 'text-text-muted'}`}>{day}</td>
                         {Array.from({ length: 12 }, (_, mi) => {
                           const maxDay = new Date(year, mi + 1, 0).getDate()
                           if (day > maxDay) return <td key={mi} className="bg-gray-50" />
                           const dateStr = `${year}-${String(mi+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
                           const dow = new Date(year, mi, day).getDay()
                           const isWeekend = dow === 0 || dow === 6
+                          const isToday = year === todayYear && mi === todayMonth && day === todayDay
+                          const isColToday = year === todayYear && mi === todayMonth
                           const abw = abwesenheiten.find(a => a.mitarbeiter_id === selectedMa && a.datum <= dateStr && (a.datum_bis ? a.datum_bis >= dateStr : a.datum >= dateStr))
                           const kuerzel = abw?.abwesenheitsarten?.kuerzel?.toLowerCase() || ''
                           const style = ABW_COLORS[kuerzel] || (abw ? { bg: '#E5E7EB', text: '#374151', short: '?' } : null)
                           const ft = feiertage.find(f => f.datum === dateStr)
                           const canSelect = !isWeekend && !style && !ft
                           const isSelected = selectionRange.includes(dateStr)
+                          const crossHighlight = !isToday && !isWeekend && !style && !ft && isColToday
                           return (
-                            <td key={mi} className={`px-0 py-0.5 text-center select-none ${isWeekend ? 'bg-gray-100 text-text-muted' : ft && !style ? 'bg-blue-50/60' : ''} ${canSelect ? 'cursor-pointer hover:bg-brand/10' : ''} ${isSelected ? 'bg-brand/20 ring-1 ring-brand/40 ring-inset' : ''}`}
+                            <td key={mi} className={`px-0 py-0.5 text-center select-none ${isToday ? 'ring-2 ring-brand ring-inset bg-brand/15 rounded' : ''} ${isWeekend ? 'bg-gray-100 text-text-muted' : ft && !style ? 'bg-blue-50/60' : ''} ${crossHighlight ? 'bg-brand/[0.04]' : ''} ${canSelect ? 'cursor-pointer hover:bg-brand/10' : ''} ${isSelected ? 'bg-brand/20 ring-1 ring-brand/40 ring-inset' : ''}`}
                               title={ft ? ft.name : canSelect ? 'Ziehen um Zeitraum auszuwählen' : ''}
                               onMouseDown={canSelect ? (e) => { e.preventDefault(); handleCellMouseDown(dateStr) } : undefined}
                               onMouseEnter={canSelect ? () => handleCellMouseEnter(dateStr) : undefined}
@@ -946,10 +952,12 @@ function AbwesenheitenTab() {
                           )
                         })}
                       </tr>
-                    ))}
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
+              )})()}
 
               {/* MA Abwesenheiten verwalten */}
               <div className="p-4 rounded-lg border border-border-default bg-surface-card">
