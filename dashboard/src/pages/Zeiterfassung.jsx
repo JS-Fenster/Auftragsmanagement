@@ -720,8 +720,8 @@ function AbwesenheitenTab() {
     const [abwRes, kontenRes, ftRes] = await Promise.all([
       supabase.from('abwesenheiten').select('*, abwesenheitsarten(name, slug, farbe)')
         .neq('status', 'storniert').neq('status', 'abgelehnt')
-        .lte('datum', `${monat}-${lastDay}`)
-        .or(`bis_datum.gte.${monat}-01,bis_datum.is.null`),
+        .lte('datum', `${year}-12-31`)
+        .or(`bis_datum.gte.${year}-01-01,bis_datum.is.null`),
       supabase.from('arbeitsvertraege').select('mitarbeiter_id, urlaubstage_jahr').eq('ist_aktuell', true),
       supabase.from('feiertage').select('datum, name, halbtag').gte('datum', `${year}-01-01`).lte('datum', `${year}-12-31`),
     ])
