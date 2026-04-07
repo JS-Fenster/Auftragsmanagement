@@ -626,6 +626,90 @@ function AbwesenheitenTab() {
   const [ansicht, setAnsicht] = useState('gruppe') // 'gruppe' | 'einzel'
   const [urlaubskonten, setUrlaubskonten] = useState([])
   const [feiertage, setFeiertage] = useState([])
+  // Drag selection for absence entry
+  const [dragStart, setDragStart] = useState(null)
+  const [dragEnd, setDragEnd] = useState(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const [showAbwModal, setShowAbwModal] = useState(false)
+  const [abwArten, setAbwArten] = useState([])
+  const [modalArtId, setModalArtId] = useState('')
+  const [modalNotiz, setModalNotiz] = useState('')
+  const [modalSaving, setModalSaving] = useState(false)
+
+  const selectionRange = useMemo(() => {
+    if (!dragStart) return []
+    const end = dragEnd || dragStart
+    const [s, e] = dragStart <= end ? [dragStart, end] : [end, dragStart]
+    const dates = []
+    const d = new Date(s + 'T00:00:00')
+    const last = new Date(e + 'T00:00:00')
+    while (d <= last) {
+      if (d.getDay() !== 0 && d.getDay() !== 6) dates.push(d.toISOString().slice(0, 10))
+      d.setDate(d.getDate() + 1)
+    }
+    return dates
+  }, [dragStart, dragEnd])
+
+  const handleCellMouseDown = (dateStr) => {
+    setDragStart(dateStr)
+    setDragEnd(dateStr)
+    setIsDragging(true)
+  }
+  const handleCellMouseEnter = (dateStr) => {
+    if (isDragging) setDragEnd(dateStr)
+  }
+  const handleCellMouseUp = () => {
+    if (isDragging && dragStart) {
+      setIsDragging(false)
+      setShowAbwModal(true)
+    }
+  }
+
+  // Load abwesenheitsarten for modal
+  useEffect(() => {
+    supabase.from('abwesenheitsarten').select('*').eq('aktiv', true).order('sort_order').then(({ data }) => setAbwArten(data || []))
+  }, [])
+
+  // Global mouseup to end drag even outside cells
+  useEffect(() => {
+    const handler = () => { if (isDragging) { setIsDragging(false); if (dragStart) setShowAbwModal(true) } }
+    window.addEventListener('mouseup', handler)
+    return () => window.removeEventListener('mouseup', handler)
+  }, [isDragging, dragStart])
+
+  const handleModalSave = async () => {
+    if (!modalArtId || selectionRange.length === 0 || !selectedMa) return
+    setModalSaving(true)
+    const { data: ma } = await supabase.from('mitarbeiter').select('ressource_id').eq('id', selectedMa).single()
+    const art = abwArten.find(a => a.id === modalArtId)
+    const rows = selectionRange.map(datum => ({
+      mitarbeiter_id: selectedMa,
+      ressource_id: ma?.ressource_id || null,
+      abwesenheitsart_id: modalArtId,
+      datum,
+      datum_bis: selectionRange[selectionRange.length - 1],
+      typ: art?.kategorie || 'sonstiges',
+      ganztaegig: true,
+      status: 'beantragt',
+      notiz: modalNotiz || null,
+    }))
+    await supabase.from('abwesenheiten').insert(rows)
+    setModalSaving(false)
+    setShowAbwModal(false)
+    setDragStart(null)
+    setDragEnd(null)
+    setModalArtId('')
+    setModalNotiz('')
+    loadData()
+  }
+
+  const closeModal = () => {
+    setShowAbwModal(false)
+    setDragStart(null)
+    setDragEnd(null)
+    setModalArtId('')
+    setModalNotiz('')
+  }
 
   const [year, month] = monat.split('-').map(Number)
   const lastDay = new Date(year, month, 0).getDate()
@@ -640,13 +724,13 @@ function AbwesenheitenTab() {
         .lte('datum', `${monat}-${lastDay}`)
         .or(`datum_bis.gte.${monat}-01,datum_bis.is.null`),
       supabase.from('arbeitsvertraege').select('mitarbeiter_id, urlaubstage_jahr').eq('ist_aktuell', true),
-      supabase.from('feiertage').select('datum, name').gte('datum', `${monat}-01`).lte('datum', `${monat}-${lastDay}`),
+      supabase.from('feiertage').select('datum, name').gte('datum', `${year}-01-01`).lte('datum', `${year}-12-31`),
     ])
     setAbwesenheiten(abwRes.data || [])
     setUrlaubskonten(kontenRes.data || [])
     setFeiertage(ftRes.data || [])
     setLoading(false)
-  }, [monat, lastDay])
+  }, [monat, lastDay, year])
 
   useEffect(() => { loadData() }, [loadData])
 
@@ -657,15 +741,19 @@ function AbwesenheitenTab() {
     return abwesenheiten.find(a => a.mitarbeiter_id === maId && a.datum <= dateStr && (a.datum_bis ? a.datum_bis >= dateStr : a.datum >= dateStr))
   }
 
+  const countWorkdays = (a) => {
+    const von = new Date(a.datum + 'T00:00:00'); const bis = new Date((a.datum_bis || a.datum) + 'T00:00:00')
+    let cnt = 0; const d = new Date(von); while (d <= bis) { if (d.getDay() !== 0 && d.getDay() !== 6) cnt++; d.setDate(d.getDate()+1) }
+    return cnt
+  }
+
   const getUrlaubStats = (maId) => {
     const vertrag = urlaubskonten.find(v => v.mitarbeiter_id === maId)
     const anspruch = vertrag?.urlaubstage_jahr || 30
-    const genommen = abwesenheiten.filter(a => a.mitarbeiter_id === maId && a.abwesenheitsarten?.kuerzel?.toLowerCase() === 'urlaub').reduce((sum, a) => {
-      const von = new Date(a.datum + 'T00:00:00'); const bis = new Date((a.datum_bis || a.datum) + 'T00:00:00')
-      let cnt = 0; const d = new Date(von); while (d <= bis) { if (d.getDay() !== 0 && d.getDay() !== 6) cnt++; d.setDate(d.getDate()+1) }
-      return sum + cnt
-    }, 0)
-    return { anspruch, genommen, rest: anspruch - genommen }
+    const urlaubEintraege = abwesenheiten.filter(a => a.mitarbeiter_id === maId && a.abwesenheitsarten?.kuerzel?.toLowerCase() === 'urlaub')
+    const genommen = urlaubEintraege.filter(a => a.status === 'genehmigt').reduce((sum, a) => sum + countWorkdays(a), 0)
+    const beantragt = urlaubEintraege.filter(a => a.status === 'beantragt').reduce((sum, a) => sum + countWorkdays(a), 0)
+    return { anspruch, genommen, beantragt, rest: anspruch - genommen - beantragt }
   }
 
   if (maLoading) return <div className="text-sm text-text-muted py-8 text-center">Laden...</div>
@@ -687,7 +775,15 @@ function AbwesenheitenTab() {
         <button onClick={() => shiftMonth(-1)} className="p-1.5 rounded-lg hover:bg-surface-hover text-text-secondary"><ChevronLeft size={18} /></button>
         <input type="month" value={monat} onChange={e => setMonat(e.target.value)} className={inputCls} />
         <button onClick={() => shiftMonth(1)} className="p-1.5 rounded-lg hover:bg-surface-hover text-text-secondary"><ChevronRight size={18} /></button>
-        <span className="text-sm font-medium text-text-primary ml-2">{monatLabel}</span>
+        {ansicht === 'einzel' && (
+          <>
+            <select value={selectedMa} onChange={e => setSelectedMa(e.target.value)} className={selectCls + ' min-w-[200px] ml-4'}>
+              <option value="">Mitarbeiter wählen...</option>
+              {mitarbeiter.map(m => <option key={m.id} value={m.id}>{m.vorname} {m.nachname}</option>)}
+            </select>
+            {selectedMa && <button onClick={() => navigate(`/mitarbeiter/${selectedMa}`)} className="flex items-center gap-1 text-xs text-brand hover:underline"><ExternalLink size={12} /> Stammdaten</button>}
+          </>
+        )}
       </div>
 
       {/* Legend */}
@@ -701,13 +797,14 @@ function AbwesenheitenTab() {
 
       {ansicht === 'gruppe' && !loading && (
         <div className="rounded-lg border border-border-default overflow-x-auto">
-          <table className="text-xs border-collapse">
+          <table className="text-xs border-collapse w-max">
             <thead>
               <tr className="bg-surface-card text-text-secondary border-b-2 border-border-default">
                 <th className="text-left px-3 py-2.5 font-semibold sticky left-0 bg-surface-card z-10 min-w-[150px]">Mitarbeiter</th>
-                <th className="px-2 py-2.5 text-center font-semibold text-[10px]">Ansp.</th>
-                <th className="px-2 py-2.5 text-center font-semibold text-[10px]">Gen.</th>
-                <th className="px-2 py-2.5 text-center font-semibold text-[10px] text-brand">Rest</th>
+                <th className="px-2 py-2.5 text-center font-semibold text-[10px] sticky left-[150px] bg-surface-card z-10">Ansp.</th>
+                <th className="px-2 py-2.5 text-center font-semibold text-[10px] sticky left-[190px] bg-surface-card z-10">Gen.</th>
+                <th className="px-2 py-2.5 text-center font-semibold text-[10px] text-amber-600 sticky left-[225px] bg-surface-card z-10">Bean.</th>
+                <th className="px-2 py-2.5 text-center font-semibold text-[10px] text-brand sticky left-[265px] bg-surface-card z-10">Rest</th>
                 {Object.entries(kwMap).map(([kw, kwDays]) => (
                   <th key={kw} colSpan={kwDays.length} className="text-center px-0 py-1.5 font-semibold text-[10px] border-l-2 border-border-default">KW {kw}</th>
                 ))}
@@ -715,7 +812,10 @@ function AbwesenheitenTab() {
               </tr>
               <tr className="bg-surface-card text-text-muted text-[10px] border-b border-border-default">
                 <th className="sticky left-0 bg-surface-card z-10" />
-                <th /><th /><th />
+                <th className="sticky left-[150px] bg-surface-card z-10" />
+                <th className="sticky left-[190px] bg-surface-card z-10" />
+                <th className="sticky left-[225px] bg-surface-card z-10" />
+                <th className="sticky left-[265px] bg-surface-card z-10" />
                 {days.map(d => {
                   const dow = new Date(year, month-1, d).getDay()
                   const isWeekend = dow === 0 || dow === 6
@@ -723,7 +823,7 @@ function AbwesenheitenTab() {
                   const isToday = dateStr === todayStr
                   const ft = feiertage.find(f => f.datum === dateStr)
                   return (
-                    <th key={d} className={`px-0 py-1 text-center w-7 ${isWeekend ? 'bg-gray-200/60' : ft ? 'bg-blue-100/60' : ''} ${isToday ? 'ring-2 ring-brand ring-inset rounded' : ''}`}
+                    <th key={d} className={`px-0 py-1 text-center min-w-[32px] w-8 ${isWeekend ? 'bg-gray-200/60' : ft ? 'bg-blue-100/60' : ''} ${isToday ? 'ring-2 ring-brand ring-inset rounded' : ''}`}
                       title={ft ? ft.name : isWeekend ? 'Wochenende' : ''}>
                       <span className={isToday ? 'font-bold text-brand' : ''}>{d}</span>
                     </th>
@@ -738,7 +838,7 @@ function AbwesenheitenTab() {
                 return (
                 <Fragment key={grp.label}>
                   <tr>
-                    <td colSpan={4 + days.length + 1} className="px-3 py-2 text-[11px] font-bold text-text-primary uppercase tracking-widest bg-surface-card border-t-2 border-b border-border-default sticky left-0 z-10">
+                    <td colSpan={5 + days.length + 1} className="px-3 py-2 text-[11px] font-bold text-text-primary uppercase tracking-widest bg-surface-card border-t-2 border-b border-border-default sticky left-0 z-10">
                       {grp.label}
                     </td>
                   </tr>
@@ -752,9 +852,10 @@ function AbwesenheitenTab() {
                         <td className={`px-3 py-2 font-medium text-text-primary sticky left-0 z-10 ${rowBg}`}>
                           <button onClick={() => { setSelectedMa(selectedMa === ma.id ? '' : ma.id); setAnsicht('einzel') }} className="hover:text-brand">{ma.nachname} {ma.vorname}</button>
                         </td>
-                        <td className="px-2 py-2 text-center text-text-secondary">{stats.anspruch}</td>
-                        <td className="px-2 py-2 text-center text-text-secondary">{stats.genommen || '-'}</td>
-                        <td className="px-2 py-2 text-center font-bold text-brand">{stats.rest}</td>
+                        <td className={`px-2 py-2 text-center text-text-secondary sticky left-[150px] z-10 ${rowBg}`}>{stats.anspruch}</td>
+                        <td className={`px-2 py-2 text-center text-text-secondary sticky left-[190px] z-10 ${rowBg}`}>{stats.genommen || '-'}</td>
+                        <td className={`px-2 py-2 text-center text-amber-600 sticky left-[225px] z-10 ${rowBg}`}>{stats.beantragt || '-'}</td>
+                        <td className={`px-2 py-2 text-center font-bold text-brand sticky left-[265px] z-10 ${rowBg}`}>{stats.rest}</td>
                         {days.map(d => {
                           const dow = new Date(year, month-1, d).getDay()
                           const isWeekend = dow === 0 || dow === 6
@@ -790,16 +891,17 @@ function AbwesenheitenTab() {
 
       {ansicht === 'einzel' && (
         <div>
-          <div className="flex items-center gap-3 mb-4">
-            <select value={selectedMa} onChange={e => setSelectedMa(e.target.value)} className={selectCls + ' min-w-[200px]'}>
-              <option value="">Mitarbeiter wählen...</option>
-              {mitarbeiter.map(m => <option key={m.id} value={m.id}>{m.vorname} {m.nachname}</option>)}
-            </select>
-            {selectedMa && <button onClick={() => navigate(`/mitarbeiter/${selectedMa}`)} className="flex items-center gap-1 text-xs text-brand hover:underline"><ExternalLink size={12} /> Stammdaten</button>}
-          </div>
-
           {selectedMa ? (
             <div>
+              {/* Urlaubsstatistik */}
+              {(() => { const stats = getUrlaubStats(selectedMa); return (
+                <div className="flex items-center gap-6 mb-4 px-1 text-xs">
+                  <span className="text-text-secondary">Anspruch: <strong className="text-text-primary">{stats.anspruch}</strong></span>
+                  <span className="text-text-secondary">Genommen: <strong className="text-text-primary">{stats.genommen || '-'}</strong></span>
+                  <span className="text-text-secondary">Beantragt: <strong className="text-amber-600">{stats.beantragt || '-'}</strong></span>
+                  <span className="text-text-secondary">Rest: <strong className="text-brand">{stats.rest}</strong></span>
+                </div>
+              )})()}
               {/* Year overview: 12 months */}
               <div className="rounded-lg border border-border-default overflow-x-auto mb-6">
                 <table className="text-xs w-full">
@@ -824,10 +926,19 @@ function AbwesenheitenTab() {
                           const abw = abwesenheiten.find(a => a.mitarbeiter_id === selectedMa && a.datum <= dateStr && (a.datum_bis ? a.datum_bis >= dateStr : a.datum >= dateStr))
                           const kuerzel = abw?.abwesenheitsarten?.kuerzel?.toLowerCase() || ''
                           const style = ABW_COLORS[kuerzel] || (abw ? { bg: '#E5E7EB', text: '#374151', short: '?' } : null)
+                          const ft = feiertage.find(f => f.datum === dateStr)
+                          const canSelect = !isWeekend && !style && !ft
+                          const isSelected = selectionRange.includes(dateStr)
                           return (
-                            <td key={mi} className={`px-0 py-0.5 text-center ${isWeekend ? 'bg-gray-100 text-text-muted' : ''}`}>
+                            <td key={mi} className={`px-0 py-0.5 text-center select-none ${isWeekend ? 'bg-gray-100 text-text-muted' : ft && !style ? 'bg-blue-50/60' : ''} ${canSelect ? 'cursor-pointer hover:bg-brand/10' : ''} ${isSelected ? 'bg-brand/20 ring-1 ring-brand/40 ring-inset' : ''}`}
+                              title={ft ? ft.name : canSelect ? 'Ziehen um Zeitraum auszuwählen' : ''}
+                              onMouseDown={canSelect ? (e) => { e.preventDefault(); handleCellMouseDown(dateStr) } : undefined}
+                              onMouseEnter={canSelect ? () => handleCellMouseEnter(dateStr) : undefined}
+                              onMouseUp={handleCellMouseUp}>
                               {style ? (
                                 <span className="inline-block w-full text-[9px] font-bold rounded" style={{ backgroundColor: style.bg, color: style.text }}>{style.short}</span>
+                              ) : ft && !isWeekend ? (
+                                <span className="inline-block w-full text-[9px] font-bold rounded bg-blue-100 text-blue-700">F</span>
                               ) : (
                                 <span className="text-[9px] text-text-muted">{WOCHENTAGE[dow]}</span>
                               )}
@@ -851,6 +962,46 @@ function AbwesenheitenTab() {
       )}
 
       {loading && <div className="text-xs text-text-muted text-center mt-2">Laden...</div>}
+
+      {/* Abwesenheit-Modal */}
+      {showAbwModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={closeModal}>
+          <div className="bg-white rounded-xl shadow-xl border border-border-default p-6 w-[400px] max-w-[90vw]" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold text-text-primary mb-4">Abwesenheit eintragen</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-text-secondary block mb-1">Zeitraum</label>
+                <div className="text-sm font-medium text-text-primary">
+                  {selectionRange.length > 0 && (
+                    <>
+                      {new Date(selectionRange[0] + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      {selectionRange.length > 1 && ` – ${new Date(selectionRange[selectionRange.length - 1] + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}`}
+                      <span className="text-text-muted ml-2">({selectionRange.length} Werktag{selectionRange.length !== 1 ? 'e' : ''})</span>
+                    </>
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-text-secondary block mb-1">Art der Abwesenheit</label>
+                <select value={modalArtId} onChange={e => setModalArtId(e.target.value)} className={selectCls + ' w-full'}>
+                  <option value="">Bitte wählen...</option>
+                  {abwArten.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-text-secondary block mb-1">Notiz <span className="text-text-muted">(optional)</span></label>
+                <input value={modalNotiz} onChange={e => setModalNotiz(e.target.value)} placeholder="z.B. halber Tag, Grund..." className={inputCls + ' w-full'} />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <button onClick={closeModal} className="px-3 py-1.5 text-xs text-text-secondary hover:bg-surface-hover rounded-lg">Abbrechen</button>
+              <button onClick={handleModalSave} disabled={!modalArtId || modalSaving} className="px-4 py-1.5 text-xs font-medium text-white bg-brand rounded-lg hover:bg-brand/90 disabled:opacity-50">
+                {modalSaving ? 'Speichern...' : 'Eintragen'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
