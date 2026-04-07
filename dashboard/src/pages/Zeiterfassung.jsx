@@ -660,6 +660,11 @@ function AbwesenheitenTab() {
     return dates
   }, [dragStart, dragEnd])
 
+  // Open modal after dragStart state has been applied (so selectionRange is correct)
+  useEffect(() => {
+    if (dragStart && !showAbwModal) setShowAbwModal(true)
+  }, [dragStart]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Load abwesenheitsarten for modal
   useEffect(() => {
     supabase.from('abwesenheitsarten').select('*').eq('aktiv', true).order('sort_order').then(({ data }) => setAbwArten(data || []))
@@ -950,11 +955,12 @@ function AbwesenheitenTab() {
                               onClick={canSelect ? (e) => {
                                 if (e.shiftKey && dragStart) {
                                   setDragEnd(dateStr)
+                                  setShowAbwModal(true)
                                 } else {
                                   setDragStart(dateStr)
                                   setDragEnd(dateStr)
+                                  // Modal opens via useEffect after state update
                                 }
-                                setShowAbwModal(true)
                               } : undefined}>
                               {style ? (
                                 <span className={`inline-block w-full text-[9px] font-bold rounded ${style.dashed ? 'border border-dashed' : ''}`} style={{ backgroundColor: style.bg, color: style.text, borderColor: style.dashed ? style.text : undefined }}>{style.short}</span>
