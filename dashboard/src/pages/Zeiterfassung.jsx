@@ -729,7 +729,7 @@ function AbwesenheitenTab() {
       supabase.from('abwesenheiten').select('*, abwesenheitsarten(name, slug, farbe)')
         .neq('status', 'storniert').neq('status', 'abgelehnt')
         .lte('datum', `${monat}-${lastDay}`)
-        .or(`datum_bis.gte.${monat}-01,datum_bis.is.null`),
+        .or(`bis_datum.gte.${monat}-01,bis_datum.is.null`),
       supabase.from('arbeitsvertraege').select('mitarbeiter_id, urlaubstage_jahr').eq('ist_aktuell', true),
       supabase.from('feiertage').select('datum, name, halbtag').gte('datum', `${year}-01-01`).lte('datum', `${year}-12-31`),
     ])
@@ -745,11 +745,11 @@ function AbwesenheitenTab() {
 
   const getAbwForDay = (maId, day) => {
     const dateStr = `${monat}-${String(day).padStart(2, '0')}`
-    return abwesenheiten.find(a => a.mitarbeiter_id === maId && a.datum <= dateStr && (a.datum_bis ? a.datum_bis >= dateStr : a.datum >= dateStr))
+    return abwesenheiten.find(a => a.mitarbeiter_id === maId && a.datum <= dateStr && (a.bis_datum ? a.bis_datum >= dateStr : a.datum >= dateStr))
   }
 
   const countWorkdays = (a) => {
-    const von = new Date(a.datum + 'T00:00:00'); const bis = new Date((a.datum_bis || a.datum) + 'T00:00:00')
+    const von = new Date(a.datum + 'T00:00:00'); const bis = new Date((a.bis_datum || a.datum) + 'T00:00:00')
     let cnt = 0; const d = new Date(von); while (d <= bis) { if (d.getDay() !== 0 && d.getDay() !== 6) cnt++; d.setDate(d.getDate()+1) }
     return cnt
   }
@@ -939,7 +939,7 @@ function AbwesenheitenTab() {
                           const isWeekend = dow === 0 || dow === 6
                           const isToday = year === todayYear && mi === todayMonth && day === todayDay
                           const isColToday = year === todayYear && mi === todayMonth
-                          const abw = abwesenheiten.find(a => a.mitarbeiter_id === selectedMa && a.datum <= dateStr && (a.datum_bis ? a.datum_bis >= dateStr : a.datum >= dateStr))
+                          const abw = abwesenheiten.find(a => a.mitarbeiter_id === selectedMa && a.datum <= dateStr && (a.bis_datum ? a.bis_datum >= dateStr : a.datum >= dateStr))
                           const kuerzel = abw?.abwesenheitsarten?.slug?.toLowerCase() || ''
                           const style = ABW_COLORS[kuerzel] || (abw ? { bg: '#E5E7EB', text: '#374151', short: '?' } : null)
                           const ft = feiertage.find(f => f.datum === dateStr)
@@ -1056,7 +1056,7 @@ function ZeitkarteTab() {
       supabase.from('feiertage').select('datum, name, halbtag').gte('datum', `${monat}-01`).lte('datum', `${monat}-${lastDay}`),
       supabase.from('abwesenheiten').select('*, abwesenheitsarten(name, slug)')
         .eq('mitarbeiter_id', selectedMa).neq('status', 'storniert').neq('status', 'abgelehnt')
-        .lte('datum', `${monat}-${lastDay}`).or(`datum_bis.gte.${monat}-01,datum_bis.is.null`),
+        .lte('datum', `${monat}-${lastDay}`).or(`bis_datum.gte.${monat}-01,bis_datum.is.null`),
     ])
     setStempel(stRes.data || [])
     setVertraege(vtRes.data ? [vtRes.data] : [])
@@ -1091,7 +1091,7 @@ function ZeitkarteTab() {
       const dow = new Date(year, month - 1, d).getDay()
       const isWeekend = dow === 0 || dow === 6
       const feiertag = feiertage.find(f => f.datum === dateStr)
-      const abw = abwesenheiten.find(a => a.datum <= dateStr && (a.datum_bis ? a.datum_bis >= dateStr : a.datum >= dateStr))
+      const abw = abwesenheiten.find(a => a.datum <= dateStr && (a.bis_datum ? a.bis_datum >= dateStr : a.datum >= dateStr))
       const isFuture = isCurrentMonth && d > today.getDate()
 
       const dayStempel = stempel.filter(s => toLocalDateStr(s.zeitpunkt) === dateStr).sort((a, b) => new Date(a.zeitpunkt) - new Date(b.zeitpunkt))
