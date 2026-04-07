@@ -1,7 +1,7 @@
 /**
  * Work4All SQL Server Verbindung
  *
- * Verwendet Cloudflare Tunnel: sql.js-fenster-intern.org
+ * Direkter Zugriff auf W4A SQL Server (laeuft auf dem Appserver).
  * Nur Lesezugriff auf dbo.Angebot, dbo.Positionen, etc.
  *
  * Erstellt: 2026-02-04
@@ -10,9 +10,9 @@
 const sql = require('mssql');
 require('dotenv').config();
 
-// W4A SQL Server Konfiguration via Cloudflare Tunnel
+// W4A SQL Server Konfiguration — Direktzugriff auf dem Appserver
 const w4aConfig = {
-    server: process.env.W4A_DB_SERVER || 'sql.js-fenster-intern.org',
+    server: process.env.W4A_DB_SERVER || 'localhost',
     port: parseInt(process.env.W4A_DB_PORT || '1433', 10),
     database: process.env.W4A_DB_DATABASE || 'WorkM001',
     user: process.env.W4A_DB_USER,
