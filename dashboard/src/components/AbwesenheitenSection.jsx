@@ -3,7 +3,7 @@
  * Wird in Mitarbeiter.jsx eingebunden (pro Mitarbeiter)
  */
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Calendar, Plus, Check, X, Clock } from 'lucide-react'
+import { Calendar, Plus, Check, X, Clock, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 const STATUS_STYLES = {
@@ -264,7 +264,7 @@ export default function AbwesenheitenSection({ mitarbeiterId, mitarbeiterName })
           {grouped.map((g, i) => {
             const st = STATUS_STYLES[g.status] || STATUS_STYLES.beantragt
             return (
-              <div key={i} className="flex items-center gap-2 rounded-lg border border-border-default px-3 py-2 bg-surface-card">
+              <div key={i} className={`flex items-center gap-2 rounded-lg border border-border-default px-3 py-2 bg-surface-card ${g.status === 'abgelehnt' ? 'opacity-50' : ''}`}>
                 {/* Color dot */}
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: g.art?.farbe || '#6B7280' }} />
 
@@ -287,18 +287,26 @@ export default function AbwesenheitenSection({ mitarbeiterId, mitarbeiterName })
                 </div>
 
                 {/* Actions */}
-                {g.status === 'beantragt' && (
-                  <div className="flex gap-1 shrink-0">
-                    <button onClick={() => g.ids.forEach(id => handleStatusChange(id, 'genehmigt'))}
-                      className="p-1 rounded hover:bg-green-50 text-green-600" title="Genehmigen">
-                      <Check className="w-4 h-4" />
+                <div className="flex gap-1 shrink-0">
+                  {g.status === 'beantragt' && (
+                    <>
+                      <button onClick={() => g.ids.forEach(id => handleStatusChange(id, 'genehmigt'))}
+                        className="p-1 rounded hover:bg-green-50 text-green-600" title="Genehmigen">
+                        <Check className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => g.ids.forEach(id => handleStatusChange(id, 'abgelehnt'))}
+                        className="p-1 rounded hover:bg-red-50 text-red-600" title="Ablehnen">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
+                  {g.status !== 'storniert' && (
+                    <button onClick={() => g.ids.forEach(id => handleStatusChange(id, 'storniert'))}
+                      className="p-1 rounded hover:bg-gray-100 text-text-muted" title="Stornieren">
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
-                    <button onClick={() => g.ids.forEach(id => handleStatusChange(id, 'abgelehnt'))}
-                      className="p-1 rounded hover:bg-red-50 text-red-600" title="Ablehnen">
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             )
           })}
