@@ -41,8 +41,8 @@ const ABW_COLORS = {
   // Keys match DB slugs — 5 Grundfarben + Rahmen fuer Varianten
   // Blau = Urlaub
   urlaub_ganz:       { bg: '#DBEAFE', text: '#1E40AF', short: 'U' },
-  urlaub_halbtag_vm: { bg: '#DBEAFE', text: '#1E40AF', short: '½U' },
-  urlaub_halbtag_nm: { bg: '#DBEAFE', text: '#1E40AF', short: '½U' },
+  urlaub_halbtag_vm: { bg: '#DBEAFE', text: '#1E40AF', short: 'U' },
+  urlaub_halbtag_nm: { bg: '#DBEAFE', text: '#1E40AF', short: 'U' },
   // Rot = Krankheit
   krankheit:         { bg: '#FEE2E2', text: '#991B1B', short: 'K' },
   krankheit_ohne_au: { bg: '#FEE2E2', text: '#991B1B', short: 'K', dashed: true },
@@ -58,8 +58,8 @@ const ABW_COLORS = {
   unbezahlter_urlaub:        { bg: '#F3F4F6', text: '#374151', short: 'UB' },
   kurzarbeit:                { bg: '#F3F4F6', text: '#374151', short: 'KA', dashed: true },
   ueberstunden_ausgleich:    { bg: '#F3F4F6', text: '#374151', short: 'ÜA' },
-  ueberstunden_halbtag_vm:   { bg: '#F3F4F6', text: '#374151', short: '½ÜA' },
-  ueberstunden_halbtag_nm:   { bg: '#F3F4F6', text: '#374151', short: '½ÜA' },
+  ueberstunden_halbtag_vm:   { bg: '#F3F4F6', text: '#374151', short: 'ÜA' },
+  ueberstunden_halbtag_nm:   { bg: '#F3F4F6', text: '#374151', short: 'ÜA' },
   // Gruen = Feiertag (½F dashed wird separat im Rendering behandelt)
   feiertag: { bg: '#DCFCE7', text: '#166534', short: 'F' },
 }
@@ -953,8 +953,8 @@ function AbwesenheitenTab() {
                               {hasMultiple ? (() => {
                                 // Build slots: left = vormittag, right = nachmittag
                                 let vmSlot = null, nmSlot = null
-                                if (ft?.halbtag === 'nachmittag') nmSlot = { bg: '#DCFCE7', text: '#166534', short: '½F' }
-                                if (ft?.halbtag === 'vormittag') vmSlot = { bg: '#DCFCE7', text: '#166534', short: '½F' }
+                                if (ft?.halbtag === 'nachmittag') nmSlot = { bg: '#DCFCE7', text: '#166534', short: 'F' }
+                                if (ft?.halbtag === 'vormittag') vmSlot = { bg: '#DCFCE7', text: '#166534', short: 'F' }
                                 dayAbws.forEach(a => {
                                   const slug = a.abwesenheitsarten?.slug || ''
                                   const s = ABW_COLORS[slug] || { bg: '#E5E7EB', text: '#374151', short: '?' }
