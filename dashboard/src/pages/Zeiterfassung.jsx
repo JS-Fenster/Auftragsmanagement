@@ -7,6 +7,7 @@
  *   Jahresuebersicht pro MA
  */
 import { useState, useEffect, useCallback, useMemo, Fragment } from 'react'
+import { flushSync } from 'react-dom'
 import { Clock, List, CalendarOff, BarChart3, ExternalLink, Plus, ChevronLeft, ChevronRight, Coffee, LogIn, LogOut, Play, FileText, User } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -646,10 +647,10 @@ function AbwesenheitenTab() {
   const [modalNotiz, setModalNotiz] = useState('')
   const [modalSaving, setModalSaving] = useState(false)
 
-  const selectionRange = useMemo(() => {
-    if (!dragStart) return []
-    const end = dragEnd || dragStart
-    const [s, e] = dragStart <= end ? [dragStart, end] : [end, dragStart]
+  const calcRange = (start, end) => {
+    if (!start) return []
+    const e2 = end || start
+    const [s, e] = start <= e2 ? [start, e2] : [e2, start]
     const dates = []
     const d = new Date(s + 'T00:00:00')
     const last = new Date(e + 'T00:00:00')
@@ -658,7 +659,8 @@ function AbwesenheitenTab() {
       d.setDate(d.getDate() + 1)
     }
     return dates
-  }, [dragStart, dragEnd])
+  }
+  const selectionRange = calcRange(dragStart, dragEnd)
 
 
   // Load abwesenheitsarten for modal
@@ -949,14 +951,13 @@ function AbwesenheitenTab() {
                             <td key={mi} className={`px-0 py-1 text-center select-none ${isToday ? 'ring-2 ring-brand ring-inset bg-brand/15 rounded' : ''} ${isWeekend ? 'bg-gray-100 text-text-muted' : ft && !style ? 'bg-blue-50/60' : ''} ${crossHighlight ? 'bg-brand/[0.04]' : ''} ${canSelect ? 'cursor-pointer hover:bg-brand/10' : ''} ${isSelected ? 'bg-brand/20 ring-1 ring-brand/40 ring-inset' : ''}`}
                               title={abw ? `${abw.abwesenheitsarten?.name || 'Abwesenheit'}${abw.status === 'beantragt' ? ' (beantragt)' : ''}` : ft ? `${ft.name}${ft.halbtag ? ' (nachmittags frei)' : ''}` : canSelect ? 'Ziehen um Zeitraum auszuwählen' : isWeekend ? 'Wochenende' : ''}
                               onClick={canSelect ? (e) => {
+                                e.stopPropagation()
                                 if (e.shiftKey && dragStart) {
-                                  setDragEnd(dateStr)
-                                  setTimeout(() => setShowAbwModal(true), 0)
+                                  flushSync(() => setDragEnd(dateStr))
                                 } else {
-                                  setDragStart(dateStr)
-                                  setDragEnd(dateStr)
-                                  setTimeout(() => setShowAbwModal(true), 0)
+                                  flushSync(() => { setDragStart(dateStr); setDragEnd(dateStr) })
                                 }
+                                setShowAbwModal(true)
                               } : undefined}>
                               {style ? (
                                 <span className={`inline-block w-full text-[9px] font-bold rounded ${style.dashed ? 'border border-dashed' : ''}`} style={{ backgroundColor: style.bg, color: style.text, borderColor: style.dashed ? style.text : undefined }}>{style.short}</span>
