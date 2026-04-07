@@ -6,7 +6,7 @@
  *   Abwesenheiten-Matrix mit Abteilungs-Gruppierung + Urlaubskonto,
  *   Jahresuebersicht pro MA
  */
-import { useState, useEffect, useCallback, useMemo, useRef, Fragment } from 'react'
+import { useState, useEffect, useCallback, useMemo, Fragment } from 'react'
 import { Clock, List, CalendarOff, BarChart3, ExternalLink, Plus, ChevronLeft, ChevronRight, Coffee, LogIn, LogOut, Play, FileText, User } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -640,7 +640,6 @@ function AbwesenheitenTab() {
   // Drag selection for absence entry
   const [dragStart, setDragStart] = useState(null)
   const [dragEnd, setDragEnd] = useState(null)
-  const [isDragging, setIsDragging] = useState(false)
   const [showAbwModal, setShowAbwModal] = useState(false)
   const [abwArten, setAbwArten] = useState([])
   const [modalArtId, setModalArtId] = useState('')
@@ -661,36 +660,9 @@ function AbwesenheitenTab() {
     return dates
   }, [dragStart, dragEnd])
 
-  const dragRef = useRef({ start: null, end: null, isDragging: false, mousePos: null })
-  const handleCellMouseDown = (dateStr, e) => {
-    dragRef.current = { start: dateStr, end: dateStr, isDragging: true, mousePos: { x: e.clientX, y: e.clientY } }
-    setDragStart(dateStr)
-    setDragEnd(dateStr)
-    setIsDragging(true)
-  }
-  const handleCellMouseEnter = (dateStr, e) => {
-    if (!dragRef.current.isDragging) return
-    const dx = Math.abs(e.clientX - dragRef.current.mousePos.x)
-    const dy = Math.abs(e.clientY - dragRef.current.mousePos.y)
-    if (dx > 5 || dy > 5) { dragRef.current.end = dateStr; setDragEnd(dateStr) }
-  }
-  const handleMouseUp = () => {
-    if (dragRef.current.isDragging && dragRef.current.start) {
-      dragRef.current.isDragging = false
-      setIsDragging(false)
-      setShowAbwModal(true)
-    }
-  }
-
   // Load abwesenheitsarten for modal
   useEffect(() => {
     supabase.from('abwesenheitsarten').select('*').eq('aktiv', true).order('sort_order').then(({ data }) => setAbwArten(data || []))
-  }, [])
-
-  // Global mouseup to end drag
-  useEffect(() => {
-    window.addEventListener('mouseup', handleMouseUp)
-    return () => window.removeEventListener('mouseup', handleMouseUp)
   }, [])
 
   const handleModalSave = async () => {
@@ -954,7 +926,7 @@ function AbwesenheitenTab() {
                       const isRowToday = year === todayYear && day === todayDay
                       return (
                       <tr key={day} className="border-t border-border-default">
-                        <td className={`px-2 py-0.5 font-mono text-right ${isRowToday ? 'bg-brand/5 text-brand font-bold' : 'text-text-muted'}`}>{day}</td>
+                        <td className={`px-2 py-1 font-mono text-right ${isRowToday ? 'bg-brand/5 text-brand font-bold' : 'text-text-muted'}`}>{day}</td>
                         {Array.from({ length: 12 }, (_, mi) => {
                           const maxDay = new Date(year, mi + 1, 0).getDate()
                           if (day > maxDay) return <td key={mi} className="bg-gray-50" />
@@ -973,11 +945,17 @@ function AbwesenheitenTab() {
                           const rowHighlight = isRowToday && mi < todayMonth
                           const crossHighlight = !isToday && !isWeekend && !style && !ft && (colHighlight || rowHighlight)
                           return (
-                            <td key={mi} className={`px-0 py-0.5 text-center select-none ${isToday ? 'ring-2 ring-brand ring-inset bg-brand/15 rounded' : ''} ${isWeekend ? 'bg-gray-100 text-text-muted' : ft && !style ? 'bg-blue-50/60' : ''} ${crossHighlight ? 'bg-brand/[0.04]' : ''} ${canSelect ? 'cursor-pointer hover:bg-brand/10' : ''} ${isSelected ? 'bg-brand/20 ring-1 ring-brand/40 ring-inset' : ''}`}
+                            <td key={mi} className={`px-0 py-1 text-center select-none ${isToday ? 'ring-2 ring-brand ring-inset bg-brand/15 rounded' : ''} ${isWeekend ? 'bg-gray-100 text-text-muted' : ft && !style ? 'bg-blue-50/60' : ''} ${crossHighlight ? 'bg-brand/[0.04]' : ''} ${canSelect ? 'cursor-pointer hover:bg-brand/10' : ''} ${isSelected ? 'bg-brand/20 ring-1 ring-brand/40 ring-inset' : ''}`}
                               title={abw ? `${abw.abwesenheitsarten?.name || 'Abwesenheit'}${abw.status === 'beantragt' ? ' (beantragt)' : ''}` : ft ? `${ft.name}${ft.halbtag ? ' (nachmittags frei)' : ''}` : canSelect ? 'Ziehen um Zeitraum auszuwählen' : isWeekend ? 'Wochenende' : ''}
-                              onMouseDown={canSelect ? (e) => { e.preventDefault(); handleCellMouseDown(dateStr, e) } : undefined}
-                              onMouseEnter={canSelect ? (e) => handleCellMouseEnter(dateStr, e) : undefined}
-                              onMouseUp={handleMouseUp}>
+                              onClick={canSelect ? (e) => {
+                                if (e.shiftKey && dragStart) {
+                                  setDragEnd(dateStr)
+                                } else {
+                                  setDragStart(dateStr)
+                                  setDragEnd(dateStr)
+                                }
+                                setShowAbwModal(true)
+                              } : undefined}>
                               {style ? (
                                 <span className={`inline-block w-full text-[9px] font-bold rounded ${style.dashed ? 'border border-dashed' : ''}`} style={{ backgroundColor: style.bg, color: style.text, borderColor: style.dashed ? style.text : undefined }}>{style.short}</span>
                               ) : ft && !isWeekend ? (
