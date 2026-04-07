@@ -998,6 +998,7 @@ function AbwesenheitenTab() {
               <div>
                 <label className="text-xs text-text-secondary block mb-1">Zeitraum</label>
                 <div className="text-sm font-medium text-text-primary">
+                  <div className="text-[9px] text-red-500 mb-1">DEBUG: dragStart={dragStart} range[0]={selectionRange[0]} range={JSON.stringify(selectionRange)}</div>
                   {selectionRange.length > 0 && (
                     <>
                       {new Date(selectionRange[0] + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
