@@ -38,20 +38,25 @@ const ROLLE_GRUPPEN = {
 }
 
 const ABW_COLORS = {
-  urlaub: { bg: '#DBEAFE', text: '#1E40AF', short: 'U' },
-  krank: { bg: '#FEE2E2', text: '#991B1B', short: 'K' },
-  krank_kind: { bg: '#FCE7F3', text: '#9D174D', short: 'KK' },
+  // Keys match DB slugs from abwesenheitsarten
+  urlaub_ganz: { bg: '#DBEAFE', text: '#1E40AF', short: 'U' },
+  urlaub_halbtag_vm: { bg: '#DBEAFE', text: '#1E40AF', short: '½U' },
+  urlaub_halbtag_nm: { bg: '#DBEAFE', text: '#1E40AF', short: '½U' },
+  krankheit: { bg: '#FEE2E2', text: '#991B1B', short: 'K' },
+  krankheit_ohne_au: { bg: '#FEE2E2', text: '#991B1B', short: 'K' },
+  kind_krank: { bg: '#FCE7F3', text: '#9D174D', short: 'KK' },
   elternzeit: { bg: '#EDE9FE', text: '#5B21B6', short: 'EZ' },
   mutterschutz: { bg: '#FCE7F3', text: '#9D174D', short: 'MS' },
   sonderurlaub: { bg: '#FEF3C7', text: '#92400E', short: 'SU' },
-  fortbildung: { bg: '#ECFDF5', text: '#065F46', short: 'FB' },
-  unbezahlt: { bg: '#F3F4F6', text: '#374151', short: 'UB' },
+  bildungsurlaub: { bg: '#ECFDF5', text: '#065F46', short: 'FB' },
+  unbezahlter_urlaub: { bg: '#F3F4F6', text: '#374151', short: 'UB' },
   feiertag: { bg: '#E0E7FF', text: '#3730A3', short: 'F' },
-  weihnachten_silvester: { bg: '#FEF3C7', text: '#92400E', short: 'WS' },
   freistellung: { bg: '#D1FAE5', text: '#065F46', short: 'FS' },
-  ausgestellt: { bg: '#FED7AA', text: '#9A3412', short: 'AU' },
-  ueberstundenausgleich: { bg: '#CFFAFE', text: '#155E75', short: 'ÜA' },
+  ueberstunden_ausgleich: { bg: '#CFFAFE', text: '#155E75', short: 'ÜA' },
+  kurzarbeit: { bg: '#F3F4F6', text: '#374151', short: 'KA' },
 }
+// Urlaub-Slugs for vacation stats calculation
+const URLAUB_SLUGS = ['urlaub_ganz', 'urlaub_halbtag_vm', 'urlaub_halbtag_nm']
 
 const WOCHENTAGE = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa']
 
@@ -682,18 +687,20 @@ function AbwesenheitenTab() {
     setModalSaving(true)
     const { data: ma } = await supabase.from('mitarbeiter').select('ressource_id').eq('id', selectedMa).single()
     const art = abwArten.find(a => a.id === modalArtId)
+    if (!ma?.ressource_id) { setModalSaving(false); return }
     const rows = selectionRange.map(datum => ({
       mitarbeiter_id: selectedMa,
-      ressource_id: ma?.ressource_id || null,
+      ressource_id: ma.ressource_id,
       abwesenheitsart_id: modalArtId,
       datum,
-      datum_bis: selectionRange[selectionRange.length - 1],
+      bis_datum: selectionRange[selectionRange.length - 1],
       typ: art?.kategorie || 'sonstiges',
       ganztaegig: true,
       status: 'beantragt',
       notiz: modalNotiz || null,
     }))
-    await supabase.from('abwesenheiten').insert(rows)
+    const { error } = await supabase.from('abwesenheiten').insert(rows)
+    if (error) { console.error('Abwesenheit speichern fehlgeschlagen:', error); setModalSaving(false); return }
     setModalSaving(false)
     setShowAbwModal(false)
     setDragStart(null)
@@ -719,12 +726,12 @@ function AbwesenheitenTab() {
   const loadData = useCallback(async () => {
     setLoading(true)
     const [abwRes, kontenRes, ftRes] = await Promise.all([
-      supabase.from('abwesenheiten').select('*, abwesenheitsarten(name, kuerzel, farbe)')
+      supabase.from('abwesenheiten').select('*, abwesenheitsarten(name, slug, farbe)')
         .neq('status', 'storniert').neq('status', 'abgelehnt')
         .lte('datum', `${monat}-${lastDay}`)
         .or(`datum_bis.gte.${monat}-01,datum_bis.is.null`),
       supabase.from('arbeitsvertraege').select('mitarbeiter_id, urlaubstage_jahr').eq('ist_aktuell', true),
-      supabase.from('feiertage').select('datum, name').gte('datum', `${year}-01-01`).lte('datum', `${year}-12-31`),
+      supabase.from('feiertage').select('datum, name, halbtag').gte('datum', `${year}-01-01`).lte('datum', `${year}-12-31`),
     ])
     setAbwesenheiten(abwRes.data || [])
     setUrlaubskonten(kontenRes.data || [])
@@ -750,7 +757,7 @@ function AbwesenheitenTab() {
   const getUrlaubStats = (maId) => {
     const vertrag = urlaubskonten.find(v => v.mitarbeiter_id === maId)
     const anspruch = vertrag?.urlaubstage_jahr || 30
-    const urlaubEintraege = abwesenheiten.filter(a => a.mitarbeiter_id === maId && a.abwesenheitsarten?.kuerzel?.toLowerCase() === 'urlaub')
+    const urlaubEintraege = abwesenheiten.filter(a => a.mitarbeiter_id === maId && URLAUB_SLUGS.includes(a.abwesenheitsarten?.slug))
     const genommen = urlaubEintraege.filter(a => a.status === 'genehmigt').reduce((sum, a) => sum + countWorkdays(a), 0)
     const beantragt = urlaubEintraege.filter(a => a.status === 'beantragt').reduce((sum, a) => sum + countWorkdays(a), 0)
     return { anspruch, genommen, beantragt, rest: anspruch - genommen - beantragt }
@@ -793,6 +800,7 @@ function AbwesenheitenTab() {
             {style.short} = {key.charAt(0).toUpperCase() + key.slice(1).replace('_', ' ')}
           </span>
         ))}
+        <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-600 border border-dashed border-blue-400">½F = Halber Feiertag</span>
       </div>
 
       {ansicht === 'gruppe' && !loading && (
@@ -864,15 +872,18 @@ function AbwesenheitenTab() {
                           const ft = feiertage.find(f => f.datum === dateStr)
                           const abw = getAbwForDay(ma.id, d)
                           if (abw && !isWeekend) totalDays++
-                          const kuerzel = abw?.abwesenheitsarten?.kuerzel?.toLowerCase() || ''
+                          const kuerzel = abw?.abwesenheitsarten?.slug?.toLowerCase() || ''
                           const style = ABW_COLORS[kuerzel] || (abw ? { bg: '#E5E7EB', text: '#374151', short: '?' } : null)
+                          const abwTooltip = abw ? `${abw.abwesenheitsarten?.name || 'Abwesenheit'}${abw.status === 'beantragt' ? ' (beantragt)' : ''}` : ''
+                          const ftTooltip = ft ? `${ft.name}${ft.halbtag ? ' (nachmittags frei)' : ''}` : ''
+                          const cellTitle = abwTooltip || ftTooltip || (isWeekend ? 'Wochenende' : '')
                           return (
                             <td key={d} className={`px-0 py-1 text-center ${isWeekend ? 'bg-gray-200/40' : ft && !style ? 'bg-blue-50/60' : ''} ${isToday ? 'ring-1 ring-brand/30 ring-inset' : ''}`}
-                              title={ft ? ft.name : ''}>
+                              title={cellTitle}>
                               {style ? (
                                 <span className="inline-block w-5 h-5 leading-5 rounded text-[9px] font-bold" style={{ backgroundColor: style.bg, color: style.text }}>{style.short}</span>
                               ) : ft && !isWeekend ? (
-                                <span className="inline-block w-5 h-5 leading-5 rounded text-[9px] font-bold bg-blue-100 text-blue-700">F</span>
+                                <span className={`inline-block w-5 h-5 leading-5 rounded text-[9px] font-bold ${ft.halbtag ? 'bg-blue-100 text-blue-600 border border-dashed border-blue-400' : 'bg-blue-100 text-blue-700'}`}>{ft.halbtag ? '½F' : 'F'}</span>
                               ) : null}
                             </td>
                           )
@@ -929,7 +940,7 @@ function AbwesenheitenTab() {
                           const isToday = year === todayYear && mi === todayMonth && day === todayDay
                           const isColToday = year === todayYear && mi === todayMonth
                           const abw = abwesenheiten.find(a => a.mitarbeiter_id === selectedMa && a.datum <= dateStr && (a.datum_bis ? a.datum_bis >= dateStr : a.datum >= dateStr))
-                          const kuerzel = abw?.abwesenheitsarten?.kuerzel?.toLowerCase() || ''
+                          const kuerzel = abw?.abwesenheitsarten?.slug?.toLowerCase() || ''
                           const style = ABW_COLORS[kuerzel] || (abw ? { bg: '#E5E7EB', text: '#374151', short: '?' } : null)
                           const ft = feiertage.find(f => f.datum === dateStr)
                           const canSelect = !isWeekend && !style && !ft
@@ -939,14 +950,14 @@ function AbwesenheitenTab() {
                           const crossHighlight = !isToday && !isWeekend && !style && !ft && (colHighlight || rowHighlight)
                           return (
                             <td key={mi} className={`px-0 py-0.5 text-center select-none ${isToday ? 'ring-2 ring-brand ring-inset bg-brand/15 rounded' : ''} ${isWeekend ? 'bg-gray-100 text-text-muted' : ft && !style ? 'bg-blue-50/60' : ''} ${crossHighlight ? 'bg-brand/[0.04]' : ''} ${canSelect ? 'cursor-pointer hover:bg-brand/10' : ''} ${isSelected ? 'bg-brand/20 ring-1 ring-brand/40 ring-inset' : ''}`}
-                              title={ft ? ft.name : canSelect ? 'Ziehen um Zeitraum auszuwählen' : ''}
+                              title={abw ? `${abw.abwesenheitsarten?.name || 'Abwesenheit'}${abw.status === 'beantragt' ? ' (beantragt)' : ''}` : ft ? `${ft.name}${ft.halbtag ? ' (nachmittags frei)' : ''}` : canSelect ? 'Ziehen um Zeitraum auszuwählen' : isWeekend ? 'Wochenende' : ''}
                               onMouseDown={canSelect ? (e) => { e.preventDefault(); handleCellMouseDown(dateStr) } : undefined}
                               onMouseEnter={canSelect ? () => handleCellMouseEnter(dateStr) : undefined}
                               onMouseUp={handleCellMouseUp}>
                               {style ? (
                                 <span className="inline-block w-full text-[9px] font-bold rounded" style={{ backgroundColor: style.bg, color: style.text }}>{style.short}</span>
                               ) : ft && !isWeekend ? (
-                                <span className="inline-block w-full text-[9px] font-bold rounded bg-blue-100 text-blue-700">F</span>
+                                <span className={`inline-block w-full text-[9px] font-bold rounded ${ft.halbtag ? 'bg-blue-100 text-blue-600 border border-dashed border-blue-400' : 'bg-blue-100 text-blue-700'}`}>{ft.halbtag ? '½F' : 'F'}</span>
                               ) : (
                                 <span className="text-[9px] text-text-muted">{WOCHENTAGE[dow]}</span>
                               )}
@@ -1042,8 +1053,8 @@ function ZeitkarteTab() {
       supabase.from('zeitstempel').select('*').eq('mitarbeiter_id', selectedMa)
         .gte('zeitpunkt', `${monat}-01T00:00:00`).lte('zeitpunkt', `${monat}-${lastDay}T23:59:59`).order('zeitpunkt'),
       supabase.from('arbeitsvertraege').select('*').eq('mitarbeiter_id', selectedMa).eq('ist_aktuell', true).single(),
-      supabase.from('feiertage').select('datum, name').gte('datum', `${monat}-01`).lte('datum', `${monat}-${lastDay}`),
-      supabase.from('abwesenheiten').select('*, abwesenheitsarten(name, kuerzel)')
+      supabase.from('feiertage').select('datum, name, halbtag').gte('datum', `${monat}-01`).lte('datum', `${monat}-${lastDay}`),
+      supabase.from('abwesenheiten').select('*, abwesenheitsarten(name, slug)')
         .eq('mitarbeiter_id', selectedMa).neq('status', 'storniert').neq('status', 'abgelehnt')
         .lte('datum', `${monat}-${lastDay}`).or(`datum_bis.gte.${monat}-01,datum_bis.is.null`),
     ])
