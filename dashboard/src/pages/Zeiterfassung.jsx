@@ -943,7 +943,7 @@ function AbwesenheitenTab() {
                           const kuerzel = abw?.abwesenheitsarten?.slug?.toLowerCase() || ''
                           const style = ABW_COLORS[kuerzel] || (abw ? { bg: '#E5E7EB', text: '#374151', short: '?' } : null)
                           const ft = feiertage.find(f => f.datum === dateStr)
-                          const canSelect = !isWeekend && !style && !ft
+                          const canSelect = !isWeekend && !style && (!ft || ft.halbtag)
                           const isSelected = selectionRange.includes(dateStr)
                           const colHighlight = isColToday && day < todayDay
                           const rowHighlight = isRowToday && mi < todayMonth
