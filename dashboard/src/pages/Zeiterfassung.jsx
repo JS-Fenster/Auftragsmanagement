@@ -964,7 +964,7 @@ function AbwesenheitenTab() {
                                   else nmSlot = s
                                 })
                                 return (
-                                <span className="inline-flex w-full text-[8px] font-bold rounded overflow-hidden">
+                                <span className="inline-flex w-full text-[9px] font-bold rounded overflow-hidden">
                                   {vmSlot ? <span className="flex-1 leading-4" style={{ backgroundColor: vmSlot.bg, color: vmSlot.text }}>{vmSlot.short}</span> : <span className="flex-1 leading-4 text-text-muted">···</span>}
                                   {nmSlot ? <span className="flex-1 leading-4" style={{ backgroundColor: nmSlot.bg, color: nmSlot.text }}>{nmSlot.short}</span> : <span className="flex-1 leading-4 text-text-muted">···</span>}
                                 </span>)
