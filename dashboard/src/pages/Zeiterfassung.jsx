@@ -58,8 +58,8 @@ const ABW_COLORS = {
   unbezahlter_urlaub:     { bg: '#F3F4F6', text: '#374151', short: 'UB' },
   kurzarbeit:             { bg: '#F3F4F6', text: '#374151', short: 'KA', dashed: true },
   ueberstunden_ausgleich: { bg: '#F3F4F6', text: '#374151', short: 'ÜA', dashed: true },
-  // Indigo = Feiertag (½F dashed wird separat im Rendering behandelt)
-  feiertag: { bg: '#E0E7FF', text: '#3730A3', short: 'F' },
+  // Gruen = Feiertag (½F dashed wird separat im Rendering behandelt)
+  feiertag: { bg: '#DCFCE7', text: '#166534', short: 'F' },
 }
 // Urlaub-Slugs for vacation stats calculation
 const URLAUB_SLUGS = ['urlaub_ganz', 'urlaub_halbtag_vm', 'urlaub_halbtag_nm']
@@ -700,7 +700,7 @@ function AbwesenheitenTab() {
       abwesenheitsart_id: modalArtId,
       datum,
       bis_datum: selectionRange[selectionRange.length - 1],
-      typ: art?.kategorie || 'sonstiges',
+      typ: art?.kategorie === 'krankheit' ? 'krank' : art?.kategorie === 'urlaub' ? 'urlaub' : 'sonstiges',
       ganztaegig: true,
       status: 'beantragt',
       notiz: modalNotiz || null,
@@ -811,8 +811,8 @@ function AbwesenheitenTab() {
           { short: 'BU', label: 'Bildungsurlaub', bg: '#FEF3C7', text: '#92400E', dashed: true },
           { short: 'ÜA', label: 'Überstunden', bg: '#F3F4F6', text: '#374151', dashed: true },
           { short: 'UB', label: 'Unbezahlt', bg: '#F3F4F6', text: '#374151' },
-          { short: 'F', label: 'Feiertag', bg: '#E0E7FF', text: '#3730A3' },
-          { short: '½F', label: 'Halber Feiertag', bg: '#E0E7FF', text: '#3730A3', dashed: true },
+          { short: 'F', label: 'Feiertag', bg: '#DCFCE7', text: '#166534' },
+          { short: '½F', label: 'Halber Feiertag', bg: '#DCFCE7', text: '#166534', dashed: true },
         ].map(item => (
           <span key={item.short} className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium ${item.dashed ? 'border border-dashed' : ''}`}
             style={{ backgroundColor: item.bg, color: item.text, borderColor: item.dashed ? item.text : undefined }}>
@@ -902,7 +902,7 @@ function AbwesenheitenTab() {
                               {style ? (
                                 <span className={`inline-block w-5 h-5 leading-5 rounded text-[9px] font-bold ${style.dashed ? 'border border-dashed' : ''}`} style={{ backgroundColor: style.bg, color: style.text, borderColor: style.dashed ? style.text : undefined }}>{style.short}</span>
                               ) : ft && !isWeekend ? (
-                                <span className={`inline-block w-5 h-5 leading-5 rounded text-[9px] font-bold ${ft.halbtag ? 'border border-dashed' : ''}`} style={{ backgroundColor: '#E0E7FF', color: '#3730A3', borderColor: ft.halbtag ? '#3730A3' : undefined }}>{ft.halbtag ? '½F' : 'F'}</span>
+                                <span className={`inline-block w-5 h-5 leading-5 rounded text-[9px] font-bold ${ft.halbtag ? 'border border-dashed' : ''}`} style={{ backgroundColor: '#DCFCE7', color: '#166534', borderColor: ft.halbtag ? '#166534' : undefined }}>{ft.halbtag ? '½F' : 'F'}</span>
                               ) : null}
                             </td>
                           )
@@ -976,7 +976,7 @@ function AbwesenheitenTab() {
                               {style ? (
                                 <span className={`inline-block w-full text-[9px] font-bold rounded ${style.dashed ? 'border border-dashed' : ''}`} style={{ backgroundColor: style.bg, color: style.text, borderColor: style.dashed ? style.text : undefined }}>{style.short}</span>
                               ) : ft && !isWeekend ? (
-                                <span className={`inline-block w-full text-[9px] font-bold rounded ${ft.halbtag ? 'border border-dashed' : ''}`} style={{ backgroundColor: '#E0E7FF', color: '#3730A3', borderColor: ft.halbtag ? '#3730A3' : undefined }}>{ft.halbtag ? '½F' : 'F'}</span>
+                                <span className={`inline-block w-full text-[9px] font-bold rounded ${ft.halbtag ? 'border border-dashed' : ''}`} style={{ backgroundColor: '#DCFCE7', color: '#166534', borderColor: ft.halbtag ? '#166534' : undefined }}>{ft.halbtag ? '½F' : 'F'}</span>
                               ) : (
                                 <span className="text-[9px] text-text-muted">{WOCHENTAGE[dow]}</span>
                               )}
