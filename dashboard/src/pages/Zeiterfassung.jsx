@@ -6,7 +6,7 @@
  *   Abwesenheiten-Matrix mit Abteilungs-Gruppierung + Urlaubskonto,
  *   Jahresuebersicht pro MA
  */
-import { useState, useEffect, useCallback, useMemo, Fragment } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, Fragment } from 'react'
 import { Clock, List, CalendarOff, BarChart3, ExternalLink, Plus, ChevronLeft, ChevronRight, Coffee, LogIn, LogOut, Play, FileText, User } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -661,13 +661,18 @@ function AbwesenheitenTab() {
     return dates
   }, [dragStart, dragEnd])
 
-  const handleCellMouseDown = (dateStr) => {
+  const dragStartRef = useRef(null)
+  const handleCellMouseDown = (dateStr, e) => {
+    dragStartRef.current = { x: e.clientX, y: e.clientY }
     setDragStart(dateStr)
     setDragEnd(dateStr)
     setIsDragging(true)
   }
-  const handleCellMouseEnter = (dateStr) => {
-    if (isDragging) setDragEnd(dateStr)
+  const handleCellMouseEnter = (dateStr, e) => {
+    if (!isDragging || !dragStartRef.current) return
+    const dx = Math.abs(e.clientX - dragStartRef.current.x)
+    const dy = Math.abs(e.clientY - dragStartRef.current.y)
+    if (dx > 5 || dy > 5) setDragEnd(dateStr)
   }
   const handleCellMouseUp = () => {
     if (isDragging && dragStart) {
@@ -970,8 +975,8 @@ function AbwesenheitenTab() {
                           return (
                             <td key={mi} className={`px-0 py-0.5 text-center select-none ${isToday ? 'ring-2 ring-brand ring-inset bg-brand/15 rounded' : ''} ${isWeekend ? 'bg-gray-100 text-text-muted' : ft && !style ? 'bg-blue-50/60' : ''} ${crossHighlight ? 'bg-brand/[0.04]' : ''} ${canSelect ? 'cursor-pointer hover:bg-brand/10' : ''} ${isSelected ? 'bg-brand/20 ring-1 ring-brand/40 ring-inset' : ''}`}
                               title={abw ? `${abw.abwesenheitsarten?.name || 'Abwesenheit'}${abw.status === 'beantragt' ? ' (beantragt)' : ''}` : ft ? `${ft.name}${ft.halbtag ? ' (nachmittags frei)' : ''}` : canSelect ? 'Ziehen um Zeitraum auszuwählen' : isWeekend ? 'Wochenende' : ''}
-                              onMouseDown={canSelect ? (e) => { e.preventDefault(); handleCellMouseDown(dateStr) } : undefined}
-                              onMouseEnter={canSelect ? () => handleCellMouseEnter(dateStr) : undefined}
+                              onMouseDown={canSelect ? (e) => { e.preventDefault(); handleCellMouseDown(dateStr, e) } : undefined}
+                              onMouseEnter={canSelect ? (e) => handleCellMouseEnter(dateStr, e) : undefined}
                               onMouseUp={handleCellMouseUp}>
                               {style ? (
                                 <span className={`inline-block w-full text-[9px] font-bold rounded ${style.dashed ? 'border border-dashed' : ''}`} style={{ backgroundColor: style.bg, color: style.text, borderColor: style.dashed ? style.text : undefined }}>{style.short}</span>
