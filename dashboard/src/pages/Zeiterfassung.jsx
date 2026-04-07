@@ -41,8 +41,8 @@ const ABW_COLORS = {
   // Keys match DB slugs — 5 Grundfarben + Rahmen fuer Varianten
   // Blau = Urlaub
   urlaub_ganz:       { bg: '#DBEAFE', text: '#1E40AF', short: 'U' },
-  urlaub_halbtag_vm: { bg: '#DBEAFE', text: '#1E40AF', short: '½U', dashed: true },
-  urlaub_halbtag_nm: { bg: '#DBEAFE', text: '#1E40AF', short: '½U', dashed: true },
+  urlaub_halbtag_vm: { bg: '#DBEAFE', text: '#1E40AF', short: '½U' },
+  urlaub_halbtag_nm: { bg: '#DBEAFE', text: '#1E40AF', short: '½U' },
   // Rot = Krankheit
   krankheit:         { bg: '#FEE2E2', text: '#991B1B', short: 'K' },
   krankheit_ohne_au: { bg: '#FEE2E2', text: '#991B1B', short: 'K', dashed: true },
@@ -58,8 +58,8 @@ const ABW_COLORS = {
   unbezahlter_urlaub:        { bg: '#F3F4F6', text: '#374151', short: 'UB' },
   kurzarbeit:                { bg: '#F3F4F6', text: '#374151', short: 'KA', dashed: true },
   ueberstunden_ausgleich:    { bg: '#F3F4F6', text: '#374151', short: 'ÜA' },
-  ueberstunden_halbtag_vm:   { bg: '#F3F4F6', text: '#374151', short: '½ÜA', dashed: true },
-  ueberstunden_halbtag_nm:   { bg: '#F3F4F6', text: '#374151', short: '½ÜA', dashed: true },
+  ueberstunden_halbtag_vm:   { bg: '#F3F4F6', text: '#374151', short: '½ÜA' },
+  ueberstunden_halbtag_nm:   { bg: '#F3F4F6', text: '#374151', short: '½ÜA' },
   // Gruen = Feiertag (½F dashed wird separat im Rendering behandelt)
   feiertag: { bg: '#DCFCE7', text: '#166534', short: 'F' },
 }
@@ -926,7 +926,7 @@ function AbwesenheitenTab() {
                           const kuerzel = abw?.abwesenheitsarten?.slug?.toLowerCase() || ''
                           const style = ABW_COLORS[kuerzel] || (abw ? { bg: '#E5E7EB', text: '#374151', short: '?' } : null)
                           const ft = feiertage.find(f => f.datum === dateStr)
-                          const hasMultiple = dayAbws.length > 1 || (ft?.halbtag && abw)
+                          const hasMultiple = dayAbws.length > 1 || ft?.halbtag
                           const canSelect = !isWeekend && (!abw || ft?.halbtag) && (!ft || ft.halbtag)
                           const isSelected = selectionRange.includes(dateStr)
                           const colHighlight = isColToday && day < todayDay
@@ -950,16 +950,25 @@ function AbwesenheitenTab() {
                                 }
                                 setShowAbwModal(true)
                               } : undefined}>
-                              {hasMultiple ? (
+                              {hasMultiple ? (() => {
+                                // Build slots: left = vormittag, right = nachmittag
+                                let vmSlot = null, nmSlot = null
+                                if (ft?.halbtag === 'nachmittag') nmSlot = { bg: '#DCFCE7', text: '#166534', short: '½F' }
+                                if (ft?.halbtag === 'vormittag') vmSlot = { bg: '#DCFCE7', text: '#166534', short: '½F' }
+                                dayAbws.forEach(a => {
+                                  const slug = a.abwesenheitsarten?.slug || ''
+                                  const s = ABW_COLORS[slug] || { bg: '#E5E7EB', text: '#374151', short: '?' }
+                                  if (slug.endsWith('_vm')) vmSlot = s
+                                  else if (slug.endsWith('_nm')) nmSlot = s
+                                  else if (!vmSlot) vmSlot = s
+                                  else nmSlot = s
+                                })
+                                return (
                                 <span className="inline-flex w-full text-[8px] font-bold rounded overflow-hidden">
-                                  {ft?.halbtag && (
-                                    <span className="flex-1 leading-4 border border-dashed" style={{ backgroundColor: '#DCFCE7', color: '#166534', borderColor: '#166534' }}>½F</span>
-                                  )}
-                                  {dayAbws.map((a, i) => { const s = ABW_COLORS[a.abwesenheitsarten?.slug] || { bg: '#E5E7EB', text: '#374151', short: '?' }; return (
-                                    <span key={i} className={`flex-1 leading-4 ${s.dashed ? 'border border-dashed' : ''}`} style={{ backgroundColor: s.bg, color: s.text, borderColor: s.dashed ? s.text : undefined }}>{s.short}</span>
-                                  )})}
-                                </span>
-                              ) : style ? (
+                                  {vmSlot ? <span className="flex-1 leading-4" style={{ backgroundColor: vmSlot.bg, color: vmSlot.text }}>{vmSlot.short}</span> : <span className="flex-1 leading-4 text-text-muted">···</span>}
+                                  {nmSlot ? <span className="flex-1 leading-4" style={{ backgroundColor: nmSlot.bg, color: nmSlot.text }}>{nmSlot.short}</span> : <span className="flex-1 leading-4 text-text-muted">···</span>}
+                                </span>)
+                              })() : style ? (
                                 <span className={`inline-block w-full text-[9px] font-bold rounded ${style.dashed ? 'border border-dashed' : ''}`} style={{ backgroundColor: style.bg, color: style.text, borderColor: style.dashed ? style.text : undefined }}>{style.short}</span>
                               ) : ft && !isWeekend ? (
                                 <span className={`inline-block w-full text-[9px] font-bold rounded ${ft.halbtag ? 'border border-dashed' : ''}`} style={{ backgroundColor: '#DCFCE7', color: '#166534', borderColor: ft.halbtag ? '#166534' : undefined }}>{ft.halbtag ? '½F' : 'F'}</span>
