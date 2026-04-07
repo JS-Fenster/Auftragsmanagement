@@ -7,7 +7,6 @@
  *   Jahresuebersicht pro MA
  */
 import { useState, useEffect, useCallback, useMemo, Fragment } from 'react'
-import { flushSync } from 'react-dom'
 import { Clock, List, CalendarOff, BarChart3, ExternalLink, Plus, ChevronLeft, ChevronRight, Coffee, LogIn, LogOut, Play, FileText, User } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -652,10 +651,15 @@ function AbwesenheitenTab() {
     const e2 = end || start
     const [s, e] = start <= e2 ? [start, e2] : [e2, start]
     const dates = []
-    const d = new Date(s + 'T00:00:00')
-    const last = new Date(e + 'T00:00:00')
+    const d = new Date(s + 'T12:00:00')
+    const last = new Date(e + 'T12:00:00')
     while (d <= last) {
-      if (d.getDay() !== 0 && d.getDay() !== 6) dates.push(d.toISOString().slice(0, 10))
+      if (d.getDay() !== 0 && d.getDay() !== 6) {
+        const yyyy = d.getFullYear()
+        const mm = String(d.getMonth() + 1).padStart(2, '0')
+        const dd = String(d.getDate()).padStart(2, '0')
+        dates.push(`${yyyy}-${mm}-${dd}`)
+      }
       d.setDate(d.getDate() + 1)
     }
     return dates
@@ -953,9 +957,10 @@ function AbwesenheitenTab() {
                               onClick={canSelect ? (e) => {
                                 e.stopPropagation()
                                 if (e.shiftKey && dragStart) {
-                                  flushSync(() => setDragEnd(dateStr))
+                                  setDragEnd(dateStr)
                                 } else {
-                                  flushSync(() => { setDragStart(dateStr); setDragEnd(dateStr) })
+                                  setDragStart(dateStr)
+                                  setDragEnd(dateStr)
                                 }
                                 setShowAbwModal(true)
                               } : undefined}>
@@ -998,7 +1003,6 @@ function AbwesenheitenTab() {
               <div>
                 <label className="text-xs text-text-secondary block mb-1">Zeitraum</label>
                 <div className="text-sm font-medium text-text-primary">
-                  <div className="text-[9px] text-red-500 mb-1">DEBUG: dragStart={dragStart} range[0]={selectionRange[0]} range={JSON.stringify(selectionRange)}</div>
                   {selectionRange.length > 0 && (
                     <>
                       {new Date(selectionRange[0] + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
