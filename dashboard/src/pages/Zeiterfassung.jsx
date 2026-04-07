@@ -661,21 +661,22 @@ function AbwesenheitenTab() {
     return dates
   }, [dragStart, dragEnd])
 
-  const dragStartRef = useRef(null)
+  const dragRef = useRef({ start: null, end: null, isDragging: false, mousePos: null })
   const handleCellMouseDown = (dateStr, e) => {
-    dragStartRef.current = { x: e.clientX, y: e.clientY }
+    dragRef.current = { start: dateStr, end: dateStr, isDragging: true, mousePos: { x: e.clientX, y: e.clientY } }
     setDragStart(dateStr)
     setDragEnd(dateStr)
     setIsDragging(true)
   }
   const handleCellMouseEnter = (dateStr, e) => {
-    if (!isDragging || !dragStartRef.current) return
-    const dx = Math.abs(e.clientX - dragStartRef.current.x)
-    const dy = Math.abs(e.clientY - dragStartRef.current.y)
-    if (dx > 5 || dy > 5) setDragEnd(dateStr)
+    if (!dragRef.current.isDragging) return
+    const dx = Math.abs(e.clientX - dragRef.current.mousePos.x)
+    const dy = Math.abs(e.clientY - dragRef.current.mousePos.y)
+    if (dx > 5 || dy > 5) { dragRef.current.end = dateStr; setDragEnd(dateStr) }
   }
-  const handleCellMouseUp = () => {
-    if (isDragging && dragStart) {
+  const handleMouseUp = () => {
+    if (dragRef.current.isDragging && dragRef.current.start) {
+      dragRef.current.isDragging = false
       setIsDragging(false)
       setShowAbwModal(true)
     }
@@ -686,12 +687,11 @@ function AbwesenheitenTab() {
     supabase.from('abwesenheitsarten').select('*').eq('aktiv', true).order('sort_order').then(({ data }) => setAbwArten(data || []))
   }, [])
 
-  // Global mouseup to end drag even outside cells
+  // Global mouseup to end drag
   useEffect(() => {
-    const handler = () => { if (isDragging) { setIsDragging(false); if (dragStart) setShowAbwModal(true) } }
-    window.addEventListener('mouseup', handler)
-    return () => window.removeEventListener('mouseup', handler)
-  }, [isDragging, dragStart])
+    window.addEventListener('mouseup', handleMouseUp)
+    return () => window.removeEventListener('mouseup', handleMouseUp)
+  }, [])
 
   const handleModalSave = async () => {
     if (!modalArtId || selectionRange.length === 0 || !selectedMa) return
@@ -977,7 +977,7 @@ function AbwesenheitenTab() {
                               title={abw ? `${abw.abwesenheitsarten?.name || 'Abwesenheit'}${abw.status === 'beantragt' ? ' (beantragt)' : ''}` : ft ? `${ft.name}${ft.halbtag ? ' (nachmittags frei)' : ''}` : canSelect ? 'Ziehen um Zeitraum auszuwählen' : isWeekend ? 'Wochenende' : ''}
                               onMouseDown={canSelect ? (e) => { e.preventDefault(); handleCellMouseDown(dateStr, e) } : undefined}
                               onMouseEnter={canSelect ? (e) => handleCellMouseEnter(dateStr, e) : undefined}
-                              onMouseUp={handleCellMouseUp}>
+                              onMouseUp={handleMouseUp}>
                               {style ? (
                                 <span className={`inline-block w-full text-[9px] font-bold rounded ${style.dashed ? 'border border-dashed' : ''}`} style={{ backgroundColor: style.bg, color: style.text, borderColor: style.dashed ? style.text : undefined }}>{style.short}</span>
                               ) : ft && !isWeekend ? (
