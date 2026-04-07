@@ -934,7 +934,9 @@ function AbwesenheitenTab() {
                           const ft = feiertage.find(f => f.datum === dateStr)
                           const canSelect = !isWeekend && !style && !ft
                           const isSelected = selectionRange.includes(dateStr)
-                          const crossHighlight = !isToday && !isWeekend && !style && !ft && (isColToday || isRowToday)
+                          const colHighlight = isColToday && day < todayDay
+                          const rowHighlight = isRowToday && mi < todayMonth
+                          const crossHighlight = !isToday && !isWeekend && !style && !ft && (colHighlight || rowHighlight)
                           return (
                             <td key={mi} className={`px-0 py-0.5 text-center select-none ${isToday ? 'ring-2 ring-brand ring-inset bg-brand/15 rounded' : ''} ${isWeekend ? 'bg-gray-100 text-text-muted' : ft && !style ? 'bg-blue-50/60' : ''} ${crossHighlight ? 'bg-brand/[0.04]' : ''} ${canSelect ? 'cursor-pointer hover:bg-brand/10' : ''} ${isSelected ? 'bg-brand/20 ring-1 ring-brand/40 ring-inset' : ''}`}
                               title={ft ? ft.name : canSelect ? 'Ziehen um Zeitraum auszuwählen' : ''}
