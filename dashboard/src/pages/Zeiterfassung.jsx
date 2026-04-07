@@ -54,10 +54,12 @@ const ABW_COLORS = {
   sonderurlaub:      { bg: '#FEF3C7', text: '#92400E', short: 'SU' },
   bildungsurlaub:    { bg: '#FEF3C7', text: '#92400E', short: 'BU', dashed: true },
   // Grau = Sonstiges (Freistellung, Unbezahlt, Kurzarbeit, Ueberstunden)
-  freistellung:           { bg: '#F3F4F6', text: '#374151', short: 'FS' },
-  unbezahlter_urlaub:     { bg: '#F3F4F6', text: '#374151', short: 'UB' },
-  kurzarbeit:             { bg: '#F3F4F6', text: '#374151', short: 'KA', dashed: true },
-  ueberstunden_ausgleich: { bg: '#F3F4F6', text: '#374151', short: 'ÜA', dashed: true },
+  freistellung:              { bg: '#F3F4F6', text: '#374151', short: 'FS' },
+  unbezahlter_urlaub:        { bg: '#F3F4F6', text: '#374151', short: 'UB' },
+  kurzarbeit:                { bg: '#F3F4F6', text: '#374151', short: 'KA', dashed: true },
+  ueberstunden_ausgleich:    { bg: '#F3F4F6', text: '#374151', short: 'ÜA' },
+  ueberstunden_halbtag_vm:   { bg: '#F3F4F6', text: '#374151', short: '½ÜA', dashed: true },
+  ueberstunden_halbtag_nm:   { bg: '#F3F4F6', text: '#374151', short: '½ÜA', dashed: true },
   // Gruen = Feiertag (½F dashed wird separat im Rendering behandelt)
   feiertag: { bg: '#DCFCE7', text: '#166534', short: 'F' },
 }
@@ -783,29 +785,6 @@ function AbwesenheitenTab() {
         )}
       </div>
 
-      {/* Legend */}
-      <div className="flex gap-2 mb-4 flex-wrap items-center">
-        {[
-          { short: 'U', label: 'Urlaub', bg: '#DBEAFE', text: '#1E40AF' },
-          { short: 'K', label: 'Krank', bg: '#FEE2E2', text: '#991B1B' },
-          { short: 'KK', label: 'Kind krank', bg: '#FEE2E2', text: '#991B1B' },
-          { short: 'EZ', label: 'Elternzeit', bg: '#EDE9FE', text: '#5B21B6' },
-          { short: 'MS', label: 'Mutterschutz', bg: '#EDE9FE', text: '#5B21B6', dashed: true },
-          { short: 'SU', label: 'Sonderurlaub', bg: '#FEF3C7', text: '#92400E' },
-          { short: 'BU', label: 'Bildungsurlaub', bg: '#FEF3C7', text: '#92400E', dashed: true },
-          { short: 'ÜA', label: 'Überstunden', bg: '#F3F4F6', text: '#374151', dashed: true },
-          { short: 'UB', label: 'Unbezahlt', bg: '#F3F4F6', text: '#374151' },
-          { short: 'F', label: 'Feiertag', bg: '#DCFCE7', text: '#166534' },
-          { short: '½F', label: 'Halber Feiertag', bg: '#DCFCE7', text: '#166534', dashed: true },
-        ].map(item => (
-          <span key={item.short} className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium ${item.dashed ? 'border border-dashed' : ''}`}
-            style={{ backgroundColor: item.bg, color: item.text, borderColor: item.dashed ? item.text : undefined }}>
-            {item.short} = {item.label}
-          </span>
-        ))}
-        <span className="text-[9px] text-text-muted ml-1">gestrichelt = Variante (½ Tag, ohne AU, ...)</span>
-      </div>
-
       {ansicht === 'gruppe' && !loading && (
         <div className="rounded-lg border border-border-default overflow-x-auto">
           <table className="text-xs border-collapse w-max">
@@ -942,18 +921,25 @@ function AbwesenheitenTab() {
                           const isWeekend = dow === 0 || dow === 6
                           const isToday = year === todayYear && mi === todayMonth && day === todayDay
                           const isColToday = year === todayYear && mi === todayMonth
-                          const abw = abwesenheiten.find(a => a.mitarbeiter_id === selectedMa && a.datum <= dateStr && (a.bis_datum ? a.bis_datum >= dateStr : a.datum >= dateStr))
+                          const dayAbws = abwesenheiten.filter(a => a.mitarbeiter_id === selectedMa && a.datum <= dateStr && (a.bis_datum ? a.bis_datum >= dateStr : a.datum >= dateStr))
+                          const abw = dayAbws[0]
                           const kuerzel = abw?.abwesenheitsarten?.slug?.toLowerCase() || ''
                           const style = ABW_COLORS[kuerzel] || (abw ? { bg: '#E5E7EB', text: '#374151', short: '?' } : null)
                           const ft = feiertage.find(f => f.datum === dateStr)
-                          const canSelect = !isWeekend && !style && (!ft || ft.halbtag)
+                          const hasMultiple = dayAbws.length > 1 || (ft?.halbtag && abw)
+                          const canSelect = !isWeekend && (!abw || ft?.halbtag) && (!ft || ft.halbtag)
                           const isSelected = selectionRange.includes(dateStr)
                           const colHighlight = isColToday && day < todayDay
                           const rowHighlight = isRowToday && mi < todayMonth
                           const crossHighlight = !isToday && !isWeekend && !style && !ft && (colHighlight || rowHighlight)
                           return (
                             <td key={mi} className={`px-0 py-1 text-center select-none ${isToday ? 'ring-2 ring-brand ring-inset bg-brand/15 rounded' : ''} ${isWeekend ? 'bg-gray-100 text-text-muted' : ft && !style ? 'bg-blue-50/60' : ''} ${crossHighlight ? 'bg-brand/[0.04]' : ''} ${canSelect ? 'cursor-pointer hover:bg-brand/10' : ''} ${isSelected ? 'bg-brand/20 ring-1 ring-brand/40 ring-inset' : ''}`}
-                              title={abw ? `${abw.abwesenheitsarten?.name || 'Abwesenheit'}${abw.status === 'beantragt' ? ' (beantragt)' : ''}` : ft ? `${ft.name}${ft.halbtag ? ' (nachmittags frei)' : ''}` : canSelect ? 'Ziehen um Zeitraum auszuwählen' : isWeekend ? 'Wochenende' : ''}
+                              title={(() => {
+                                const parts = []
+                                if (ft) parts.push(`${ft.name}${ft.halbtag ? ' (nachmittags frei)' : ''}`)
+                                dayAbws.forEach(a => parts.push(`${a.abwesenheitsarten?.name || 'Abwesenheit'}${a.status === 'beantragt' ? ' (beantragt)' : ''}`))
+                                return parts.join(' + ') || (canSelect ? 'Klicken um Abwesenheit einzutragen' : isWeekend ? 'Wochenende' : '')
+                              })()}
                               onClick={canSelect ? (e) => {
                                 e.stopPropagation()
                                 if (e.shiftKey && dragStart) {
@@ -964,7 +950,16 @@ function AbwesenheitenTab() {
                                 }
                                 setShowAbwModal(true)
                               } : undefined}>
-                              {style ? (
+                              {hasMultiple ? (
+                                <span className="inline-flex w-full text-[8px] font-bold rounded overflow-hidden">
+                                  {ft?.halbtag && (
+                                    <span className="flex-1 leading-4 border border-dashed" style={{ backgroundColor: '#DCFCE7', color: '#166534', borderColor: '#166534' }}>½F</span>
+                                  )}
+                                  {dayAbws.map((a, i) => { const s = ABW_COLORS[a.abwesenheitsarten?.slug] || { bg: '#E5E7EB', text: '#374151', short: '?' }; return (
+                                    <span key={i} className={`flex-1 leading-4 ${s.dashed ? 'border border-dashed' : ''}`} style={{ backgroundColor: s.bg, color: s.text, borderColor: s.dashed ? s.text : undefined }}>{s.short}</span>
+                                  )})}
+                                </span>
+                              ) : style ? (
                                 <span className={`inline-block w-full text-[9px] font-bold rounded ${style.dashed ? 'border border-dashed' : ''}`} style={{ backgroundColor: style.bg, color: style.text, borderColor: style.dashed ? style.text : undefined }}>{style.short}</span>
                               ) : ft && !isWeekend ? (
                                 <span className={`inline-block w-full text-[9px] font-bold rounded ${ft.halbtag ? 'border border-dashed' : ''}`} style={{ backgroundColor: '#DCFCE7', color: '#166534', borderColor: ft.halbtag ? '#166534' : undefined }}>{ft.halbtag ? '½F' : 'F'}</span>
