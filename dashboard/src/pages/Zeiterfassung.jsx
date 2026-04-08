@@ -1379,16 +1379,16 @@ function ZeitkarteTab() {
           <table className="w-full text-xs">
             <thead>
               <tr className="bg-surface-card text-text-secondary">
-                <th className="px-1.5 py-2 text-left font-medium whitespace-nowrap"></th>
-                <th className="px-1.5 py-2 text-left font-medium whitespace-nowrap">Datum</th>
-                <th className="px-1.5 py-2 text-right font-medium whitespace-nowrap">Kommt</th>
-                <th className="px-1.5 py-2 text-right font-medium whitespace-nowrap">Geht</th>
-                <th className="px-1.5 py-2 text-right font-medium whitespace-nowrap">Pause</th>
-                <th className="px-1.5 py-2 text-right font-medium whitespace-nowrap">Soll</th>
-                <th className="px-1.5 py-2 text-right font-medium whitespace-nowrap">Ist</th>
-                <th className="px-1.5 py-2 text-right font-medium whitespace-nowrap">Tag</th>
-                <th className="px-1.5 py-2 text-right font-medium whitespace-nowrap" title="Überstunden kumulativ">Ü kum.</th>
-                <th className="px-3 py-2 text-left font-medium w-full">Bemerkung</th>
+                <th className="px-2 py-2 text-left font-medium w-8"></th>
+                <th className="px-2 py-2 text-left font-medium">Datum</th>
+                <th className="px-3 py-2 text-right font-medium">Kommt</th>
+                <th className="px-3 py-2 text-right font-medium">Geht</th>
+                <th className="px-3 py-2 text-right font-medium">Pause</th>
+                <th className="px-3 py-2 text-right font-medium">Soll</th>
+                <th className="px-3 py-2 text-right font-medium">Ist</th>
+                <th className="px-3 py-2 text-right font-medium">Tag</th>
+                <th className="px-3 py-2 text-right font-medium" title="Überstunden kumulativ">Ü kum.</th>
+                <th className="px-4 py-2 text-left font-medium">Bemerkung</th>
               </tr>
             </thead>
             <tbody>
@@ -1399,20 +1399,20 @@ function ZeitkarteTab() {
                   <Fragment key={row.day}>
                     {showKWSep && <tr><td colSpan={10} className="h-1 bg-border-default" /></tr>}
                     <tr className={`${row.isWeekend ? 'bg-gray-50 text-text-muted' : row.feiertag ? 'bg-blue-50/50' : row.abw ? 'bg-amber-50/30' : row.isFuture ? 'text-text-muted' : ''} border-t border-border-default`}>
-                      <td className="px-1.5 py-1.5 text-text-muted whitespace-nowrap">{WOCHENTAGE[row.dow]}</td>
-                      <td className="px-1.5 py-1.5 text-text-secondary font-mono whitespace-nowrap">{String(row.day).padStart(2, '0')}.{String(month).padStart(2, '0')}.{year}</td>
-                      <td className="px-1.5 py-1.5 text-right font-mono whitespace-nowrap">{formatTime(row.kommen)}</td>
-                      <td className="px-1.5 py-1.5 text-right font-mono whitespace-nowrap">{formatTime(row.gehen)}</td>
-                      <td className="px-1.5 py-1.5 text-right text-text-muted whitespace-nowrap">{row.pause > 0 ? fmtH(row.pause) : ''}</td>
-                      <td className="px-1.5 py-1.5 text-right text-text-secondary whitespace-nowrap">{row.soll > 0 ? fmtH(row.soll) : ''}</td>
-                      <td className="px-1.5 py-1.5 text-right font-medium text-text-primary whitespace-nowrap">{row.ist > 0 ? fmtH(row.ist) : ''}</td>
-                      <td className={`px-1.5 py-1.5 text-right font-medium whitespace-nowrap ${row.tag >= 0 ? 'text-text-secondary' : 'text-red-600'}`}>
+                      <td className="px-2 py-1.5 text-text-muted">{WOCHENTAGE[row.dow]}</td>
+                      <td className="px-2 py-1.5 text-text-secondary font-mono">{String(row.day).padStart(2, '0')}.{String(month).padStart(2, '0')}.{year}</td>
+                      <td className="px-3 py-1.5 text-right font-mono">{formatTime(row.kommen)}</td>
+                      <td className="px-3 py-1.5 text-right font-mono">{formatTime(row.gehen)}</td>
+                      <td className="px-3 py-1.5 text-right text-text-muted">{row.pause > 0 ? fmtH(row.pause) : ''}</td>
+                      <td className="px-3 py-1.5 text-right text-text-secondary">{row.soll > 0 ? fmtH(row.soll) : ''}</td>
+                      <td className="px-3 py-1.5 text-right font-medium text-text-primary">{row.ist > 0 ? fmtH(row.ist) : ''}</td>
+                      <td className={`px-3 py-1.5 text-right font-medium ${row.tag >= 0 ? 'text-text-secondary' : 'text-red-600'}`}>
                         {!row.isWeekend && !row.isFuture && row.soll > 0 ? fmtHSigned(row.tag) : ''}
                       </td>
-                      <td className={`px-1.5 py-1.5 text-right font-bold whitespace-nowrap ${row.ueberstunden >= 0 ? 'text-text-primary' : 'text-red-600'}`}>
+                      <td className={`px-3 py-1.5 text-right font-bold ${row.ueberstunden >= 0 ? 'text-text-primary' : 'text-red-600'}`}>
                         {!row.isWeekend && !row.isFuture ? fmtHSigned(row.ueberstunden) : ''}
                       </td>
-                      <td className="px-3 py-1.5 text-text-muted">{row.bemerkung}</td>
+                      <td className="px-4 py-1.5 text-text-muted">{row.bemerkung}</td>
                     </tr>
                   </Fragment>
                 )
