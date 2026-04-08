@@ -31,7 +31,7 @@ function calcWorkdays(start, end) {
   return count
 }
 
-export default function AbwesenheitenSection({ mitarbeiterId, mitarbeiterName }) {
+export default function AbwesenheitenSection({ mitarbeiterId, mitarbeiterName, onUpdate }) {
   const [abwesenheiten, setAbwesenheiten] = useState([])
   const [arten, setArten] = useState([])
   const [loading, setLoading] = useState(true)
@@ -123,6 +123,7 @@ export default function AbwesenheitenSection({ mitarbeiterId, mitarbeiterName })
     setSaving(false)
     resetForm()
     loadData()
+    onUpdate?.()
   }
 
   const handleStatusChange = async (abwId, newStatus) => {
@@ -131,6 +132,7 @@ export default function AbwesenheitenSection({ mitarbeiterId, mitarbeiterName })
       genehmigt_am: newStatus === 'genehmigt' ? new Date().toISOString() : null,
     }).eq('id', abwId)
     loadData()
+    onUpdate?.()
   }
 
   // Group by date range

@@ -1077,7 +1077,8 @@ function AbwesenheitenTab() {
               {/* MA Abwesenheiten verwalten */}
               <div className="p-4 rounded-lg border border-border-default bg-surface-card">
                 <AbwesenheitenSection key={selectedMa} mitarbeiterId={selectedMa}
-                  mitarbeiterName={`${mitarbeiter.find(m => m.id === selectedMa)?.vorname || ''} ${mitarbeiter.find(m => m.id === selectedMa)?.nachname || ''}`} />
+                  mitarbeiterName={`${mitarbeiter.find(m => m.id === selectedMa)?.vorname || ''} ${mitarbeiter.find(m => m.id === selectedMa)?.nachname || ''}`}
+                  onUpdate={loadData} />
               </div>
             </div>
           ) : <div className="text-sm text-text-muted py-8 text-center">Mitarbeiter auswählen um Jahresübersicht anzuzeigen</div>}
