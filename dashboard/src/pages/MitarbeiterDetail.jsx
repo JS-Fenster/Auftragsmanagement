@@ -1852,9 +1852,11 @@ export default function MitarbeiterDetail() {
             {/* Kleidergrößen */}
             <div className="border-t border-border-default pt-4">
               <h3 className="text-sm font-semibold text-text-primary mb-3 pb-1 border-b border-border-default">Kleidergrößen</h3>
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <Field label="Hose" value={maForm.kleidung_hose} onChange={v => setMF('kleidung_hose', v)} disabled={!editing} placeholder="z.B. 52" />
                 <Field label="Jacke" value={maForm.kleidung_jacke} onChange={v => setMF('kleidung_jacke', v)} disabled={!editing} placeholder="z.B. L" />
+                <Field label="Pulli" value={maForm.kleidung_pulli} onChange={v => setMF('kleidung_pulli', v)} disabled={!editing} placeholder="z.B. XL" />
+                <Field label="T-Shirt" value={maForm.kleidung_tshirt} onChange={v => setMF('kleidung_tshirt', v)} disabled={!editing} placeholder="z.B. L" />
                 <Field label="Schuhe" value={maForm.kleidung_schuhe} onChange={v => setMF('kleidung_schuhe', v)} disabled={!editing} placeholder="z.B. 43" />
                 <Field label="Handschuhe" value={maForm.kleidung_handschuhe} onChange={v => setMF('kleidung_handschuhe', v)} disabled={!editing} placeholder="z.B. 9" />
               </div>
