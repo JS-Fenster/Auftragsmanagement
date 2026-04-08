@@ -504,12 +504,12 @@ function SkillsSection({ mitarbeiterId, editing }) {
               <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wide mb-2">Eigenen Skill anlegen</h4>
               <div className="flex gap-2">
                 <input value={newSkillName} onChange={e => setNewSkillName(e.target.value)}
-                  placeholder="Neuer Skill..." className={inputCls + ' flex-1 text-xs'} />
-                <select value={newSkillKat} onChange={e => setNewSkillKat(e.target.value)} className={inputCls + ' text-xs'}>
+                  placeholder="Neuer Skill..." className={inputCls + ' flex-[3] text-xs'} />
+                <select value={newSkillKat} onChange={e => setNewSkillKat(e.target.value)} className={inputCls + ' flex-1 text-xs'}>
                   {KATEGORIE_ORDER.map(k => <option key={k} value={k}>{KATEGORIE_LABELS[k]?.replace(/^.+\s/, '') || k}</option>)}
                 </select>
                 <button onClick={addCustomSkill} disabled={!newSkillName.trim()}
-                  className="px-3 py-1.5 text-xs font-medium bg-brand text-white rounded-lg hover:opacity-90 disabled:opacity-50">
+                  className="px-3 py-1.5 text-xs font-medium bg-brand text-white rounded-lg hover:opacity-90 disabled:opacity-50 shrink-0">
                   Hinzufügen
                 </button>
               </div>
