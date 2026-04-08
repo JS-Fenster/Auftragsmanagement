@@ -1052,16 +1052,16 @@ function AbwesenheitenTab() {
                                   else nmSlot = s
                                 })
                                 return (
-                                <span className="inline-flex w-full text-[9px] font-bold rounded overflow-hidden">
-                                  {vmSlot ? <span className="flex-1 leading-4" style={{ backgroundColor: vmSlot.bg, color: vmSlot.text }}>{vmSlot.short}</span> : <span className="flex-1 leading-4 text-text-muted">···</span>}
-                                  {nmSlot ? <span className="flex-1 leading-4" style={{ backgroundColor: nmSlot.bg, color: nmSlot.text }}>{nmSlot.short}</span> : <span className="flex-1 leading-4 text-text-muted">···</span>}
+                                <span className="inline-flex w-full h-4 text-[9px] font-bold rounded overflow-hidden">
+                                  {vmSlot ? <span className="flex-1 leading-4" style={{ backgroundColor: vmSlot.bg, color: vmSlot.text }}>{vmSlot.short}</span> : <span className="flex-1 leading-4 text-text-muted">·</span>}
+                                  {nmSlot ? <span className="flex-1 leading-4" style={{ backgroundColor: nmSlot.bg, color: nmSlot.text }}>{nmSlot.short}</span> : <span className="flex-1 leading-4 text-text-muted">·</span>}
                                 </span>)
                               })() : style ? (
-                                <span className={`inline-block w-full text-[9px] font-bold rounded ${style.dashed ? 'border border-dashed' : ''}`} style={{ backgroundColor: style.bg, color: style.text, borderColor: style.dashed ? style.text : undefined }}>{style.short}</span>
+                                <span className={`inline-block w-full h-4 leading-4 text-[9px] font-bold rounded ${style.dashed ? 'border border-dashed' : ''}`} style={{ backgroundColor: style.bg, color: style.text, borderColor: style.dashed ? style.text : undefined }}>{style.short}</span>
                               ) : ft && !isFrei ? (
-                                <span className={`inline-block w-full text-[9px] font-bold rounded ${ft.halbtag ? 'border border-dashed' : ''}`} style={{ backgroundColor: '#DCFCE7', color: '#166534', borderColor: ft.halbtag ? '#166534' : undefined }}>{ft.halbtag ? '½F' : 'F'}</span>
+                                <span className={`inline-block w-full h-4 leading-4 text-[9px] font-bold rounded ${ft.halbtag ? 'border border-dashed' : ''}`} style={{ backgroundColor: '#DCFCE7', color: '#166534', borderColor: ft.halbtag ? '#166534' : undefined }}>{ft.halbtag ? '½F' : 'F'}</span>
                               ) : (
-                                <span className="text-[9px] text-text-muted">{WOCHENTAGE[dow]}</span>
+                                <span className="inline-block h-4 leading-4 text-[9px] text-text-muted">{WOCHENTAGE[dow]}</span>
                               )}
                             </td>
                           )
