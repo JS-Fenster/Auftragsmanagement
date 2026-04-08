@@ -85,6 +85,42 @@ function calcHours(stempel) {
   return { brutto: totalMs / 3600000, pause: pauseMs / 3600000, netto: (totalMs - pauseMs) / 3600000 }
 }
 
+/**
+ * Anteilige Urlaubsberechnung (§5 BUrlG, Guenstigerundung)
+ * @param {number} jahresAnspruch - z.B. 30
+ * @param {string} eintrittsdatum - ISO date
+ * @param {number} year - Berechnungsjahr
+ * @returns {{ anspruch: number, proMonat: number }}
+ */
+function berechneUrlaubsanspruch(jahresAnspruch, eintrittsdatum, year) {
+  if (!eintrittsdatum || !jahresAnspruch) return { anspruch: jahresAnspruch || 30, proMonat: (jahresAnspruch || 30) / 12 }
+  const eintritt = new Date(eintrittsdatum + 'T00:00:00')
+  const eintrittJahr = eintritt.getFullYear()
+  const proMonat = jahresAnspruch / 12
+
+  // Eintritt vor diesem Jahr = voller Anspruch
+  if (eintrittJahr < year) return { anspruch: jahresAnspruch, proMonat }
+
+  // Eintritt in diesem Jahr = anteilig
+  if (eintrittJahr === year) {
+    const eintrittMonat = eintritt.getMonth() // 0-based
+    const eintrittTag = eintritt.getDate()
+    // Volle Monate nach Eintrittsmonat
+    const volleMonateRest = 12 - eintrittMonat - 1
+    // Anteiliger Eintrittsmonat (Tage im Monat)
+    const tageImMonat = new Date(year, eintrittMonat + 1, 0).getDate()
+    const anteilMonat = (tageImMonat - eintrittTag + 1) / tageImMonat
+    const totalMonate = volleMonateRest + anteilMonat
+    const rohAnspruch = totalMonate * proMonat
+    // Guenstigerundung: ab 0.5 aufrunden (§5 BUrlG)
+    const gerundet = Math.ceil(rohAnspruch - 0.5 + 0.001) // ceil ab 0.5
+    return { anspruch: Math.min(gerundet, jahresAnspruch), proMonat }
+  }
+
+  // Eintritt nach diesem Jahr = 0
+  return { anspruch: 0, proMonat }
+}
+
 function fmtH(h) {
   if (!h || h === 0) return '-'
   const neg = h < 0
@@ -147,14 +183,14 @@ function useMitarbeiter() {
     Promise.all([
       supabase.from('mitarbeiter').select('id, vorname, nachname, status, rolle, ressource_id').eq('status', 'aktiv').order('nachname'),
       supabase.from('personen').select('mitarbeiter_alt_id, vorname, nachname'),
-      supabase.from('mitarbeiter_daten').select('mitarbeiter_alt_id, personalnummer, status, funktion, abteilung, pausenregel, rundung_taktung, rundung_kommen, fruehester_beginn'),
+      supabase.from('mitarbeiter_daten').select('mitarbeiter_alt_id, personalnummer, status, funktion, abteilung, pausenregel, rundung_taktung, rundung_kommen, fruehester_beginn, eintrittsdatum, urlaubsanspruch'),
     ]).then(([altRes, pRes, mdRes]) => {
       const personen = pRes.data || []
       const maDaten = mdRes.data || []
       const merged = (altRes.data || []).map(alt => {
         const p = personen.find(pp => pp.mitarbeiter_alt_id === alt.id)
         const md = maDaten.find(d => d.mitarbeiter_alt_id === alt.id)
-        return { ...alt, vorname: p?.vorname || alt.vorname, nachname: p?.nachname || alt.nachname, status: md?.status || alt.status, abteilung: md?.abteilung, personalnummer: md?.personalnummer, pausenregel: md?.pausenregel, rundung_taktung: md?.rundung_taktung, rundung_kommen: md?.rundung_kommen, fruehester_beginn: md?.fruehester_beginn }
+        return { ...alt, vorname: p?.vorname || alt.vorname, nachname: p?.nachname || alt.nachname, status: md?.status || alt.status, abteilung: md?.abteilung, personalnummer: md?.personalnummer, pausenregel: md?.pausenregel, rundung_taktung: md?.rundung_taktung, rundung_kommen: md?.rundung_kommen, fruehester_beginn: md?.fruehester_beginn, eintrittsdatum: md?.eintrittsdatum, urlaubsanspruch: md?.urlaubsanspruch }
       })
       setMitarbeiter(merged)
       setLoading(false)
@@ -803,9 +839,10 @@ function AbwesenheitenTab() {
   }
 
   const getUrlaubStats = (maId) => {
-    const vertrag = urlaubskonten.find(v => v.mitarbeiter_id === maId)
-    const anspruch = vertrag?.urlaubstage_jahr || 30
-    const maResId = mitarbeiter.find(m => m.id === maId)?.ressource_id
+    const ma = mitarbeiter.find(m => m.id === maId)
+    const jahresAnspruch = ma?.urlaubsanspruch || 30
+    const { anspruch } = berechneUrlaubsanspruch(jahresAnspruch, ma?.eintrittsdatum, year)
+    const maResId = ma?.ressource_id
     const urlaubEintraege = abwesenheiten.filter(a => a.mitarbeiter_id === maId && URLAUB_SLUGS.includes(a.abwesenheitsarten?.slug))
     const genommen = urlaubEintraege.filter(a => a.status === 'genehmigt').reduce((sum, a) => sum + countWorkdays(a, maResId), 0)
     const beantragt = urlaubEintraege.filter(a => a.status === 'beantragt').reduce((sum, a) => sum + countWorkdays(a, maResId), 0)
