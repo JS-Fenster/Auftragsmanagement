@@ -559,6 +559,286 @@ function SkillsSection({ mitarbeiterId, editing }) {
   )
 }
 
+// --- Personalakte Section ---
+
+const DOKU_KATEGORIEN = {
+  arbeitsvertrag: 'Arbeitsvertrag', au_bescheinigung: 'AU-Bescheinigung', fuehrerschein: 'Führerschein-Kopie',
+  zeugnis: 'Zeugnis', abmahnung: 'Abmahnung', schulung: 'Schulungsnachweis',
+  personalfragebogen: 'Personalfragebogen', sonstiges: 'Sonstiges',
+}
+
+function PersonalakteSection({ mitarbeiterId, editing }) {
+  const [docs, setDocs] = useState([])
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({ kategorie: 'sonstiges', bezeichnung: '', gueltig_bis: '', notiz: '' })
+
+  const load = useCallback(async () => {
+    const { data } = await supabase.from('mitarbeiter_dokumente').select('*').eq('mitarbeiter_id', mitarbeiterId).order('created_at', { ascending: false })
+    setDocs(data || [])
+  }, [mitarbeiterId])
+  useEffect(() => { load() }, [load])
+
+  const save = async () => {
+    if (!form.bezeichnung.trim()) return
+    await supabase.from('mitarbeiter_dokumente').insert({ mitarbeiter_id: mitarbeiterId, ...form, bezeichnung: form.bezeichnung.trim(), gueltig_bis: form.gueltig_bis || null })
+    setForm({ kategorie: 'sonstiges', bezeichnung: '', gueltig_bis: '', notiz: '' }); setShowForm(false); load()
+  }
+  const remove = async (id) => { await supabase.from('mitarbeiter_dokumente').delete().eq('id', id); load() }
+  const fmtDate = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5"><FileText className="w-4 h-4 text-text-muted" /> Personalakte</h3>
+        {editing && <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-brand hover:bg-brand/10 rounded-lg"><Plus className="w-3.5 h-3.5" /> Dokument</button>}
+      </div>
+      {showForm && editing && (
+        <div className="p-3 rounded-lg border border-border-default bg-surface-main space-y-2">
+          <div className="grid grid-cols-3 gap-2">
+            <div><label className={labelCls}>Kategorie</label><select value={form.kategorie} onChange={e => setForm(f => ({ ...f, kategorie: e.target.value }))} className={inputCls}>{Object.entries(DOKU_KATEGORIEN).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
+            <div><label className={labelCls}>Bezeichnung *</label><input value={form.bezeichnung} onChange={e => setForm(f => ({ ...f, bezeichnung: e.target.value }))} className={inputCls} placeholder="z.B. Arbeitsvertrag 2026" /></div>
+            <div><label className={labelCls}>Gültig bis</label><input type="date" value={form.gueltig_bis} onChange={e => setForm(f => ({ ...f, gueltig_bis: e.target.value }))} className={inputCls} /></div>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={save} disabled={!form.bezeichnung.trim()} className="px-3 py-1.5 text-xs font-medium bg-brand text-white rounded-lg disabled:opacity-50">Speichern</button>
+            <button onClick={() => setShowForm(false)} className="px-3 py-1.5 text-xs text-text-secondary hover:bg-surface-hover rounded-lg">Abbrechen</button>
+          </div>
+        </div>
+      )}
+      <div className="space-y-1.5">
+        {docs.length === 0 && <p className="text-xs text-text-muted">Keine Dokumente hinterlegt</p>}
+        {docs.map(d => (
+          <div key={d.id} className="flex items-center justify-between p-2 rounded-lg border border-border-default bg-surface-main text-xs">
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-text-muted shrink-0" />
+              <div>
+                <span className="font-medium text-text-primary">{d.bezeichnung}</span>
+                <span className="text-text-muted ml-2">({DOKU_KATEGORIEN[d.kategorie] || d.kategorie})</span>
+                {d.gueltig_bis && <span className="text-text-secondary ml-2">bis {fmtDate(d.gueltig_bis)}</span>}
+              </div>
+            </div>
+            {editing && <button onClick={() => remove(d.id)} className="p-1 text-text-muted hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// --- Arbeitsmittel Section ---
+
+const ARBEITSMITTEL_KAT = {
+  schluessel: 'Schlüssel', werkzeug: 'Werkzeug', it: 'IT/Elektronik',
+  kleidung: 'Arbeitskleidung', buero: 'Büroausstattung', fahrzeug: 'Fahrzeugzubehör', sonstiges: 'Sonstiges',
+}
+
+function ArbeitsmittelSection({ mitarbeiterId, editing }) {
+  const [items, setItems] = useState([])
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({ kategorie: 'sonstiges', bezeichnung: '', seriennummer: '', ausgabe_datum: new Date().toISOString().slice(0, 10), notiz: '' })
+
+  const load = useCallback(async () => {
+    const { data } = await supabase.from('mitarbeiter_arbeitsmittel').select('*').eq('mitarbeiter_id', mitarbeiterId).order('kategorie').order('bezeichnung')
+    setItems(data || [])
+  }, [mitarbeiterId])
+  useEffect(() => { load() }, [load])
+
+  const save = async () => {
+    if (!form.bezeichnung.trim()) return
+    await supabase.from('mitarbeiter_arbeitsmittel').insert({ mitarbeiter_id: mitarbeiterId, ...form, bezeichnung: form.bezeichnung.trim(), seriennummer: form.seriennummer || null })
+    setForm({ kategorie: 'sonstiges', bezeichnung: '', seriennummer: '', ausgabe_datum: new Date().toISOString().slice(0, 10), notiz: '' }); setShowForm(false); load()
+  }
+  const toggleReturn = async (item) => {
+    await supabase.from('mitarbeiter_arbeitsmittel').update({ rueckgabe_datum: item.rueckgabe_datum ? null : new Date().toISOString().slice(0, 10) }).eq('id', item.id)
+    load()
+  }
+  const remove = async (id) => { await supabase.from('mitarbeiter_arbeitsmittel').delete().eq('id', id); load() }
+  const fmtDate = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''
+
+  const ausgegeben = items.filter(i => !i.rueckgabe_datum)
+  const zurueck = items.filter(i => i.rueckgabe_datum)
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5"><Award className="w-4 h-4 text-text-muted" /> Arbeitsmittel</h3>
+        {editing && <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-brand hover:bg-brand/10 rounded-lg"><Plus className="w-3.5 h-3.5" /> Ausgeben</button>}
+      </div>
+      {showForm && editing && (
+        <div className="p-3 rounded-lg border border-border-default bg-surface-main space-y-2">
+          <div className="grid grid-cols-4 gap-2">
+            <div><label className={labelCls}>Kategorie</label><select value={form.kategorie} onChange={e => setForm(f => ({ ...f, kategorie: e.target.value }))} className={inputCls}>{Object.entries(ARBEITSMITTEL_KAT).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
+            <div><label className={labelCls}>Bezeichnung *</label><input value={form.bezeichnung} onChange={e => setForm(f => ({ ...f, bezeichnung: e.target.value }))} className={inputCls} placeholder="z.B. Büroschlüssel" /></div>
+            <div><label className={labelCls}>Seriennr./Details</label><input value={form.seriennummer} onChange={e => setForm(f => ({ ...f, seriennummer: e.target.value }))} className={inputCls} placeholder="Optional" /></div>
+            <div><label className={labelCls}>Ausgabe</label><input type="date" value={form.ausgabe_datum} onChange={e => setForm(f => ({ ...f, ausgabe_datum: e.target.value }))} className={inputCls} /></div>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={save} disabled={!form.bezeichnung.trim()} className="px-3 py-1.5 text-xs font-medium bg-brand text-white rounded-lg disabled:opacity-50">Ausgeben</button>
+            <button onClick={() => setShowForm(false)} className="px-3 py-1.5 text-xs text-text-secondary hover:bg-surface-hover rounded-lg">Abbrechen</button>
+          </div>
+        </div>
+      )}
+      {ausgegeben.length > 0 && (
+        <div className="space-y-1">
+          {ausgegeben.map(item => (
+            <div key={item.id} className="flex items-center justify-between p-2 rounded-lg border border-green-200 bg-green-50/50 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-card text-text-muted">{ARBEITSMITTEL_KAT[item.kategorie] || item.kategorie}</span>
+                <span className="font-medium text-text-primary">{item.bezeichnung}</span>
+                {item.seriennummer && <span className="text-text-muted">({item.seriennummer})</span>}
+                <span className="text-text-muted">seit {fmtDate(item.ausgabe_datum)}</span>
+              </div>
+              <div className="flex gap-1">
+                {editing && <button onClick={() => toggleReturn(item)} className="px-2 py-0.5 text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded hover:bg-amber-100">Zurück</button>}
+                {editing && <button onClick={() => remove(item.id)} className="p-1 text-text-muted hover:text-red-500"><Trash2 className="w-3 h-3" /></button>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {zurueck.length > 0 && (
+        <div>
+          <p className="text-[10px] text-text-muted uppercase tracking-wide mb-1">Zurückgegeben</p>
+          {zurueck.map(item => (
+            <div key={item.id} className="flex items-center justify-between p-2 rounded-lg border border-border-default bg-surface-main text-xs opacity-60">
+              <span>{item.bezeichnung} — zurück am {fmtDate(item.rueckgabe_datum)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {items.length === 0 && <p className="text-xs text-text-muted">Keine Arbeitsmittel zugewiesen</p>}
+    </div>
+  )
+}
+
+// --- Onboarding/Offboarding Section ---
+
+function OnboardingSection({ mitarbeiterId }) {
+  const [checklisten, setChecklisten] = useState([])
+  const [vorlagen, setVorlagen] = useState([])
+  const [maRolle, setMaRolle] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback(async () => {
+    const [clRes, vlRes, maRes] = await Promise.all([
+      supabase.from('onboarding_checklisten').select('*').eq('mitarbeiter_id', mitarbeiterId).order('created_at', { ascending: false }),
+      supabase.from('onboarding_vorlagen').select('*').order('name'),
+      supabase.from('mitarbeiter').select('rolle').eq('id', mitarbeiterId).single(),
+    ])
+    setChecklisten(clRes.data || [])
+    setVorlagen(vlRes.data || [])
+    setMaRolle(maRes.data?.rolle)
+    setLoading(false)
+  }, [mitarbeiterId])
+  useEffect(() => { load() }, [load])
+
+  const startChecklist = async (vorlage) => {
+    const items = (vorlage.items || []).map(item => ({ ...item, erledigt: false, erledigt_am: null }))
+    await supabase.from('onboarding_checklisten').insert({ mitarbeiter_id: mitarbeiterId, vorlage_id: vorlage.id, typ: vorlage.typ, items })
+    load()
+  }
+
+  const toggleItem = async (checklistId, itemIdx) => {
+    const cl = checklisten.find(c => c.id === checklistId)
+    if (!cl) return
+    const newItems = [...cl.items]
+    newItems[itemIdx] = { ...newItems[itemIdx], erledigt: !newItems[itemIdx].erledigt, erledigt_am: !newItems[itemIdx].erledigt ? new Date().toISOString().slice(0, 10) : null }
+    const allDone = newItems.every(i => i.erledigt || i.gruppe === i.titel) // skip group headers
+    await supabase.from('onboarding_checklisten').update({ items: newItems, status: allDone ? 'abgeschlossen' : 'aktiv', abgeschlossen_am: allDone ? new Date().toISOString().slice(0, 10) : null }).eq('id', checklistId)
+    load()
+  }
+
+  if (loading) return null
+
+  const aktiveChecklisten = checklisten.filter(c => c.status === 'aktiv')
+  const abgeschlossene = checklisten.filter(c => c.status === 'abgeschlossen')
+  const passendVorlagen = vorlagen.filter(v => !v.rolle || v.rolle === maRolle)
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5"><CheckCircle className="w-4 h-4 text-text-muted" /> On-/Offboarding</h3>
+      </div>
+
+      {/* Active checklists */}
+      {aktiveChecklisten.map(cl => {
+        const total = cl.items.filter(i => i.nr).length
+        const done = cl.items.filter(i => i.nr && i.erledigt).length
+        const gruppen = [...new Set(cl.items.map(i => i.gruppe))]
+        return (
+          <div key={cl.id} className="rounded-lg border border-border-default bg-surface-card">
+            <div className="px-4 py-3 border-b border-border-default flex items-center justify-between">
+              <div>
+                <span className="text-sm font-medium text-text-primary">{cl.typ === 'onboarding' ? 'Onboarding' : 'Offboarding'}</span>
+                <span className="text-xs text-text-muted ml-2">Gestartet: {new Date(cl.gestartet_am + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-text-secondary">{done}/{total}</span>
+                <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div className="h-full bg-brand rounded-full transition-all" style={{ width: `${total > 0 ? (done / total) * 100 : 0}%` }} />
+                </div>
+              </div>
+            </div>
+            <div className="p-3">
+              {gruppen.map(gruppe => {
+                const gruppeItems = cl.items.filter(i => i.gruppe === gruppe && i.nr)
+                const gruppeIdx = cl.items.findIndex(i => i.gruppe === gruppe)
+                return (
+                  <div key={gruppe} className="mb-3">
+                    <h4 className="text-[10px] font-bold text-text-secondary uppercase tracking-wide mb-1.5">{gruppe}</h4>
+                    <div className="space-y-0.5">
+                      {gruppeItems.map(item => {
+                        const idx = cl.items.indexOf(item)
+                        return (
+                          <button key={idx} onClick={() => toggleItem(cl.id, idx)}
+                            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-left transition-colors ${item.erledigt ? 'bg-green-50/50' : 'hover:bg-surface-hover'}`}>
+                            <span className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 ${item.erledigt ? 'bg-green-500 border-green-500 text-white' : 'border-border-default'}`}>
+                              {item.erledigt && '✓'}
+                            </span>
+                            <span className="text-text-muted w-8">{item.nr}</span>
+                            <span className={`flex-1 ${item.erledigt ? 'line-through text-text-muted' : 'text-text-primary'}`}>{item.titel}</span>
+                            {item.bemerkung && <span className="text-text-muted text-[10px] truncate max-w-[200px]">{item.bemerkung}</span>}
+                            <span className="text-[10px] text-text-muted">{item.verantwortlich}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
+
+      {/* Start buttons */}
+      {aktiveChecklisten.length === 0 && (
+        <div className="flex flex-wrap gap-2">
+          {passendVorlagen.map(v => (
+            <button key={v.id} onClick={() => startChecklist(v)}
+              className="flex items-center gap-2 px-4 py-2 text-xs font-medium bg-brand/10 text-brand border border-brand/20 rounded-lg hover:bg-brand/20">
+              <Plus className="w-3.5 h-3.5" />
+              {v.name} starten
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Completed */}
+      {abgeschlossene.length > 0 && (
+        <div className="text-xs text-text-muted">
+          {abgeschlossene.map(cl => (
+            <div key={cl.id} className="flex items-center gap-2">
+              <CheckCircle className="w-3 h-3 text-green-500" />
+              {cl.typ === 'onboarding' ? 'Onboarding' : 'Offboarding'} abgeschlossen am {cl.abgeschlossen_am ? new Date(cl.abgeschlossen_am + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // --- Fahrzeug-Berechtigung Section ---
 
 function FahrzeugBerechtigungSection({ mitarbeiterId, editing }) {
@@ -1525,6 +1805,18 @@ export default function MitarbeiterDetail() {
                 <Field label="RV-Nummer" value={maForm.rv_nummer} onChange={v => setMF('rv_nummer', v)} disabled={!editing} />
                 <Field label="Krankenkasse" value={maForm.krankenkasse} onChange={v => setMF('krankenkasse', v)} disabled={!editing} suggestions={suggestions.krankenkasse} />
               </div>
+            </div>
+
+            <div className="border-t border-border-default pt-4">
+              <PersonalakteSection mitarbeiterId={id} editing={editing} />
+            </div>
+
+            <div className="border-t border-border-default pt-4">
+              <ArbeitsmittelSection mitarbeiterId={id} editing={editing} />
+            </div>
+
+            <div className="border-t border-border-default pt-4">
+              <OnboardingSection mitarbeiterId={id} />
             </div>
           </div>
         )}
