@@ -240,6 +240,11 @@ export default function Cockpit() {
 
   useEffect(() => { loadData() }, [loadData])
 
+  // MA-Alerts (Fuehrerschein, Probezeit, Befristung) beim Laden pruefen
+  useEffect(() => {
+    import('../services/maAlertService').then(({ checkMaAlerts }) => checkMaAlerts().catch(() => {}))
+  }, [])
+
   // -- Computed: Alerts
   const alerts = useMemo(() => {
     const result = []
