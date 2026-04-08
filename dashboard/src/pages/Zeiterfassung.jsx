@@ -682,6 +682,7 @@ function AbwesenheitenTab() {
   const [dragStart, setDragStart] = useState(null)
   const [dragEnd, setDragEnd] = useState(null)
   const [showAbwModal, setShowAbwModal] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
   const [abwArten, setAbwArten] = useState([])
   const [modalArtId, setModalArtId] = useState('')
   const [modalNotiz, setModalNotiz] = useState('')
@@ -741,7 +742,8 @@ function AbwesenheitenTab() {
     setDragEnd(null)
     setModalArtId('')
     setModalNotiz('')
-    loadData()
+    await loadData()
+    setRefreshKey(k => k + 1)
   }
 
   const closeModal = () => {
@@ -1076,9 +1078,9 @@ function AbwesenheitenTab() {
 
               {/* MA Abwesenheiten verwalten */}
               <div className="p-4 rounded-lg border border-border-default bg-surface-card">
-                <AbwesenheitenSection key={selectedMa} mitarbeiterId={selectedMa}
+                <AbwesenheitenSection key={`${selectedMa}-${refreshKey}`} mitarbeiterId={selectedMa}
                   mitarbeiterName={`${mitarbeiter.find(m => m.id === selectedMa)?.vorname || ''} ${mitarbeiter.find(m => m.id === selectedMa)?.nachname || ''}`}
-                  onUpdate={loadData} hideForm />
+                  onUpdate={() => { loadData(); setRefreshKey(k => k + 1) }} hideForm />
               </div>
             </div>
           ) : <div className="text-sm text-text-muted py-8 text-center">Mitarbeiter auswählen um Jahresübersicht anzuzeigen</div>}
