@@ -475,7 +475,7 @@ const FS_KLASSEN = ['B', 'BE', 'C', 'CE', 'C1', 'C1E', 'D', 'DE', 'D1', 'D1E', '
 function FuehrerscheinSection({ mitarbeiterId, editing }) {
   const [items, setItems] = useState([])
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ klasse: 'B', erhalten_am: '', gueltig_bis: '', letzte_pruefung: '', pruef_turnus_monate: 60, notiz: '' })
+  const [form, setForm] = useState({ klasse: 'B', erhalten_am: '', gueltig_bis: '', letzte_pruefung: '', pruef_turnus_monate: 6, notiz: '' })
   const [editId, setEditId] = useState(null)
 
   const load = useCallback(async () => {
@@ -495,7 +495,7 @@ function FuehrerscheinSection({ mitarbeiterId, editing }) {
     }
     setShowForm(false)
     setEditId(null)
-    setForm({ klasse: 'B', erhalten_am: '', gueltig_bis: '', letzte_pruefung: '', pruef_turnus_monate: 60, notiz: '' })
+    setForm({ klasse: 'B', erhalten_am: '', gueltig_bis: '', letzte_pruefung: '', pruef_turnus_monate: 6, notiz: '' })
     load()
   }
 
@@ -530,7 +530,7 @@ function FuehrerscheinSection({ mitarbeiterId, editing }) {
           <h3 className="text-sm font-semibold text-text-primary">Führerscheine</h3>
         </div>
         {editing && !showForm && (
-          <button onClick={() => { setEditId(null); setForm({ klasse: availableKlassen[0] || 'B', erhalten_am: '', gueltig_bis: '', letzte_pruefung: '', pruef_turnus_monate: 60, notiz: '' }); setShowForm(true) }}
+          <button onClick={() => { setEditId(null); setForm({ klasse: availableKlassen[0] || 'B', erhalten_am: '', gueltig_bis: '', letzte_pruefung: '', pruef_turnus_monate: 6, notiz: '' }); setShowForm(true) }}
             className="flex items-center gap-1 text-xs text-brand hover:underline"><Plus className="w-3 h-3" /> Hinzufügen</button>
         )}
       </div>
