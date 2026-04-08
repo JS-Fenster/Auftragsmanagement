@@ -1153,11 +1153,29 @@ function ZeitkarteTab() {
   const lastDay = new Date(year, month, 0).getDate()
   const maObj = mitarbeiter.find(m => m.id === selectedMa)
 
+  const [vormonateUebertrag, setVormonateUebertrag] = useState(0)
+
   const loadData = useCallback(async () => {
     if (!selectedMa) return
     setLoading(true)
     const resId = maObj?.ressource_id
-    const [stRes, vtRes, ftRes, abwRes, azmRes] = await Promise.all([
+    // Previous months: load stempel from Jan 1 to end of previous month for carry-over
+    const vormonatEnd = new Date(year, month - 1, 0) // last day of previous month
+    const vormonatEndStr = vormonatEnd.getDate() > 0 ? `${year}-${String(month - 1).padStart(2, '0')}-${String(vormonatEnd.getDate()).padStart(2, '0')}` : null
+    const loadVormonate = month > 1 && vormonatEndStr
+      ? supabase.from('zeitstempel').select('zeitpunkt, typ').eq('mitarbeiter_id', selectedMa)
+          .gte('zeitpunkt', `${year}-01-01T00:00:00`).lte('zeitpunkt', `${vormonatEndStr}T23:59:59`).order('zeitpunkt')
+      : { data: [] }
+    const loadVorFt = month > 1
+      ? supabase.from('feiertage').select('datum, halbtag').gte('datum', `${year}-01-01`).lte('datum', vormonatEndStr)
+      : { data: [] }
+    const loadVorAbw = month > 1
+      ? supabase.from('abwesenheiten').select('datum, bis_datum, ganztaegig, halbtag, status')
+          .eq('mitarbeiter_id', selectedMa).neq('status', 'storniert').neq('status', 'abgelehnt')
+          .gte('datum', `${year}-01-01`).lte('datum', vormonatEndStr)
+      : { data: [] }
+
+    const [stRes, vtRes, ftRes, abwRes, azmRes, vorStRes, vorFtRes, vorAbwRes] = await Promise.all([
       supabase.from('zeitstempel').select('*').eq('mitarbeiter_id', selectedMa)
         .gte('zeitpunkt', `${monat}-01T00:00:00`).lte('zeitpunkt', `${monat}-${lastDay}T23:59:59`).order('zeitpunkt'),
       supabase.from('arbeitsvertraege').select('*').eq('mitarbeiter_id', selectedMa).eq('ist_aktuell', true).single(),
@@ -1166,14 +1184,52 @@ function ZeitkarteTab() {
         .eq('mitarbeiter_id', selectedMa).neq('status', 'storniert').neq('status', 'abgelehnt')
         .lte('datum', `${monat}-${lastDay}`).or(`bis_datum.gte.${monat}-01,bis_datum.is.null`),
       resId ? supabase.from('arbeitszeitmodelle').select('*').eq('ressource_id', resId) : { data: [] },
+      loadVormonate, loadVorFt, loadVorAbw,
     ])
     setStempel(stRes.data || [])
     setVertraege(vtRes.data ? [vtRes.data] : [])
     setFeiertage(ftRes.data || [])
     setAbwesenheiten(abwRes.data || [])
     setArbeitszeitmodelle(azmRes.data || [])
+
+    // Calculate carry-over from previous months
+    if (month > 1 && vorStRes.data?.length > 0) {
+      const vorStempel = vorStRes.data
+      const vorFeiertage = vorFtRes.data || []
+      const vorAbw = vorAbwRes.data || []
+      const vt = vtRes.data
+      const sollTag = vt ? (vt.wochenstunden || 40) / (vt.arbeitstage_pro_woche || 5) : 8
+      const azm = azmRes.data || []
+
+      let uebertrag = 0
+      // iterate each day from Jan 1 to end of prev month
+      const startDate = new Date(year, 0, 1)
+      const endDate = vormonatEnd
+      const d = new Date(startDate)
+      while (d <= endDate) {
+        const dateStr = toLocalDateStr(d)
+        const dow = d.getDay()
+        const isFrei = isFreierTag(azm, resId, dateStr, dow)
+        const isFeiertag = vorFeiertage.some(f => f.datum === dateStr)
+        const isAbw = vorAbw.some(a => a.datum <= dateStr && (a.bis_datum ? a.bis_datum >= dateStr : a.datum >= dateStr))
+
+        if (!isFrei && !isFeiertag && !isAbw) {
+          // Get stempel for this day
+          const dayStempel = vorStempel.filter(s => toLocalDateStr(s.zeitpunkt) === dateStr).sort((a, b) => new Date(a.zeitpunkt) - new Date(b.zeitpunkt))
+          const hours = calcHours(dayStempel)
+          const azmDay = getActiveAZM(azm, resId, dateStr)
+          const sollH = azmDay ? (getAzmStunden(azmDay, dow) || sollTag) : sollTag
+          uebertrag += hours.netto - sollH
+        }
+        d.setDate(d.getDate() + 1)
+      }
+      setVormonateUebertrag(Math.round(uebertrag * 100) / 100)
+    } else {
+      setVormonateUebertrag(0)
+    }
+
     setLoading(false)
-  }, [selectedMa, monat, lastDay, maObj?.ressource_id])
+  }, [selectedMa, monat, lastDay, maObj?.ressource_id, year, month])
 
   useEffect(() => { loadData() }, [loadData])
 
@@ -1279,7 +1335,8 @@ function ZeitkarteTab() {
     const istTotal = dailyData.reduce((s, r) => s + r.ist, 0)
     const abwTage = dailyData.filter(r => r.abw && !r.isWeekend).length
     const feiertageTage = dailyData.filter(r => r.feiertag && !r.isWeekend).length
-    return { sollTotal, istTotal, diff: istTotal - sollTotal, abwTage, feiertageTage }
+    const tageGearbeitet = dailyData.filter(r => r.ist > 0).length
+    return { sollTotal, istTotal, diff: istTotal - sollTotal, abwTage, feiertageTage, tageGearbeitet }
   }, [dailyData])
 
   // Group by KW for visual separators
@@ -1363,7 +1420,7 @@ function ZeitkarteTab() {
             </tbody>
             <tfoot>
               <tr className="bg-surface-card border-t-2 border-border-default font-medium">
-                <td colSpan={5} className="px-3 py-2 text-right text-text-secondary">Summe</td>
+                <td colSpan={5} className="px-3 py-2 text-right text-text-secondary">Summe Monat</td>
                 <td className="px-3 py-2 text-right">{fmtH(totals.sollTotal)}</td>
                 <td className="px-3 py-2 text-right font-bold text-text-primary">{fmtH(totals.istTotal)}</td>
                 <td className={`px-3 py-2 text-right font-bold ${totals.diff >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmtHSigned(totals.diff)}</td>
@@ -1375,6 +1432,38 @@ function ZeitkarteTab() {
               </tr>
             </tfoot>
           </table>
+
+          {/* Kontensalden (W4A-Style) */}
+          <div className="mt-4 rounded-lg border border-border-default bg-surface-card p-4">
+            <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wide mb-3">Kontensalden {new Date(year, month - 1, 1).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}</h4>
+            <div className="grid grid-cols-4 gap-4 text-sm">
+              <div className="p-3 rounded-lg bg-surface-main">
+                <div className="text-[10px] text-text-muted uppercase">Übertrag Vormonate</div>
+                <div className={`text-lg font-bold ${vormonateUebertrag >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmtHSigned(vormonateUebertrag)}</div>
+                <div className="text-[10px] text-text-muted">01.01. – {new Date(year, month - 1, 0).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}.{year}</div>
+              </div>
+              <div className="p-3 rounded-lg bg-surface-main">
+                <div className="text-[10px] text-text-muted uppercase">Monat {month < 10 ? '0' : ''}{month}/{year}</div>
+                <div className={`text-lg font-bold ${totals.diff >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmtHSigned(totals.diff)}</div>
+                <div className="text-[10px] text-text-muted">Soll {fmtH(totals.sollTotal)} / Ist {fmtH(totals.istTotal)}</div>
+              </div>
+              <div className="p-3 rounded-lg bg-brand/5 border border-brand/20">
+                <div className="text-[10px] text-brand uppercase font-semibold">Zeitkonto Gesamt</div>
+                <div className={`text-xl font-bold ${(vormonateUebertrag + totals.diff) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {fmtHSigned(vormonateUebertrag + totals.diff)}
+                </div>
+                <div className="text-[10px] text-text-muted">Stand {new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}</div>
+              </div>
+              <div className="p-3 rounded-lg bg-surface-main">
+                <div className="text-[10px] text-text-muted uppercase">Details</div>
+                <div className="text-xs text-text-secondary space-y-0.5 mt-1">
+                  {totals.abwTage > 0 && <div>Abwesenheit: {totals.abwTage} Tage</div>}
+                  {totals.feiertageTage > 0 && <div>Feiertage: {totals.feiertageTage} Tage</div>}
+                  <div>Arbeitstage: {totals.tageGearbeitet}</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
