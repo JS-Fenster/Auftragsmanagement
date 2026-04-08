@@ -1650,6 +1650,9 @@ export default function MitarbeiterDetail() {
                 <Field label="Vorname *" value={personForm.vorname} onChange={v => setPF('vorname', v)} disabled={!editing} />
                 <Field label="Nachname *" value={personForm.nachname} onChange={v => setPF('nachname', v)} disabled={!editing} />
                 <Field label="Geburtsdatum" value={personForm.geburtsdatum} type="date" onChange={v => setPF('geburtsdatum', v)} disabled={!editing} />
+                <Field label="Geburtsort" value={personForm.geburtsort} onChange={v => setPF('geburtsort', v)} disabled={!editing} />
+                <Field label="Staatsangehörigkeit" value={personForm.staatsangehoerigkeit} onChange={v => setPF('staatsangehoerigkeit', v)} disabled={!editing} />
+                <Field label="Familienstand" value={personForm.familienstand} onChange={v => setPF('familienstand', v)} disabled={!editing} options={{ ledig: 'Ledig', verheiratet: 'Verheiratet', geschieden: 'Geschieden', verwitwet: 'Verwitwet', eingetragene_lp: 'Eingetragene Lebenspartnerschaft' }} />
                 <div>
                   <Field label="Zeichen (Kuerzel)" value={personForm.zeichen} disabled={!editing}
                     placeholder={generateZeichen(personForm.vorname, personForm.nachname) || 'z.B. ANST'}
@@ -1719,6 +1722,8 @@ export default function MitarbeiterDetail() {
                   options={{ aktiv: 'Aktiv', inaktiv: 'Inaktiv', ausgeschieden: 'Ausgeschieden', gekuendigt: 'Gekündigt' }} />
                 <Field label="Eintrittsdatum *" value={maForm.eintrittsdatum} type="date" onChange={v => setMF('eintrittsdatum', v)} disabled={!editing} />
                 <Field label="Austrittsdatum" value={maForm.austrittsdatum} type="date" onChange={v => setMF('austrittsdatum', v)} disabled={!editing} />
+                <Field label="Probezeit (Monate)" value={maForm.probezeit_monate} type="number" onChange={v => setMF('probezeit_monate', v)} disabled={!editing} placeholder="z.B. 6" />
+                <Field label="Anzahl Kinder" value={maForm.anzahl_kinder} type="number" onChange={v => setMF('anzahl_kinder', v)} disabled={!editing} />
                 <Field label="Urlaubsanspruch (Tage/Jahr)" value={maForm.urlaubsanspruch} type="number" onChange={v => setMF('urlaubsanspruch', v)} disabled={!editing} placeholder="z.B. 30" />
               </div>
             </div>
