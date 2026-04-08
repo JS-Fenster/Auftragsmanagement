@@ -122,16 +122,18 @@ export default function AbwesenheitenSection({ mitarbeiterId, mitarbeiterName, o
 
     setSaving(false)
     resetForm()
-    loadData()
+    await loadData()
     onUpdate?.()
   }
 
-  const handleStatusChange = async (abwId, newStatus) => {
+  const handleStatusChange = async (ids, newStatus) => {
+    // Update all rows belonging to this group (one per day)
+    const idList = Array.isArray(ids) ? ids : [ids]
     await supabase.from('abwesenheiten').update({
       status: newStatus,
       genehmigt_am: newStatus === 'genehmigt' ? new Date().toISOString() : null,
-    }).eq('id', abwId)
-    loadData()
+    }).in('id', idList)
+    await loadData()
     onUpdate?.()
   }
 
@@ -292,18 +294,18 @@ export default function AbwesenheitenSection({ mitarbeiterId, mitarbeiterName, o
                 <div className="flex gap-1 shrink-0">
                   {g.status === 'beantragt' && (
                     <>
-                      <button onClick={() => g.ids.forEach(id => handleStatusChange(id, 'genehmigt'))}
+                      <button onClick={() => handleStatusChange(g.ids, 'genehmigt')}
                         className="p-1 rounded hover:bg-green-50 text-green-600" title="Genehmigen">
                         <Check className="w-4 h-4" />
                       </button>
-                      <button onClick={() => g.ids.forEach(id => handleStatusChange(id, 'abgelehnt'))}
+                      <button onClick={() => handleStatusChange(g.ids, 'abgelehnt')}
                         className="p-1 rounded hover:bg-red-50 text-red-600" title="Ablehnen">
                         <X className="w-4 h-4" />
                       </button>
                     </>
                   )}
                   {g.status !== 'storniert' && (
-                    <button onClick={() => g.ids.forEach(id => handleStatusChange(id, 'storniert'))}
+                    <button onClick={() => handleStatusChange(g.ids, 'storniert')}
                       className="p-1 rounded hover:bg-gray-100 text-text-muted" title="Stornieren">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
