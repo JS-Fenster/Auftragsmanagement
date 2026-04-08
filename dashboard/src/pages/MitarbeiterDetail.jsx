@@ -484,11 +484,18 @@ function SkillsSection({ mitarbeiterId, editing }) {
                   {grp.items.map(item => {
                     const isActive = skills.some(s => s.skill === item.name)
                     return (
-                      <button key={item.id} onClick={() => isActive ? null : addSkill(item.name)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                      <button key={item.id} onClick={() => {
+                          if (isActive) {
+                            const sk = skills.find(s => s.skill === item.name)
+                            if (sk) removeSkill(sk.id)
+                          } else {
+                            addSkill(item.name)
+                          }
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
                           isActive
-                            ? 'bg-brand/10 border-brand/30 text-brand cursor-default'
-                            : 'bg-surface-main border-border-default text-text-secondary hover:bg-brand/5 hover:border-brand/20 cursor-pointer'
+                            ? 'bg-brand/10 border-brand/30 text-brand hover:bg-red-50 hover:border-red-200 hover:text-red-600'
+                            : 'bg-surface-main border-border-default text-text-secondary hover:bg-brand/5 hover:border-brand/20'
                         }`}>
                         {isActive && <span className="mr-1">✓</span>}
                         {item.name}
