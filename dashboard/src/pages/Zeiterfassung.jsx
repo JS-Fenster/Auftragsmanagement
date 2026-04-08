@@ -1380,15 +1380,15 @@ function ZeitkarteTab() {
             <thead>
               <tr className="bg-surface-card text-text-secondary">
                 <th className="px-2 py-2 text-left font-medium w-8"></th>
-                <th className="px-2 py-2 text-left font-medium">Datum</th>
-                <th className="px-3 py-2 text-right font-medium">Kommt</th>
-                <th className="px-3 py-2 text-right font-medium">Geht</th>
-                <th className="px-3 py-2 text-right font-medium">Pause</th>
-                <th className="px-3 py-2 text-right font-medium">Soll</th>
-                <th className="px-3 py-2 text-right font-medium">Ist</th>
-                <th className="px-3 py-2 text-right font-medium">Tag</th>
-                <th className="px-3 py-2 text-right font-medium" title="Überstunden kumulativ">Ü kum.</th>
-                <th className="px-4 py-2 text-left font-medium">Bemerkung</th>
+                <th className="px-2 py-2 text-left font-medium w-24">Datum</th>
+                <th className="px-2 py-2 text-right font-medium w-14">Kommt</th>
+                <th className="px-2 py-2 text-right font-medium w-14">Geht</th>
+                <th className="px-2 py-2 text-right font-medium w-12">Pause</th>
+                <th className="px-2 py-2 text-right font-medium w-12">Soll</th>
+                <th className="px-2 py-2 text-right font-medium w-12">Ist</th>
+                <th className="px-2 py-2 text-right font-medium w-14">Tag</th>
+                <th className="px-2 py-2 text-right font-medium w-16" title="Überstunden kumulativ">Ü kum.</th>
+                <th className="px-3 py-2 text-left font-medium">Bemerkung</th>
               </tr>
             </thead>
             <tbody>
