@@ -718,6 +718,7 @@ function OnboardingSection({ mitarbeiterId }) {
   const [vorlagen, setVorlagen] = useState([])
   const [maRolle, setMaRolle] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [expandedCl, setExpandedCl] = useState(null)
 
   const load = useCallback(async () => {
     const [clRes, vlRes, maRes] = await Promise.all([
@@ -767,10 +768,12 @@ function OnboardingSection({ mitarbeiterId }) {
         const gruppen = [...new Set(cl.items.map(i => i.gruppe))]
         return (
           <div key={cl.id} className="rounded-lg border border-border-default bg-surface-card">
-            <div className="px-4 py-3 border-b border-border-default flex items-center justify-between">
-              <div>
+            <button onClick={() => setExpandedCl(expandedCl === cl.id ? null : cl.id)}
+              className="w-full px-4 py-3 border-b border-border-default flex items-center justify-between text-left hover:bg-surface-hover/50 transition-colors">
+              <div className="flex items-center gap-2">
+                <span className={`text-xs text-text-muted transition-transform ${expandedCl === cl.id ? 'rotate-90' : ''}`}>▸</span>
                 <span className="text-sm font-medium text-text-primary">{cl.typ === 'onboarding' ? 'Onboarding' : 'Offboarding'}</span>
-                <span className="text-xs text-text-muted ml-2">Gestartet: {new Date(cl.gestartet_am + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                <span className="text-xs text-text-muted">Gestartet: {new Date(cl.gestartet_am + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-medium text-text-secondary">{done}/{total}</span>
@@ -778,11 +781,10 @@ function OnboardingSection({ mitarbeiterId }) {
                   <div className="h-full bg-brand rounded-full transition-all" style={{ width: `${total > 0 ? (done / total) * 100 : 0}%` }} />
                 </div>
               </div>
-            </div>
-            <div className="p-3">
+            </button>
+            {expandedCl === cl.id && <div className="p-3">
               {gruppen.map(gruppe => {
                 const gruppeItems = cl.items.filter(i => i.gruppe === gruppe && i.nr)
-                const gruppeIdx = cl.items.findIndex(i => i.gruppe === gruppe)
                 return (
                   <div key={gruppe} className="mb-3">
                     <h4 className="text-[10px] font-bold text-text-secondary uppercase tracking-wide mb-1.5">{gruppe}</h4>
@@ -806,7 +808,7 @@ function OnboardingSection({ mitarbeiterId }) {
                   </div>
                 )
               })}
-            </div>
+            </div>}
           </div>
         )
       })}
