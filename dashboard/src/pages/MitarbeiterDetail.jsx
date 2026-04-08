@@ -1755,9 +1755,25 @@ export default function MitarbeiterDetail() {
                 <CreditCard className="w-4 h-4 text-text-muted" /> Gehalt / Lohn
               </h3>
               <div className="grid grid-cols-3 gap-4">
-                <Field label="Lohnsatz 1 (€/h)" value={maForm.lohnsatz_1} type="number" onChange={v => setMF('lohnsatz_1', v)} disabled={!editing} />
-                <Field label="Lohnsatz 2 (€/h)" value={maForm.lohnsatz_2} type="number" onChange={v => setMF('lohnsatz_2', v)} disabled={!editing} />
-                <Field label="Lohnsatz 3 (€/h)" value={maForm.lohnsatz_3} type="number" onChange={v => setMF('lohnsatz_3', v)} disabled={!editing} />
+                {maForm.verguetungsart === 'stundenlohn' ? (
+                  <Field label="Stundenlohn (€/h)" value={maForm.lohnsatz_1} type="number" onChange={v => setMF('lohnsatz_1', v)} disabled={!editing} placeholder="z.B. 18,50" />
+                ) : (
+                  <>
+                    <Field label="Bruttogehalt (€/Monat)" value={maForm.lohnsatz_1} type="number" onChange={v => setMF('lohnsatz_1', v)} disabled={!editing} placeholder="z.B. 3200" />
+                    <div>
+                      <span className="text-xs font-medium text-text-secondary uppercase tracking-wide">Stundenlohn (berechnet)</span>
+                      <p className="mt-1 text-sm text-text-primary font-medium">
+                        {(() => {
+                          const brutto = Number(maForm.lohnsatz_1)
+                          const wochenstunden = Number(maForm.wochenstunden) || 40
+                          if (!brutto) return '-'
+                          const stundenlohn = (brutto * 3) / 13 / wochenstunden
+                          return `${stundenlohn.toFixed(2)} €/h`
+                        })()}
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
@@ -1855,7 +1871,7 @@ export default function MitarbeiterDetail() {
               <div className="grid grid-cols-3 gap-4">
                 <Field label="Hose" value={maForm.kleidung_hose} onChange={v => setMF('kleidung_hose', v)} disabled={!editing} placeholder="z.B. 52" />
                 <Field label="Jacke" value={maForm.kleidung_jacke} onChange={v => setMF('kleidung_jacke', v)} disabled={!editing} placeholder="z.B. L" />
-                <Field label="Pulli" value={maForm.kleidung_pulli} onChange={v => setMF('kleidung_pulli', v)} disabled={!editing} placeholder="z.B. XL" />
+                <Field label="Pullover" value={maForm.kleidung_pulli} onChange={v => setMF('kleidung_pulli', v)} disabled={!editing} placeholder="z.B. XL" />
                 <Field label="T-Shirt" value={maForm.kleidung_tshirt} onChange={v => setMF('kleidung_tshirt', v)} disabled={!editing} placeholder="z.B. L" />
                 <Field label="Schuhe" value={maForm.kleidung_schuhe} onChange={v => setMF('kleidung_schuhe', v)} disabled={!editing} placeholder="z.B. 43" />
                 <Field label="Handschuhe" value={maForm.kleidung_handschuhe} onChange={v => setMF('kleidung_handschuhe', v)} disabled={!editing} placeholder="z.B. 9" />
