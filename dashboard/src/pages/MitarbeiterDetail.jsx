@@ -12,7 +12,7 @@
  */
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, User, FileText, Calendar, Shield, Briefcase, CreditCard, Phone, MapPin, Wrench, X, Plus, Trash2, Clock } from 'lucide-react'
+import { ArrowLeft, User, FileText, Calendar, Shield, Briefcase, CreditCard, Phone, MapPin, Wrench, X, Plus, Trash2, Clock, Car, AlertTriangle, CheckCircle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { Link } from 'react-router-dom'
 
@@ -115,11 +115,17 @@ function calcBruttoTag(tag) {
   return (eh + em / 60) - (sh + sm / 60)
 }
 
-// HARDCODE: Pausenregel gesetzlich (>6h=30min, >9h=45min). Spaeter aus mitarbeiter_daten.pausenregel — Backlog AM-155
-function calcPause(brutto) {
-  if (brutto > 9) return 0.75
-  if (brutto > 6) return 0.5
-  return 0
+const DEFAULT_PAUSENREGEL = { '6': 30, '9': 45 }
+
+function calcPause(brutto, pausenregel) {
+  const regel = pausenregel && Object.keys(pausenregel).length > 0 ? pausenregel : DEFAULT_PAUSENREGEL
+  let pause = 0
+  Object.entries(regel)
+    .sort(([a], [b]) => Number(b) - Number(a))
+    .forEach(([stunden, minuten]) => {
+      if (brutto > Number(stunden) && pause === 0) pause = Number(minuten) / 60
+    })
+  return pause
 }
 
 function formatStunden(dezimal) {
@@ -128,13 +134,13 @@ function formatStunden(dezimal) {
   return m > 0 ? `${h}:${String(m).padStart(2, '0')} h` : `${h} h`
 }
 
-function calcWochenstunden(tagesarbeitszeit, mitPause = true) {
+function calcWochenstunden(tagesarbeitszeit, mitPause = true, pausenregel) {
   if (!tagesarbeitszeit) return 0
   return WOCHENTAGE.reduce((sum, { key }) => {
     const tag = tagesarbeitszeit[key]
     if (!tag) return sum
     let brutto = calcBruttoTag(tag)
-    if (mitPause) brutto -= calcPause(brutto)
+    if (mitPause) brutto -= calcPause(brutto, pausenregel)
     return sum + brutto
   }, 0)
 }
@@ -156,7 +162,7 @@ function VertragDetail({ az }) {
             {tag ? (
               <>
                 <div className="text-text-secondary mt-1">{tag.start} – {tag.ende}</div>
-                <div className="text-text-muted">{(() => { const b = calcBruttoTag(tag); const p = calcPause(b); return p > 0 ? `${formatStunden(b - p)} netto` : formatStunden(b) })()}</div>
+                <div className="text-text-muted">{(() => { const b = calcBruttoTag(tag); const p = calcPause(b, pausenregel); return p > 0 ? `${formatStunden(b - p)} netto` : formatStunden(b) })()}</div>
               </>
             ) : (
               <div className="text-text-muted mt-1">frei</div>
@@ -168,7 +174,7 @@ function VertragDetail({ az }) {
   )
 }
 
-function VertragSection({ mitarbeiterId, editing }) {
+function VertragSection({ mitarbeiterId, editing, pausenregel }) {
   const [vertraege, setVertraege] = useState([])
   const [showForm, setShowForm] = useState(false)
   const [expandedVertragId, setExpandedVertragId] = useState(null)
@@ -197,8 +203,8 @@ function VertragSection({ mitarbeiterId, editing }) {
     }))
   }
 
-  const wochenstundenNetto = calcWochenstunden(form.tagesarbeitszeit, true)
-  const wochenstundenBrutto = calcWochenstunden(form.tagesarbeitszeit, false)
+  const wochenstundenNetto = calcWochenstunden(form.tagesarbeitszeit, true, pausenregel)
+  const wochenstundenBrutto = calcWochenstunden(form.tagesarbeitszeit, false, pausenregel)
   const wochenstunden = wochenstundenNetto
   const arbeitstage = countArbeitstage(form.tagesarbeitszeit)
 
@@ -286,7 +292,7 @@ function VertragSection({ mitarbeiterId, editing }) {
                         <input type="time" value={tag.ende} onChange={e => setTag(key, 'ende', e.target.value)}
                           className="w-full px-1 py-0.5 text-[11px] border border-border-default rounded bg-surface-card text-center outline-none" />
                         <div className="text-[10px] text-text-muted">
-                          {(() => { const b = calcBruttoTag(tag); const p = calcPause(b); const n = b - p; return p > 0 ? `${formatStunden(n)} (${formatStunden(b)} brutto)` : formatStunden(b) })()}
+                          {(() => { const b = calcBruttoTag(tag); const p = calcPause(b, pausenregel); const n = b - p; return p > 0 ? `${formatStunden(n)} (${formatStunden(b)} brutto)` : formatStunden(b) })()}
                         </div>
                       </div>
                     )}
@@ -458,6 +464,153 @@ function SkillsSection({ mitarbeiterId, editing }) {
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+// --- Fuehrerschein Section ---
+
+const FS_KLASSEN = ['B', 'BE', 'C', 'CE', 'C1', 'C1E', 'D', 'DE', 'D1', 'D1E', 'T', 'L', 'AM', 'A', 'A1', 'A2']
+
+function FuehrerscheinSection({ mitarbeiterId, editing }) {
+  const [items, setItems] = useState([])
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({ klasse: 'B', erhalten_am: '', gueltig_bis: '', letzte_pruefung: '', pruef_turnus_monate: 60, notiz: '' })
+  const [editId, setEditId] = useState(null)
+
+  const load = useCallback(async () => {
+    const { data } = await supabase.from('mitarbeiter_fuehrerscheine').select('*').eq('mitarbeiter_id', mitarbeiterId).order('klasse')
+    setItems(data || [])
+  }, [mitarbeiterId])
+
+  useEffect(() => { load() }, [load])
+
+  const save = async () => {
+    const row = { mitarbeiter_id: mitarbeiterId, ...form, pruef_turnus_monate: Number(form.pruef_turnus_monate) || 60 }
+    for (const k of Object.keys(row)) { if (row[k] === '') row[k] = null }
+    if (editId) {
+      await supabase.from('mitarbeiter_fuehrerscheine').update(row).eq('id', editId)
+    } else {
+      await supabase.from('mitarbeiter_fuehrerscheine').insert(row)
+    }
+    setShowForm(false)
+    setEditId(null)
+    setForm({ klasse: 'B', erhalten_am: '', gueltig_bis: '', letzte_pruefung: '', pruef_turnus_monate: 60, notiz: '' })
+    load()
+  }
+
+  const startEdit = (item) => {
+    setForm({ klasse: item.klasse, erhalten_am: item.erhalten_am || '', gueltig_bis: item.gueltig_bis || '', letzte_pruefung: item.letzte_pruefung || '', pruef_turnus_monate: item.pruef_turnus_monate || 60, notiz: item.notiz || '' })
+    setEditId(item.id)
+    setShowForm(true)
+  }
+
+  const remove = async (id) => {
+    await supabase.from('mitarbeiter_fuehrerscheine').delete().eq('id', id)
+    load()
+  }
+
+  const getPruefStatus = (item) => {
+    if (!item.naechste_pruefung) return null
+    const diff = (new Date(item.naechste_pruefung) - new Date()) / (1000 * 60 * 60 * 24)
+    if (diff < 0) return { color: 'text-red-600 bg-red-50', label: 'Überfällig', icon: AlertTriangle }
+    if (diff < 30) return { color: 'text-red-600 bg-red-50', label: `${Math.ceil(diff)} Tage`, icon: AlertTriangle }
+    if (diff < 90) return { color: 'text-amber-600 bg-amber-50', label: `${Math.ceil(diff)} Tage`, icon: AlertTriangle }
+    return { color: 'text-emerald-600 bg-emerald-50', label: 'OK', icon: CheckCircle }
+  }
+
+  const usedKlassen = items.map(i => i.klasse)
+  const availableKlassen = editId ? FS_KLASSEN : FS_KLASSEN.filter(k => !usedKlassen.includes(k))
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Car className="w-4 h-4 text-text-muted" />
+          <h3 className="text-sm font-semibold text-text-primary">Führerscheine</h3>
+        </div>
+        {editing && !showForm && (
+          <button onClick={() => { setEditId(null); setForm({ klasse: availableKlassen[0] || 'B', erhalten_am: '', gueltig_bis: '', letzte_pruefung: '', pruef_turnus_monate: 60, notiz: '' }); setShowForm(true) }}
+            className="flex items-center gap-1 text-xs text-brand hover:underline"><Plus className="w-3 h-3" /> Hinzufügen</button>
+        )}
+      </div>
+
+      {showForm && (
+        <div className="p-3 rounded-lg border border-brand/30 bg-brand/5 mb-3 space-y-2">
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className={labelCls}>Klasse *</label>
+              {editId ? (
+                <input value={form.klasse} disabled className={inputCls + ' opacity-60'} />
+              ) : (
+                <select value={form.klasse} onChange={e => setForm(f => ({ ...f, klasse: e.target.value }))} className={inputCls}>
+                  {availableKlassen.map(k => <option key={k} value={k}>{k}</option>)}
+                </select>
+              )}
+            </div>
+            <div>
+              <label className={labelCls}>Erhalten am</label>
+              <input type="date" value={form.erhalten_am} onChange={e => setForm(f => ({ ...f, erhalten_am: e.target.value }))} className={inputCls} />
+            </div>
+            <div>
+              <label className={labelCls}>Gültig bis</label>
+              <input type="date" value={form.gueltig_bis} onChange={e => setForm(f => ({ ...f, gueltig_bis: e.target.value }))} className={inputCls} />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className={labelCls}>Letzte Prüfung</label>
+              <input type="date" value={form.letzte_pruefung} onChange={e => setForm(f => ({ ...f, letzte_pruefung: e.target.value }))} className={inputCls} />
+            </div>
+            <div>
+              <label className={labelCls}>Prüf-Turnus (Monate)</label>
+              <input type="number" min="1" max="120" value={form.pruef_turnus_monate} onChange={e => setForm(f => ({ ...f, pruef_turnus_monate: e.target.value }))} className={inputCls} />
+            </div>
+            <div>
+              <label className={labelCls}>Notiz</label>
+              <input value={form.notiz} onChange={e => setForm(f => ({ ...f, notiz: e.target.value }))} className={inputCls} placeholder="z.B. Kopie liegt vor" />
+            </div>
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button onClick={save} className="px-3 py-1 text-xs font-medium bg-brand text-white rounded-lg hover:bg-brand/90">{editId ? 'Speichern' : 'Hinzufügen'}</button>
+            <button onClick={() => { setShowForm(false); setEditId(null) }} className="px-3 py-1 text-xs text-text-secondary hover:text-text-primary">Abbrechen</button>
+          </div>
+        </div>
+      )}
+
+      {items.length === 0 && !showForm ? (
+        <p className="text-xs text-text-muted">Keine Führerscheine hinterlegt.</p>
+      ) : (
+        <div className="space-y-1.5">
+          {items.map(item => {
+            const status = getPruefStatus(item)
+            return (
+              <div key={item.id} className="flex items-center justify-between p-2.5 rounded-lg border border-border-default bg-surface-main text-xs">
+                <div className="flex items-center gap-3">
+                  <span className="font-bold text-text-primary text-sm w-8">{item.klasse}</span>
+                  <div className="text-text-secondary">
+                    {item.erhalten_am && <span>Erhalten: {new Date(item.erhalten_am).toLocaleDateString('de-DE')}</span>}
+                    {item.gueltig_bis && <span className="ml-3">Gültig bis: {new Date(item.gueltig_bis).toLocaleDateString('de-DE')}</span>}
+                    {item.letzte_pruefung && <span className="ml-3">Letzte Prüfung: {new Date(item.letzte_pruefung).toLocaleDateString('de-DE')}</span>}
+                    {item.naechste_pruefung && <span className="ml-3">Nächste: {new Date(item.naechste_pruefung).toLocaleDateString('de-DE')}</span>}
+                  </div>
+                  {status && (
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${status.color}`}>
+                      <status.icon className="w-3 h-3" /> {status.label}
+                    </span>
+                  )}
+                </div>
+                {editing && (
+                  <div className="flex gap-1">
+                    <button onClick={() => startEdit(item)} className="p-1 rounded hover:bg-surface-hover text-text-muted hover:text-brand" title="Bearbeiten"><Wrench className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => remove(item.id)} className="p-1 rounded hover:bg-surface-hover text-text-muted hover:text-red-500" title="Löschen"><Trash2 className="w-3.5 h-3.5" /></button>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
@@ -953,7 +1106,7 @@ export default function MitarbeiterDetail() {
 
         {tab === 'vertrag' && (
           <div className="space-y-6">
-            <VertragSection mitarbeiterId={id} editing={editing} />
+            <VertragSection mitarbeiterId={id} editing={editing} pausenregel={maForm.pausenregel} />
             <div className="border-t border-border-default pt-4">
               <h3 className="text-sm font-semibold text-text-primary mb-3">Zeiterfassung-Einstellungen</h3>
               <div className="grid grid-cols-3 gap-4">
@@ -961,6 +1114,39 @@ export default function MitarbeiterDetail() {
                 <Field label="Rundung Taktung (Min)" value={maForm.rundung_taktung} type="number" onChange={v => setMF('rundung_taktung', v)} disabled={!editing} />
                 <Field label="Rundung (Kommen/Gehen)" value={maForm.rundung_kommen} onChange={v => { setMF('rundung_kommen', v); setMF('rundung_gehen', v) }} disabled={!editing}
                   options={{ aufrunden: 'Aufrunden', abrunden: 'Abrunden', auf_ab: 'Auf-/Abrunden' }} />
+              </div>
+              <div className="mt-3">
+                <label className={labelCls}>Pausenregel</label>
+                <div className="flex items-center gap-3 text-xs">
+                  {(() => {
+                    const regel = maForm.pausenregel && typeof maForm.pausenregel === 'object' ? maForm.pausenregel : { '6': 30, '9': 45 }
+                    const entries = Object.entries(regel).sort(([a], [b]) => Number(a) - Number(b))
+                    return entries.map(([stunden, minuten]) => (
+                      <div key={stunden} className="flex items-center gap-1.5 bg-surface-hover px-2.5 py-1.5 rounded-lg">
+                        <span className="text-text-muted">Ab</span>
+                        {editing ? (
+                          <input type="number" min="1" max="12" value={stunden} className="w-10 px-1 py-0.5 text-center border border-border-default rounded bg-surface-main text-text-primary"
+                            onChange={e => {
+                              const newRegel = { ...regel }
+                              delete newRegel[stunden]
+                              newRegel[e.target.value] = minuten
+                              setMF('pausenregel', newRegel)
+                            }} />
+                        ) : <span className="font-medium">{stunden}</span>}
+                        <span className="text-text-muted">h →</span>
+                        {editing ? (
+                          <input type="number" min="0" max="120" step="5" value={minuten} className="w-12 px-1 py-0.5 text-center border border-border-default rounded bg-surface-main text-text-primary"
+                            onChange={e => {
+                              const newRegel = { ...regel }
+                              newRegel[stunden] = Number(e.target.value)
+                              setMF('pausenregel', newRegel)
+                            }} />
+                        ) : <span className="font-medium">{minuten}</span>}
+                        <span className="text-text-muted">Min Pause</span>
+                      </div>
+                    ))
+                  })()}
+                </div>
               </div>
             </div>
             <div className="border-t border-border-default pt-4">
@@ -1001,6 +1187,9 @@ export default function MitarbeiterDetail() {
               </button>
             </div>
             <SkillsSection mitarbeiterId={id} editing={editing} />
+            <div className="border-t border-border-default pt-4">
+              <FuehrerscheinSection mitarbeiterId={id} editing={editing} />
+            </div>
           </div>
         )}
 
