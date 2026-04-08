@@ -1657,6 +1657,7 @@ export default function MitarbeiterDetail() {
                   options={{ aktiv: 'Aktiv', inaktiv: 'Inaktiv', ausgeschieden: 'Ausgeschieden', gekuendigt: 'Gekündigt' }} />
                 <Field label="Eintrittsdatum *" value={maForm.eintrittsdatum} type="date" onChange={v => setMF('eintrittsdatum', v)} disabled={!editing} />
                 <Field label="Austrittsdatum" value={maForm.austrittsdatum} type="date" onChange={v => setMF('austrittsdatum', v)} disabled={!editing} />
+                <Field label="Urlaubsanspruch (Tage/Jahr)" value={maForm.urlaubsanspruch} type="number" onChange={v => setMF('urlaubsanspruch', v)} disabled={!editing} placeholder="z.B. 30" />
               </div>
             </div>
 
