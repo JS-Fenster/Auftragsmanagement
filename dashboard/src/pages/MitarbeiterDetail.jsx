@@ -1749,6 +1749,18 @@ export default function MitarbeiterDetail() {
               </div>
             </div>
 
+            {/* Gehalt/Lohn */}
+            <div className="border-t border-border-default pt-4">
+              <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5 mb-3 pb-1 border-b border-border-default">
+                <CreditCard className="w-4 h-4 text-text-muted" /> Gehalt / Lohn
+              </h3>
+              <div className="grid grid-cols-3 gap-4">
+                <Field label="Lohnsatz 1 (€/h)" value={maForm.lohnsatz_1} type="number" onChange={v => setMF('lohnsatz_1', v)} disabled={!editing} />
+                <Field label="Lohnsatz 2 (€/h)" value={maForm.lohnsatz_2} type="number" onChange={v => setMF('lohnsatz_2', v)} disabled={!editing} />
+                <Field label="Lohnsatz 3 (€/h)" value={maForm.lohnsatz_3} type="number" onChange={v => setMF('lohnsatz_3', v)} disabled={!editing} />
+              </div>
+            </div>
+
             {/* Arbeitsverträge */}
             <div className="border-t border-border-default pt-4">
               <VertragSection mitarbeiterId={id} editing={editing} pausenregel={maForm.pausenregel} />
@@ -1837,6 +1849,16 @@ export default function MitarbeiterDetail() {
         {tab === 'akte' && (
           <div className="space-y-6">
             <PersonalakteSection mitarbeiterId={id} editing={editing} />
+            {/* Kleidergrößen */}
+            <div className="border-t border-border-default pt-4">
+              <h3 className="text-sm font-semibold text-text-primary mb-3 pb-1 border-b border-border-default">Kleidergrößen</h3>
+              <div className="grid grid-cols-4 gap-4">
+                <Field label="Hose" value={maForm.kleidung_hose} onChange={v => setMF('kleidung_hose', v)} disabled={!editing} placeholder="z.B. 52" />
+                <Field label="Jacke" value={maForm.kleidung_jacke} onChange={v => setMF('kleidung_jacke', v)} disabled={!editing} placeholder="z.B. L" />
+                <Field label="Schuhe" value={maForm.kleidung_schuhe} onChange={v => setMF('kleidung_schuhe', v)} disabled={!editing} placeholder="z.B. 43" />
+                <Field label="Handschuhe" value={maForm.kleidung_handschuhe} onChange={v => setMF('kleidung_handschuhe', v)} disabled={!editing} placeholder="z.B. 9" />
+              </div>
+            </div>
             <div className="border-t border-border-default pt-4">
               <ArbeitsmittelSection mitarbeiterId={id} editing={editing} />
             </div>
