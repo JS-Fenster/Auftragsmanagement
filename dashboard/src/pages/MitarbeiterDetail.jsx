@@ -720,15 +720,23 @@ function OnboardingSection({ mitarbeiterId }) {
   const [loading, setLoading] = useState(true)
   const [expandedCl, setExpandedCl] = useState(null)
 
+  const [maStatus, setMaStatus] = useState(null)
+  const [eintrittsdatum, setEintrittsdatum] = useState(null)
+  const [austrittsdatum, setAustrittsdatum] = useState(null)
+
   const load = useCallback(async () => {
-    const [clRes, vlRes, maRes] = await Promise.all([
+    const [clRes, vlRes, maRes, mdRes] = await Promise.all([
       supabase.from('onboarding_checklisten').select('*').eq('mitarbeiter_id', mitarbeiterId).order('created_at', { ascending: false }),
       supabase.from('onboarding_vorlagen').select('*').order('name'),
-      supabase.from('mitarbeiter').select('rolle').eq('id', mitarbeiterId).single(),
+      supabase.from('mitarbeiter').select('rolle, status').eq('id', mitarbeiterId).single(),
+      supabase.from('mitarbeiter_daten').select('eintrittsdatum, austrittsdatum, status').eq('mitarbeiter_alt_id', mitarbeiterId).single(),
     ])
     setChecklisten(clRes.data || [])
     setVorlagen(vlRes.data || [])
     setMaRolle(maRes.data?.rolle)
+    setMaStatus(mdRes.data?.status || maRes.data?.status)
+    setEintrittsdatum(mdRes.data?.eintrittsdatum)
+    setAustrittsdatum(mdRes.data?.austrittsdatum)
     setLoading(false)
   }, [mitarbeiterId])
   useEffect(() => { load() }, [load])
@@ -813,18 +821,68 @@ function OnboardingSection({ mitarbeiterId }) {
         )
       })}
 
-      {/* Start buttons */}
-      {aktiveChecklisten.length === 0 && (
-        <div className="flex flex-wrap gap-2">
-          {passendVorlagen.map(v => (
-            <button key={v.id} onClick={() => startChecklist(v)}
-              className="flex items-center gap-2 px-4 py-2 text-xs font-medium bg-brand/10 text-brand border border-brand/20 rounded-lg hover:bg-brand/20">
-              <Plus className="w-3.5 h-3.5" />
-              {v.name} starten
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Auto-Suggest + Start buttons */}
+      {(() => {
+        const hatOnboarding = checklisten.some(c => c.typ === 'onboarding')
+        const hatOffboarding = checklisten.some(c => c.typ === 'offboarding')
+        const istNeu = eintrittsdatum && !hatOnboarding
+        const istAustritt = (austrittsdatum || maStatus === 'gekuendigt' || maStatus === 'ausgeschieden') && !hatOffboarding
+        const onboardingVorlagen = passendVorlagen.filter(v => v.typ === 'onboarding')
+        const offboardingVorlagen = passendVorlagen.filter(v => v.typ === 'offboarding')
+
+        return (
+          <div className="space-y-2">
+            {/* Auto-Suggest: Onboarding */}
+            {istNeu && onboardingVorlagen.length > 0 && (
+              <div className="flex items-center justify-between p-3 rounded-lg bg-green-50 border border-green-200">
+                <div className="flex items-center gap-2 text-xs text-green-700">
+                  <CheckCircle className="w-4 h-4" />
+                  <span className="font-medium">Neuer Mitarbeiter — Onboarding starten?</span>
+                </div>
+                <div className="flex gap-2">
+                  {onboardingVorlagen.map(v => (
+                    <button key={v.id} onClick={() => startChecklist(v)}
+                      className="px-3 py-1.5 text-xs font-medium bg-green-600 text-white rounded-lg hover:bg-green-700">
+                      {v.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Auto-Suggest: Offboarding */}
+            {istAustritt && offboardingVorlagen.length > 0 && (
+              <div className="flex items-center justify-between p-3 rounded-lg bg-red-50 border border-red-200">
+                <div className="flex items-center gap-2 text-xs text-red-700">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span className="font-medium">{austrittsdatum ? `Austritt am ${new Date(austrittsdatum + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}` : 'Mitarbeiter gekündigt/ausgeschieden'} — Offboarding starten?</span>
+                </div>
+                <div className="flex gap-2">
+                  {offboardingVorlagen.map(v => (
+                    <button key={v.id} onClick={() => startChecklist(v)}
+                      className="px-3 py-1.5 text-xs font-medium bg-red-600 text-white rounded-lg hover:bg-red-700">
+                      {v.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Manuelle Buttons (Fallback) */}
+            {aktiveChecklisten.length === 0 && !istNeu && !istAustritt && (
+              <div className="flex flex-wrap gap-2">
+                {passendVorlagen.map(v => (
+                  <button key={v.id} onClick={() => startChecklist(v)}
+                    className="flex items-center gap-2 px-4 py-2 text-xs font-medium bg-brand/10 text-brand border border-brand/20 rounded-lg hover:bg-brand/20">
+                    <Plus className="w-3.5 h-3.5" />
+                    {v.name} starten
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Completed */}
       {abgeschlossene.length > 0 && (
