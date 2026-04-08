@@ -48,7 +48,6 @@ const TABS = [
   { key: 'stamm', label: 'Stammdaten', icon: User },
   { key: 'vertrag', label: 'Vertrag & Beschäftigung', icon: Briefcase },
   { key: 'skills', label: 'Skills & Qualifikationen', icon: Wrench },
-  { key: 'personal', label: 'Persönliches & Finanzen', icon: CreditCard },
   { key: 'akte', label: 'Personalakte & Ausstattung', icon: FileText },
 ]
 
@@ -1617,6 +1616,19 @@ export default function MitarbeiterDetail() {
               personId={person?.id}
             />
 
+            {/* Adressen */}
+            <AdressenSection adressen={adressen} setAdressen={setAdressen} editing={editing} personId={person?.id} />
+
+            {/* Notfallkontakt */}
+            <div>
+              <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5 mb-3 pb-1 border-b border-border-default">
+                <Phone className="w-4 h-4 text-text-muted" /> Notfallkontakt
+              </h3>
+              <div className="grid grid-cols-3 gap-4">
+                <p className="text-xs text-text-muted col-span-3">Notfallkontakt wird künftig über Kontaktdaten abgebildet.</p>
+              </div>
+            </div>
+
             {/* Notizen */}
             <div>
               <h3 className="text-sm font-semibold text-text-primary mb-3 pb-1 border-b border-border-default">Notizen</h3>
@@ -1648,6 +1660,33 @@ export default function MitarbeiterDetail() {
               </div>
             </div>
 
+            {/* Bank / Steuer / SV — direkt nach Beschäftigung */}
+            <div className="border-t border-border-default pt-4">
+              <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5 mb-3 pb-1 border-b border-border-default">
+                <CreditCard className="w-4 h-4 text-text-muted" /> Bankverbindung
+              </h3>
+              <div className="grid grid-cols-3 gap-4">
+                <Field label="Bank" value={maForm.bank} onChange={v => setMF('bank', v)} disabled={!editing} suggestions={suggestions.bank} />
+                <Field label="IBAN" value={maForm.iban} onChange={v => setMF('iban', v)} disabled={!editing} />
+                <Field label="BIC" value={maForm.bic} onChange={v => setMF('bic', v)} disabled={!editing} />
+              </div>
+            </div>
+            <div className="border-t border-border-default pt-4">
+              <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5 mb-3 pb-1 border-b border-border-default">
+                <Shield className="w-4 h-4 text-text-muted" /> Steuer & Sozialversicherung
+              </h3>
+              <div className="grid grid-cols-3 gap-4">
+                <Field label="Steuer-ID" value={maForm.steuer_id} onChange={v => setMF('steuer_id', v)} disabled={!editing} placeholder="11-stellig" />
+                <Field label="Steuerklasse" value={maForm.steuerklasse} onChange={v => setMF('steuerklasse', v)} disabled={!editing} options={STEUERKLASSE_OPTIONS} />
+                <Field label="Kinderfreibeträge" value={maForm.kinderfreibetraege} type="number" onChange={v => setMF('kinderfreibetraege', v)} disabled={!editing} />
+                <Field label="Konfession (KiSt)" value={maForm.konfession} onChange={v => setMF('konfession', v)} disabled={!editing} options={KONFESSION_OPTIONS} />
+                <Field label="SV-Nummer" value={maForm.sv_nummer} onChange={v => setMF('sv_nummer', v)} disabled={!editing} />
+                <Field label="RV-Nummer" value={maForm.rv_nummer} onChange={v => setMF('rv_nummer', v)} disabled={!editing} />
+                <Field label="Krankenkasse" value={maForm.krankenkasse} onChange={v => setMF('krankenkasse', v)} disabled={!editing} suggestions={suggestions.krankenkasse} />
+              </div>
+            </div>
+
+            {/* Arbeitsverträge */}
             <div className="border-t border-border-default pt-4">
               <VertragSection mitarbeiterId={id} editing={editing} pausenregel={maForm.pausenregel} />
             </div>
@@ -1693,18 +1732,6 @@ export default function MitarbeiterDetail() {
                 </div>
               </div>
             </div>
-            <div className="border-t border-border-default pt-4">
-              <UrlaubSection mitarbeiterId={id} />
-            </div>
-            <div className="border-t border-border-default pt-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-text-primary">Abwesenheiten</h3>
-                <Link to="/zeiterfassung" className="flex items-center gap-1 text-xs text-brand hover:underline">
-                  <Clock className="w-3 h-3" /> In Zeiterfassung anzeigen
-                </Link>
-              </div>
-              <p className="text-xs text-text-muted mt-1">Abwesenheiten werden jetzt zentral unter Zeiterfassung verwaltet.</p>
-            </div>
           </div>
         )}
 
@@ -1743,68 +1770,6 @@ export default function MitarbeiterDetail() {
           </div>
         )}
 
-        {tab === 'personal' && (
-          <div className="space-y-6">
-            {/* Adressen (dynamic) */}
-            <AdressenSection
-              adressen={adressen}
-              setAdressen={setAdressen}
-              editing={editing}
-              personId={person?.id}
-            />
-
-            {/* Notfallkontakt — stays in mitarbeiter_daten for now */}
-            <div>
-              <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5 mb-3 pb-1 border-b border-border-default">
-                <Phone className="w-4 h-4 text-text-muted" /> Notfallkontakt
-              </h3>
-              <div className="grid grid-cols-3 gap-4">
-                {/* Notfallkontakt fields are not in mitarbeiter_daten schema yet — show as read-only hint */}
-                <p className="text-xs text-text-muted col-span-3">Notfallkontakt wird kuenftig ueber Kontaktdaten abgebildet.</p>
-              </div>
-            </div>
-
-            {/* Bankverbindung */}
-            <div>
-              <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5 mb-3 pb-1 border-b border-border-default">
-                <CreditCard className="w-4 h-4 text-text-muted" /> Bankverbindung
-              </h3>
-              <div className="grid grid-cols-3 gap-4">
-                <Field label="Bank" value={maForm.bank} onChange={v => setMF('bank', v)} disabled={!editing} suggestions={suggestions.bank} />
-                <Field label="IBAN" value={maForm.iban} onChange={v => setMF('iban', v)} disabled={!editing} />
-                <Field label="BIC" value={maForm.bic} onChange={v => setMF('bic', v)} disabled={!editing} />
-              </div>
-            </div>
-
-            {/* Steuer */}
-            <div>
-              <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5 mb-3 pb-1 border-b border-border-default">
-                <Shield className="w-4 h-4 text-text-muted" /> Steuer
-              </h3>
-              <div className="grid grid-cols-3 gap-4">
-                <Field label="Steuer-ID" value={maForm.steuer_id} onChange={v => setMF('steuer_id', v)} disabled={!editing} placeholder="11-stellig" />
-                <Field label="Steuerklasse" value={maForm.steuerklasse} onChange={v => setMF('steuerklasse', v)} disabled={!editing}
-                  options={STEUERKLASSE_OPTIONS} />
-                <Field label="Kinderfreibetraege" value={maForm.kinderfreibetraege} type="number" onChange={v => setMF('kinderfreibetraege', v)} disabled={!editing} />
-                <Field label="Konfession (KiSt)" value={maForm.konfession} onChange={v => setMF('konfession', v)} disabled={!editing}
-                  options={KONFESSION_OPTIONS} />
-              </div>
-            </div>
-
-            {/* Sozialversicherung */}
-            <div>
-              <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5 mb-3 pb-1 border-b border-border-default">
-                <Shield className="w-4 h-4 text-text-muted" /> Sozialversicherung
-              </h3>
-              <div className="grid grid-cols-3 gap-4">
-                <Field label="SV-Nummer" value={maForm.sv_nummer} onChange={v => setMF('sv_nummer', v)} disabled={!editing} />
-                <Field label="RV-Nummer" value={maForm.rv_nummer} onChange={v => setMF('rv_nummer', v)} disabled={!editing} />
-                <Field label="Krankenkasse" value={maForm.krankenkasse} onChange={v => setMF('krankenkasse', v)} disabled={!editing} suggestions={suggestions.krankenkasse} />
-              </div>
-            </div>
-
-          </div>
-        )}
 
         {tab === 'akte' && (
           <div className="space-y-6">
