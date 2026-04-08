@@ -373,25 +373,31 @@ function UrlaubSection({ mitarbeiterId }) {
   )
 }
 
+const KATEGORIE_LABELS = { montage: '🔧 Montage', verwaltung: '📋 Verwaltung', vertrieb: '💼 Vertrieb', allgemein: '🛡️ Allgemein' }
+const KATEGORIE_ORDER = ['montage', 'verwaltung', 'vertrieb', 'allgemein']
+
 function SkillsSection({ mitarbeiterId, editing }) {
   const [skills, setSkills] = useState([])
-  const [adding, setAdding] = useState(false)
-  const [newSkill, setNewSkill] = useState('')
-  const [newLevel, setNewLevel] = useState('standard')
+  const [katalog, setKatalog] = useState([])
+  const [showModal, setShowModal] = useState(false)
+  const [newSkillName, setNewSkillName] = useState('')
+  const [newSkillKat, setNewSkillKat] = useState('allgemein')
 
   const loadSkills = useCallback(async () => {
     const { data } = await supabase.from('mitarbeiter_skills').select('*').eq('mitarbeiter_id', mitarbeiterId).order('skill')
     setSkills(data || [])
   }, [mitarbeiterId])
 
-  useEffect(() => { loadSkills() }, [loadSkills])
+  const loadKatalog = useCallback(async () => {
+    const { data } = await supabase.from('skill_katalog').select('*').order('kategorie').order('sort_order')
+    setKatalog(data || [])
+  }, [])
 
-  const addSkill = async () => {
-    if (!newSkill.trim()) return
-    await supabase.from('mitarbeiter_skills').insert({ mitarbeiter_id: mitarbeiterId, skill: newSkill.trim(), level: newLevel })
-    setNewSkill('')
-    setNewLevel('standard')
-    setAdding(false)
+  useEffect(() => { loadSkills(); loadKatalog() }, [loadSkills, loadKatalog])
+
+  const addSkill = async (skillName) => {
+    if (skills.some(s => s.skill === skillName)) return
+    await supabase.from('mitarbeiter_skills').insert({ mitarbeiter_id: mitarbeiterId, skill: skillName, level: 'standard' })
     loadSkills()
   }
 
@@ -405,40 +411,37 @@ function SkillsSection({ mitarbeiterId, editing }) {
     loadSkills()
   }
 
-  const availablePresets = SKILL_PRESETS.filter(s => !skills.some(sk => sk.skill === s))
+  const addCustomSkill = async () => {
+    if (!newSkillName.trim()) return
+    // Add to katalog if not exists
+    await supabase.from('skill_katalog').upsert({ name: newSkillName.trim(), kategorie: newSkillKat }, { onConflict: 'name' })
+    // Add to MA
+    await addSkill(newSkillName.trim())
+    setNewSkillName('')
+    setNewSkillKat('allgemein')
+    loadKatalog()
+  }
+
+  const groupedKatalog = KATEGORIE_ORDER.map(kat => ({
+    key: kat,
+    label: KATEGORIE_LABELS[kat] || kat,
+    items: katalog.filter(k => k.kategorie === kat),
+  })).filter(g => g.items.length > 0)
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5">
-          <Wrench className="w-4 h-4 text-text-muted" /> Faehigkeiten
+          <Wrench className="w-4 h-4 text-text-muted" /> Fähigkeiten
         </h3>
         {editing && (
-          <button onClick={() => setAdding(!adding)} className="text-xs text-brand hover:underline flex items-center gap-1">
-            <Plus className="w-3 h-3" /> Skill hinzufuegen
+          <button onClick={() => setShowModal(true)} className="text-xs text-brand hover:underline flex items-center gap-1">
+            <Plus className="w-3 h-3" /> Skills auswählen
           </button>
         )}
       </div>
-      {adding && editing && (
-        <div className="flex items-end gap-2 p-3 rounded-lg bg-surface-main border border-border-default">
-          <div className="flex-1">
-            <label className={labelCls}>Skill</label>
-            <input list="skill-presets" value={newSkill} onChange={e => setNewSkill(e.target.value)}
-              placeholder="Skill eingeben..." className={inputCls} />
-            <datalist id="skill-presets">
-              {availablePresets.map(s => <option key={s} value={s} />)}
-            </datalist>
-          </div>
-          <div>
-            <label className={labelCls}>Level</label>
-            <select value={newLevel} onChange={e => setNewLevel(e.target.value)} className={inputCls}>
-              {Object.entries(SKILL_LEVELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
-          </div>
-          <button onClick={addSkill} disabled={!newSkill.trim()} className="px-3 py-1.5 text-xs bg-brand text-white rounded-lg disabled:opacity-50">Hinzufuegen</button>
-          <button onClick={() => setAdding(false)} className="px-3 py-1.5 text-xs text-text-secondary hover:bg-surface-hover rounded-lg">Abbrechen</button>
-        </div>
-      )}
+
+      {/* Skill chips */}
       <div className="flex flex-wrap gap-2">
         {skills.length === 0 && <p className="text-xs text-text-muted">Keine Skills hinterlegt</p>}
         {skills.map(sk => (
@@ -464,6 +467,60 @@ function SkillsSection({ mitarbeiterId, editing }) {
           </div>
         ))}
       </div>
+
+      {/* Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => setShowModal(false)}>
+          <div className="bg-white rounded-xl shadow-xl border border-border-default p-6 w-[500px] max-w-[90vw] max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-text-primary">Skills auswählen</h3>
+              <button onClick={() => setShowModal(false)} className="text-text-muted hover:text-text-secondary"><X className="w-4 h-4" /></button>
+            </div>
+
+            {groupedKatalog.map(grp => (
+              <div key={grp.key} className="mb-4">
+                <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wide mb-2">{grp.label}</h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {grp.items.map(item => {
+                    const isActive = skills.some(s => s.skill === item.name)
+                    return (
+                      <button key={item.id} onClick={() => isActive ? null : addSkill(item.name)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                          isActive
+                            ? 'bg-brand/10 border-brand/30 text-brand cursor-default'
+                            : 'bg-surface-main border-border-default text-text-secondary hover:bg-brand/5 hover:border-brand/20 cursor-pointer'
+                        }`}>
+                        {isActive && <span className="mr-1">✓</span>}
+                        {item.name}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+
+            {/* Custom skill */}
+            <div className="border-t border-border-default pt-4 mt-4">
+              <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wide mb-2">Eigenen Skill anlegen</h4>
+              <div className="flex gap-2">
+                <input value={newSkillName} onChange={e => setNewSkillName(e.target.value)}
+                  placeholder="Neuer Skill..." className={inputCls + ' flex-1 text-xs'} />
+                <select value={newSkillKat} onChange={e => setNewSkillKat(e.target.value)} className={inputCls + ' text-xs'}>
+                  {KATEGORIE_ORDER.map(k => <option key={k} value={k}>{KATEGORIE_LABELS[k]?.replace(/^.+\s/, '') || k}</option>)}
+                </select>
+                <button onClick={addCustomSkill} disabled={!newSkillName.trim()}
+                  className="px-3 py-1.5 text-xs font-medium bg-brand text-white rounded-lg hover:opacity-90 disabled:opacity-50">
+                  Hinzufügen
+                </button>
+              </div>
+            </div>
+
+            <div className="flex justify-end mt-4">
+              <button onClick={() => setShowModal(false)} className="px-4 py-2 text-xs font-medium bg-brand text-white rounded-lg hover:opacity-90">Fertig</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
