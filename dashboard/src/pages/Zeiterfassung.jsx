@@ -1186,6 +1186,37 @@ function ZeitkarteTab() {
   const ma = maObj
   const monatLabel = new Date(year, month-1, 15).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })
 
+  // Derive Arbeitstage + Wochenstunden from AZM
+  const azmHeader = useMemo(() => {
+    const resId = ma?.ressource_id
+    const todayStr = `${year}-${String(month).padStart(2,'0')}-01`
+    const azm = getActiveAZM(arbeitszeitmodelle, resId, todayStr)
+    if (!azm) return null
+    const dayLabels = ['Mo', 'Di', 'Mi', 'Do', 'Fr']
+    const dayKeys = ['montag', 'dienstag', 'mittwoch', 'donnerstag', 'freitag']
+    const activeDays = dayKeys.map((k, i) => azm[k] ? dayLabels[i] : null).filter(Boolean)
+    let wochenstunden = 0
+    dayKeys.forEach(k => {
+      const cfg = azm[k]
+      if (cfg) {
+        const [sh, sm] = cfg.start.split(':').map(Number)
+        const [eh, em] = cfg.ende.split(':').map(Number)
+        wochenstunden += (eh + em / 60) - (sh + sm / 60)
+      }
+    })
+    // Format: consecutive = "Mo–Do", gaps = "Mo, Di, Do, Fr"
+    let arbeitstageStr = ''
+    if (activeDays.length === 0) {
+      arbeitstageStr = '-'
+    } else {
+      const allDays = ['Mo', 'Di', 'Mi', 'Do', 'Fr']
+      const indices = activeDays.map(d => allDays.indexOf(d))
+      const isConsecutive = indices.length > 1 && indices[indices.length - 1] - indices[0] === indices.length - 1
+      arbeitstageStr = isConsecutive ? `${activeDays[0]}–${activeDays[activeDays.length - 1]}` : activeDays.join(', ')
+    }
+    return { arbeitstageStr, wochenstunden }
+  }, [arbeitszeitmodelle, ma?.ressource_id, year, month])
+
   // Build daily data
   const dailyData = useMemo(() => {
     const today = new Date()
@@ -1275,12 +1306,11 @@ function ZeitkarteTab() {
         <div className="grid grid-cols-3 gap-4 mb-4 p-3 rounded-lg bg-surface-card border border-border-default text-xs">
           <div><span className="text-text-muted">Mitarbeiter:</span> <span className="font-medium text-text-primary">{ma.vorname} {ma.nachname}</span></div>
           <div><span className="text-text-muted">Taktung:</span> <span className="font-medium">{ma.rundung_taktung || 5} Min</span></div>
-          <div><span className="text-text-muted">Zeitraum:</span> <span className="font-medium">{monatLabel}</span></div>
+          <div><span className="text-text-muted">Wochenstunden:</span> <span className="font-medium">{azmHeader ? `${Math.round(azmHeader.wochenstunden)}h` : `${vertrag?.wochenstunden || 40}h`}</span></div>
           <div><span className="text-text-muted">Pers.Nr.:</span> <span className="font-medium">{ma.personalnummer || '-'}</span></div>
           <div><span className="text-text-muted">Rundung:</span> <span className="font-medium">{ma.rundung_kommen || 'Standard'}</span></div>
+          <div><span className="text-text-muted">Arbeitstage:</span> <span className="font-medium">{azmHeader?.arbeitstageStr || 'Mo–Fr'}</span></div>
           <div><span className="text-text-muted">Frühester Beginn:</span> <span className="font-medium">{ma.fruehester_beginn || '-'}</span></div>
-          <div><span className="text-text-muted">Pausenregel:</span> <span className="font-medium">Standard</span></div>
-          <div><span className="text-text-muted">Soll/Tag:</span> <span className="font-medium">{fmtH(sollTagFallback)}</span></div>
         </div>
       )}
 
@@ -1297,7 +1327,7 @@ function ZeitkarteTab() {
                 <th className="px-3 py-2 text-right font-medium">Soll</th>
                 <th className="px-3 py-2 text-right font-medium">Ist</th>
                 <th className="px-3 py-2 text-right font-medium">Tag</th>
-                <th className="px-3 py-2 text-right font-medium">Ü</th>
+                <th className="px-3 py-2 text-right font-medium" title="Überstunden kumulativ">Ü kum.</th>
                 <th className="px-4 py-2 text-left font-medium">Bemerkung</th>
               </tr>
             </thead>
