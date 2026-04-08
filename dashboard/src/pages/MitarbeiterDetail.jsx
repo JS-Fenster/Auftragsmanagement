@@ -382,6 +382,7 @@ function SkillsSection({ mitarbeiterId, editing }) {
   const [showModal, setShowModal] = useState(false)
   const [newSkillName, setNewSkillName] = useState('')
   const [newSkillKat, setNewSkillKat] = useState('allgemein')
+  const [editKatalog, setEditKatalog] = useState(false)
 
   const loadSkills = useCallback(async () => {
     const { data } = await supabase.from('mitarbeiter_skills').select('*').eq('mitarbeiter_id', mitarbeiterId).order('skill')
@@ -484,22 +485,28 @@ function SkillsSection({ mitarbeiterId, editing }) {
                   {grp.items.map(item => {
                     const isActive = skills.some(s => s.skill === item.name)
                     return (
-                      <button key={item.id} onClick={() => {
-                          if (isActive) {
-                            const sk = skills.find(s => s.skill === item.name)
-                            if (sk) removeSkill(sk.id)
-                          } else {
-                            addSkill(item.name)
-                          }
-                        }}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
-                          isActive
-                            ? 'bg-brand/10 border-brand/30 text-brand hover:bg-red-50 hover:border-red-200 hover:text-red-600'
-                            : 'bg-surface-main border-border-default text-text-secondary hover:bg-brand/5 hover:border-brand/20'
-                        }`}>
-                        {isActive && <span className="mr-1">✓</span>}
-                        {item.name}
-                      </button>
+                      <div key={item.id} className="relative group">
+                        <button onClick={() => {
+                            if (isActive) {
+                              const sk = skills.find(s => s.skill === item.name)
+                              if (sk) removeSkill(sk.id)
+                            } else {
+                              addSkill(item.name)
+                            }
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
+                            isActive
+                              ? 'bg-brand/10 border-brand/30 text-brand hover:bg-red-50 hover:border-red-200 hover:text-red-600'
+                              : 'bg-surface-main border-border-default text-text-secondary hover:bg-brand/5 hover:border-brand/20'
+                          }`}>
+                          {isActive && <span className="mr-1">✓</span>}
+                          {item.name}
+                        </button>
+                        {editKatalog && (
+                          <button onClick={async (e) => { e.stopPropagation(); await supabase.from('skill_katalog').delete().eq('id', item.id); loadKatalog() }}
+                            className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white rounded-full text-[8px] leading-4 text-center hover:bg-red-600 shadow">✕</button>
+                        )}
+                      </div>
                     )
                   })}
                 </div>
@@ -522,8 +529,12 @@ function SkillsSection({ mitarbeiterId, editing }) {
               </div>
             </div>
 
-            <div className="flex justify-end mt-4">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2 text-xs font-medium bg-brand text-white rounded-lg hover:opacity-90">Fertig</button>
+            <div className="flex justify-between mt-4">
+              <button onClick={() => setEditKatalog(!editKatalog)}
+                className={`flex items-center gap-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${editKatalog ? 'bg-red-50 text-red-600 border border-red-200' : 'text-text-muted hover:bg-surface-hover'}`}>
+                <Wrench className="w-3 h-3" /> {editKatalog ? 'Bearbeitung beenden' : 'Katalog bearbeiten'}
+              </button>
+              <button onClick={() => { setShowModal(false); setEditKatalog(false) }} className="px-4 py-2 text-xs font-medium bg-brand text-white rounded-lg hover:opacity-90">Fertig</button>
             </div>
           </div>
         </div>
