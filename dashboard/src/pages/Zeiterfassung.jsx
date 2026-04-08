@@ -126,6 +126,16 @@ function isFreierTag(azModelle, ressourceId, dateStr, dow) {
   return !azm[AZM_DAY_KEYS[dow]]
 }
 
+function isHalbtagSlug(slug) {
+  return slug?.endsWith('_vm') || slug?.endsWith('_nm')
+}
+
+function getHalbtagSeite(slug) {
+  if (slug?.endsWith('_vm')) return 'vm'
+  if (slug?.endsWith('_nm')) return 'nm'
+  return null
+}
+
 const selectCls = "px-3 py-1.5 text-sm border border-border-default rounded-lg bg-surface-main text-text-primary outline-none"
 const inputCls = "px-3 py-1.5 text-sm border border-border-default rounded-lg bg-surface-main text-text-primary outline-none"
 
@@ -773,6 +783,10 @@ function AbwesenheitenTab() {
     const dateStr = `${monat}-${String(day).padStart(2, '0')}`
     return abwesenheiten.find(a => a.mitarbeiter_id === maId && a.datum <= dateStr && (a.bis_datum ? a.bis_datum >= dateStr : a.datum >= dateStr))
   }
+  const getAllAbwForDay = (maId, day) => {
+    const dateStr = `${monat}-${String(day).padStart(2, '0')}`
+    return abwesenheiten.filter(a => a.mitarbeiter_id === maId && a.datum <= dateStr && (a.bis_datum ? a.bis_datum >= dateStr : a.datum >= dateStr))
+  }
 
   const countWorkdays = (a, ressourceId) => {
     const von = new Date(a.datum + 'T00:00:00'); const bis = new Date((a.bis_datum || a.datum) + 'T00:00:00')
@@ -893,17 +907,37 @@ function AbwesenheitenTab() {
                           const isFrei = isFreierTag(arbeitszeitmodelle, ma.ressource_id, dateStr, dow)
                           const isToday = dateStr === todayStr
                           const ft = feiertage.find(f => f.datum === dateStr)
-                          const abw = getAbwForDay(ma.id, d)
+                          const dayAbws = getAllAbwForDay(ma.id, d)
+                          const abw = dayAbws[0]
                           if (abw && !isFrei) totalDays++
                           const kuerzel = abw?.abwesenheitsarten?.slug?.toLowerCase() || ''
                           const style = ABW_COLORS[kuerzel] || (abw ? { bg: '#E5E7EB', text: '#374151', short: '?' } : null)
+                          const anyHalbtagGrp = dayAbws.some(a => isHalbtagSlug(a.abwesenheitsarten?.slug))
+                          const hasMultipleGrp = dayAbws.length > 1 || ft?.halbtag || anyHalbtagGrp
                           const abwTooltip = abw ? `${abw.abwesenheitsarten?.name || 'Abwesenheit'}${abw.status === 'beantragt' ? ' (beantragt)' : ''}` : ''
                           const ftTooltip = ft ? `${ft.name}${ft.halbtag ? ' (nachmittags frei)' : ''}` : ''
                           const cellTitle = abwTooltip || ftTooltip || (isFrei ? (dow === 0 || dow === 6 ? 'Wochenende' : 'Kein Arbeitstag') : '')
                           return (
                             <td key={d} className={`px-0 py-1 text-center ${isFrei ? 'bg-gray-200/40' : ft && !style ? 'bg-blue-50/60' : ''} ${isToday ? 'ring-1 ring-brand/30 ring-inset' : ''}`}
                               title={cellTitle}>
-                              {style && !isFrei ? (
+                              {hasMultipleGrp && !isFrei ? (() => {
+                                let vmSlot = null, nmSlot = null
+                                if (ft?.halbtag === 'nachmittag') nmSlot = { bg: '#DCFCE7', text: '#166534', short: 'F' }
+                                if (ft?.halbtag === 'vormittag') vmSlot = { bg: '#DCFCE7', text: '#166534', short: 'F' }
+                                dayAbws.forEach(a => {
+                                  const slug = a.abwesenheitsarten?.slug || ''
+                                  const s = ABW_COLORS[slug] || { bg: '#E5E7EB', text: '#374151', short: '?' }
+                                  if (slug.endsWith('_vm')) vmSlot = s
+                                  else if (slug.endsWith('_nm')) nmSlot = s
+                                  else if (!vmSlot) vmSlot = s
+                                  else nmSlot = s
+                                })
+                                return (
+                                <span className="inline-flex w-5 h-5 text-[8px] font-bold rounded overflow-hidden">
+                                  {vmSlot ? <span className="flex-1 leading-5" style={{ backgroundColor: vmSlot.bg, color: vmSlot.text }}>{vmSlot.short}</span> : <span className="flex-1 leading-5 text-text-muted">·</span>}
+                                  {nmSlot ? <span className="flex-1 leading-5" style={{ backgroundColor: nmSlot.bg, color: nmSlot.text }}>{nmSlot.short}</span> : <span className="flex-1 leading-5 text-text-muted">·</span>}
+                                </span>)
+                              })() : style && !isFrei ? (
                                 <span className={`inline-block w-5 h-5 leading-5 rounded text-[9px] font-bold ${style.dashed ? 'border border-dashed' : ''}`} style={{ backgroundColor: style.bg, color: style.text, borderColor: style.dashed ? style.text : undefined }}>{style.short}</span>
                               ) : ft && !isFrei ? (
                                 <span className={`inline-block w-5 h-5 leading-5 rounded text-[9px] font-bold ${ft.halbtag ? 'border border-dashed' : ''}`} style={{ backgroundColor: '#DCFCE7', color: '#166534', borderColor: ft.halbtag ? '#166534' : undefined }}>{ft.halbtag ? '½F' : 'F'}</span>
@@ -968,8 +1002,20 @@ function AbwesenheitenTab() {
                           const kuerzel = abw?.abwesenheitsarten?.slug?.toLowerCase() || ''
                           const style = ABW_COLORS[kuerzel] || (abw ? { bg: '#E5E7EB', text: '#374151', short: '?' } : null)
                           const ft = feiertage.find(f => f.datum === dateStr)
-                          const hasMultiple = dayAbws.length > 1 || ft?.halbtag
-                          const canSelect = !isFrei && (!abw || ft?.halbtag) && (!ft || ft.halbtag)
+                          const anyHalbtag = dayAbws.some(a => isHalbtagSlug(a.abwesenheitsarten?.slug))
+                          const hasMultiple = dayAbws.length > 1 || ft?.halbtag || anyHalbtag
+                          // Day is fully occupied if: ganztag abw, or both vm+nm filled, or (halbtag abw + full feiertag)
+                          const belegteSeiten = new Set()
+                          dayAbws.forEach(a => {
+                            const seite = getHalbtagSeite(a.abwesenheitsarten?.slug)
+                            if (seite) belegteSeiten.add(seite)
+                            else { belegteSeiten.add('vm'); belegteSeiten.add('nm') } // ganztag belegt beide
+                          })
+                          if (ft && !ft.halbtag) { belegteSeiten.add('vm'); belegteSeiten.add('nm') }
+                          if (ft?.halbtag === 'nachmittag') belegteSeiten.add('nm')
+                          if (ft?.halbtag === 'vormittag') belegteSeiten.add('vm')
+                          const vollBelegt = belegteSeiten.has('vm') && belegteSeiten.has('nm')
+                          const canSelect = !isFrei && !vollBelegt
                           const isSelected = selectionRange.includes(dateStr)
                           const colHighlight = isColToday && day < todayDay
                           const rowHighlight = isRowToday && mi < todayMonth
