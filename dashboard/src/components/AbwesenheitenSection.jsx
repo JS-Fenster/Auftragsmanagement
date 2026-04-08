@@ -31,7 +31,7 @@ function calcWorkdays(start, end) {
   return count
 }
 
-export default function AbwesenheitenSection({ mitarbeiterId, mitarbeiterName, onUpdate }) {
+export default function AbwesenheitenSection({ mitarbeiterId, mitarbeiterName, onUpdate, hideForm = false }) {
   const [abwesenheiten, setAbwesenheiten] = useState([])
   const [arten, setArten] = useState([])
   const [loading, setLoading] = useState(true)
@@ -171,14 +171,16 @@ export default function AbwesenheitenSection({ mitarbeiterId, mitarbeiterName, o
         <h4 className="text-sm font-semibold text-text-primary flex items-center gap-1.5">
           <Calendar className="w-4 h-4 text-text-muted" /> Abwesenheiten
         </h4>
-        <button onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-brand hover:bg-brand/10 rounded-lg">
-          <Plus className="w-3.5 h-3.5" /> Neu
-        </button>
+        {!hideForm && (
+          <button onClick={() => setShowForm(!showForm)}
+            className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-brand hover:bg-brand/10 rounded-lg">
+            <Plus className="w-3.5 h-3.5" /> Neu
+          </button>
+        )}
       </div>
 
       {/* New absence form */}
-      {showForm && (
+      {showForm && !hideForm && (
         <div className="rounded-lg border border-brand/30 bg-brand/5 p-3 space-y-3">
           <p className="text-xs font-semibold text-brand">Neue Abwesenheit</p>
 
