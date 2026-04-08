@@ -776,20 +776,22 @@ function OnboardingSection({ mitarbeiterId }) {
         const gruppen = [...new Set(cl.items.map(i => i.gruppe))]
         return (
           <div key={cl.id} className="rounded-lg border border-border-default bg-surface-card">
-            <button onClick={() => setExpandedCl(expandedCl === cl.id ? null : cl.id)}
-              className="w-full px-4 py-3 border-b border-border-default flex items-center justify-between text-left hover:bg-surface-hover/50 transition-colors">
-              <div className="flex items-center gap-2">
+            <div className="px-4 py-3 border-b border-border-default flex items-center justify-between">
+              <button onClick={() => setExpandedCl(expandedCl === cl.id ? null : cl.id)}
+                className="flex items-center gap-2 text-left hover:text-brand transition-colors flex-1">
                 <span className={`text-xs text-text-muted transition-transform ${expandedCl === cl.id ? 'rotate-90' : ''}`}>▸</span>
                 <span className="text-sm font-medium text-text-primary">{cl.typ === 'onboarding' ? 'Onboarding' : 'Offboarding'}</span>
                 <span className="text-xs text-text-muted">Gestartet: {new Date(cl.gestartet_am + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
-              </div>
-              <div className="flex items-center gap-2">
+              </button>
+              <div className="flex items-center gap-3">
                 <span className="text-xs font-medium text-text-secondary">{done}/{total}</span>
                 <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
                   <div className="h-full bg-brand rounded-full transition-all" style={{ width: `${total > 0 ? (done / total) * 100 : 0}%` }} />
                 </div>
+                <button onClick={async () => { await supabase.from('onboarding_checklisten').delete().eq('id', cl.id); load() }}
+                  className="p-1 text-text-muted hover:text-red-500" title="Checkliste entfernen"><Trash2 className="w-3.5 h-3.5" /></button>
               </div>
-            </button>
+            </div>
             {expandedCl === cl.id && <div className="p-3">
               {gruppen.map(gruppe => {
                 const gruppeItems = cl.items.filter(i => i.gruppe === gruppe && i.nr)
