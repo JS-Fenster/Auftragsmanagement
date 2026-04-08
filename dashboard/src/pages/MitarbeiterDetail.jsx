@@ -589,10 +589,10 @@ function FuehrerscheinSection({ mitarbeiterId, editing }) {
                 <div className="flex items-center gap-3">
                   <span className="font-bold text-text-primary text-sm w-8">{item.klasse}</span>
                   <div className="text-text-secondary">
-                    {item.erhalten_am && <span>Erhalten: {new Date(item.erhalten_am).toLocaleDateString('de-DE')}</span>}
-                    {item.gueltig_bis && <span className="ml-3">Gültig bis: {new Date(item.gueltig_bis).toLocaleDateString('de-DE')}</span>}
-                    {item.letzte_pruefung && <span className="ml-3">Letzte Prüfung: {new Date(item.letzte_pruefung).toLocaleDateString('de-DE')}</span>}
-                    {item.naechste_pruefung && <span className="ml-3">Nächste: {new Date(item.naechste_pruefung).toLocaleDateString('de-DE')}</span>}
+                    {item.erhalten_am && <span>Erhalten: {new Date(item.erhalten_am).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>}
+                    {item.gueltig_bis && <span className="ml-3">Gültig bis: {new Date(item.gueltig_bis).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>}
+                    {item.letzte_pruefung && <span className="ml-3">Letzte Prüfung: {new Date(item.letzte_pruefung).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>}
+                    {item.naechste_pruefung && <span className="ml-3">Nächste: {new Date(item.naechste_pruefung).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>}
                   </div>
                   {status && (
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${status.color}`}>
