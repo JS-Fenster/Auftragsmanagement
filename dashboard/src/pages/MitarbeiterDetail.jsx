@@ -385,7 +385,7 @@ function SkillsSection({ mitarbeiterId, editing }) {
   const [editKatalog, setEditKatalog] = useState(false)
 
   const loadSkills = useCallback(async () => {
-    const { data } = await supabase.from('mitarbeiter_skills').select('*').eq('mitarbeiter_id', mitarbeiterId).order('skill')
+    const { data } = await supabase.from('mitarbeiter_skills').select('*, skill_katalog(id, name, kategorie)').eq('mitarbeiter_id', mitarbeiterId).order('skill')
     setSkills(data || [])
   }, [mitarbeiterId])
 
@@ -396,9 +396,9 @@ function SkillsSection({ mitarbeiterId, editing }) {
 
   useEffect(() => { loadSkills(); loadKatalog() }, [loadSkills, loadKatalog])
 
-  const addSkill = async (skillName) => {
-    if (skills.some(s => s.skill === skillName)) return
-    await supabase.from('mitarbeiter_skills').insert({ mitarbeiter_id: mitarbeiterId, skill: skillName, level: 'standard' })
+  const addSkillByKatalogId = async (katalogId, skillName) => {
+    if (skills.some(s => s.skill_katalog_id === katalogId)) return
+    await supabase.from('mitarbeiter_skills').insert({ mitarbeiter_id: mitarbeiterId, skill: skillName, skill_katalog_id: katalogId, level: 'standard' })
     loadSkills()
   }
 
@@ -412,12 +412,21 @@ function SkillsSection({ mitarbeiterId, editing }) {
     loadSkills()
   }
 
+  const renameKatalogSkill = async (katalogId, newName) => {
+    if (!newName.trim()) return
+    await supabase.from('skill_katalog').update({ name: newName.trim() }).eq('id', katalogId)
+    // Update all MA-Skills that reference this katalog entry
+    await supabase.from('mitarbeiter_skills').update({ skill: newName.trim() }).eq('skill_katalog_id', katalogId)
+    loadKatalog()
+    loadSkills()
+  }
+
   const addCustomSkill = async () => {
     if (!newSkillName.trim()) return
-    // Add to katalog if not exists
-    await supabase.from('skill_katalog').upsert({ name: newSkillName.trim(), kategorie: newSkillKat }, { onConflict: 'name' })
+    // Add to katalog
+    const { data: katalogEntry } = await supabase.from('skill_katalog').upsert({ name: newSkillName.trim(), kategorie: newSkillKat }, { onConflict: 'name' }).select().single()
     // Add to MA
-    await addSkill(newSkillName.trim())
+    if (katalogEntry) await addSkillByKatalogId(katalogEntry.id, katalogEntry.name)
     setNewSkillName('')
     setNewSkillKat('allgemein')
     loadKatalog()
@@ -483,28 +492,35 @@ function SkillsSection({ mitarbeiterId, editing }) {
                 <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wide mb-2">{grp.label}</h4>
                 <div className="flex flex-wrap gap-1.5">
                   {grp.items.map(item => {
-                    const isActive = skills.some(s => s.skill === item.name)
+                    const isActive = skills.some(s => s.skill_katalog_id === item.id || s.skill === item.name)
                     return (
                       <div key={item.id} className="relative group">
-                        <button onClick={() => {
-                            if (isActive) {
-                              const sk = skills.find(s => s.skill === item.name)
-                              if (sk) removeSkill(sk.id)
-                            } else {
-                              addSkill(item.name)
-                            }
-                          }}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
-                            isActive
-                              ? 'bg-brand/10 border-brand/30 text-brand hover:bg-red-50 hover:border-red-200 hover:text-red-600'
-                              : 'bg-surface-main border-border-default text-text-secondary hover:bg-brand/5 hover:border-brand/20'
-                          }`}>
-                          {isActive && <span className="mr-1">✓</span>}
-                          {item.name}
-                        </button>
-                        {editKatalog && (
-                          <button onClick={async (e) => { e.stopPropagation(); await supabase.from('skill_katalog').delete().eq('id', item.id); loadKatalog() }}
-                            className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white rounded-full text-[8px] leading-4 text-center hover:bg-red-600 shadow">✕</button>
+                        {editKatalog ? (
+                          <div className="flex items-center gap-1">
+                            <input defaultValue={item.name}
+                              onBlur={e => { if (e.target.value !== item.name) renameKatalogSkill(item.id, e.target.value) }}
+                              onKeyDown={e => { if (e.key === 'Enter') { e.target.blur() } }}
+                              className="px-2 py-1 text-xs border border-amber-300 rounded bg-amber-50 outline-none w-28 focus:border-brand" />
+                            <button onClick={async () => { await supabase.from('skill_katalog').delete().eq('id', item.id); loadKatalog() }}
+                              className="w-5 h-5 bg-red-500 text-white rounded text-[10px] leading-5 text-center hover:bg-red-600 shrink-0">✕</button>
+                          </div>
+                        ) : (
+                          <button onClick={() => {
+                              if (isActive) {
+                                const sk = skills.find(s => s.skill_katalog_id === item.id || s.skill === item.name)
+                                if (sk) removeSkill(sk.id)
+                              } else {
+                                addSkillByKatalogId(item.id, item.name)
+                              }
+                            }}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
+                              isActive
+                                ? 'bg-brand/10 border-brand/30 text-brand hover:bg-red-50 hover:border-red-200 hover:text-red-600'
+                                : 'bg-surface-main border-border-default text-text-secondary hover:bg-brand/5 hover:border-brand/20'
+                            }`}>
+                            {isActive && <span className="mr-1">✓</span>}
+                            {item.name}
+                          </button>
                         )}
                       </div>
                     )
