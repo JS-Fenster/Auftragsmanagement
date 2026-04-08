@@ -1388,7 +1388,7 @@ function ZeitkarteTab() {
                 <th className="px-3 py-2 text-right font-medium">Ist</th>
                 <th className="px-3 py-2 text-right font-medium">Tag</th>
                 <th className="px-3 py-2 text-right font-medium" title="Überstunden kumulativ">Ü kum.</th>
-                <th className="px-4 py-2 text-left font-medium">Bemerkung</th>
+                <th className="px-4 py-2 text-left font-medium min-w-[250px]">Bemerkung</th>
               </tr>
             </thead>
             <tbody>
