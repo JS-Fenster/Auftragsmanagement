@@ -101,6 +101,30 @@ export async function checkMaAlerts() {
     })
   }
 
+  // 4. Qualifikationen/Zertifikate laufen ab
+  const { data: qualifikationen } = await supabase
+    .from('mitarbeiter_qualifikationen')
+    .select('*, mitarbeiter(vorname, nachname)')
+    .not('gueltig_bis', 'is', null)
+    .lte('gueltig_bis', vorlaufDate)
+
+  for (const q of (qualifikationen || [])) {
+    const tage = daysDiff(q.gueltig_bis)
+    if (tage < -30) continue
+    const name = `${q.mitarbeiter?.vorname} ${q.mitarbeiter?.nachname}`
+    const severity = tage <= 0 ? 'critical' : tage <= 14 ? 'warning' : 'info'
+    alerts.push({
+      type: 'ma_qualifikation',
+      severity,
+      source: 'ma-alerts',
+      title: tage <= 0
+        ? `Qualifikation abgelaufen: ${name} — ${q.bezeichnung || q.typ}`
+        : `Qualifikation läuft in ${tage} Tagen ab: ${name} — ${q.bezeichnung || q.typ}`,
+      body: `${q.typ} gültig bis: ${new Date(q.gueltig_bis + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}`,
+      metadata: { alert_key: `quali_${q.id}_${q.gueltig_bis}`, mitarbeiter_id: q.mitarbeiter_id },
+    })
+  }
+
   // Deduplicate: Don't create alerts that already exist (by alert_key)
   if (alerts.length === 0) return []
 

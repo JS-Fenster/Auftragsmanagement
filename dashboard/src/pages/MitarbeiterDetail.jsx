@@ -12,7 +12,7 @@
  */
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, User, FileText, Calendar, Shield, Briefcase, CreditCard, Phone, MapPin, Wrench, X, Plus, Trash2, Clock, Car, AlertTriangle, CheckCircle } from 'lucide-react'
+import { ArrowLeft, User, FileText, Calendar, Shield, Briefcase, CreditCard, Phone, MapPin, Wrench, X, Plus, Trash2, Clock, Car, AlertTriangle, CheckCircle, Award, Truck } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { Link } from 'react-router-dom'
 
@@ -463,6 +463,183 @@ function SkillsSection({ mitarbeiterId, editing }) {
             )}
           </div>
         ))}
+      </div>
+    </div>
+  )
+}
+
+// --- Fahrzeug-Berechtigung Section ---
+
+function FahrzeugBerechtigungSection({ mitarbeiterId, editing }) {
+  const [berechtigungen, setBerechtigungen] = useState([])
+  const [fahrzeuge, setFahrzeuge] = useState([])
+
+  const load = useCallback(async () => {
+    const [berRes, fzRes] = await Promise.all([
+      supabase.from('mitarbeiter_fahrzeuge').select('*, ressourcen(name)').eq('mitarbeiter_id', mitarbeiterId),
+      supabase.from('ressourcen').select('id, name').eq('typ', 'fahrzeug').eq('aktiv', true).order('name'),
+    ])
+    setBerechtigungen(berRes.data || [])
+    setFahrzeuge(fzRes.data || [])
+  }, [mitarbeiterId])
+
+  useEffect(() => { load() }, [load])
+
+  const toggle = async (ressourceId, isAllowed) => {
+    if (isAllowed) {
+      await supabase.from('mitarbeiter_fahrzeuge').delete().eq('mitarbeiter_id', mitarbeiterId).eq('ressource_id', ressourceId)
+    } else {
+      await supabase.from('mitarbeiter_fahrzeuge').insert({ mitarbeiter_id: mitarbeiterId, ressource_id: ressourceId, einweisung_datum: new Date().toISOString().slice(0, 10) })
+    }
+    load()
+  }
+
+  return (
+    <div className="space-y-3">
+      <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5">
+        <Truck className="w-4 h-4 text-text-muted" /> Fahrzeug-Berechtigungen
+      </h3>
+      <div className="flex flex-wrap gap-2">
+        {fahrzeuge.map(fz => {
+          const ber = berechtigungen.find(b => b.ressource_id === fz.id)
+          const isAllowed = !!ber
+          return (
+            <button key={fz.id} onClick={() => editing && toggle(fz.id, isAllowed)} disabled={!editing}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 text-xs font-medium transition-all ${
+                isAllowed
+                  ? 'bg-green-50 border-green-300 text-green-700'
+                  : 'bg-surface-main border-border-default text-text-muted'
+              } ${editing ? 'cursor-pointer hover:scale-[1.02]' : 'cursor-default'}`}>
+              <Car className="w-4 h-4" />
+              {fz.name}
+              {isAllowed && <CheckCircle className="w-3.5 h-3.5" />}
+            </button>
+          )
+        })}
+      </div>
+      {berechtigungen.length === 0 && <p className="text-xs text-text-muted">Keine Fahrzeuge zugewiesen</p>}
+    </div>
+  )
+}
+
+// --- Qualifikationen/Zertifikate Section ---
+
+const QUALI_TYPEN = [
+  'Staplerschein', 'Ersthelfer', 'SCC', 'Schweißerschein', 'Kranschein',
+  'Sicherheitsunterweisung', 'Asbestschein', 'Höhenrettung', 'Sonstiges',
+]
+
+function QualifikationenSection({ mitarbeiterId, editing }) {
+  const [items, setItems] = useState([])
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({ typ: 'Staplerschein', bezeichnung: '', erhalten_am: '', gueltig_bis: '', notiz: '' })
+
+  const load = useCallback(async () => {
+    const { data } = await supabase.from('mitarbeiter_qualifikationen').select('*').eq('mitarbeiter_id', mitarbeiterId).order('typ')
+    setItems(data || [])
+  }, [mitarbeiterId])
+
+  useEffect(() => { load() }, [load])
+
+  const save = async () => {
+    if (!form.typ) return
+    await supabase.from('mitarbeiter_qualifikationen').insert({
+      mitarbeiter_id: mitarbeiterId,
+      ...form,
+      bezeichnung: form.bezeichnung || form.typ,
+      erhalten_am: form.erhalten_am || null,
+      gueltig_bis: form.gueltig_bis || null,
+    })
+    setForm({ typ: 'Staplerschein', bezeichnung: '', erhalten_am: '', gueltig_bis: '', notiz: '' })
+    setShowForm(false)
+    load()
+  }
+
+  const remove = async (id) => {
+    await supabase.from('mitarbeiter_qualifikationen').delete().eq('id', id)
+    load()
+  }
+
+  const getStatus = (item) => {
+    if (!item.gueltig_bis) return null
+    const days = Math.ceil((new Date(item.gueltig_bis + 'T00:00:00') - new Date()) / (1000 * 60 * 60 * 24))
+    if (days <= 0) return { label: 'Abgelaufen', color: 'text-red-600 bg-red-50', icon: AlertTriangle }
+    if (days <= 30) return { label: `${days} Tage`, color: 'text-amber-600 bg-amber-50', icon: AlertTriangle }
+    return { label: 'Gültig', color: 'text-green-600 bg-green-50', icon: CheckCircle }
+  }
+
+  const fmtDate = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5">
+          <Award className="w-4 h-4 text-text-muted" /> Qualifikationen & Zertifikate
+        </h3>
+        {editing && (
+          <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-brand hover:bg-brand/10 rounded-lg">
+            <Plus className="w-3.5 h-3.5" /> Hinzufügen
+          </button>
+        )}
+      </div>
+
+      {showForm && editing && (
+        <div className="p-3 rounded-lg border border-border-default bg-surface-main space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className={labelCls}>Typ</label>
+              <select value={form.typ} onChange={e => setForm(f => ({ ...f, typ: e.target.value }))} className={inputCls}>
+                {QUALI_TYPEN.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Bezeichnung</label>
+              <input value={form.bezeichnung} onChange={e => setForm(f => ({ ...f, bezeichnung: e.target.value }))} className={inputCls} placeholder={form.typ} />
+            </div>
+            <div>
+              <label className={labelCls}>Erhalten am</label>
+              <input type="date" value={form.erhalten_am} onChange={e => setForm(f => ({ ...f, erhalten_am: e.target.value }))} className={inputCls} />
+            </div>
+            <div>
+              <label className={labelCls}>Gültig bis</label>
+              <input type="date" value={form.gueltig_bis} onChange={e => setForm(f => ({ ...f, gueltig_bis: e.target.value }))} className={inputCls} />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={save} className="px-3 py-1.5 text-xs font-medium bg-brand text-white rounded-lg hover:opacity-90">Speichern</button>
+            <button onClick={() => setShowForm(false)} className="px-3 py-1.5 text-xs text-text-secondary hover:bg-surface-hover rounded-lg">Abbrechen</button>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-1.5">
+        {items.length === 0 && <p className="text-xs text-text-muted">Keine Qualifikationen hinterlegt</p>}
+        {items.map(item => {
+          const status = getStatus(item)
+          return (
+            <div key={item.id} className="flex items-center justify-between p-2.5 rounded-lg border border-border-default bg-surface-main text-xs">
+              <div className="flex items-center gap-3">
+                <Award className="w-4 h-4 text-text-muted shrink-0" />
+                <div>
+                  <span className="font-medium text-text-primary">{item.bezeichnung || item.typ}</span>
+                  <span className="text-text-muted ml-2">{item.typ !== item.bezeichnung ? `(${item.typ})` : ''}</span>
+                  <div className="text-text-secondary mt-0.5">
+                    {item.erhalten_am && <span>Erhalten: {fmtDate(item.erhalten_am)}</span>}
+                    {item.gueltig_bis && <span className="ml-3">Gültig bis: {fmtDate(item.gueltig_bis)}</span>}
+                  </div>
+                </div>
+                {status && (
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${status.color}`}>
+                    <status.icon className="w-3 h-3" /> {status.label}
+                  </span>
+                )}
+              </div>
+              {editing && (
+                <button onClick={() => remove(item.id)} className="p-1 text-text-muted hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -1189,6 +1366,12 @@ export default function MitarbeiterDetail() {
             <SkillsSection mitarbeiterId={id} editing={editing} />
             <div className="border-t border-border-default pt-4">
               <FuehrerscheinSection mitarbeiterId={id} editing={editing} />
+            </div>
+            <div className="border-t border-border-default pt-4">
+              <FahrzeugBerechtigungSection mitarbeiterId={id} editing={editing} />
+            </div>
+            <div className="border-t border-border-default pt-4">
+              <QualifikationenSection mitarbeiterId={id} editing={editing} />
             </div>
           </div>
         )}
