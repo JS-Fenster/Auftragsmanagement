@@ -46,9 +46,10 @@ const STATUS_STYLES = {
 }
 const TABS = [
   { key: 'stamm', label: 'Stammdaten', icon: User },
-  { key: 'vertrag', label: 'Vertrag & Arbeitszeit', icon: Briefcase },
+  { key: 'vertrag', label: 'Vertrag & Beschäftigung', icon: Briefcase },
   { key: 'skills', label: 'Skills & Qualifikationen', icon: Wrench },
   { key: 'personal', label: 'Persönliches & Finanzen', icon: CreditCard },
+  { key: 'akte', label: 'Personalakte & Ausstattung', icon: FileText },
 ]
 
 const KONTAKT_TYP_OPTIONS = {
@@ -1605,33 +1606,6 @@ export default function MitarbeiterDetail() {
                     <p className="text-[10px] text-red-600 mt-0.5">Bereits vergeben! Alternativen: {generateZeichenAlternativen(personForm.vorname, personForm.nachname).join(', ')}</p>
                   )}
                 </div>
-                <Field label="Personalnummer" value={maForm.personalnummer} onChange={v => setMF('personalnummer', v)} disabled={!editing} />
-              </div>
-            </div>
-
-            {/* Beschaeftigung */}
-            <div>
-              <h3 className="text-sm font-semibold text-text-primary mb-3 pb-1 border-b border-border-default">Beschaeftigung</h3>
-              <div className="grid grid-cols-3 gap-4">
-                <Field label="Abteilung" value={maForm.abteilung} onChange={v => setMF('abteilung', v)} disabled={!editing}
-                  placeholder="z.B. Werkstatt, Verwaltung" suggestions={suggestions.abteilung} />
-                <Field label="Funktion / Position" value={maForm.funktion} onChange={v => setMF('funktion', v)} disabled={!editing}
-                  placeholder="z.B. Vorarbeiter, Bueroleitung" suggestions={suggestions.funktion} />
-                <Field label="Beschaeftigungsart" value={maForm.beschaeftigungsart} onChange={v => setMF('beschaeftigungsart', v)} disabled={!editing}
-                  options={BESCHAEFTIGUNGSART_OPTIONS} />
-                <Field label="Verguetung" value={maForm.verguetungsart} onChange={v => setMF('verguetungsart', v)} disabled={!editing}
-                  options={{ gehalt: 'Gehalt', stundenlohn: 'Stundenlohn' }} />
-                <Field label="Status" value={maForm.status} onChange={v => setMF('status', v)} disabled={!editing}
-                  options={{ aktiv: 'Aktiv', inaktiv: 'Inaktiv', ausgeschieden: 'Ausgeschieden', gekuendigt: 'Gekuendigt' }} />
-              </div>
-            </div>
-
-            {/* Termine & Daten */}
-            <div>
-              <h3 className="text-sm font-semibold text-text-primary mb-3 pb-1 border-b border-border-default">Termine & Daten</h3>
-              <div className="grid grid-cols-3 gap-4">
-                <Field label="Eintrittsdatum *" value={maForm.eintrittsdatum} type="date" onChange={v => setMF('eintrittsdatum', v)} disabled={!editing} />
-                <Field label="Austrittsdatum" value={maForm.austrittsdatum} type="date" onChange={v => setMF('austrittsdatum', v)} disabled={!editing} />
               </div>
             </div>
 
@@ -1654,7 +1628,29 @@ export default function MitarbeiterDetail() {
 
         {tab === 'vertrag' && (
           <div className="space-y-6">
-            <VertragSection mitarbeiterId={id} editing={editing} pausenregel={maForm.pausenregel} />
+            {/* Beschäftigung (verschoben aus Stamm-Tab) */}
+            <div>
+              <h3 className="text-sm font-semibold text-text-primary mb-3 pb-1 border-b border-border-default">Beschäftigung</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <Field label="Personalnummer" value={maForm.personalnummer} onChange={v => setMF('personalnummer', v)} disabled={!editing} />
+                <Field label="Abteilung" value={maForm.abteilung} onChange={v => setMF('abteilung', v)} disabled={!editing}
+                  placeholder="z.B. Werkstatt, Verwaltung" suggestions={suggestions.abteilung} />
+                <Field label="Funktion / Position" value={maForm.funktion} onChange={v => setMF('funktion', v)} disabled={!editing}
+                  placeholder="z.B. Vorarbeiter, Bueroleitung" suggestions={suggestions.funktion} />
+                <Field label="Beschäftigungsart" value={maForm.beschaeftigungsart} onChange={v => setMF('beschaeftigungsart', v)} disabled={!editing}
+                  options={BESCHAEFTIGUNGSART_OPTIONS} />
+                <Field label="Vergütung" value={maForm.verguetungsart} onChange={v => setMF('verguetungsart', v)} disabled={!editing}
+                  options={{ gehalt: 'Gehalt', stundenlohn: 'Stundenlohn' }} />
+                <Field label="Status" value={maForm.status} onChange={v => setMF('status', v)} disabled={!editing}
+                  options={{ aktiv: 'Aktiv', inaktiv: 'Inaktiv', ausgeschieden: 'Ausgeschieden', gekuendigt: 'Gekündigt' }} />
+                <Field label="Eintrittsdatum *" value={maForm.eintrittsdatum} type="date" onChange={v => setMF('eintrittsdatum', v)} disabled={!editing} />
+                <Field label="Austrittsdatum" value={maForm.austrittsdatum} type="date" onChange={v => setMF('austrittsdatum', v)} disabled={!editing} />
+              </div>
+            </div>
+
+            <div className="border-t border-border-default pt-4">
+              <VertragSection mitarbeiterId={id} editing={editing} pausenregel={maForm.pausenregel} />
+            </div>
             <div className="border-t border-border-default pt-4">
               <h3 className="text-sm font-semibold text-text-primary mb-3">Zeiterfassung-Einstellungen</h3>
               <div className="grid grid-cols-3 gap-4">
@@ -1807,14 +1803,15 @@ export default function MitarbeiterDetail() {
               </div>
             </div>
 
-            <div className="border-t border-border-default pt-4">
-              <PersonalakteSection mitarbeiterId={id} editing={editing} />
-            </div>
+          </div>
+        )}
 
+        {tab === 'akte' && (
+          <div className="space-y-6">
+            <PersonalakteSection mitarbeiterId={id} editing={editing} />
             <div className="border-t border-border-default pt-4">
               <ArbeitsmittelSection mitarbeiterId={id} editing={editing} />
             </div>
-
             <div className="border-t border-border-default pt-4">
               <OnboardingSection mitarbeiterId={id} />
             </div>
