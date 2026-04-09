@@ -34,8 +34,9 @@ jobs:
           CHANGED=$(git diff --name-only HEAD~1 HEAD -- 'supabase/functions/' 2>/dev/null || echo "")
 
           # Extract unique function names (folder names under supabase/functions/)
+          # Lookahead (?=/) ensures only directories match — files like README.md or deno.json are ignored
           # Exclude _shared (not a standalone function)
-          FUNCTIONS=$(echo "$CHANGED" | grep -oP 'supabase/functions/\K[^/]+' | sort -u | grep -v '^_shared$' | tr '\n' ' ' | xargs)
+          FUNCTIONS=$(echo "$CHANGED" | grep -oP 'supabase/functions/\K[^/]+(?=/)' | sort -u | grep -v '^_shared$' | tr '\n' ' ' | xargs)
 
           # If _shared changed, deploy all functions that import from it
           if echo "$CHANGED" | grep -q '_shared/'; then
