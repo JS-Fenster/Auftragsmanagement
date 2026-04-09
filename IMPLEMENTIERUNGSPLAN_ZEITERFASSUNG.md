@@ -1,7 +1,7 @@
 # Implementierungsplan — Session 2026-04-04
 
 > **Kontext:** Zeiterfassungs-Modul Konzeptbesprechung abgeschlossen.
-> **Konzept:** [KB/wissen/ZEITERFASSUNG_KONZEPT.md](../../KB/wissen/ZEITERFASSUNG_KONZEPT.md)
+> **Konzept:** [KB/wissen/ZEITERFASSUNG_KONZEPT.md](../../../KB/wissen/ZEITERFASSUNG_KONZEPT.md)
 > **Typ:** INVASIV — wird nach Umsetzung aktualisiert oder geloescht.
 
 ---
@@ -120,7 +120,7 @@ Nach JEDEM Schritt:
 
 ## Referenzen
 
-- Konzept: [KB/wissen/ZEITERFASSUNG_KONZEPT.md](../../KB/wissen/ZEITERFASSUNG_KONZEPT.md)
+- Konzept: [KB/wissen/ZEITERFASSUNG_KONZEPT.md](../../../KB/wissen/ZEITERFASSUNG_KONZEPT.md)
 - E2E Tests: [E2E_TESTS.md](E2E_TESTS.md)
 - Backlog: AM-145 (Zeiterfassung), AM-146 (DATEV)
 - CLAUDE_GLOBAL.md: Test-Qualitaet Regeln

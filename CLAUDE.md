@@ -7,12 +7,12 @@
 
 ## Wissensbasis
 
-> **Globale Regeln:** [CLAUDE_GLOBAL.md](../../KB/CLAUDE_GLOBAL.md) (via ~/.claude/CLAUDE.md Symlink)
-> **Deploy-Regeln:** [SUPABASE_DEPLOY.md](../../KB/wissen/SUPABASE_DEPLOY.md)
-> **Code-Standards:** [CODE_STANDARDS.md](../../KB/wissen/CODE_STANDARDS.md)
-> **DB-Wissen:** [ERP_DATENBANK.md](../../KB/wissen/ERP_DATENBANK.md)
+> **Globale Regeln:** [CLAUDE_GLOBAL.md](../../../KB/CLAUDE_GLOBAL.md) (via ~/.claude/CLAUDE.md Symlink)
+> **Deploy-Regeln:** [SUPABASE_DEPLOY.md](../../../KB/wissen/SUPABASE_DEPLOY.md)
+> **Code-Standards:** [CODE_STANDARDS.md](../../../KB/wissen/CODE_STANDARDS.md)
+> **DB-Wissen:** [ERP_DATENBANK.md](../../../KB/wissen/ERP_DATENBANK.md)
 > **Projektplan:** `docs/Auftragsmanagement_Projektplan.md`
-> **Log/Learnings/Backlog:** Zentral in [KB/](../../KB/) (Prefix: AM-NNNN)
+> **Log/Learnings/Backlog:** Zentral in [KB/](../../../KB/) (Prefix: AM-NNNN)
 
 ---
 
@@ -286,7 +286,7 @@ Siehe `docs/Auftragsmanagement_Projektplan.md` fuer Details.
 
 ## Edge Function Security (PFLICHT)
 
-> **Globale Regeln:** Siehe [CLAUDE_GLOBAL.md](../../KB/CLAUDE_GLOBAL.md) → Sicherheitsregeln (KRITISCH)
+> **Globale Regeln:** Siehe [CLAUDE_GLOBAL.md](../../../KB/CLAUDE_GLOBAL.md) → Sicherheitsregeln (KRITISCH)
 
 **Jede Edge Function MUSS** die shared Security-Utilities aus `_shared/security.ts` verwenden:
 
@@ -327,7 +327,7 @@ Bei JEDER Aenderung an Kategorien (Rename, Neu, Loeschen, CHECK Constraint) ALLE
 > AVVs mit OpenAI, Supabase und Cloudflare sind abgeschlossen (30.03.2026).
 
 Bei JEDER neuen Edge Function oder Jess-Erweiterung die **personenbezogene Daten an externe APIs sendet**:
-1. Eintrag in [DSGVO_VERARBEITUNGSVERZEICHNIS.md](../../KB/wissen/DSGVO_VERARBEITUNGSVERZEICHNIS.md) ergaenzen
+1. Eintrag in [DSGVO_VERARBEITUNGSVERZEICHNIS.md](../../../KB/wissen/DSGVO_VERARBEITUNGSVERZEICHNIS.md) ergaenzen
 2. Dokumentieren: Welche Daten, an wen, zu welchem Zweck, welches Modell
 3. Bei neuem Dienstleister (nicht OpenAI/Supabase/Cloudflare): AVV abschliessen BEVOR Daten gesendet werden
 
