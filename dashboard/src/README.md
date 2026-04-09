@@ -3,7 +3,7 @@
 Haupt-UI für AM. React 19, Vite 7, Tailwind 4, Supabase Client.
 
 > **Projekt-Docs:** [../../CLAUDE.md](../../CLAUDE.md)
-> **UI-Struktur-Doku (PFLICHT lesen vor MA-Tab-Änderungen):** [../../../../KB/wissen/MA_TAB_STRUKTUR.md](../../../../KB/wissen/MA_TAB_STRUKTUR.md)
+> **UI-Struktur-Doku (PFLICHT lesen vor MA-Tab-Änderungen):** [../../../../../KB/wissen/MA_TAB_STRUKTUR.md](../../../../../KB/wissen/MA_TAB_STRUKTUR.md)
 
 ## Ordnerstruktur
 
@@ -50,7 +50,7 @@ Siehe `CLAUDE.md` → Sektion "Dashboard Shared Helpers".
 
 ## Code-Standards
 
-> Details: [../../../../KB/wissen/CODE_STANDARDS.md](../../../../KB/wissen/CODE_STANDARDS.md)
+> Details: [../../../../../KB/wissen/CODE_STANDARDS.md](../../../../../KB/wissen/CODE_STANDARDS.md)
 
 - Variablen/Funktionen/Dateinamen: **Englisch, ASCII only**
 - UI-Texte (Labels, Buttons, Placeholder): **Deutsch mit korrekten Umlauten** (ä/ö/ü, NICHT ae/oe/ue)

@@ -4,7 +4,7 @@
 
 > **Vollständiger Function Catalog + Status:** [../../CLAUDE.md](../../CLAUDE.md) → Sektion "Edge Function Catalog"
 > **Security-Pflichten:** [../../CLAUDE.md](../../CLAUDE.md) → Sektion "Edge Function Security (PFLICHT)"
-> **Deploy-Regeln:** [../../../KB/wissen/SUPABASE_DEPLOY.md](../../../KB/wissen/SUPABASE_DEPLOY.md)
+> **Deploy-Regeln:** [../../../../../KB/wissen/SUPABASE_DEPLOY.md](../../../../../KB/wissen/SUPABASE_DEPLOY.md)
 
 ## Struktur
 
