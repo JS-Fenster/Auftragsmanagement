@@ -60,12 +60,49 @@ Auftragsmanagement/
 
 | Bereich | Technologie |
 |---------|-------------|
-| **Backend** | Node.js, Express, mssql |
-| **Dashboard** | React 18, Vite, Tailwind CSS |
-| **Datenbank** | SQL Server (Work4all ERP) |
-| **Auth** | (geplant) JWT/Session-basiert |
-| **Hosting** | Cloudflare Pages (Auto-Deploy bei Push auf master) |
+| **Backend (Bridge)** | Node.js, Express, mssql (on-premise, Port 3001) |
+| **Dashboard** | React 19, Vite 7, Tailwind CSS 4 |
+| **Edge Functions** | Supabase Deno (32+ Functions) |
+| **Datenbank** | Supabase Postgres (primär) + SQL Server Work4all (ERP, read-only Bridge) |
+| **Auth** | Supabase Auth + custom API-Keys für Edge Functions |
+| **Hosting** | Cloudflare Pages (Dashboard), Supabase (Functions), on-premise (Backend) |
 | **Online-URL** | https://am.js-fenster-intern.org/ |
+
+---
+
+## Backend-Architektur (W4A-Bridge)
+
+> **Status:** AKTIV. Nicht Legacy. Läuft als eigenständiger Express-Server auf dem App-Server (Port 3001).
+
+Das `backend/` ist **kein** Legacy-Kandidat — es erfüllt drei produktive Rollen, die Edge Functions nicht abdecken können:
+
+### 1. W4A-Proxy (`routes/w4a-proxy.js`)
+On-demand Bridge zu Work4All SQL Server:
+- `GET /api/w4a/angebote/:code/positionen` — Positionen eines Angebots
+- `GET /api/w4a/angebote/:code/summary` — Aggregat mit Textposition-Erkennung
+- `GET /api/w4a/kunden/:code/angebots-history` — Angebots-Historie
+- `GET /api/w4a/health` — Health Check
+
+**Warum nicht replizieren?** `dbo.Positionen` hat ~120k Zeilen mit hoher Änderungsfrequenz. Replikation wäre teuer und laggy. Proxy mit 24h-Cache liefert Aktualität + Performance.
+
+### 2. ERP-Sync (`routes/sync.js`)
+Triggert den Python-Sync `sync/sync_to_supabase.py` als Child-Process. Verhindert parallele Syncs (nur einer gleichzeitig). Wird vom Dashboard-Admin-UI und von pg_cron aufgerufen.
+
+### 3. Legacy-CRUD (`routes/customers.js`, `repairs.js`, `budget.js`)
+Alte REST-Endpunkte die noch von einzelnen Dashboard-Bereichen genutzt werden. **Schrittweise Migration zu Edge Functions geplant**, aber keine harte Deadline — funktioniert.
+
+### Deploy & Start
+- Läuft per `node server.js` / `npm run dev` (nodemon) auf dem App-Server
+- Config: `backend/.env` (NICHT committed, siehe `.env.example`)
+- Kritische ENV-Vars: `PORT`, `DB_*` (Supabase), `W4A_*` (SQL Server), `JWT_SECRET`
+
+### Wann was nutzen?
+| Use-Case | Weg |
+|----------|-----|
+| Live-Daten aus Work4All ERP lesen | Backend W4A-Proxy |
+| ERP → Supabase Sync triggern | Backend Sync-Route |
+| Neue Business-Logik, LLM, Webhooks | Supabase Edge Function |
+| Frontend-Queries auf Supabase-Daten | Direct client mit `supabase-js` |
 
 ---
 
@@ -177,6 +214,73 @@ Siehe `docs/Auftragsmanagement_Projektplan.md` fuer Details.
 3. KEIN Deploy ohne explizite Freigabe von Andreas
 4. Bei Bedarf: Erst auf Supabase Branch testen
 5. Stabiler Stand gesichert als Git Tag: `process-document-v39-stable`
+
+---
+
+## Edge Function Catalog (32 Functions)
+
+> Vollständige Übersicht. Bei neuen Functions hier eintragen. `_shared/` ist kein Function-Ordner, sondern Common-Code.
+
+### Dokument-Pipeline (geschützt, siehe oben)
+| Function | Zweck |
+|----------|-------|
+| `process-document` | Wrapper OCR → Kategorisierung (2-Stage) |
+| `process-document-ocr` | Stage 1: OCR + Duplikat-Check |
+| `process-document-categorize` | Stage 2: GPT-Kategorisierung + Storage-Move |
+| `batch-process-pending` | Verarbeitet stuck `pending_ocr` Dokumente (via pg_cron) |
+| `retry-queued` | Retry fehlgeschlagener Dokumente |
+| `move-document` | Storage-Move (Admin-Operation) |
+| `reclassify-emails` | Bulk-Rekategorisierung (Admin) |
+
+### Email-Pipeline
+| Function | Zweck |
+|----------|-------|
+| `email-webhook` | Microsoft Graph Webhook Receiver |
+| `process-email` | Email-Kategorisierung + Anhang-Extraktion (geschützt) |
+| `scan-mailbox` | On-demand Mailbox-Scan |
+| `create-subscription` | Microsoft Graph Subscription anlegen |
+| `renew-subscriptions` | Subscription-Renewal (pg_cron 2x täglich) |
+| `lifecycle-webhook` | Graph Lifecycle-Events |
+
+### Budget / Angebot
+| Function | Zweck |
+|----------|-------|
+| `budget-ki` | LLM-gestützte Budgetkalkulation |
+| `budget-dokument` | Budget-Dokument-Parsing |
+| `extract-anfrage` | Anfrage-Extraktion aus Texten |
+| `generate-beleg-pdf` | PDF-Generierung für Belege |
+| `test-budget-extraction` | Test-Endpunkt für Budget-Extraktion |
+
+### Suche / Chat (Jess)
+| Function | Zweck |
+|----------|-------|
+| `llm-chat` | LLM Orchestrator mit Tool-Execution (Jess) |
+| `search-contacts` | Fuzzy Kontaktsuche (pg_trgm + fulltext) |
+| `search-orders` | Suche in Documents / Auftraege / Projekte |
+
+### Admin / System
+| Function | Zweck |
+|----------|-------|
+| `admin-review` | Review-Queue-API (für `apps/review-tool/`) |
+| `manage-auth` | Auth-Verwaltung (API-Keys) |
+| `system-health` | Health-Status aller Services |
+| `infra-alert` | Alerting-Endpunkt |
+| `debug-env` | ENV-Inspection (Dev) |
+
+### Reparatur
+| Function | Zweck |
+|----------|-------|
+| `reparatur-api` | CRUD-API für Reparatur-Vorgänge |
+| `reparatur-aging` | Aging-Report (überfällige Reparaturen) |
+
+### Testing / Integration
+| Function | Zweck |
+|----------|-------|
+| `classify-backtest` | Backtest-Runner für Dokument-Kategorisierung |
+| `classify-email-backtest` | Backtest-Runner für Email-Kategorisierung |
+| `telegram-bot` | Telegram-Bot-Webhook |
+
+**Regel für neue Functions:** In diesen Catalog eintragen + `_shared/security.ts` nutzen + Deploy-Checkliste befolgen.
 
 ---
 

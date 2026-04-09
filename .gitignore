@@ -51,3 +51,6 @@ backend/_preisliste_extras.txt
 playwright-report/
 test-results/
 blob-report/
+
+# Supabase CLI cache
+supabase/.temp/

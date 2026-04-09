@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { X, Search, Plus, History } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { searchKontakte } from '../pages/budgetangebot/KundenSuche'
+import { useAuth } from '../contexts/AuthContext'
 
 export default function TerminForm() {
+  const { user } = useAuth()
   const [open, setOpen] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [editId, setEditId] = useState(null)
@@ -294,7 +296,7 @@ export default function TerminForm() {
       kontakt_id: kontaktId || null,
       projekt_id: projektId || null,
       status, notizen: notizen || null,
-      bearbeitet_von: 'Dashboard', // TODO: replace with actual user (AS, RH, Jess, etc.)
+      bearbeitet_von: user?.email?.split('@')[0] || 'Dashboard',
     }
 
     let tId = editId

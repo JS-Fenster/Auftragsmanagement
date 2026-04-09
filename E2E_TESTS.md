@@ -21,7 +21,13 @@
 4. Mitarbeiter `/mitarbeiter` — laedt, MA-Liste sichtbar
 5. Finanzen `/finanzen` — laedt
 6. Belege `/belege` — laedt
-7. **Erwartung:** Keine Console-Errors auf keiner Seite
+7. Objekte `/objekte` — laedt, Liste sichtbar
+8. Lieferanten `/lieferanten` — laedt, Liste sichtbar
+9. Kunden `/kunden` — laedt, Liste sichtbar
+10. Dokumente `/dokumente` — laedt
+11. Emails `/emails` — laedt
+12. Einstellungen `/einstellungen` — laedt
+13. **Erwartung:** Keine Console-Errors auf keiner Seite
 
 ---
 
@@ -119,4 +125,4 @@
 
 ---
 
-*Letztes Update: 2026-04-04*
+*Letztes Update: 2026-04-09*
