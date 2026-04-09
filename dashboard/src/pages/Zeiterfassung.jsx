@@ -528,7 +528,7 @@ function StempelProtokollTab() {
   const handleKorrektur = async () => {
     if (!korrekturGrund.trim() || !korrekturStempel) return
     setKorrekturSaving(true)
-    const { data: gf } = await supabase.from('mitarbeiter').select('id').eq('vorname', 'Andreas').eq('nachname', 'Stolarczyk').single()
+    const { data: gf } = await supabase.from('mitarbeiter').select('id').eq('rolle', 'geschaeftsfuehrung').limit(1).single()
     await supabase.from('zeit_korrekturen').insert({
       zeitstempel_id: korrekturStempel.id, beantragt_von: gf?.id || korrekturStempel.mitarbeiter_id,
       grund: korrekturGrund.trim(), alter_zeitpunkt: korrekturStempel.zeitpunkt,
@@ -539,7 +539,7 @@ function StempelProtokollTab() {
   }
 
   const handleKorrekturAction = async (korrekturId, action) => {
-    const { data: gf } = await supabase.from('mitarbeiter').select('id').eq('vorname', 'Andreas').eq('nachname', 'Stolarczyk').single()
+    const { data: gf } = await supabase.from('mitarbeiter').select('id').eq('rolle', 'geschaeftsfuehrung').limit(1).single()
     await supabase.from('zeit_korrekturen').update({ status: action, genehmigt_von: gf?.id, genehmigt_am: new Date().toISOString() }).eq('id', korrekturId)
     if (action === 'genehmigt') {
       const k = korrekturen.find(k => k.id === korrekturId)
@@ -721,6 +721,7 @@ function AbwesenheitenTab() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [abwArten, setAbwArten] = useState([])
   const [modalArtId, setModalArtId] = useState('')
+  const [modalHalbtag, setModalHalbtag] = useState('')
   const [modalNotiz, setModalNotiz] = useState('')
   const [modalSaving, setModalSaving] = useState(false)
 
@@ -766,7 +767,7 @@ function AbwesenheitenTab() {
       datum,
       bis_datum: selectionRange[selectionRange.length - 1],
       typ: art?.kategorie === 'krankheit' ? 'krank' : art?.kategorie === 'urlaub' ? 'urlaub' : 'sonstiges',
-      ganztaegig: true,
+      ganztaegig: !modalHalbtag, halbtag: modalHalbtag || null,
       status: 'beantragt',
       notiz: modalNotiz || null,
     }))
@@ -777,6 +778,7 @@ function AbwesenheitenTab() {
     setDragStart(null)
     setDragEnd(null)
     setModalArtId('')
+    setModalHalbtag('')
     setModalNotiz('')
     await loadData()
     setRefreshKey(k => k + 1)
@@ -787,6 +789,7 @@ function AbwesenheitenTab() {
     setDragStart(null)
     setDragEnd(null)
     setModalArtId('')
+    setModalHalbtag('')
     setModalNotiz('')
   }
 
@@ -1149,6 +1152,14 @@ function AbwesenheitenTab() {
                 <select value={modalArtId} onChange={e => setModalArtId(e.target.value)} className={selectCls + ' w-full'}>
                   <option value="">Bitte wählen...</option>
                   {abwArten.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-text-secondary block mb-1">Zeitraum</label>
+                <select value={modalHalbtag} onChange={e => setModalHalbtag(e.target.value)} className={selectCls + ' w-full'}>
+                  <option value="">Ganzer Tag</option>
+                  <option value="vm">Vormittags (halber Tag)</option>
+                  <option value="nm">Nachmittags (halber Tag)</option>
                 </select>
               </div>
               <div>
