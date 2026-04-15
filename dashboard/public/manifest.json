@@ -9,7 +9,7 @@
   "orientation": "any",
   "icons": [
     {
-      "src": "/js-icon.svg",
+      "src": "/js-icon-v2.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
