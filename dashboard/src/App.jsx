@@ -9,6 +9,7 @@ import Login from './pages/Login'
 import CommandPalette from './components/CommandPalette'
 import ChatWidget from './components/ChatWidget'
 import NotificationBell from './components/NotificationBell'
+import InfraAmpel from './components/InfraAmpel'
 import { ChatContextProvider } from './lib/chatContext'
 
 // Code-splitting: lazy load all page components (AM-090)
@@ -49,7 +50,6 @@ const NAV_ITEMS = [
   { to: '/lieferanten', label: 'Lieferanten', icon: Truck },
   { to: '/zeiterfassung', label: 'Zeiterfassung', icon: Clock },
   { to: '/mitarbeiter', label: 'Mitarbeiter', icon: Users },
-  { to: '/infrastruktur', label: 'Infrastruktur', icon: Activity },
 ]
 
 const PAGE_TITLES = {
@@ -178,6 +178,7 @@ function Sidebar({ mobileOpen, onClose }) {
           </kbd>
         </button>
         <NotificationBell />
+        <InfraAmpel />
       </div>
       <div className="px-4 py-3 border-t border-border-default">
         {user && (

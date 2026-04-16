@@ -35,10 +35,13 @@ export default function NotificationBell() {
     showArchive ? n.archived : !n.archived
   )
 
+  const INFRA_SOURCES = ['heartbeat_check', 'infra_health', 'backup_script']
+
   const fetchNotifications = useCallback(async () => {
     const { data, error } = await supabase
       .from('notifications')
       .select('*')
+      .not('source', 'in', `(${INFRA_SOURCES.join(',')})`)
       .order('created_at', { ascending: false })
       .limit(50)
 

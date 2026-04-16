@@ -1,6 +1,14 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
-import { Activity, Server, GitBranch, Database, Shield, RefreshCw, CheckCircle, AlertTriangle, XCircle, Clock, Pause } from 'lucide-react'
+import { Activity, Server, GitBranch, Database, Shield, RefreshCw, CheckCircle, AlertTriangle, XCircle, Clock, Pause, AlertCircle, Info } from 'lucide-react'
+
+const INFRA_SOURCES = ['heartbeat_check', 'infra_health', 'backup_script']
+const NOTIF_TYPE_CONFIG = {
+  error:   { icon: AlertCircle,   color: '#DC2626', bg: '#FEF2F2' },
+  warning: { icon: AlertTriangle, color: '#F59E0B', bg: '#FFFBEB' },
+  info:    { icon: Info,          color: '#3B82F6', bg: '#EFF6FF' },
+  success: { icon: CheckCircle,   color: '#10B981', bg: '#ECFDF5' },
+}
 
 const CATEGORY_META = {
   backup:        { label: 'Backups',         icon: Server,    color: '#DC2626' },
@@ -70,18 +78,19 @@ function HeartbeatCard({ item }) {
 
 export default function InfraStatus() {
   const [heartbeats, setHeartbeats] = useState([])
+  const [infraNotifs, setInfraNotifs] = useState([])
   const [loading, setLoading] = useState(true)
   const [lastRefresh, setLastRefresh] = useState(null)
 
   const loadData = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from('automation_heartbeats')
-        .select('*')
-        .order('category')
-        .order('display_name')
-      if (error) throw error
-      setHeartbeats(data || [])
+      const [hbRes, notifRes] = await Promise.all([
+        supabase.from('automation_heartbeats').select('*').order('category').order('display_name'),
+        supabase.from('notifications').select('*').in('source', INFRA_SOURCES).order('created_at', { ascending: false }).limit(20),
+      ])
+      if (hbRes.error) throw hbRes.error
+      setHeartbeats(hbRes.data || [])
+      setInfraNotifs(notifRes.data || [])
       setLastRefresh(new Date())
     } catch (err) {
       console.error('InfraStatus loadData error:', err)
@@ -173,6 +182,39 @@ export default function InfraStatus() {
             </section>
           )
         })}
+
+        {/* Letzte Infra-Meldungen */}
+        {infraNotifs.length > 0 && (
+          <section>
+            <div className="flex items-center gap-2 mb-3">
+              <AlertCircle size={18} className="text-red-500" />
+              <h2 className="text-base font-semibold text-text-primary">Letzte Meldungen</h2>
+              <span className="text-xs text-text-muted">({infraNotifs.length})</span>
+            </div>
+            <div className="bg-surface-card rounded-lg border border-border-default divide-y divide-border-default">
+              {infraNotifs.map(n => {
+                const cfg = NOTIF_TYPE_CONFIG[n.type] || NOTIF_TYPE_CONFIG.info
+                const NIcon = cfg.icon
+                return (
+                  <div key={n.id} className="flex items-start gap-3 px-4 py-3">
+                    <div className="mt-0.5 p-1.5 rounded-lg shrink-0" style={{ backgroundColor: cfg.bg }}>
+                      <NIcon size={14} style={{ color: cfg.color }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-text-primary">{n.title}</p>
+                      {n.body && <p className="text-xs text-text-secondary mt-0.5 line-clamp-2">{n.body}</p>}
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs text-text-muted">{formatAge(n.created_at)}</span>
+                        <span className="text-xs text-text-muted">·</span>
+                        <span className="text-xs text-text-muted">{n.source}</span>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        )}
       </div>
     </div>
   )
