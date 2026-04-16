@@ -35,7 +35,7 @@ export default function NotificationBell() {
     showArchive ? n.archived : !n.archived
   )
 
-  const INFRA_SOURCES = ['heartbeat_check', 'infra_health', 'backup_script']
+  const INFRA_SOURCES = ['heartbeat_check', 'infra_health', 'backup_script', 'github_action']
 
   const fetchNotifications = useCallback(async () => {
     const { data, error } = await supabase
