@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { Activity, Server, GitBranch, Database, Shield, RefreshCw, CheckCircle, AlertTriangle, XCircle, Clock, Pause, AlertCircle, Info, Check, CheckCheck, Archive, RotateCcw } from 'lucide-react'
 
-const INFRA_SOURCES = ['heartbeat_check', 'infra_health', 'backup_script', 'github_action', 'nas']
+const INFRA_SOURCES = ['heartbeat_check', 'infra_health', 'backup_script', 'github_action', 'nas', 'edge_function']
 const NOTIF_TYPE_CONFIG = {
   error:   { icon: AlertCircle,   color: '#DC2626', bg: '#FEF2F2' },
   warning: { icon: AlertTriangle, color: '#F59E0B', bg: '#FFFBEB' },
@@ -92,7 +92,18 @@ export default function InfraStatus() {
   useEffect(() => {
     loadData()
     const interval = setInterval(loadData, 30000)
-    return () => clearInterval(interval)
+    const channel = supabase
+      .channel('infra-notifications-realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
+        if (INFRA_SOURCES.includes(payload.new.source)) {
+          setInfraNotifs(prev => [payload.new, ...prev].slice(0, 50))
+        }
+      })
+      .subscribe()
+    return () => {
+      clearInterval(interval)
+      supabase.removeChannel(channel)
+    }
   }, [loadData])
 
   const grouped = useMemo(() => {
