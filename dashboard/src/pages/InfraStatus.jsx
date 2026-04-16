@@ -56,9 +56,9 @@ function HeartbeatRow({ item }) {
   const StatusIcon = style.icon
 
   return (
-    <div className="flex items-center gap-3 px-3 py-2 rounded-md" style={{ backgroundColor: style.bg, borderLeft: `3px solid ${style.border}` }}>
+    <div className="flex items-center gap-3 px-3 py-2 rounded-md h-10" style={{ backgroundColor: style.bg, borderLeft: `3px solid ${style.border}` }}>
       <StatusIcon size={16} style={{ color: style.iconColor }} className="shrink-0" />
-      <span className="text-sm font-medium text-gray-900 flex-1">{item.display_name}</span>
+      <span className="text-sm font-medium text-gray-900 flex-1 whitespace-nowrap overflow-hidden text-ellipsis">{item.display_name}</span>
       <span className="text-xs text-gray-500 shrink-0">{formatAge(item.last_seen_at)}</span>
       {item.host && <span className="text-xs bg-gray-100 px-1.5 py-0.5 rounded text-gray-400 shrink-0">{item.host}</span>}
     </div>
