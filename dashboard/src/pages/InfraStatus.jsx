@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
-import { Activity, Server, GitBranch, Database, Shield, RefreshCw, CheckCircle, AlertTriangle, XCircle, Clock, Pause, AlertCircle, Info } from 'lucide-react'
+import { Activity, Server, GitBranch, Database, Shield, RefreshCw, CheckCircle, AlertTriangle, XCircle, Clock, Pause, AlertCircle, Info, Check, CheckCheck, Archive, RotateCcw } from 'lucide-react'
 
 const INFRA_SOURCES = ['heartbeat_check', 'infra_health', 'backup_script']
 const NOTIF_TYPE_CONFIG = {
@@ -35,43 +35,32 @@ function getHealthStatus(item) {
   if (!item.last_seen_at) return 'stale'
   const ageSec = (Date.now() - new Date(item.last_seen_at).getTime()) / 1000
   const threshold = item.expected_interval_seconds * item.stale_factor
-  const warnThreshold = item.expected_interval_seconds * 1.0
   if (ageSec > threshold) return 'stale'
-  if (ageSec > warnThreshold) return 'warning'
+  if (ageSec > item.expected_interval_seconds) return 'warning'
   if (item.last_status === 'error') return 'error'
   if (item.last_status === 'warning') return 'warning'
   return 'ok'
 }
 
 const STATUS_STYLES = {
-  ok:      { bg: '#F0FDF4', border: '#22C55E', icon: CheckCircle,    iconColor: '#16A34A', label: 'OK' },
-  warning: { bg: '#FFFBEB', border: '#F59E0B', icon: AlertTriangle,  iconColor: '#D97706', label: 'Warnung' },
-  error:   { bg: '#FEF2F2', border: '#EF4444', icon: XCircle,        iconColor: '#DC2626', label: 'Fehler' },
-  stale:   { bg: '#FEF2F2', border: '#DC2626', icon: Clock,          iconColor: '#DC2626', label: 'Überfällig' },
-  muted:   { bg: '#F3F4F6', border: '#9CA3AF', icon: Pause,          iconColor: '#6B7280', label: 'Pausiert' },
+  ok:      { bg: '#F0FDF4', border: '#22C55E', icon: CheckCircle,    iconColor: '#16A34A' },
+  warning: { bg: '#FFFBEB', border: '#F59E0B', icon: AlertTriangle,  iconColor: '#D97706' },
+  error:   { bg: '#FEF2F2', border: '#EF4444', icon: XCircle,        iconColor: '#DC2626' },
+  stale:   { bg: '#FEF2F2', border: '#DC2626', icon: Clock,          iconColor: '#DC2626' },
+  muted:   { bg: '#F3F4F6', border: '#9CA3AF', icon: Pause,          iconColor: '#6B7280' },
 }
 
-function HeartbeatCard({ item }) {
+function HeartbeatRow({ item }) {
   const health = getHealthStatus(item)
   const style = STATUS_STYLES[health]
   const StatusIcon = style.icon
 
   return (
-    <div
-      className="rounded-lg p-3 transition-all hover:shadow-md"
-      style={{ backgroundColor: style.bg, borderLeft: `4px solid ${style.border}` }}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-gray-900 truncate">{item.display_name}</p>
-          <p className="text-xs text-gray-500 mt-0.5">{item.name}</p>
-        </div>
-        <StatusIcon size={20} style={{ color: style.iconColor, flexShrink: 0 }} />
-      </div>
-      <div className="mt-2 flex items-center gap-3 text-xs text-gray-600">
-        <span>{formatAge(item.last_seen_at)}</span>
-        {item.host && <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">{item.host}</span>}
-      </div>
+    <div className="flex items-center gap-3 px-3 py-2 rounded-md" style={{ backgroundColor: style.bg, borderLeft: `3px solid ${style.border}` }}>
+      <StatusIcon size={16} style={{ color: style.iconColor }} className="shrink-0" />
+      <span className="text-sm font-medium text-gray-900 truncate flex-1">{item.display_name}</span>
+      <span className="text-xs text-gray-500 shrink-0">{formatAge(item.last_seen_at)}</span>
+      {item.host && <span className="text-xs bg-gray-100 px-1.5 py-0.5 rounded text-gray-400 shrink-0">{item.host}</span>}
     </div>
   )
 }
@@ -79,6 +68,7 @@ function HeartbeatCard({ item }) {
 export default function InfraStatus() {
   const [heartbeats, setHeartbeats] = useState([])
   const [infraNotifs, setInfraNotifs] = useState([])
+  const [showArchive, setShowArchive] = useState(false)
   const [loading, setLoading] = useState(true)
   const [lastRefresh, setLastRefresh] = useState(null)
 
@@ -86,7 +76,7 @@ export default function InfraStatus() {
     try {
       const [hbRes, notifRes] = await Promise.all([
         supabase.from('automation_heartbeats').select('*').order('category').order('display_name'),
-        supabase.from('notifications').select('*').in('source', INFRA_SOURCES).order('created_at', { ascending: false }).limit(20),
+        supabase.from('notifications').select('*').in('source', INFRA_SOURCES).order('created_at', { ascending: false }).limit(50),
       ])
       if (hbRes.error) throw hbRes.error
       setHeartbeats(hbRes.data || [])
@@ -127,6 +117,29 @@ export default function InfraStatus() {
     return { ok, warn, stale, muted, total: heartbeats.length }
   }, [heartbeats])
 
+  const visibleNotifs = infraNotifs.filter(n => showArchive ? n.archived : !n.archived)
+  const unreadCount = infraNotifs.filter(n => !n.read && !n.archived).length
+  const readCount = infraNotifs.filter(n => n.read && !n.archived).length
+
+  async function markAsRead(id) {
+    await supabase.from('notifications').update({ read: true }).eq('id', id)
+    setInfraNotifs(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
+  }
+
+  async function markAllAsRead() {
+    const ids = infraNotifs.filter(n => !n.read && !n.archived).map(n => n.id)
+    if (!ids.length) return
+    await supabase.from('notifications').update({ read: true }).in('id', ids)
+    setInfraNotifs(prev => prev.map(n => ids.includes(n.id) ? { ...n, read: true } : n))
+  }
+
+  async function archiveRead() {
+    const ids = infraNotifs.filter(n => n.read && !n.archived).map(n => n.id)
+    if (!ids.length) return
+    await supabase.from('notifications').update({ archived: true }).in('id', ids)
+    setInfraNotifs(prev => prev.map(n => ids.includes(n.id) ? { ...n, archived: true } : n))
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -137,7 +150,7 @@ export default function InfraStatus() {
 
   return (
     <div className="min-h-screen bg-surface-main">
-      <div className="max-w-[1400px] mx-auto px-4 py-6 space-y-6">
+      <div className="max-w-[1400px] mx-auto px-4 py-6 space-y-5">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -147,10 +160,7 @@ export default function InfraStatus() {
               {lastRefresh && <span className="ml-2 text-text-muted">· Aktualisiert {formatAge(lastRefresh.toISOString())}</span>}
             </p>
           </div>
-          <button
-            onClick={loadData}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-border-default hover:bg-surface-card transition-colors text-text-secondary"
-          >
+          <button onClick={loadData} className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-border-default hover:bg-surface-card transition-colors text-text-secondary">
             <RefreshCw size={14} />
             Aktualisieren
           </button>
@@ -164,57 +174,94 @@ export default function InfraStatus() {
           <SummaryCard label="Pausiert" value={summary.muted} color="#6B7280" icon={Pause} />
         </div>
 
-        {/* Grouped Heartbeat Cards */}
+        {/* Meldungen — OBEN, mit gelesen/archiviert */}
+        <section>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <AlertCircle size={18} className="text-red-500" />
+              <h2 className="text-base font-semibold text-text-primary">
+                {showArchive ? 'Archiv' : 'Meldungen'}
+              </h2>
+              {!showArchive && unreadCount > 0 && (
+                <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs font-bold text-white bg-red-500 rounded-full">{unreadCount}</span>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              {!showArchive && unreadCount > 0 && (
+                <button onClick={markAllAsRead} className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors cursor-pointer">
+                  <CheckCheck size={14} />
+                  Alle gelesen
+                </button>
+              )}
+              {!showArchive && readCount > 0 && (
+                <button onClick={archiveRead} className="flex items-center gap-1 text-xs font-medium text-text-secondary hover:text-text-primary transition-colors cursor-pointer">
+                  <Archive size={14} />
+                  Archivieren
+                </button>
+              )}
+              <button onClick={() => setShowArchive(prev => !prev)} className={`flex items-center gap-1 text-xs font-medium transition-colors cursor-pointer ${showArchive ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}>
+                {showArchive ? <RotateCcw size={14} /> : <Archive size={14} />}
+                {showArchive ? 'Zurück' : 'Archiv'}
+              </button>
+            </div>
+          </div>
+          {visibleNotifs.length === 0 ? (
+            <div className="bg-surface-card rounded-lg border border-border-default px-4 py-6 text-center text-sm text-text-muted">
+              {showArchive ? 'Kein Archiv vorhanden' : 'Keine aktuellen Meldungen'}
+            </div>
+          ) : (
+            <div className="bg-surface-card rounded-lg border border-border-default divide-y divide-border-default">
+              {visibleNotifs.map(n => {
+                const cfg = NOTIF_TYPE_CONFIG[n.type] || NOTIF_TYPE_CONFIG.info
+                const NIcon = cfg.icon
+                return (
+                  <div
+                    key={n.id}
+                    onClick={() => !n.read && markAsRead(n.id)}
+                    className={`flex items-start gap-3 px-4 py-2.5 transition-colors ${n.read ? 'opacity-50' : 'hover:bg-gray-50 cursor-pointer'}`}
+                  >
+                    <div className="mt-0.5 p-1 rounded shrink-0" style={{ backgroundColor: cfg.bg }}>
+                      <NIcon size={14} style={{ color: cfg.color }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-text-primary truncate">{n.title}</p>
+                      {n.body && <p className="text-xs text-text-secondary mt-0.5 line-clamp-2">{n.body}</p>}
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-xs text-text-muted">{formatAge(n.created_at)}</span>
+                        <span className="text-xs text-text-muted">·</span>
+                        <span className="text-xs text-text-muted">{n.source}</span>
+                      </div>
+                    </div>
+                    {!n.read && !showArchive && (
+                      <button onClick={e => { e.stopPropagation(); markAsRead(n.id) }} className="mt-1 p-1 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors shrink-0 cursor-pointer" title="Als gelesen markieren">
+                        <Check size={14} strokeWidth={2.5} />
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </section>
+
+        {/* Heartbeat-Gruppen — kompakte Rows statt große Cards */}
         {Object.entries(CATEGORY_META).map(([cat, meta]) => {
           const items = grouped[cat]
           if (!items || items.length === 0) return null
           const CatIcon = meta.icon
           return (
             <section key={cat}>
-              <div className="flex items-center gap-2 mb-3">
-                <CatIcon size={18} style={{ color: meta.color }} />
-                <h2 className="text-base font-semibold text-text-primary">{meta.label}</h2>
+              <div className="flex items-center gap-2 mb-2">
+                <CatIcon size={16} style={{ color: meta.color }} />
+                <h2 className="text-sm font-semibold text-text-primary">{meta.label}</h2>
                 <span className="text-xs text-text-muted">({items.length})</span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                {items.map(item => <HeartbeatCard key={item.id} item={item} />)}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-1.5">
+                {items.map(item => <HeartbeatRow key={item.id} item={item} />)}
               </div>
             </section>
           )
         })}
-
-        {/* Letzte Infra-Meldungen */}
-        {infraNotifs.length > 0 && (
-          <section>
-            <div className="flex items-center gap-2 mb-3">
-              <AlertCircle size={18} className="text-red-500" />
-              <h2 className="text-base font-semibold text-text-primary">Letzte Meldungen</h2>
-              <span className="text-xs text-text-muted">({infraNotifs.length})</span>
-            </div>
-            <div className="bg-surface-card rounded-lg border border-border-default divide-y divide-border-default">
-              {infraNotifs.map(n => {
-                const cfg = NOTIF_TYPE_CONFIG[n.type] || NOTIF_TYPE_CONFIG.info
-                const NIcon = cfg.icon
-                return (
-                  <div key={n.id} className="flex items-start gap-3 px-4 py-3">
-                    <div className="mt-0.5 p-1.5 rounded-lg shrink-0" style={{ backgroundColor: cfg.bg }}>
-                      <NIcon size={14} style={{ color: cfg.color }} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-text-primary">{n.title}</p>
-                      {n.body && <p className="text-xs text-text-secondary mt-0.5 line-clamp-2">{n.body}</p>}
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs text-text-muted">{formatAge(n.created_at)}</span>
-                        <span className="text-xs text-text-muted">·</span>
-                        <span className="text-xs text-text-muted">{n.source}</span>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </section>
-        )}
       </div>
     </div>
   )
