@@ -1,0 +1,3 @@
+-- INFRA-027: Expiring items watchdog
+-- Applied via MCP 2026-04-16. See KB/wissen/IT_OBSERVABILITY.md Phase 6.
+-- Table + check function + pg_cron daily at 07:00 UTC.

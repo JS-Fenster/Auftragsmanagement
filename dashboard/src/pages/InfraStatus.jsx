@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
-import { Activity, Server, GitBranch, Database, Shield, RefreshCw, CheckCircle, AlertTriangle, XCircle, Clock, Pause, AlertCircle, Info, Check, CheckCheck, Archive, RotateCcw } from 'lucide-react'
+import { Activity, Server, GitBranch, Database, Shield, RefreshCw, CheckCircle, AlertTriangle, XCircle, Clock, Pause, AlertCircle, Info, Check, CheckCheck, Archive, RotateCcw, CalendarClock } from 'lucide-react'
 
 const INFRA_SOURCES = ['heartbeat_check', 'infra_health', 'backup_script', 'github_action', 'nas', 'edge_function']
 const NOTIF_TYPE_CONFIG = {
@@ -68,19 +68,22 @@ function HeartbeatRow({ item }) {
 export default function InfraStatus() {
   const [heartbeats, setHeartbeats] = useState([])
   const [infraNotifs, setInfraNotifs] = useState([])
+  const [expiringItems, setExpiringItems] = useState([])
   const [showArchive, setShowArchive] = useState(false)
   const [loading, setLoading] = useState(true)
   const [lastRefresh, setLastRefresh] = useState(null)
 
   const loadData = useCallback(async () => {
     try {
-      const [hbRes, notifRes] = await Promise.all([
+      const [hbRes, notifRes, expRes] = await Promise.all([
         supabase.from('automation_heartbeats').select('*').order('category').order('display_name'),
         supabase.from('notifications').select('*').in('source', INFRA_SOURCES).order('created_at', { ascending: false }).limit(50),
+        supabase.from('expiring_items').select('*').order('expires_at'),
       ])
       if (hbRes.error) throw hbRes.error
       setHeartbeats(hbRes.data || [])
       setInfraNotifs(notifRes.data || [])
+      setExpiringItems(expRes.data || [])
       setLastRefresh(new Date())
     } catch (err) {
       console.error('InfraStatus loadData error:', err)
@@ -184,6 +187,37 @@ export default function InfraStatus() {
           <SummaryCard label="Überfällig" value={summary.stale} color="#DC2626" icon={XCircle} />
           <SummaryCard label="Pausiert" value={summary.muted} color="#6B7280" icon={Pause} />
         </div>
+
+        {/* Ablaufende Items */}
+        {expiringItems.length > 0 && (() => {
+          const soon = expiringItems.filter(e => !e.muted && (new Date(e.expires_at) - new Date()) / 86400000 <= e.warn_days_before)
+          if (soon.length === 0) return null
+          return (
+            <section>
+              <div className="flex items-center gap-2 mb-2">
+                <CalendarClock size={18} className="text-orange-500" />
+                <h2 className="text-base font-semibold text-text-primary">Ablaufende Items</h2>
+                <span className="text-xs text-text-muted">({soon.length})</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
+                {soon.map(e => {
+                  const days = Math.ceil((new Date(e.expires_at) - new Date()) / 86400000)
+                  const isExpired = days < 0
+                  return (
+                    <div key={e.id} className="flex items-center gap-3 px-3 py-2 rounded-md h-10" style={{ backgroundColor: isExpired ? '#FEF2F2' : '#FFFBEB', borderLeft: `3px solid ${isExpired ? '#DC2626' : '#F59E0B'}` }}>
+                      <CalendarClock size={16} style={{ color: isExpired ? '#DC2626' : '#D97706' }} className="shrink-0" />
+                      <span className="text-sm font-medium text-gray-900 flex-1 whitespace-nowrap overflow-hidden text-ellipsis">{e.name.replace(/_/g, ' ')}</span>
+                      <span className="text-xs font-semibold shrink-0" style={{ color: isExpired ? '#DC2626' : '#D97706' }}>
+                        {isExpired ? `${Math.abs(days)}d überfällig` : `${days}d`}
+                      </span>
+                      <span className="text-xs bg-gray-100 px-1.5 py-0.5 rounded text-gray-400 shrink-0">{e.category}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+          )
+        })()}
 
         {/* Meldungen — OBEN, mit gelesen/archiviert */}
         <section>
