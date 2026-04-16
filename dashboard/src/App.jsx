@@ -1,5 +1,5 @@
 import { Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom'
-import { FolderKanban, CalendarDays, ArrowLeft, Home, Search, LayoutDashboard, Moon, Sun, Euro, Package, FileText, Truck, LogOut, Users, Menu, X as XIcon, ChevronLeft, ChevronRight, Clock, Building2 } from 'lucide-react'
+import { FolderKanban, CalendarDays, ArrowLeft, Home, Search, LayoutDashboard, Moon, Sun, Euro, Package, FileText, Truck, LogOut, Users, Menu, X as XIcon, ChevronLeft, ChevronRight, Clock, Building2, Activity } from 'lucide-react'
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
 import { supabase } from './lib/supabase'
 import { useIsStandalone } from './hooks/usePopout'
@@ -36,6 +36,7 @@ const Mitarbeiter = lazy(() => import('./pages/Mitarbeiter'))
 const MitarbeiterDetail = lazy(() => import('./pages/MitarbeiterDetail'))
 const Zeiterfassung = lazy(() => import('./pages/Zeiterfassung'))
 const Objekte = lazy(() => import('./pages/Objekte'))
+const InfraStatus = lazy(() => import('./pages/InfraStatus'))
 
 const NAV_ITEMS = [
   { to: '/', label: 'Cockpit', icon: LayoutDashboard },
@@ -48,6 +49,7 @@ const NAV_ITEMS = [
   { to: '/lieferanten', label: 'Lieferanten', icon: Truck },
   { to: '/zeiterfassung', label: 'Zeiterfassung', icon: Clock },
   { to: '/mitarbeiter', label: 'Mitarbeiter', icon: Users },
+  { to: '/infrastruktur', label: 'Infrastruktur', icon: Activity },
 ]
 
 const PAGE_TITLES = {
@@ -70,6 +72,7 @@ const PAGE_TITLES = {
   '/objekte': 'Objekte',
   '/zeiterfassung': 'Zeiterfassung',
   '/mitarbeiter': 'Mitarbeiter',
+  '/infrastruktur': 'Infrastruktur',
 }
 
 function StandaloneHeader() {
@@ -251,6 +254,7 @@ function AppRoutes() {
       <Route path="/zeiterfassung" element={<Zeiterfassung />} />
       <Route path="/mitarbeiter" element={<Mitarbeiter />} />
       <Route path="/mitarbeiter/:id" element={<MitarbeiterDetail />} />
+      <Route path="/infrastruktur" element={<InfraStatus />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
     </Suspense>
