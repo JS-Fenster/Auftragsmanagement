@@ -1,0 +1,8 @@
+-- INFRA-025: Heartbeat pings for pg_cron jobs
+-- Each cron job command gets a heartbeat() call appended.
+-- Catches: pg_cron broken, schedule misconfigured, net.http_post broken.
+-- Applied via MCP 2026-04-16. See KB/wissen/IT_OBSERVABILITY.md Phase 4.
+-- NOTE: This file documents what was applied. The actual cron.schedule()
+-- calls contain inline anon keys — these are public (client-side) keys,
+-- not secrets. They match what the Supabase Dashboard auto-generates.
+-- Migration applied via MCP apply_migration 2026-04-16
