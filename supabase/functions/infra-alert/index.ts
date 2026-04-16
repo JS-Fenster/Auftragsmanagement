@@ -33,6 +33,7 @@ const VALID_SOURCES = [
   "cloudflare",
   "infra_health",
   "w4a_sync",
+  "nas",
 ] as const;
 
 const VALID_TYPES = ["info", "warning", "error", "success"] as const;
@@ -51,9 +52,11 @@ function isAuthorized(req: Request): boolean {
   if (!INTERNAL_API_KEY) return false;
   const authHeader = req.headers.get("authorization") || "";
   const apiKey = req.headers.get("x-api-key") || "";
+  const urlKey = new URL(req.url).searchParams.get("key") || "";
   return (
     authHeader === `Bearer ${INTERNAL_API_KEY}` ||
-    apiKey === INTERNAL_API_KEY
+    apiKey === INTERNAL_API_KEY ||
+    urlKey === INTERNAL_API_KEY
   );
 }
 
@@ -146,19 +149,39 @@ Deno.serve(async (req: Request) => {
 
   try {
     const payload = await req.json();
-    const validation = validatePayload(payload);
 
-    if (!validation.valid) {
-      return new Response(
-        JSON.stringify({ error: validation.error }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+    // Synology DSM custom webhook sends {"text": "..."} — detect and convert
+    const url = new URL(req.url);
+    const isSynology = "text" in (payload as Record<string, unknown>) &&
+                       !("source" in (payload as Record<string, unknown>));
+    let data: InfraAlertPayload;
+
+    if (isSynology) {
+      const text = String((payload as Record<string, unknown>).text || "");
+      const synSource = url.searchParams.get("source") || "nas";
+      const synSeverity = url.searchParams.get("severity") || "high";
+      data = {
+        source: synSource,
+        title: text.length > 200 ? text.substring(0, 197) + "..." : text,
+        body: text,
+        type: "error",
+        severity: synSeverity,
+        metadata: { webhook: "synology_dsm", raw: text.substring(0, 500) },
+      };
+      console.log(`[infra-alert] Synology webhook: ${text.substring(0, 100)}`);
+    } else {
+      const validation = validatePayload(payload);
+      if (!validation.valid) {
+        return new Response(
+          JSON.stringify({ error: validation.error }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+      data = validation.data;
     }
-
-    const { data } = validation;
 
     console.log(
       `[infra-alert] ${data.source}: ${data.title} (${data.severity})`
