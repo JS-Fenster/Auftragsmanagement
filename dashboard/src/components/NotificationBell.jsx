@@ -58,6 +58,7 @@ export default function NotificationBell() {
     const channel = supabase
       .channel('notifications-realtime')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
+        if (INFRA_SOURCES.includes(payload.new.source)) return
         setNotifications(prev => [payload.new, ...prev].slice(0, 50))
       })
       .subscribe()

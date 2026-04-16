@@ -58,7 +58,7 @@ function HeartbeatRow({ item }) {
   return (
     <div className="flex items-center gap-3 px-3 py-2 rounded-md" style={{ backgroundColor: style.bg, borderLeft: `3px solid ${style.border}` }}>
       <StatusIcon size={16} style={{ color: style.iconColor }} className="shrink-0" />
-      <span className="text-sm font-medium text-gray-900 truncate flex-1">{item.display_name}</span>
+      <span className="text-sm font-medium text-gray-900 flex-1">{item.display_name}</span>
       <span className="text-xs text-gray-500 shrink-0">{formatAge(item.last_seen_at)}</span>
       {item.host && <span className="text-xs bg-gray-100 px-1.5 py-0.5 rounded text-gray-400 shrink-0">{item.host}</span>}
     </div>
@@ -256,7 +256,7 @@ export default function InfraStatus() {
                 <h2 className="text-sm font-semibold text-text-primary">{meta.label}</h2>
                 <span className="text-xs text-text-muted">({items.length})</span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-1.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
                 {items.map(item => <HeartbeatRow key={item.id} item={item} />)}
               </div>
             </section>
