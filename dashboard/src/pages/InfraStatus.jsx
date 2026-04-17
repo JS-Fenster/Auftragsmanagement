@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
-import { Activity, Server, GitBranch, Database, Shield, RefreshCw, CheckCircle, AlertTriangle, XCircle, Clock, Pause, AlertCircle, Info, Check, CheckCheck, Archive, RotateCcw, CalendarClock, ChevronRight, ChevronDown } from 'lucide-react'
+import { Activity, Server, GitBranch, Database, Shield, RefreshCw, CheckCircle, AlertTriangle, XCircle, Clock, Pause, AlertCircle, Info, Check, CheckCheck, Archive, RotateCcw, CalendarClock, ChevronRight, ChevronDown, History, Zap } from 'lucide-react'
 
 const INFRA_SOURCES = ['heartbeat_check', 'infra_health', 'backup_script', 'github_action', 'nas', 'edge_function']
 const NOTIF_TYPE_CONFIG = {
@@ -70,6 +70,8 @@ export default function InfraStatus() {
   const [heartbeats, setHeartbeats] = useState([])
   const [infraNotifs, setInfraNotifs] = useState([])
   const [expiringItems, setExpiringItems] = useState([])
+  const [incidents, setIncidents] = useState([])
+  const [showIncidentHistory, setShowIncidentHistory] = useState(false)
   const [showArchive, setShowArchive] = useState(false)
   const [loading, setLoading] = useState(true)
   const [lastRefresh, setLastRefresh] = useState(null)
@@ -85,15 +87,18 @@ export default function InfraStatus() {
 
   const loadData = useCallback(async () => {
     try {
-      const [hbRes, notifRes, expRes] = await Promise.all([
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString()
+      const [hbRes, notifRes, expRes, incRes] = await Promise.all([
         supabase.from('automation_heartbeats').select('*').order('category').order('display_name'),
         supabase.from('notifications').select('*').in('source', INFRA_SOURCES).order('created_at', { ascending: false }).limit(50),
         supabase.from('expiring_items').select('*').order('expires_at'),
+        supabase.from('infra_incidents').select('*').gte('started_at', sevenDaysAgo).order('started_at', { ascending: false }).limit(100),
       ])
       if (hbRes.error) throw hbRes.error
       setHeartbeats(hbRes.data || [])
       setInfraNotifs(notifRes.data || [])
       setExpiringItems(expRes.data || [])
+      setIncidents(incRes.data || [])
       setLastRefresh(new Date())
     } catch (err) {
       console.error('InfraStatus loadData error:', err)
@@ -128,6 +133,53 @@ export default function InfraStatus() {
     }
     return groups
   }, [heartbeats])
+
+  const incidentStats = useMemo(() => {
+    const now = Date.now()
+    const openIncidents = incidents.filter(i => !i.ended_at)
+    const closed = incidents.filter(i => i.ended_at)
+
+    // Top 5 by duration (closed incidents sorted by duration_seconds)
+    const topByDuration = [...closed].sort((a, b) => (b.duration_seconds || 0) - (a.duration_seconds || 0)).slice(0, 5)
+
+    // Flapping: count incidents per service in last 24h/7d, flag if >= threshold
+    const byService = {}
+    for (const inc of incidents) {
+      const age = now - new Date(inc.started_at).getTime()
+      if (age > 7 * 24 * 3600 * 1000) continue
+      if (!byService[inc.service_name]) byService[inc.service_name] = { count: 0, category: inc.category, latest: inc.started_at }
+      byService[inc.service_name].count += 1
+    }
+    const flapping = Object.entries(byService)
+      .filter(([, v]) => v.count >= 3)
+      .map(([name, v]) => ({ name, ...v }))
+      .sort((a, b) => b.count - a.count)
+
+    // Total downtime last 7d per service (closed only; open incidents count time-to-now)
+    const downtimeByService = {}
+    for (const inc of incidents) {
+      const start = new Date(inc.started_at).getTime()
+      const end = inc.ended_at ? new Date(inc.ended_at).getTime() : now
+      const durSec = Math.floor((end - start) / 1000)
+      downtimeByService[inc.service_name] = (downtimeByService[inc.service_name] || 0) + durSec
+    }
+    const topDowntime = Object.entries(downtimeByService)
+      .map(([name, sec]) => ({ name, sec }))
+      .sort((a, b) => b.sec - a.sec)
+      .slice(0, 5)
+
+    return { openIncidents, closed, topByDuration, flapping, topDowntime }
+  }, [incidents])
+
+  function formatDuration(seconds) {
+    if (!seconds || seconds < 60) return `${Math.max(0, seconds)}s`
+    const mins = Math.floor(seconds / 60)
+    if (mins < 60) return `${mins} Min`
+    const hours = Math.floor(mins / 60)
+    if (hours < 24) return `${hours}h ${mins % 60}m`
+    const days = Math.floor(hours / 24)
+    return `${days}d ${hours % 24}h`
+  }
 
   const summary = useMemo(() => {
     let ok = 0, warn = 0, stale = 0, muted = 0
@@ -228,6 +280,104 @@ export default function InfraStatus() {
             </section>
           )
         })()}
+
+        {/* Incident-Historie (letzte 7 Tage) */}
+        {(incidentStats.openIncidents.length > 0 || incidentStats.closed.length > 0) && (
+          <section>
+            <button
+              onClick={() => setShowIncidentHistory(prev => !prev)}
+              className="flex items-center gap-2 mb-2 w-full text-left hover:bg-surface-card rounded px-1 py-1 -mx-1 transition-colors cursor-pointer"
+              title={showIncidentHistory ? 'Zuklappen' : 'Historie anzeigen'}
+            >
+              {showIncidentHistory ? <ChevronDown size={14} className="text-text-muted" /> : <ChevronRight size={14} className="text-text-muted" />}
+              <History size={16} className="text-indigo-500" />
+              <h2 className="text-sm font-semibold text-text-primary">Incident-Historie (7 Tage)</h2>
+              <span className="text-xs text-text-muted">({incidents.length})</span>
+              <span className="ml-auto flex items-center gap-1.5">
+                {incidentStats.openIncidents.length > 0 && (
+                  <span className="flex items-center gap-1 text-xs font-semibold text-red-600">
+                    <AlertCircle size={12} />{incidentStats.openIncidents.length} offen
+                  </span>
+                )}
+                {incidentStats.flapping.length > 0 && (
+                  <span className="flex items-center gap-1 text-xs font-semibold text-orange-600">
+                    <Zap size={12} />{incidentStats.flapping.length} flappt
+                  </span>
+                )}
+              </span>
+            </button>
+
+            {/* Offene Incidents immer sichtbar (Andreas soll aktive Probleme sehen) */}
+            {incidentStats.openIncidents.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5 mb-2">
+                {incidentStats.openIncidents.map(inc => {
+                  const runningSec = Math.floor((Date.now() - new Date(inc.started_at).getTime()) / 1000)
+                  return (
+                    <div key={inc.id} className="flex items-center gap-3 px-3 py-2 rounded-md h-10" style={{ backgroundColor: '#FEF2F2', borderLeft: '3px solid #DC2626' }}>
+                      <AlertCircle size={16} className="text-red-600 shrink-0" />
+                      <span className="text-sm font-medium text-gray-900 flex-1 whitespace-nowrap overflow-hidden text-ellipsis">{inc.service_name}</span>
+                      <span className="text-xs font-semibold text-red-600 shrink-0">seit {formatDuration(runningSec)}</span>
+                      <span className="text-xs bg-gray-100 px-1.5 py-0.5 rounded text-gray-400 shrink-0">{inc.category}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {showIncidentHistory && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Top 5 by Downtime */}
+                {incidentStats.topDowntime.length > 0 && (
+                  <div className="bg-surface-card rounded-lg border border-border-default p-3">
+                    <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">Top 5 Downtime (7 Tage)</h3>
+                    <div className="space-y-1.5">
+                      {incidentStats.topDowntime.map(s => (
+                        <div key={s.name} className="flex items-center justify-between text-sm">
+                          <span className="font-medium text-gray-900 truncate">{s.name}</span>
+                          <span className="text-xs font-semibold text-red-600 shrink-0 ml-2">{formatDuration(s.sec)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Flapping Services */}
+                {incidentStats.flapping.length > 0 && (
+                  <div className="bg-surface-card rounded-lg border border-border-default p-3">
+                    <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">Flapping (≥3 Incidents/7T)</h3>
+                    <div className="space-y-1.5">
+                      {incidentStats.flapping.map(s => (
+                        <div key={s.name} className="flex items-center justify-between text-sm">
+                          <span className="font-medium text-gray-900 truncate">{s.name}</span>
+                          <span className="text-xs font-semibold text-orange-600 shrink-0 ml-2">{s.count}× Incidents</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Letzte geschlossene Incidents */}
+                {incidentStats.closed.length > 0 && (
+                  <div className="bg-surface-card rounded-lg border border-border-default p-3 lg:col-span-2">
+                    <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">Letzte abgeschlossene Incidents</h3>
+                    <div className="divide-y divide-border-default">
+                      {incidentStats.closed.slice(0, 10).map(inc => (
+                        <div key={inc.id} className="flex items-center gap-2 py-1.5 text-sm">
+                          <span className="font-medium text-gray-900 flex-1 truncate">{inc.service_name}</span>
+                          <span className="text-xs text-text-muted">{inc.category}</span>
+                          <span className="text-xs text-text-muted">·</span>
+                          <span className="text-xs font-semibold text-text-secondary">{formatDuration(inc.duration_seconds)}</span>
+                          <span className="text-xs text-text-muted">·</span>
+                          <span className="text-xs text-text-muted shrink-0">{formatAge(inc.ended_at)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Meldungen — OBEN, mit gelesen/archiviert */}
         <section>
