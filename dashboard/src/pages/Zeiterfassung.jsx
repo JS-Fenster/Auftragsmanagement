@@ -847,7 +847,7 @@ function AbwesenheitenTab() {
         .neq('status', 'storniert').neq('status', 'abgelehnt')
         .lte('datum', `${year}-12-31`)
         .or(`bis_datum.gte.${year}-01-01,bis_datum.is.null`),
-      supabase.from('arbeitsvertraege').select('mitarbeiter_id, urlaubstage_jahr').eq('ist_aktuell', true),
+      supabase.from('arbeitsvertraege').select('mitarbeiter_id, urlaubstage_jahr, wochentage').eq('ist_aktuell', true),
       supabase.from('feiertage').select('datum, name, halbtag').gte('datum', `${year}-01-01`).lte('datum', `${year}-12-31`),
       supabase.from('arbeitszeitmodelle').select('*'),
     ])
@@ -871,6 +871,22 @@ function AbwesenheitenTab() {
     return abwesenheiten.filter(a => a.mitarbeiter_id === maId && a.datum <= dateStr && (a.bis_datum ? a.bis_datum >= dateStr : a.datum >= dateStr))
   }
 
+  // Helper: Frei-Tag-Check mit Fallback auf arbeitsvertraege.wochentage wenn kein AZM
+  // (z.B. Buerokraefte ohne Ressource — ZE-P1d, AM-197)
+  const isFreierTagForMa = (mitarbeiterId, ressourceId, dateStr, dow) => {
+    if (dow === 0 || dow === 6) return true
+    if (ressourceId) {
+      const azm = getActiveAZM(arbeitszeitmodelle, ressourceId, dateStr)
+      if (azm) return !azm[AZM_DAY_KEYS[dow]]
+    }
+    const vertrag = urlaubskonten.find(v => v.mitarbeiter_id === mitarbeiterId)
+    if (vertrag?.wochentage) {
+      const dayKey = ['so', 'mo', 'di', 'mi', 'do', 'fr', 'sa'][dow]
+      return !vertrag.wochentage[dayKey]
+    }
+    return false
+  }
+
   const countWorkdays = (a, ressourceId) => {
     const von = new Date(a.datum + 'T00:00:00'); const bis = new Date((a.bis_datum || a.datum) + 'T00:00:00')
     const faktor = isHalbtagAbw(a) ? 0.5 : 1
@@ -878,7 +894,7 @@ function AbwesenheitenTab() {
     while (d <= bis) {
       const dow = d.getDay()
       const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
-      if (!isFreierTag(arbeitszeitmodelle, ressourceId, dateStr, dow)) cnt += faktor
+      if (!isFreierTagForMa(a.mitarbeiter_id, ressourceId, dateStr, dow)) cnt += faktor
       d.setDate(d.getDate()+1)
     }
     return cnt
