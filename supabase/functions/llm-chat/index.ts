@@ -547,7 +547,21 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Message too long (max 2000 characters)" }, 400, corsHeaders);
     }
 
+    // AM-197 JESS-P1a/b: User-JWT-Client fuer Writes (RLS greift), Service-Client nur fuer
+    // interne Operationen (Storage-Download, Cross-User-Reads wie Embedding-Aufrufe).
+    const authHeader = req.headers.get('Authorization') || '';
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+    const supabaseUser = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    // Aktueller User (falls authentifiziert) — fuer Tool-Ownership-Checks und Audit
+    let currentUser: { id: string; email?: string } | null = null;
+    try {
+      const { data: userData } = await supabaseUser.auth.getUser();
+      if (userData?.user) currentUser = { id: userData.user.id, email: userData.user.email };
+    } catch (e) {
+      console.warn('auth.getUser() failed:', e);
+    }
 
     // Build message array with current timestamp so Jess knows "today"
     const now = new Date().toLocaleString("de-DE", { timeZone: "Europe/Berlin" });
@@ -676,10 +690,15 @@ Deno.serve(async (req) => {
 
         let result: unknown;
         try {
-          result = await executeTool(supabase, fnName, fnArgs);
+          // AM-197 JESS-P1b: Write-Tools via User-Client (RLS greift + Audit-User bekannt)
+          if (ACTION_TOOLS.has(fnName) && !currentUser) {
+            console.warn(`Action-Tool ${fnName} ohne authentifizierten User — Aufruf via anon`);
+          }
+          const clientForTool = ACTION_TOOLS.has(fnName) ? supabaseUser : supabase;
+          result = await executeTool(clientForTool, fnName, fnArgs);
         } catch (err) {
           result = { error: "Tool execution failed" };
-          console.error(`Tool ${fnName} error:`, err);
+          console.error(`Tool ${fnName} by user=${currentUser?.id || 'anon'} error:`, err);
         }
 
         toolCallsLog.push({ name: fnName, args: fnArgs, result });
