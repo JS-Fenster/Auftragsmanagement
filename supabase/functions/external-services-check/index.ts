@@ -32,11 +32,16 @@ interface ServiceCheck {
   check_interval_seconds: number;  // how often we poll this service
 }
 
-// Anthropic entfernt: AM ruft Claude API nicht zur Laufzeit auf → kein Business-Impact → irreführend in Bell
+// Nur Services die direkter Teil des Stacks sind:
+// - Supabase: DB/Auth/EFs → Ausfall = App tot
+// - GitHub:  CI/CD + Script-Hosting für Actions
+// Entfernt (kein direkter use oder indirekt via Vercel):
+//   Cloudflare (Vercel CDN intern, kaum 1:1 mapbar zu Dienst-Impact)
+//   OpenAI     (AM ruft kein OpenAI zur Laufzeit)
+//   Anthropic  (AM ruft kein Claude API zur Laufzeit)
+// → generisches status.json war zu grob: 90% der Meldungen betrafen Dienste die wir gar nicht nutzen.
 const SERVICES: ServiceCheck[] = [
   { name: "supabase",   display: "Supabase",      url: "https://status.supabase.com/api/v2/status.json",      check_interval_seconds: 3600 },
-  { name: "cloudflare", display: "Cloudflare",    url: "https://www.cloudflarestatus.com/api/v2/status.json", check_interval_seconds: 3600 },
-  { name: "openai",     display: "OpenAI",        url: "https://status.openai.com/api/v2/status.json",        check_interval_seconds: 3600 },
   { name: "github",     display: "GitHub",        url: "https://www.githubstatus.com/api/v2/status.json",     check_interval_seconds: 3600 },
 ];
 
