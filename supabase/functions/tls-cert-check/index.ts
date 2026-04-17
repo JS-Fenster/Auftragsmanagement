@@ -1,63 +1,82 @@
 // =============================================================================
 // TLS Certificate Watchdog - INFRA-027b
-// Version: 1.0 - 2026-04-17
+// Version: 1.1 - 2026-04-17 (crt.sh API, node:tls not available in EF runtime)
 // =============================================================================
-// For every row in public.expiring_items with category = 'tls_cert',
-// opens a TLS connection to metadata.host:metadata.port (default 443),
-// reads the peer certificate's valid_to and updates expires_at.
+// Queries https://crt.sh for each row in expiring_items with category='tls_cert'
+// and picks the most recently issued certificate matching the hostname.
+// Updates expires_at so check_expiring_items() can notify 30d/14d/0d before.
 //
-// The existing check_expiring_items() pg_cron job does the actual notification
-// (30d warning, error when past).
+// Why crt.sh: Supabase Edge Runtime doesn't support raw TCP (node:tls).
+// crt.sh mirrors all Certificate Transparency logs — every public cert is
+// visible within minutes of issuance. Reliable + free + pure HTTP.
 //
 // Adding a host to track:
 //   INSERT INTO public.expiring_items
 //     (name, category, warn_days_before, severity, description, metadata)
-//   VALUES
-//     ('dashboard.js-fenster.de', 'tls_cert', 14, 'high',
-//      'Dashboard public endpoint', '{"host":"dashboard.js-fenster.de","port":443}'::jsonb);
+//   VALUES ('dashboard.js-fenster.de', 'tls_cert', 14, 'high',
+//           'Dashboard public endpoint',
+//           '{"host":"dashboard.js-fenster.de"}'::jsonb);
 // =============================================================================
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { connect as tlsConnect } from "node:tls";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-function getCertExpiry(host: string, port: number): Promise<Date> {
-  return new Promise((resolve, reject) => {
-    let settled = false;
-    const settle = (fn: () => void) => { if (!settled) { settled = true; fn(); } };
+interface CrtShEntry {
+  common_name?: string;
+  name_value?: string;
+  not_before?: string;
+  not_after?: string;
+  id?: number;
+}
 
-    const socket = tlsConnect(
-      { host, port, servername: host, rejectUnauthorized: false, timeout: 10000 },
-      () => {
-        try {
-          // deno-lint-ignore no-explicit-any
-          const cert = (socket as any).getPeerCertificate();
-          socket.end();
-          if (!cert || !cert.valid_to) {
-            settle(() => reject(new Error("no peer certificate")));
-            return;
-          }
-          settle(() => resolve(new Date(cert.valid_to)));
-        } catch (err) {
-          settle(() => reject(err));
-        }
-      }
-    );
-    socket.on("error", (err: Error) => settle(() => reject(err)));
-    socket.setTimeout(10000, () => {
-      socket.destroy();
-      settle(() => reject(new Error("tls handshake timeout")));
-    });
-  });
+// Hostname matches if it equals common_name/name_value exactly, OR if a
+// wildcard cert (*.domain.tld) covers it.
+function hostMatches(host: string, certName: string): boolean {
+  const h = host.toLowerCase();
+  const c = certName.toLowerCase().trim();
+  if (c === h) return true;
+  if (c.startsWith("*.")) {
+    const suffix = c.slice(1); // ".domain.tld"
+    return h.endsWith(suffix) && h.slice(0, -suffix.length).indexOf(".") === -1;
+  }
+  return false;
+}
+
+async function fetchCrtShExpiry(host: string): Promise<Date | null> {
+  const url = `https://crt.sh/?q=${encodeURIComponent(host)}&output=json`;
+  const resp = await fetch(url, { signal: AbortSignal.timeout(20000) });
+  if (!resp.ok) throw new Error(`crt.sh HTTP ${resp.status}`);
+  const entries = (await resp.json()) as CrtShEntry[];
+  if (!Array.isArray(entries) || entries.length === 0) return null;
+
+  const now = Date.now();
+  const candidates = entries
+    .filter(e => e.not_after && e.not_before)
+    .filter(e => {
+      // cert must cover our hostname
+      const names = [e.common_name, ...(e.name_value ?? "").split("\n")].filter(Boolean) as string[];
+      return names.some(n => hostMatches(host, n));
+    })
+    .map(e => ({
+      not_before: new Date(e.not_before!).getTime(),
+      not_after: new Date(e.not_after!).getTime(),
+    }))
+    .filter(e => e.not_after > now); // still valid
+
+  if (candidates.length === 0) return null;
+
+  // Pick the cert with the latest not_before (= most recently issued)
+  candidates.sort((a, b) => b.not_before - a.not_before);
+  return new Date(candidates[0].not_after);
 }
 
 interface TlsRow {
   id: number;
   name: string;
-  metadata: { host?: string; port?: number } | null;
+  metadata: { host?: string } | null;
 }
 
 Deno.serve(async () => {
@@ -80,10 +99,12 @@ Deno.serve(async () => {
 
   for (const row of (rows ?? []) as TlsRow[]) {
     const host = row.metadata?.host ?? row.name;
-    const port = row.metadata?.port ?? 443;
     try {
-      const expiry = await getCertExpiry(host, port);
-      const isoDate = expiry.toISOString().slice(0, 10); // YYYY-MM-DD for date column
+      const expiry = await fetchCrtShExpiry(host);
+      if (!expiry) {
+        throw new Error("no matching valid certificate found in CT logs");
+      }
+      const isoDate = expiry.toISOString().slice(0, 10);
       const { error: upErr } = await supabase
         .from("expiring_items")
         .update({ expires_at: isoDate, updated_at: new Date().toISOString() })
@@ -99,7 +120,6 @@ Deno.serve(async () => {
     }
   }
 
-  // Self-heartbeat
   await supabase.rpc("heartbeat", {
     p_name: "ef_tls_cert_check",
     p_status: fail === 0 ? "ok" : (ok > 0 ? "warning" : "error"),
