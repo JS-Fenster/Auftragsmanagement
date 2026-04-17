@@ -791,19 +791,19 @@ function AbwesenheitenTab() {
       // Per-MA Range neu berechnen (respektiert individuelle freie Tage via AZM)
       // MAs ohne ressource_id (z.B. Buerokraefte) bekommen kein AZM-Filter -> alle Werktage
       const perMaRange = calcRange(dragStart, dragEnd, maRow.ressource_id)
-      for (const datum of perMaRange) {
-        rows.push({
-          mitarbeiter_id: maRow.id,
-          ressource_id: maRow.ressource_id || null,
-          abwesenheitsart_id: modalArtId,
-          datum,
-          bis_datum: perMaRange[perMaRange.length - 1],
-          typ: art?.kategorie === 'krankheit' ? 'krank' : art?.kategorie === 'urlaub' ? 'urlaub' : 'sonstiges',
-          ganztaegig: !modalHalbtag, halbtag: modalHalbtag || null,
-          status: 'beantragt',
-          notiz: modalNotiz || null,
-        })
-      }
+      if (perMaRange.length === 0) continue
+      // EIN Range-Eintrag pro MA (nicht pro Tag) -> der Darstellungs-Filter matched sauber
+      rows.push({
+        mitarbeiter_id: maRow.id,
+        ressource_id: maRow.ressource_id || null,
+        abwesenheitsart_id: modalArtId,
+        datum: perMaRange[0],
+        bis_datum: perMaRange[perMaRange.length - 1],
+        typ: art?.kategorie === 'krankheit' ? 'krank' : art?.kategorie === 'urlaub' ? 'urlaub' : 'sonstiges',
+        ganztaegig: !modalHalbtag, halbtag: modalHalbtag || null,
+        status: 'beantragt',
+        notiz: modalNotiz || null,
+      })
     }
     if (rows.length === 0) { setModalSaving(false); return }
     const { error } = await supabase.from('abwesenheiten').insert(rows)
