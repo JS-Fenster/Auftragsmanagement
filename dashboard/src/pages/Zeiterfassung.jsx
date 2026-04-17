@@ -791,13 +791,13 @@ function AbwesenheitenTab() {
     const art = abwArten.find(a => a.id === modalArtId)
     const rows = []
     for (const maRow of (maRows || [])) {
-      if (!maRow.ressource_id) continue
       // Per-MA Range neu berechnen (respektiert individuelle freie Tage via AZM)
+      // MAs ohne ressource_id (z.B. Buerokraefte) bekommen kein AZM-Filter -> alle Werktage
       const perMaRange = calcRange(dragStart, dragEnd, maRow.ressource_id)
       for (const datum of perMaRange) {
         rows.push({
           mitarbeiter_id: maRow.id,
-          ressource_id: maRow.ressource_id,
+          ressource_id: maRow.ressource_id || null,
           abwesenheitsart_id: modalArtId,
           datum,
           bis_datum: perMaRange[perMaRange.length - 1],
