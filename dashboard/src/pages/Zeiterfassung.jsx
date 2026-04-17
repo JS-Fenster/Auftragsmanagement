@@ -163,11 +163,18 @@ function isFreierTag(azModelle, ressourceId, dateStr, dow) {
   return !azm[AZM_DAY_KEYS[dow]]
 }
 
-function isHalbtagSlug(slug) {
-  return slug?.endsWith('_vm') || slug?.endsWith('_nm')
+// Halbtag-Erkennung: Quelle der Wahrheit ist abwesenheiten.halbtag.
+// Legacy-Fallback auf Slug-Suffix (_vm/_nm) fuer alte Eintraege vor der Konsolidierung.
+function isHalbtagAbw(abw) {
+  if (abw?.halbtag) return true
+  const slug = abw?.abwesenheitsarten?.slug
+  return slug?.endsWith('_vm') || slug?.endsWith('_nm') || false
 }
 
-function getHalbtagSeite(slug) {
+function getHalbtagSeiteAbw(abw) {
+  if (abw?.halbtag === 'vm') return 'vm'
+  if (abw?.halbtag === 'nm') return 'nm'
+  const slug = abw?.abwesenheitsarten?.slug
   if (slug?.endsWith('_vm')) return 'vm'
   if (slug?.endsWith('_nm')) return 'nm'
   return null
@@ -866,11 +873,12 @@ function AbwesenheitenTab() {
 
   const countWorkdays = (a, ressourceId) => {
     const von = new Date(a.datum + 'T00:00:00'); const bis = new Date((a.bis_datum || a.datum) + 'T00:00:00')
+    const faktor = isHalbtagAbw(a) ? 0.5 : 1
     let cnt = 0; const d = new Date(von)
     while (d <= bis) {
       const dow = d.getDay()
       const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
-      if (!isFreierTag(arbeitszeitmodelle, ressourceId, dateStr, dow)) cnt++
+      if (!isFreierTag(arbeitszeitmodelle, ressourceId, dateStr, dow)) cnt += faktor
       d.setDate(d.getDate()+1)
     }
     return cnt
@@ -1005,13 +1013,13 @@ function AbwesenheitenTab() {
                           const abw = dayAbws[0]
                           const kuerzel = abw?.abwesenheitsarten?.slug?.toLowerCase() || ''
                           const style = ABW_COLORS[kuerzel] || (abw ? { bg: '#E5E7EB', text: '#374151', short: '?' } : null)
-                          const anyHalbtagGrp = dayAbws.some(a => isHalbtagSlug(a.abwesenheitsarten?.slug))
+                          const anyHalbtagGrp = dayAbws.some(a => isHalbtagAbw(a))
                           const hasMultipleGrp = dayAbws.length > 1 || ft?.halbtag || anyHalbtagGrp
-                          const abwTooltip = abw ? `${abw.abwesenheitsarten?.name || 'Abwesenheit'}${abw.status === 'beantragt' ? ' (beantragt)' : ''}` : ''
+                          const abwTooltip = abw ? `${abw.abwesenheitsarten?.name || 'Abwesenheit'}${abw.halbtag === 'vm' ? ' (Vormittag)' : abw.halbtag === 'nm' ? ' (Nachmittag)' : ''}${abw.status === 'beantragt' ? ' (beantragt)' : ''}` : ''
                           const ftTooltip = ft ? `${ft.name}${ft.halbtag ? ' (nachmittags frei)' : ''}` : ''
                           const belegteSeitenGrp = new Set()
                           dayAbws.forEach(a => {
-                            const seite = getHalbtagSeite(a.abwesenheitsarten?.slug)
+                            const seite = getHalbtagSeiteAbw(a)
                             if (seite) belegteSeitenGrp.add(seite)
                             else { belegteSeitenGrp.add('vm'); belegteSeitenGrp.add('nm') }
                           })
@@ -1071,8 +1079,9 @@ function AbwesenheitenTab() {
                                 dayAbws.forEach(a => {
                                   const slug = a.abwesenheitsarten?.slug || ''
                                   const s = ABW_COLORS[slug] || { bg: '#E5E7EB', text: '#374151', short: '?' }
-                                  if (slug.endsWith('_vm')) vmSlot = s
-                                  else if (slug.endsWith('_nm')) nmSlot = s
+                                  const seite = getHalbtagSeiteAbw(a)
+                                  if (seite === 'vm') vmSlot = s
+                                  else if (seite === 'nm') nmSlot = s
                                   else if (!vmSlot) vmSlot = s
                                   else nmSlot = s
                                 })
@@ -1145,12 +1154,12 @@ function AbwesenheitenTab() {
                           const kuerzel = abw?.abwesenheitsarten?.slug?.toLowerCase() || ''
                           const style = ABW_COLORS[kuerzel] || (abw ? { bg: '#E5E7EB', text: '#374151', short: '?' } : null)
                           const ft = feiertage.find(f => f.datum === dateStr)
-                          const anyHalbtag = dayAbws.some(a => isHalbtagSlug(a.abwesenheitsarten?.slug))
+                          const anyHalbtag = dayAbws.some(a => isHalbtagAbw(a))
                           const hasMultiple = dayAbws.length > 1 || ft?.halbtag || anyHalbtag
                           // Day is fully occupied if: ganztag abw, or both vm+nm filled, or (halbtag abw + full feiertag)
                           const belegteSeiten = new Set()
                           dayAbws.forEach(a => {
-                            const seite = getHalbtagSeite(a.abwesenheitsarten?.slug)
+                            const seite = getHalbtagSeiteAbw(a)
                             if (seite) belegteSeiten.add(seite)
                             else { belegteSeiten.add('vm'); belegteSeiten.add('nm') } // ganztag belegt beide
                           })
@@ -1190,8 +1199,9 @@ function AbwesenheitenTab() {
                                 dayAbws.forEach(a => {
                                   const slug = a.abwesenheitsarten?.slug || ''
                                   const s = ABW_COLORS[slug] || { bg: '#E5E7EB', text: '#374151', short: '?' }
-                                  if (slug.endsWith('_vm')) vmSlot = s
-                                  else if (slug.endsWith('_nm')) nmSlot = s
+                                  const seite = getHalbtagSeiteAbw(a)
+                                  if (seite === 'vm') vmSlot = s
+                                  else if (seite === 'nm') nmSlot = s
                                   else if (!vmSlot) vmSlot = s
                                   else nmSlot = s
                                 })
@@ -1264,7 +1274,7 @@ function AbwesenheitenTab() {
                 <label className="text-xs text-text-secondary block mb-1">Art der Abwesenheit</label>
                 <select value={modalArtId} onChange={e => setModalArtId(e.target.value)} className={selectCls + ' w-full'}>
                   <option value="">Bitte wählen...</option>
-                  {abwArten.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  {abwArten.filter(a => !a.slug?.endsWith('_vm') && !a.slug?.endsWith('_nm')).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
               </div>
               <div>
