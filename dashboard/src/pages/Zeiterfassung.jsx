@@ -718,6 +718,11 @@ function AbwesenheitenTab() {
   const navigate = useNavigate()
   const { mitarbeiter, loading: maLoading } = useMitarbeiter()
   const [monat, setMonat] = useState(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}` })
+  const [monthsVisible, setMonthsVisible] = useState(() => {
+    const stored = parseInt(localStorage.getItem('zeit_months_visible') || '1', 10)
+    return [1, 3, 6, 12].includes(stored) ? stored : 1
+  })
+  useEffect(() => { localStorage.setItem('zeit_months_visible', String(monthsVisible)) }, [monthsVisible])
   const [abwesenheiten, setAbwesenheiten] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedMa, setSelectedMa] = useState('')
@@ -725,9 +730,12 @@ function AbwesenheitenTab() {
   const [urlaubskonten, setUrlaubskonten] = useState([])
   const [feiertage, setFeiertage] = useState([])
   const [arbeitszeitmodelle, setArbeitszeitmodelle] = useState([])
-  // Drag selection for absence entry
+  // Drag selection for absence entry (multi-day + multi-MA for bulk entries wie Betriebsfrei)
+  // selectedMaSet = explicit Set of MA-IDs (primary source). Shift+Click = Range, Ctrl/Cmd+Click = Toggle individual.
   const [dragStart, setDragStart] = useState(null)
   const [dragEnd, setDragEnd] = useState(null)
+  const [dragStartMa, setDragStartMa] = useState(null) // only for Shift-Range anchor
+  const [selectedMaSet, setSelectedMaSet] = useState([])
   const [showAbwModal, setShowAbwModal] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
   const [abwArten, setAbwArten] = useState([])
@@ -759,6 +767,9 @@ function AbwesenheitenTab() {
   const maRessourceId = mitarbeiter.find(m => m.id === selectedMa)?.ressource_id
   const selectionRange = calcRange(dragStart, dragEnd, maRessourceId)
 
+  // Display order in Gruppenansicht (grouped by rolle) — braucht es fuer den Shift-Range
+  const displayOrderIds = groupByRolle(mitarbeiter).flatMap(g => g.items.map(m => m.id))
+  const selectedMaIds = selectedMaSet.length > 0 ? selectedMaSet : (selectedMa ? [selectedMa] : [])
 
   // Load abwesenheitsarten for modal
   useEffect(() => {
@@ -766,28 +777,36 @@ function AbwesenheitenTab() {
   }, [])
 
   const handleModalSave = async () => {
-    if (!modalArtId || selectionRange.length === 0 || !selectedMa) return
+    if (!modalArtId || selectionRange.length === 0 || selectedMaIds.length === 0) return
     setModalSaving(true)
-    const { data: ma } = await supabase.from('mitarbeiter').select('ressource_id').eq('id', selectedMa).single()
+    const { data: maRows } = await supabase.from('mitarbeiter').select('id, ressource_id').in('id', selectedMaIds)
     const art = abwArten.find(a => a.id === modalArtId)
-    if (!ma?.ressource_id) { setModalSaving(false); return }
-    const rows = selectionRange.map(datum => ({
-      mitarbeiter_id: selectedMa,
-      ressource_id: ma.ressource_id,
-      abwesenheitsart_id: modalArtId,
-      datum,
-      bis_datum: selectionRange[selectionRange.length - 1],
-      typ: art?.kategorie === 'krankheit' ? 'krank' : art?.kategorie === 'urlaub' ? 'urlaub' : 'sonstiges',
-      ganztaegig: !modalHalbtag, halbtag: modalHalbtag || null,
-      status: 'beantragt',
-      notiz: modalNotiz || null,
-    }))
+    const rows = []
+    for (const maRow of (maRows || [])) {
+      if (!maRow.ressource_id) continue
+      // Per-MA Range neu berechnen (respektiert individuelle freie Tage via AZM)
+      const perMaRange = calcRange(dragStart, dragEnd, maRow.ressource_id)
+      for (const datum of perMaRange) {
+        rows.push({
+          mitarbeiter_id: maRow.id,
+          ressource_id: maRow.ressource_id,
+          abwesenheitsart_id: modalArtId,
+          datum,
+          bis_datum: perMaRange[perMaRange.length - 1],
+          typ: art?.kategorie === 'krankheit' ? 'krank' : art?.kategorie === 'urlaub' ? 'urlaub' : 'sonstiges',
+          ganztaegig: !modalHalbtag, halbtag: modalHalbtag || null,
+          status: 'beantragt',
+          notiz: modalNotiz || null,
+        })
+      }
+    }
+    if (rows.length === 0) { setModalSaving(false); return }
     const { error } = await supabase.from('abwesenheiten').insert(rows)
     if (error) { console.error('Abwesenheit speichern fehlgeschlagen:', error); setModalSaving(false); return }
     setModalSaving(false)
     setShowAbwModal(false)
-    setDragStart(null)
-    setDragEnd(null)
+    setDragStart(null); setDragEnd(null)
+    setDragStartMa(null); setSelectedMaSet([])
     setModalArtId('')
     setModalHalbtag('')
     setModalNotiz('')
@@ -797,8 +816,8 @@ function AbwesenheitenTab() {
 
   const closeModal = () => {
     setShowAbwModal(false)
-    setDragStart(null)
-    setDragEnd(null)
+    setDragStart(null); setDragEnd(null)
+    setDragStartMa(null); setSelectedMaSet([])
     setModalArtId('')
     setModalHalbtag('')
     setModalNotiz('')
@@ -976,19 +995,34 @@ function AbwesenheitenTab() {
                           if (ft?.halbtag === 'vormittag') belegteSeitenGrp.add('vm')
                           const vollBelegtGrp = belegteSeitenGrp.has('vm') && belegteSeitenGrp.has('nm')
                           const canSelectGrp = !isFrei && !vollBelegtGrp
-                          const isSelectedGrp = selectedMa === ma.id && selectionRange.includes(dateStr)
-                          const cellTitle = abwTooltip || ftTooltip || (isFrei ? (dow === 0 || dow === 6 ? 'Wochenende' : 'Kein Arbeitstag') : canSelectGrp ? 'Klicken um Abwesenheit einzutragen' : '')
+                          const isSelectedGrp = selectedMaIds.includes(ma.id) && selectionRange.includes(dateStr)
+                          const cellTitle = abwTooltip || ftTooltip || (isFrei ? (dow === 0 || dow === 6 ? 'Wochenende' : 'Kein Arbeitstag') : canSelectGrp ? 'Klick: neu · Shift+Klick: Bereich (Tage + MA) · Strg/Cmd+Klick: MA einzeln hinzufuegen' : '')
                           return (
                             <td key={d} className={`px-0 py-1 text-center select-none ${isFrei ? 'bg-gray-200/40' : ft && !style ? 'bg-blue-50/60' : ''} ${isToday ? 'ring-1 ring-brand/30 ring-inset' : ''} ${canSelectGrp ? 'cursor-pointer hover:bg-brand/10' : ''} ${isSelectedGrp ? 'bg-brand/20 ring-1 ring-brand/40 ring-inset' : ''}`}
                               title={cellTitle}
                               onClick={canSelectGrp ? (e) => {
                                 e.stopPropagation()
-                                if (e.shiftKey && dragStart && selectedMa === ma.id) {
+                                if (e.shiftKey && dragStart && dragStartMa) {
+                                  // Range: Tage erweitern + Mitarbeiter-Range in Display-Reihenfolge
                                   setDragEnd(dateStr)
+                                  const iStart = displayOrderIds.indexOf(dragStartMa)
+                                  const iEnd = displayOrderIds.indexOf(ma.id)
+                                  if (iStart >= 0 && iEnd >= 0) {
+                                    const [lo, hi] = iStart <= iEnd ? [iStart, iEnd] : [iEnd, iStart]
+                                    setSelectedMaSet(displayOrderIds.slice(lo, hi + 1))
+                                  }
+                                } else if ((e.ctrlKey || e.metaKey) && dragStart) {
+                                  // Toggle: Mitarbeiter einzeln dazu/weg, Datums-Range bleibt
+                                  setSelectedMaSet(prev => {
+                                    const base = prev.length > 0 ? prev : (dragStartMa ? [dragStartMa] : (selectedMa ? [selectedMa] : []))
+                                    return base.includes(ma.id) ? base.filter(x => x !== ma.id) : [...base, ma.id]
+                                  })
                                 } else {
+                                  // Neuer Start
                                   setSelectedMa(ma.id)
-                                  setDragStart(dateStr)
-                                  setDragEnd(dateStr)
+                                  setDragStart(dateStr); setDragEnd(dateStr)
+                                  setDragStartMa(ma.id)
+                                  setSelectedMaSet([ma.id])
                                 }
                                 setShowAbwModal(true)
                               } : undefined}>
@@ -1106,6 +1140,7 @@ function AbwesenheitenTab() {
                                 } else {
                                   setDragStart(dateStr)
                                   setDragEnd(dateStr)
+                                  setDragStartMa(selectedMa); setSelectedMaSet([selectedMa])
                                 }
                                 setShowAbwModal(true)
                               } : undefined}>
@@ -1176,6 +1211,17 @@ function AbwesenheitenTab() {
                   )}
                 </div>
               </div>
+              {selectedMaIds.length > 1 && (
+                <div className="rounded-md border border-brand/30 bg-brand/5 px-3 py-2 text-xs text-text-primary">
+                  <span className="font-semibold">{selectedMaIds.length} Mitarbeiter</span> — Abwesenheit wird fuer alle eingetragen:
+                  <div className="mt-1 text-text-secondary truncate">
+                    {selectedMaIds.map(id => {
+                      const m = mitarbeiter.find(x => x.id === id)
+                      return m ? `${m.vorname} ${m.nachname}` : null
+                    }).filter(Boolean).join(', ')}
+                  </div>
+                </div>
+              )}
               <div>
                 <label className="text-xs text-text-secondary block mb-1">Art der Abwesenheit</label>
                 <select value={modalArtId} onChange={e => setModalArtId(e.target.value)} className={selectCls + ' w-full'}>
@@ -1184,7 +1230,7 @@ function AbwesenheitenTab() {
                 </select>
               </div>
               <div>
-                <label className="text-xs text-text-secondary block mb-1">Zeitraum</label>
+                <label className="text-xs text-text-secondary block mb-1">Tagesabschnitt</label>
                 <select value={modalHalbtag} onChange={e => setModalHalbtag(e.target.value)} className={selectCls + ' w-full'}>
                   <option value="">Ganzer Tag</option>
                   <option value="vm">Vormittags (halber Tag)</option>
