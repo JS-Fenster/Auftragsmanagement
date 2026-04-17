@@ -102,7 +102,7 @@ function MitarbeiterForm({ mitarbeiter, allMitarbeiter = [], onSave, onCancel })
       staatsangehoerigkeit: m.staatsangehoerigkeit || 'Deutsch',
       sv_nummer: m.sv_nummer || '', krankenkasse: m.krankenkasse || '',
       bank: m.bank || '', iban: m.iban || '', bic: m.bic || '',
-      lohnsatz_1: m.lohnsatz_1 || '', lohnsatz_2: m.lohnsatz_2 || '', lohnsatz_3: m.lohnsatz_3 || '',
+      lohnsatz_1: m.lohnsatz_1 || '',
       // Privatadresse
       priv_strasse: m.priv_strasse || '', priv_plz: m.priv_plz || '',
       priv_ort: m.priv_ort || '', priv_land: m.priv_land || '',
@@ -136,9 +136,7 @@ function MitarbeiterForm({ mitarbeiter, allMitarbeiter = [], onSave, onCancel })
       if (!data[k]) data[k] = null
     }
     // Parse numeric
-    for (const k of ['lohnsatz_1', 'lohnsatz_2', 'lohnsatz_3']) {
-      data[k] = data[k] ? parseFloat(data[k]) : 0
-    }
+    data.lohnsatz_1 = data.lohnsatz_1 ? parseFloat(data.lohnsatz_1) : 0
     data.rundung_taktung = parseInt(data.rundung_taktung) || 5
     try { data.pausenregel = JSON.parse(data.pausenregel) } catch { data.pausenregel = { "6": 30, "9": 45 } }
 
@@ -267,11 +265,9 @@ function MitarbeiterForm({ mitarbeiter, allMitarbeiter = [], onSave, onCancel })
             <Input label="IBAN" value={form.iban} onChange={v => set('iban', v)} />
             <Input label="BIC" value={form.bic} onChange={v => set('bic', v)} />
           </div>
-          <p className={sectionCls}>Lohnsaetze</p>
+          <p className={sectionCls}>Lohnsatz</p>
           <div className="grid grid-cols-3 gap-3">
-            <Input label="Lohnsatz 1" value={form.lohnsatz_1} onChange={v => set('lohnsatz_1', v)} type="number" />
-            <Input label="Lohnsatz 2" value={form.lohnsatz_2} onChange={v => set('lohnsatz_2', v)} type="number" />
-            <Input label="Lohnsatz 3" value={form.lohnsatz_3} onChange={v => set('lohnsatz_3', v)} type="number" />
+            <Input label="Stundenlohn (EUR/h)" value={form.lohnsatz_1} onChange={v => set('lohnsatz_1', v)} type="number" />
           </div>
         </>)}
 
