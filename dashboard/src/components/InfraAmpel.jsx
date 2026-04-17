@@ -17,7 +17,7 @@ function getWorstStatus(heartbeats) {
     const ageSec = (Date.now() - new Date(hb.last_seen_at).getTime()) / 1000
     const threshold = hb.expected_interval_seconds * hb.stale_factor
     if (ageSec > threshold || hb.last_status === 'error') hasStale = true
-    else if (ageSec > hb.expected_interval_seconds || hb.last_status === 'warning') hasWarn = true
+    else if (hb.last_status === 'warning') hasWarn = true
   }
   if (hasStale) return 'stale'
   if (hasWarn) return 'warning'

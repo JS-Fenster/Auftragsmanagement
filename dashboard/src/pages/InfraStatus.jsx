@@ -36,9 +36,10 @@ function getHealthStatus(item) {
   const ageSec = (Date.now() - new Date(item.last_seen_at).getTime()) / 1000
   const threshold = item.expected_interval_seconds * item.stale_factor
   if (ageSec > threshold) return 'stale'
-  if (ageSec > item.expected_interval_seconds) return 'warning'
   if (item.last_status === 'error') return 'error'
   if (item.last_status === 'warning') return 'warning'
+  // Zwischenfenster (interval < age < interval*factor) = OK, nicht Warnung.
+  // Jobs laufen exakt am Intervall, kurz vor naechstem Lauf immer "alt".
   return 'ok'
 }
 

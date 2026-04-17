@@ -158,6 +158,18 @@ Deno.serve(async (req: Request) => {
 
     if (isSynology) {
       const text = String((payload as Record<string, unknown>).text || "");
+      const lowerText = text.toLowerCase();
+      // Filter success messages: Synology sends webhook for ALL events (success + failure).
+      // We only want failures/warnings. Skip if text contains success keywords and no error keywords.
+      const hasSuccess = /\b(successful|success|completed|finished)\b/i.test(text);
+      const hasError = /\b(failed|failure|error|warning|critical|stopped|aborted|unable)\b/i.test(text);
+      if (hasSuccess && !hasError) {
+        console.log(`[infra-alert] Synology success filtered: ${text.substring(0, 100)}`);
+        return new Response(
+          JSON.stringify({ status: "filtered", reason: "success_message" }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
       const synSource = url.searchParams.get("source") || "nas";
       const synSeverity = url.searchParams.get("severity") || "high";
       data = {
