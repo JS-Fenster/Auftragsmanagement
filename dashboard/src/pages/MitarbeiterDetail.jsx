@@ -1411,8 +1411,19 @@ function AdressenSection({ adressen, setAdressen, editing, personId }) {
 
 // --- Zeichen helpers ---
 
-// HARDCODE: Spaeter aus DB/Einstellungen — Backlog AM-149
+// Module-level Set. Initial mit System-Defaults (Fallback wenn DB offline).
+// Wird beim Component-Mount aus public.zeichen_sperrliste befuellt
+// (AM-197 MA-P1c, Single Source of Truth in DB).
 const BLOCKED_ZEICHEN = new Set(['SS', 'SA', 'HH', 'KZ', 'NS', 'SD', 'AH', 'HJ'])
+
+async function loadBlockedZeichenFromDB(supabaseClient) {
+  try {
+    const { data } = await supabaseClient.from('zeichen_sperrliste').select('zeichen')
+    if (data) data.forEach(r => BLOCKED_ZEICHEN.add(r.zeichen))
+  } catch (e) {
+    console.warn('zeichen_sperrliste-Load fehlgeschlagen, nutze Default-Set:', e)
+  }
+}
 
 function generateZeichen(vorname, nachname) {
   if (!vorname || !nachname) return ''
@@ -1477,6 +1488,8 @@ export default function MitarbeiterDetail() {
       setSuggestions(result)
     }
     loadSuggestions()
+    // AM-197 MA-P1c: Blocked-Zeichen aus DB laden (erweitert Module-Level Set)
+    loadBlockedZeichenFromDB(supabase)
   }, [])
 
   const load = useCallback(async () => {
@@ -1519,6 +1532,20 @@ export default function MitarbeiterDetail() {
 
   const save = async () => {
     if (zeichenConflict) { alert('Zeichen ist bereits vergeben. Bitte aendern.'); return }
+
+    // AM-197 MA-P1d: Zeichen-Aenderung -> Dialog "altes Zeichen fuer andere sperren?"
+    const oldZeichen = person?.zeichen?.trim()
+    const newZeichen = personForm?.zeichen?.trim()
+    let sperreAlteszeichen = false
+    if (oldZeichen && newZeichen && oldZeichen !== newZeichen) {
+      sperreAlteszeichen = confirm(
+        `Zeichen wird von '${oldZeichen}' auf '${newZeichen}' geaendert.\n\n` +
+        `Soll '${oldZeichen}' fuer andere Mitarbeiter GESPERRT werden?\n\n` +
+        `[OK] Ja, historisieren + sperren (empfohlen bei echter Namens-/Rollen-Aenderung)\n` +
+        `[Abbrechen] Nein, nur Typo-Korrektur — '${oldZeichen}' bleibt frei vergebbar`
+      )
+    }
+
     setSaving(true)
 
     try {
@@ -1530,6 +1557,19 @@ export default function MitarbeiterDetail() {
         if (personUpdate[k] === '') personUpdate[k] = null
       }
       await supabase.from('personen').update(personUpdate).eq('id', person.id)
+
+      // 1b. Altes Zeichen sperren (wenn User zugestimmt hat)
+      if (sperreAlteszeichen && oldZeichen) {
+        const { error: lockErr } = await supabase.from('zeichen_sperrliste').insert({
+          zeichen: oldZeichen,
+          grund: `Ehemaliges Zeichen von ${personForm.vorname} ${personForm.nachname}`,
+          quelle: 'historic',
+          ex_mitarbeiter_id: ma?.id || null,
+          gesperrt_ab: new Date().toISOString().slice(0, 10),
+        })
+        if (lockErr) console.warn('zeichen_sperrliste Insert fehlgeschlagen (evtl. schon gesperrt):', lockErr)
+        else BLOCKED_ZEICHEN.add(oldZeichen)
+      }
 
       // 2. Update mitarbeiter_daten
       const maUpdate = { ...maForm }
