@@ -920,19 +920,23 @@ function AbwesenheitenTab() {
         )}
       </div>
 
-      {ansicht === 'gruppe' && !loading && dragStart && selectedMaIds.length > 0 && !showAbwModal && (
-        <div className="mb-3 flex items-center gap-3 rounded-lg border border-brand/40 bg-brand/5 px-4 py-2.5 text-xs">
-          <div className="flex-1">
-            <span className="font-semibold text-text-primary">{selectedMaIds.length} Mitarbeiter</span>
-            <span className="text-text-muted"> × </span>
-            <span className="font-semibold text-text-primary">{selectionRange.length} Werktag{selectionRange.length !== 1 ? 'e' : ''}</span>
-            <span className="text-text-muted ml-2">
-              ({new Date(selectionRange[0] + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}
-              {selectionRange.length > 1 && `–${new Date(selectionRange[selectionRange.length - 1] + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}`})
-            </span>
-          </div>
-          <button onClick={closeModal} className="px-3 py-1 text-text-secondary hover:bg-surface-hover rounded">Abbrechen</button>
-          <button onClick={() => setShowAbwModal(true)} disabled={selectionRange.length === 0} className="px-4 py-1 font-medium text-white bg-brand rounded hover:bg-brand/90 disabled:opacity-50">Abwesenheit eintragen →</button>
+      {ansicht === 'gruppe' && !loading && (
+        <div className="mb-3 h-[44px]">
+          {dragStart && selectedMaIds.length > 0 && !showAbwModal && (
+            <div className="flex items-center gap-3 rounded-lg border border-brand/40 bg-brand/5 px-4 py-2.5 text-xs h-full">
+              <div className="flex-1">
+                <span className="font-semibold text-text-primary">{selectedMaIds.length} Mitarbeiter</span>
+                <span className="text-text-muted"> × </span>
+                <span className="font-semibold text-text-primary">{selectionRange.length} Werktag{selectionRange.length !== 1 ? 'e' : ''}</span>
+                <span className="text-text-muted ml-2">
+                  ({new Date(selectionRange[0] + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}
+                  {selectionRange.length > 1 && `–${new Date(selectionRange[selectionRange.length - 1] + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}`})
+                </span>
+              </div>
+              <button onClick={closeModal} className="px-3 py-1 text-text-secondary hover:bg-surface-hover rounded">Abbrechen</button>
+              <button onClick={() => setShowAbwModal(true)} disabled={selectionRange.length === 0} className="px-4 py-1 font-medium text-white bg-brand rounded hover:bg-brand/90 disabled:opacity-50">Abwesenheit eintragen →</button>
+            </div>
+          )}
         </div>
       )}
 
