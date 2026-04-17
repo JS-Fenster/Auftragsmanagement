@@ -85,39 +85,27 @@ export default function AbwesenheitenSection({ mitarbeiterId, mitarbeiterName, o
       .single()
 
     const endDate = datumBis || datumVon
-    const tage = halbtag ? 0.5 : calcWorkdays(datumVon, endDate)
-
-    // Create one row per day (for calendar display)
-    const rows = []
-    const d = new Date(datumVon + 'T00:00:00')
-    const e = new Date(endDate + 'T00:00:00')
-    while (d <= e) {
-      const dow = d.getDay()
-      if (dow !== 0 && dow !== 6) {
-        rows.push({
-          mitarbeiter_id: mitarbeiterId,
-          ressource_id: ma?.ressource_id || null,
-          abwesenheitsart_id: artId,
-          datum: d.toISOString().slice(0, 10),
-          bis_datum: endDate,
-          typ: arten.find(a => a.id === artId)?.kategorie || 'sonstiges',
-          ganztaegig: !halbtag,
-          halbtag: halbtag || null,
-          stunden: halbtag ? 4 : null,
-          status: 'beantragt',
-          notiz: notiz || null,
-        })
-      }
-      d.setDate(d.getDate() + 1)
+    // EIN Range-Eintrag pro MA (datum=start, bis_datum=end) — konsistent mit Zeiterfassung.jsx
+    // Rendering-Filter (datum <= X AND bis_datum >= X) matched dann genau EINE Row pro Tag.
+    const row = {
+      mitarbeiter_id: mitarbeiterId,
+      ressource_id: ma?.ressource_id || null,
+      abwesenheitsart_id: artId,
+      datum: datumVon,
+      bis_datum: endDate,
+      typ: arten.find(a => a.id === artId)?.kategorie || 'sonstiges',
+      ganztaegig: !halbtag,
+      halbtag: halbtag || null,
+      stunden: halbtag ? 4 : null,
+      status: 'beantragt',
+      notiz: notiz || null,
     }
 
-    if (rows.length > 0) {
-      const { error } = await supabase.from('abwesenheiten').insert(rows)
-      if (error) {
-        console.error('Abwesenheit speichern:', error)
-        setSaving(false)
-        return
-      }
+    const { error } = await supabase.from('abwesenheiten').insert([row])
+    if (error) {
+      console.error('Abwesenheit speichern:', error)
+      setSaving(false)
+      return
     }
 
     setSaving(false)

@@ -256,7 +256,7 @@ function TagesuebersichtTab() {
   const loadStempel = useCallback(async () => {
     setLoading(true)
     const { data } = await supabase.from('zeitstempel').select('*')
-      .gte('zeitpunkt', `${datum}T00:00:00`).lte('zeitpunkt', `${datum}T23:59:59`).order('zeitpunkt')
+      .gte('zeitpunkt', new Date(`${datum}T00:00:00`).toISOString()).lte('zeitpunkt', new Date(`${datum}T23:59:59`).toISOString()).order('zeitpunkt')
     setStempel(data || [])
     setLoading(false)
   }, [datum])
@@ -511,7 +511,7 @@ function StempelProtokollTab() {
   const loadStempel = useCallback(async () => {
     setLoading(true)
     let q = supabase.from('zeitstempel').select('*, mitarbeiter(vorname, nachname, rolle)')
-      .gte('zeitpunkt', `${datumVon}T00:00:00`).lte('zeitpunkt', `${datumBis}T23:59:59`)
+      .gte('zeitpunkt', new Date(`${datumVon}T00:00:00`).toISOString()).lte('zeitpunkt', new Date(`${datumBis}T23:59:59`).toISOString())
       .order('zeitpunkt', { ascending: false }).limit(200)
     if (filterMa) q = q.eq('mitarbeiter_id', filterMa)
     if (filterAbt) {
@@ -1335,7 +1335,7 @@ function ZeitkarteTab() {
     const vormonatEndStr = vormonatEnd.getDate() > 0 ? `${year}-${String(month - 1).padStart(2, '0')}-${String(vormonatEnd.getDate()).padStart(2, '0')}` : null
     const loadVormonate = month > 1 && vormonatEndStr
       ? supabase.from('zeitstempel').select('zeitpunkt, typ').eq('mitarbeiter_id', selectedMa)
-          .gte('zeitpunkt', `${year}-01-01T00:00:00`).lte('zeitpunkt', `${vormonatEndStr}T23:59:59`).order('zeitpunkt')
+          .gte('zeitpunkt', new Date(`${year}-01-01T00:00:00`).toISOString()).lte('zeitpunkt', new Date(`${vormonatEndStr}T23:59:59`).toISOString()).order('zeitpunkt')
       : { data: [] }
     const loadVorFt = month > 1
       ? supabase.from('feiertage').select('datum, halbtag').gte('datum', `${year}-01-01`).lte('datum', vormonatEndStr)
@@ -1348,7 +1348,7 @@ function ZeitkarteTab() {
 
     const [stRes, vtRes, ftRes, abwRes, azmRes, vorStRes, vorFtRes, vorAbwRes] = await Promise.all([
       supabase.from('zeitstempel').select('*').eq('mitarbeiter_id', selectedMa)
-        .gte('zeitpunkt', `${monat}-01T00:00:00`).lte('zeitpunkt', `${monat}-${lastDay}T23:59:59`).order('zeitpunkt'),
+        .gte('zeitpunkt', new Date(`${monat}-01T00:00:00`).toISOString()).lte('zeitpunkt', new Date(`${monat}-${lastDay}T23:59:59`).toISOString()).order('zeitpunkt'),
       supabase.from('arbeitsvertraege').select('*').eq('mitarbeiter_id', selectedMa).eq('ist_aktuell', true).single(),
       supabase.from('feiertage').select('datum, name, halbtag').gte('datum', `${monat}-01`).lte('datum', `${monat}-${lastDay}`),
       supabase.from('abwesenheiten').select('*, abwesenheitsarten(name, slug)')
