@@ -45,18 +45,21 @@ function hostMatches(host: string, certName: string): boolean {
   return false;
 }
 
-async function fetchCrtShExpiry(host: string): Promise<Date | null> {
+type CrtResult = { kind: "ok"; expiry: Date } | { kind: "empty" } | { kind: "no_match" };
+
+async function fetchCrtShExpiry(host: string): Promise<CrtResult> {
   const url = `https://crt.sh/?q=${encodeURIComponent(host)}&output=json`;
   const resp = await fetch(url, { signal: AbortSignal.timeout(20000) });
   if (!resp.ok) throw new Error(`crt.sh HTTP ${resp.status}`);
   const entries = (await resp.json()) as CrtShEntry[];
-  if (!Array.isArray(entries) || entries.length === 0) return null;
+  // Empty array = crt.sh rate-limited or temporary outage.
+  // Don't treat as error — keep existing expires_at, skip silently.
+  if (!Array.isArray(entries) || entries.length === 0) return { kind: "empty" };
 
   const now = Date.now();
   const candidates = entries
     .filter(e => e.not_after && e.not_before)
     .filter(e => {
-      // cert must cover our hostname
       const names = [e.common_name, ...(e.name_value ?? "").split("\n")].filter(Boolean) as string[];
       return names.some(n => hostMatches(host, n));
     })
@@ -64,13 +67,12 @@ async function fetchCrtShExpiry(host: string): Promise<Date | null> {
       not_before: new Date(e.not_before!).getTime(),
       not_after: new Date(e.not_after!).getTime(),
     }))
-    .filter(e => e.not_after > now); // still valid
+    .filter(e => e.not_after > now);
 
-  if (candidates.length === 0) return null;
+  if (candidates.length === 0) return { kind: "no_match" };
 
-  // Pick the cert with the latest not_before (= most recently issued)
   candidates.sort((a, b) => b.not_before - a.not_before);
-  return new Date(candidates[0].not_after);
+  return { kind: "ok", expiry: new Date(candidates[0].not_after) };
 }
 
 interface TlsRow {
@@ -95,16 +97,25 @@ Deno.serve(async () => {
   }
 
   const results: Array<{ name: string; status: string; expires_at?: string; error?: string }> = [];
-  let ok = 0, fail = 0;
+  let ok = 0, fail = 0, skipped = 0;
 
   for (const row of (rows ?? []) as TlsRow[]) {
     const host = row.metadata?.host ?? row.name;
     try {
-      const expiry = await fetchCrtShExpiry(host);
-      if (!expiry) {
-        throw new Error("no matching valid certificate found in CT logs");
+      const res = await fetchCrtShExpiry(host);
+
+      if (res.kind === "empty") {
+        // crt.sh hat nichts geliefert (Rate-Limit / temp. Ausfall). Alten expires_at behalten.
+        skipped++;
+        results.push({ name: row.name, status: "skipped", error: "crt.sh returned empty (rate-limit?)" });
+        continue;
       }
-      const isoDate = expiry.toISOString().slice(0, 10);
+      if (res.kind === "no_match") {
+        // keine gueltigen CT-Eintraege fuer diesen Host → echter Fehler
+        throw new Error("no valid certificate in CT logs for this host");
+      }
+
+      const isoDate = res.expiry.toISOString().slice(0, 10);
       const { error: upErr } = await supabase
         .from("expiring_items")
         .update({ expires_at: isoDate, updated_at: new Date().toISOString() })
@@ -120,10 +131,13 @@ Deno.serve(async () => {
     }
   }
 
+  // Status: nur echte Fehler zaehlen. Empty/skipped haben keine neuen Daten,
+  // aber alte Daten sind noch ok → nicht als Fehler werten.
+  const hbStatus = fail === 0 ? "ok" : (ok + skipped > 0 ? "warning" : "error");
   await supabase.rpc("heartbeat", {
     p_name: "ef_tls_cert_check",
-    p_status: fail === 0 ? "ok" : (ok > 0 ? "warning" : "error"),
-    p_detail: { checked: results.length, ok, failed: fail },
+    p_status: hbStatus,
+    p_detail: { checked: results.length, ok, failed: fail, skipped },
   });
 
   return new Response(
