@@ -10,6 +10,7 @@ import { useState, useEffect, useCallback, useMemo, Fragment } from 'react'
 import { Clock, List, CalendarOff, BarChart3, ExternalLink, Plus, ChevronLeft, ChevronRight, Coffee, LogIn, LogOut, Play, FileText, User } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 import AbwesenheitenSection from '../components/AbwesenheitenSection'
 
 const TABS = [
@@ -470,6 +471,7 @@ function TagesuebersichtTab() {
 // ═══════════════════════════════════════════════════════════════════
 function StempelProtokollTab() {
   const { mitarbeiter } = useMitarbeiter()
+  const { user } = useAuth()
   const [filterMa, setFilterMa] = useState('')
   const [datumVon, setDatumVon] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 7); return toLocalDateStr(d) })
   const [datumBis, setDatumBis] = useState(toLocalDateStr(new Date()))
@@ -519,28 +521,37 @@ function StempelProtokollTab() {
   const handleNachtrag = async () => {
     if (!formMa || !formDatum || !formZeit || !formTyp) return
     setSaving(true)
-    await supabase.from('zeitstempel').insert({ mitarbeiter_id: formMa, zeitpunkt: `${formDatum}T${formZeit}:00`, typ: formTyp, quelle: 'nachgetragen', notiz: formNotiz || null })
+    await supabase.from('zeitstempel').insert({ mitarbeiter_id: formMa, zeitpunkt: new Date(`${formDatum}T${formZeit}:00`).toISOString(), typ: formTyp, quelle: 'nachgetragen', notiz: formNotiz || null })
     setSaving(false); setShowForm(false); setFormNotiz(''); loadStempel()
   }
 
   const openKorrektur = (s) => { setKorrekturStempel(s); setKorrekturZeit(formatTime(s.zeitpunkt)); setKorrekturTyp(s.typ); setKorrekturGrund('') }
 
+  const getGfId = async () => {
+    if (user?.id) {
+      const { data: me } = await supabase.from('mitarbeiter').select('id, rolle').eq('auth_user_id', user.id).maybeSingle()
+      if (me?.rolle === 'geschaeftsfuehrung') return me.id
+    }
+    const { data: gf } = await supabase.from('mitarbeiter').select('id').eq('rolle', 'geschaeftsfuehrung').limit(1).single()
+    return gf?.id || null
+  }
+
   const handleKorrektur = async () => {
     if (!korrekturGrund.trim() || !korrekturStempel) return
     setKorrekturSaving(true)
-    const { data: gf } = await supabase.from('mitarbeiter').select('id').eq('rolle', 'geschaeftsfuehrung').limit(1).single()
+    const gfId = await getGfId()
     await supabase.from('zeit_korrekturen').insert({
-      zeitstempel_id: korrekturStempel.id, beantragt_von: gf?.id || korrekturStempel.mitarbeiter_id,
+      zeitstempel_id: korrekturStempel.id, beantragt_von: gfId || korrekturStempel.mitarbeiter_id,
       grund: korrekturGrund.trim(), alter_zeitpunkt: korrekturStempel.zeitpunkt,
-      neuer_zeitpunkt: `${toLocalDateStr(korrekturStempel.zeitpunkt)}T${korrekturZeit}:00`,
+      neuer_zeitpunkt: new Date(`${toLocalDateStr(korrekturStempel.zeitpunkt)}T${korrekturZeit}:00`).toISOString(),
       alter_typ: korrekturStempel.typ, neuer_typ: korrekturTyp,
     })
     setKorrekturSaving(false); setKorrekturStempel(null); loadKorrekturen()
   }
 
   const handleKorrekturAction = async (korrekturId, action) => {
-    const { data: gf } = await supabase.from('mitarbeiter').select('id').eq('rolle', 'geschaeftsfuehrung').limit(1).single()
-    await supabase.from('zeit_korrekturen').update({ status: action, genehmigt_von: gf?.id, genehmigt_am: new Date().toISOString() }).eq('id', korrekturId)
+    const gfId = await getGfId()
+    await supabase.from('zeit_korrekturen').update({ status: action, genehmigt_von: gfId, genehmigt_am: new Date().toISOString() }).eq('id', korrekturId)
     if (action === 'genehmigt') {
       const k = korrekturen.find(k => k.id === korrekturId)
       if (k) {
@@ -895,7 +906,6 @@ function AbwesenheitenTab() {
                 {Object.entries(kwMap).map(([kw, kwDays]) => (
                   <th key={kw} colSpan={kwDays.length} className="text-center px-0 py-1.5 font-semibold text-[10px] border-l-2 border-border-default">KW {kw}</th>
                 ))}
-                <th className="px-3 py-2.5 text-right font-semibold">Tage</th>
               </tr>
               <tr className="bg-surface-card text-text-muted text-[10px] border-b border-border-default">
                 <th className="sticky left-0 bg-surface-card z-10" />
@@ -916,7 +926,6 @@ function AbwesenheitenTab() {
                     </th>
                   )
                 })}
-                <th />
               </tr>
             </thead>
             <tbody>
@@ -925,12 +934,11 @@ function AbwesenheitenTab() {
                 return (
                 <Fragment key={grp.label}>
                   <tr>
-                    <td colSpan={5 + days.length + 1} className="px-3 py-2 text-[11px] font-bold text-text-primary uppercase tracking-widest bg-surface-card border-t-2 border-b border-border-default sticky left-0 z-10">
+                    <td colSpan={5 + days.length} className="px-3 py-2 text-[11px] font-bold text-text-primary uppercase tracking-widest bg-surface-card border-t-2 border-b border-border-default sticky left-0 z-10">
                       {grp.label}
                     </td>
                   </tr>
                   {grp.items.map(ma => {
-                    let totalDays = 0
                     const stats = getUrlaubStats(ma.id)
                     const isEven = rowIdx++ % 2 === 0
                     const rowBg = isEven ? 'bg-white' : 'bg-gray-50/50'
@@ -951,17 +959,39 @@ function AbwesenheitenTab() {
                           const ft = feiertage.find(f => f.datum === dateStr)
                           const dayAbws = getAllAbwForDay(ma.id, d)
                           const abw = dayAbws[0]
-                          if (abw && !isFrei) totalDays++
                           const kuerzel = abw?.abwesenheitsarten?.slug?.toLowerCase() || ''
                           const style = ABW_COLORS[kuerzel] || (abw ? { bg: '#E5E7EB', text: '#374151', short: '?' } : null)
                           const anyHalbtagGrp = dayAbws.some(a => isHalbtagSlug(a.abwesenheitsarten?.slug))
                           const hasMultipleGrp = dayAbws.length > 1 || ft?.halbtag || anyHalbtagGrp
                           const abwTooltip = abw ? `${abw.abwesenheitsarten?.name || 'Abwesenheit'}${abw.status === 'beantragt' ? ' (beantragt)' : ''}` : ''
                           const ftTooltip = ft ? `${ft.name}${ft.halbtag ? ' (nachmittags frei)' : ''}` : ''
-                          const cellTitle = abwTooltip || ftTooltip || (isFrei ? (dow === 0 || dow === 6 ? 'Wochenende' : 'Kein Arbeitstag') : '')
+                          const belegteSeitenGrp = new Set()
+                          dayAbws.forEach(a => {
+                            const seite = getHalbtagSeite(a.abwesenheitsarten?.slug)
+                            if (seite) belegteSeitenGrp.add(seite)
+                            else { belegteSeitenGrp.add('vm'); belegteSeitenGrp.add('nm') }
+                          })
+                          if (ft && !ft.halbtag) { belegteSeitenGrp.add('vm'); belegteSeitenGrp.add('nm') }
+                          if (ft?.halbtag === 'nachmittag') belegteSeitenGrp.add('nm')
+                          if (ft?.halbtag === 'vormittag') belegteSeitenGrp.add('vm')
+                          const vollBelegtGrp = belegteSeitenGrp.has('vm') && belegteSeitenGrp.has('nm')
+                          const canSelectGrp = !isFrei && !vollBelegtGrp
+                          const isSelectedGrp = selectedMa === ma.id && selectionRange.includes(dateStr)
+                          const cellTitle = abwTooltip || ftTooltip || (isFrei ? (dow === 0 || dow === 6 ? 'Wochenende' : 'Kein Arbeitstag') : canSelectGrp ? 'Klicken um Abwesenheit einzutragen' : '')
                           return (
-                            <td key={d} className={`px-0 py-1 text-center ${isFrei ? 'bg-gray-200/40' : ft && !style ? 'bg-blue-50/60' : ''} ${isToday ? 'ring-1 ring-brand/30 ring-inset' : ''}`}
-                              title={cellTitle}>
+                            <td key={d} className={`px-0 py-1 text-center select-none ${isFrei ? 'bg-gray-200/40' : ft && !style ? 'bg-blue-50/60' : ''} ${isToday ? 'ring-1 ring-brand/30 ring-inset' : ''} ${canSelectGrp ? 'cursor-pointer hover:bg-brand/10' : ''} ${isSelectedGrp ? 'bg-brand/20 ring-1 ring-brand/40 ring-inset' : ''}`}
+                              title={cellTitle}
+                              onClick={canSelectGrp ? (e) => {
+                                e.stopPropagation()
+                                if (e.shiftKey && dragStart && selectedMa === ma.id) {
+                                  setDragEnd(dateStr)
+                                } else {
+                                  setSelectedMa(ma.id)
+                                  setDragStart(dateStr)
+                                  setDragEnd(dateStr)
+                                }
+                                setShowAbwModal(true)
+                              } : undefined}>
                               {hasMultipleGrp && !isFrei ? (() => {
                                 let vmSlot = null, nmSlot = null
                                 if (ft?.halbtag === 'nachmittag') nmSlot = { bg: '#DCFCE7', text: '#166534', short: 'F' }
@@ -987,7 +1017,6 @@ function AbwesenheitenTab() {
                             </td>
                           )
                         })}
-                        <td className="px-3 py-2 text-right text-text-secondary font-medium">{totalDays || '-'}</td>
                       </tr>
                     )
                   })}
