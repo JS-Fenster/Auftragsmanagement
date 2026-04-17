@@ -736,15 +736,12 @@ function AbwesenheitenTab() {
   const [dragEnd, setDragEnd] = useState(null)
   const [dragStartMa, setDragStartMa] = useState(null) // Anker fuer Shift-Range und Mouse-Drag
   const [selectedMaSet, setSelectedMaSet] = useState([])
-  const [isDragging, setIsDragging] = useState(false)
   const [showAbwModal, setShowAbwModal] = useState(false)
-  // Globaler mouseup: beendet Drag auch wenn Maus ausserhalb Tabelle losgelassen wird
-  useEffect(() => {
-    if (!isDragging) return
-    const onUp = () => setIsDragging(false)
-    document.addEventListener('mouseup', onUp)
-    return () => document.removeEventListener('mouseup', onUp)
-  }, [isDragging])
+  // Drag-Erkennung ueber e.buttons === 1 im onMouseEnter (Linksklick gedrueckt).
+  // Kein separater isDragging-State -> kein Re-Render -> kein Layout-Shift
+  // -> spurious MouseEnter durch Tabellen-Verschiebung beim ersten Klick wird ignoriert,
+  // weil dragStart=dateStr beim MouseDown gesetzt wird und der allererste MouseEnter
+  // den gleichen dateStr hat (keine Veraenderung = kein Effekt).
   const [refreshKey, setRefreshKey] = useState(0)
   const [abwArten, setAbwArten] = useState([])
   const [modalArtId, setModalArtId] = useState('')
@@ -1048,15 +1045,17 @@ function AbwesenheitenTab() {
                                     return base.includes(ma.id) ? (base.length > 1 ? base.filter(x => x !== ma.id) : base) : [...base, ma.id]
                                   })
                                 } else {
-                                  // Frischer Drag-Start
+                                  // Frischer Start (kein Drag-State — Drag erkannt ueber e.buttons im MouseEnter)
                                   setSelectedMa(ma.id)
                                   setDragStart(dateStr); setDragEnd(dateStr)
                                   setDragStartMa(ma.id)
                                   setSelectedMaSet([ma.id])
-                                  setIsDragging(true)
                                 }
                               } : undefined}
-                              onMouseEnter={isDragging && canSelectGrp && dragStartMa ? () => {
+                              onMouseEnter={canSelectGrp && dragStartMa ? (e) => {
+                                // Nur extenden wenn Maus gedrueckt UND Ziel !== Start (Layout-Shift-Safe)
+                                if (e.buttons !== 1) return
+                                if (dateStr === dragStart && ma.id === dragStartMa) return
                                 setDragEnd(dateStr)
                                 const iStart = displayOrderIds.indexOf(dragStartMa)
                                 const iEnd = displayOrderIds.indexOf(ma.id)
