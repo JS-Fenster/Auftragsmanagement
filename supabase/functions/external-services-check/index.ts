@@ -70,7 +70,7 @@ Deno.serve(async () => {
       results.push({ service: svc.name, indicator, description });
 
       if (indicator !== "none") {
-        // Only notify once per service per hour (dedupe via recent notification check)
+        // Only notify once per service per 2h (dedupe)
         const { data: recent } = await supabase
           .from("notifications")
           .select("id")
@@ -89,6 +89,20 @@ Deno.serve(async () => {
             p_metadata: { external_service: svc.name, indicator, description, status_url: svc.url.replace("/api/v2/status.json", "") },
           });
           alerts.push(`${svc.name}:${indicator}`);
+        }
+      } else {
+        // Auto-resolve: Service back to OK → archive open warnings for this service
+        const { data: openAlerts } = await supabase
+          .from("notifications")
+          .select("id")
+          .eq("source", "infra_health")
+          .eq("archived", false)
+          .contains("metadata", { external_service: svc.name });
+
+        if (openAlerts && openAlerts.length > 0) {
+          const ids = openAlerts.map(n => n.id);
+          await supabase.from("notifications").update({ read: true, archived: true }).in("id", ids);
+          console.log(`[external-services-check] ${svc.name}: auto-resolved ${ids.length} open alerts`);
         }
       }
     } catch (err) {
