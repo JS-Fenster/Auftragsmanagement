@@ -579,7 +579,15 @@ Deno.serve(async (req) => {
     // Build user message — with Vision support if image provided
     let imageBase64: string | null = null;
     if (image_storage_path) {
-      try {
+      // AM-197 JESS-P1c: Path-Whitelist gegen Traversal
+      // Erlaubt sind nur jess-uploads/ und jess-feedback/ Prefixe.
+      // Verhindert Zugriff auf andere Storage-Pfade (z.B. projekt-docs/).
+      const ALLOWED_PREFIXES = ['jess-uploads/', 'jess-feedback/'];
+      const isAllowed = ALLOWED_PREFIXES.some(p => image_storage_path.startsWith(p));
+      const hasTraversal = image_storage_path.includes('..') || image_storage_path.includes('//');
+      if (!isAllowed || hasTraversal) {
+        console.warn('image_storage_path rejected (whitelist):', image_storage_path);
+      } else try {
         // Download image from Supabase Storage and convert to base64
         const { data: imgData, error: imgError } = await supabase.storage
           .from('documents')
