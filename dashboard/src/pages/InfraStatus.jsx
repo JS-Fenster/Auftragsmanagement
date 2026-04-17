@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
-import { Activity, Server, GitBranch, Database, Shield, RefreshCw, CheckCircle, AlertTriangle, XCircle, Clock, Pause, AlertCircle, Info, Check, CheckCheck, Archive, RotateCcw, CalendarClock } from 'lucide-react'
+import { Activity, Server, GitBranch, Database, Shield, RefreshCw, CheckCircle, AlertTriangle, XCircle, Clock, Pause, AlertCircle, Info, Check, CheckCheck, Archive, RotateCcw, CalendarClock, ChevronRight, ChevronDown } from 'lucide-react'
 
 const INFRA_SOURCES = ['heartbeat_check', 'infra_health', 'backup_script', 'github_action', 'nas', 'edge_function']
 const NOTIF_TYPE_CONFIG = {
@@ -73,6 +73,15 @@ export default function InfraStatus() {
   const [showArchive, setShowArchive] = useState(false)
   const [loading, setLoading] = useState(true)
   const [lastRefresh, setLastRefresh] = useState(null)
+  const [expandedCats, setExpandedCats] = useState(new Set())
+
+  function toggleCat(cat) {
+    setExpandedCats(prev => {
+      const next = new Set(prev)
+      if (next.has(cat)) next.delete(cat); else next.add(cat)
+      return next
+    })
+  }
 
   const loadData = useCallback(async () => {
     try {
@@ -290,21 +299,62 @@ export default function InfraStatus() {
           )}
         </section>
 
-        {/* Heartbeat-Gruppen — kompakte Rows statt große Cards */}
+        {/* Heartbeat-Gruppen — Kategorien standardmäßig zugeklappt. Nur Probleme werden sichtbar. */}
         {Object.entries(CATEGORY_META).map(([cat, meta]) => {
           const items = grouped[cat]
           if (!items || items.length === 0) return null
           const CatIcon = meta.icon
+          const isExpanded = expandedCats.has(cat)
+
+          const withHealth = items.map(it => ({ ...it, _health: getHealthStatus(it) }))
+          const problems = withHealth.filter(it => it._health === 'error' || it._health === 'stale' || it._health === 'warning')
+          const okCount = withHealth.filter(it => it._health === 'ok').length
+          const mutedCount = withHealth.filter(it => it._health === 'muted').length
+          const staleCount = withHealth.filter(it => it._health === 'stale').length
+          const warnCount = withHealth.filter(it => it._health === 'warning' || it._health === 'error').length
+          const hasProblem = problems.length > 0
+
+          const visibleItems = isExpanded ? withHealth : problems
+
           return (
             <section key={cat}>
-              <div className="flex items-center gap-2 mb-2">
+              <button
+                onClick={() => toggleCat(cat)}
+                className="flex items-center gap-2 mb-2 w-full text-left hover:bg-surface-card rounded px-1 py-1 -mx-1 transition-colors cursor-pointer"
+                title={isExpanded ? 'Zuklappen' : 'Alle anzeigen'}
+              >
+                {isExpanded ? <ChevronDown size={14} className="text-text-muted" /> : <ChevronRight size={14} className="text-text-muted" />}
                 <CatIcon size={16} style={{ color: meta.color }} />
                 <h2 className="text-sm font-semibold text-text-primary">{meta.label}</h2>
                 <span className="text-xs text-text-muted">({items.length})</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
-                {items.map(item => <HeartbeatRow key={item.id} item={item} />)}
-              </div>
+                <span className="ml-auto flex items-center gap-1.5">
+                  {staleCount > 0 && (
+                    <span className="flex items-center gap-1 text-xs font-semibold text-red-600">
+                      <XCircle size={12} />{staleCount}
+                    </span>
+                  )}
+                  {warnCount > 0 && (
+                    <span className="flex items-center gap-1 text-xs font-semibold text-amber-600">
+                      <AlertTriangle size={12} />{warnCount}
+                    </span>
+                  )}
+                  {mutedCount > 0 && (
+                    <span className="flex items-center gap-1 text-xs text-gray-500">
+                      <Pause size={12} />{mutedCount}
+                    </span>
+                  )}
+                  {!hasProblem && okCount > 0 && !isExpanded && (
+                    <span className="flex items-center gap-1 text-xs text-green-600">
+                      <CheckCircle size={12} />{okCount}
+                    </span>
+                  )}
+                </span>
+              </button>
+              {visibleItems.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
+                  {visibleItems.map(item => <HeartbeatRow key={item.id} item={item} />)}
+                </div>
+              )}
             </section>
           )
         })}
