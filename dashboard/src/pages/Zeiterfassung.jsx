@@ -734,9 +734,17 @@ function AbwesenheitenTab() {
   // selectedMaSet = explicit Set of MA-IDs (primary source). Shift+Click = Range, Ctrl/Cmd+Click = Toggle individual.
   const [dragStart, setDragStart] = useState(null)
   const [dragEnd, setDragEnd] = useState(null)
-  const [dragStartMa, setDragStartMa] = useState(null) // only for Shift-Range anchor
+  const [dragStartMa, setDragStartMa] = useState(null) // Anker fuer Shift-Range und Mouse-Drag
   const [selectedMaSet, setSelectedMaSet] = useState([])
+  const [isDragging, setIsDragging] = useState(false)
   const [showAbwModal, setShowAbwModal] = useState(false)
+  // Globaler mouseup: beendet Drag auch wenn Maus ausserhalb Tabelle losgelassen wird
+  useEffect(() => {
+    if (!isDragging) return
+    const onUp = () => setIsDragging(false)
+    document.addEventListener('mouseup', onUp)
+    return () => document.removeEventListener('mouseup', onUp)
+  }, [isDragging])
   const [refreshKey, setRefreshKey] = useState(0)
   const [abwArten, setAbwArten] = useState([])
   const [modalArtId, setModalArtId] = useState('')
@@ -912,6 +920,22 @@ function AbwesenheitenTab() {
         )}
       </div>
 
+      {ansicht === 'gruppe' && !loading && dragStart && selectedMaIds.length > 0 && !showAbwModal && (
+        <div className="mb-3 flex items-center gap-3 rounded-lg border border-brand/40 bg-brand/5 px-4 py-2.5 text-xs">
+          <div className="flex-1">
+            <span className="font-semibold text-text-primary">{selectedMaIds.length} Mitarbeiter</span>
+            <span className="text-text-muted"> × </span>
+            <span className="font-semibold text-text-primary">{selectionRange.length} Werktag{selectionRange.length !== 1 ? 'e' : ''}</span>
+            <span className="text-text-muted ml-2">
+              ({new Date(selectionRange[0] + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}
+              {selectionRange.length > 1 && `–${new Date(selectionRange[selectionRange.length - 1] + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}`})
+            </span>
+          </div>
+          <button onClick={closeModal} className="px-3 py-1 text-text-secondary hover:bg-surface-hover rounded">Abbrechen</button>
+          <button onClick={() => setShowAbwModal(true)} disabled={selectionRange.length === 0} className="px-4 py-1 font-medium text-white bg-brand rounded hover:bg-brand/90 disabled:opacity-50">Abwesenheit eintragen →</button>
+        </div>
+      )}
+
       {ansicht === 'gruppe' && !loading && (
         <div className="rounded-lg border border-border-default overflow-x-auto">
           <table className="text-xs border-collapse w-max">
@@ -996,14 +1020,15 @@ function AbwesenheitenTab() {
                           const vollBelegtGrp = belegteSeitenGrp.has('vm') && belegteSeitenGrp.has('nm')
                           const canSelectGrp = !isFrei && !vollBelegtGrp
                           const isSelectedGrp = selectedMaIds.includes(ma.id) && selectionRange.includes(dateStr)
-                          const cellTitle = abwTooltip || ftTooltip || (isFrei ? (dow === 0 || dow === 6 ? 'Wochenende' : 'Kein Arbeitstag') : canSelectGrp ? 'Klick: neu · Shift+Klick: Bereich (Tage + MA) · Strg/Cmd+Klick: MA einzeln hinzufuegen' : '')
+                          const cellTitle = abwTooltip || ftTooltip || (isFrei ? (dow === 0 || dow === 6 ? 'Wochenende' : 'Kein Arbeitstag') : canSelectGrp ? 'Klick + Ziehen: Bereich ueber Tage und Mitarbeiter · Shift+Klick: Bereich erweitern · Strg/Cmd+Klick: Mitarbeiter hinzu/entfernen' : '')
                           return (
                             <td key={d} className={`px-0 py-1 text-center select-none ${isFrei ? 'bg-gray-200/40' : ft && !style ? 'bg-blue-50/60' : ''} ${isToday ? 'ring-1 ring-brand/30 ring-inset' : ''} ${canSelectGrp ? 'cursor-pointer hover:bg-brand/10' : ''} ${isSelectedGrp ? 'bg-brand/20 ring-1 ring-brand/40 ring-inset' : ''}`}
                               title={cellTitle}
-                              onClick={canSelectGrp ? (e) => {
-                                e.stopPropagation()
+                              onMouseDown={canSelectGrp ? (e) => {
+                                if (e.button !== 0) return // nur Linksklick
+                                e.preventDefault()
                                 if (e.shiftKey && dragStart && dragStartMa) {
-                                  // Range: Tage erweitern + Mitarbeiter-Range in Display-Reihenfolge
+                                  // Tages-Range + MA-Range per Shift erweitern
                                   setDragEnd(dateStr)
                                   const iStart = displayOrderIds.indexOf(dragStartMa)
                                   const iEnd = displayOrderIds.indexOf(ma.id)
@@ -1011,20 +1036,30 @@ function AbwesenheitenTab() {
                                     const [lo, hi] = iStart <= iEnd ? [iStart, iEnd] : [iEnd, iStart]
                                     setSelectedMaSet(displayOrderIds.slice(lo, hi + 1))
                                   }
-                                } else if ((e.ctrlKey || e.metaKey) && dragStart) {
-                                  // Toggle: Mitarbeiter einzeln dazu/weg, Datums-Range bleibt
+                                } else if (e.ctrlKey || e.metaKey) {
+                                  // Toggle einzelner MA (ohne Drag)
+                                  if (!dragStart) { setDragStart(dateStr); setDragEnd(dateStr); setDragStartMa(ma.id) }
                                   setSelectedMaSet(prev => {
-                                    const base = prev.length > 0 ? prev : (dragStartMa ? [dragStartMa] : (selectedMa ? [selectedMa] : []))
-                                    return base.includes(ma.id) ? base.filter(x => x !== ma.id) : [...base, ma.id]
+                                    const base = prev.length > 0 ? prev : [ma.id]
+                                    return base.includes(ma.id) ? (base.length > 1 ? base.filter(x => x !== ma.id) : base) : [...base, ma.id]
                                   })
                                 } else {
-                                  // Neuer Start
+                                  // Frischer Drag-Start
                                   setSelectedMa(ma.id)
                                   setDragStart(dateStr); setDragEnd(dateStr)
                                   setDragStartMa(ma.id)
                                   setSelectedMaSet([ma.id])
+                                  setIsDragging(true)
                                 }
-                                setShowAbwModal(true)
+                              } : undefined}
+                              onMouseEnter={isDragging && canSelectGrp && dragStartMa ? () => {
+                                setDragEnd(dateStr)
+                                const iStart = displayOrderIds.indexOf(dragStartMa)
+                                const iEnd = displayOrderIds.indexOf(ma.id)
+                                if (iStart >= 0 && iEnd >= 0) {
+                                  const [lo, hi] = iStart <= iEnd ? [iStart, iEnd] : [iEnd, iStart]
+                                  setSelectedMaSet(displayOrderIds.slice(lo, hi + 1))
+                                }
                               } : undefined}>
                               {hasMultipleGrp && !isFrei ? (() => {
                                 let vmSlot = null, nmSlot = null
