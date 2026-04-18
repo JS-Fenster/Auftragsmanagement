@@ -11,6 +11,7 @@ import ChatWidget from './components/ChatWidget'
 import NotificationBell from './components/NotificationBell'
 import InfraAmpel from './components/InfraAmpel'
 import { ChatContextProvider } from './lib/chatContext'
+import { Toaster } from 'sonner'
 
 // Code-splitting: lazy load all page components (AM-090)
 const Cockpit = lazy(() => import('./pages/Cockpit'))
@@ -323,6 +324,7 @@ function ProtectedApp() {
         <Suspense fallback={null}><TerminDetail /></Suspense>
         <Suspense fallback={null}><TerminForm /></Suspense>
         <CommandPalette />
+        <Toaster richColors position="bottom-right" />
       </div>
     </ChatContextProvider>
   )

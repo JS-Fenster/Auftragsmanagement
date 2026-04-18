@@ -6,6 +6,7 @@ import { supabaseUrl, supabaseAnonKey } from '../lib/supabase'
 import { useChatContext } from '../lib/chatContext'
 import { getEntityRoute } from '../lib/entityRoutes'
 import ActionConfirmDialog from './ActionConfirmDialog'
+import { toast } from 'sonner'
 import ReportViewer from './ReportViewer' // LLM-012
 
 const LLM_CHAT_URL = `${supabaseUrl}/functions/v1/llm-chat`
@@ -233,7 +234,8 @@ export default function ChatWidget({ embedded = false, onClose }) {
       const data = await callLLM(msgToSend, null, imgUrl, imgPath)
 
       if (data.error) {
-        setMessages(prev => [...prev, { role: 'assistant', content: `Fehler: ${data.error}`, isError: true }])
+        toast.error('Jess konnte die Anfrage nicht verarbeiten')
+        setMessages(prev => [...prev, { role: 'assistant', content: 'Anfrage konnte nicht verarbeitet werden. Bitte versuche es erneut.', isError: true }])
       } else if (data.pending_actions && data.pending_actions.length > 0) {
         // LLM-011: Action requires confirmation — enrich args with context display name
         const action = data.pending_actions[0]
@@ -266,9 +268,10 @@ export default function ChatWidget({ embedded = false, onClose }) {
           isError: true,
         }])
       } else {
+        toast.error('Verbindungsfehler')
         setMessages(prev => [...prev, {
           role: 'assistant',
-          content: `Verbindungsfehler: ${err.message}`,
+          content: 'Verbindungsfehler. Bitte prüfe deine Internetverbindung.',
           isError: true,
         }])
       }
@@ -292,7 +295,8 @@ export default function ChatWidget({ embedded = false, onClose }) {
       setPendingAction(null)
 
       if (data.error) {
-        setMessages(prev => [...prev, { role: 'assistant', content: `Fehler: ${data.error}`, isError: true }])
+        toast.error('Aktion konnte nicht ausgeführt werden')
+        setMessages(prev => [...prev, { role: 'assistant', content: 'Aktion konnte nicht ausgeführt werden. Bitte versuche es erneut.', isError: true }])
       } else {
         setMessages(prev => [...prev, {
           role: 'assistant',
@@ -304,9 +308,10 @@ export default function ChatWidget({ embedded = false, onClose }) {
       }
     } catch (err) {
       setPendingAction(null)
+      toast.error('Verbindungsfehler')
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: `Fehler bei Ausfuehrung: ${err.message}`,
+        content: 'Verbindungsfehler. Bitte prüfe deine Internetverbindung.',
         isError: true,
       }])
     } finally {

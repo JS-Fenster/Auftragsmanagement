@@ -15,6 +15,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, User, FileText, Calendar, Shield, Briefcase, CreditCard, Phone, MapPin, Wrench, X, Plus, Trash2, Clock, Car, AlertTriangle, CheckCircle, Award, Truck } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { Link } from 'react-router-dom'
+import { toast } from 'sonner'
 
 // HARDCODE: Spaeter aus DB/Einstellungen — Backlog AM-149
 const ABTEILUNG_LABELS = {
@@ -1613,12 +1614,15 @@ export default function MitarbeiterDetail() {
         }
       }
       await Promise.all(adressenOps)
+      toast.success('Gespeichert')
+      setEditing(false)
+      load()
+    } catch (err) {
+      console.error('save failed:', err)
+      toast.error('Speichern fehlgeschlagen')
     } finally {
       setSaving(false)
     }
-
-    setEditing(false)
-    load()
   }
 
   if (loading) return <div className="flex items-center justify-center h-64 text-text-muted">Laden...</div>
