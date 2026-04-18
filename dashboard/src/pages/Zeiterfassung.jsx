@@ -6,7 +6,7 @@
  *   Abwesenheiten-Matrix mit Abteilungs-Gruppierung + Urlaubskonto,
  *   Jahresuebersicht pro MA
  */
-import { useState, useEffect, useCallback, useMemo, Fragment } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, Fragment } from 'react'
 import { Clock, List, CalendarOff, BarChart3, ExternalLink, Plus, ChevronLeft, ChevronRight, Coffee, LogIn, LogOut, Play, FileText, User } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -250,6 +250,7 @@ function TagesuebersichtTab() {
   const [viewMode, setViewMode] = useState('cards') // 'cards' | 'table'
   const [sortPreset, setSortPreset] = useState(() => localStorage.getItem('zeiterfassung_sort') || 'gf_first')
   const isToday = datum === toLocalDateStr(new Date())
+  const stempelInFlightRef = useRef(new Set())
 
   const handleSortChange = (preset) => { setSortPreset(preset); localStorage.setItem('zeiterfassung_sort', preset) }
 
@@ -264,9 +265,12 @@ function TagesuebersichtTab() {
   useEffect(() => { loadStempel() }, [loadStempel])
 
   const handleStempel = async (maId, typ) => {
+    if (stempelInFlightRef.current.has(maId)) return
+    stempelInFlightRef.current.add(maId)
     setStamping(maId)
     await supabase.from('zeitstempel').insert({ mitarbeiter_id: maId, zeitpunkt: new Date().toISOString(), typ, quelle: 'dashboard' })
     await loadStempel()
+    stempelInFlightRef.current.delete(maId)
     setStamping(null)
   }
 

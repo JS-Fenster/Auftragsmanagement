@@ -48,6 +48,15 @@ export default function ChatWidget({ embedded = false, onClose }) {
   const fileInputRef = useRef(null)
 
   useEffect(() => {
+    return () => {
+      if (abortRef.current) {
+        abortRef.current.abort()
+        abortRef.current = null
+      }
+    }
+  }, [])
+
+  useEffect(() => {
     if (isOpen && inputRef.current) {
       inputRef.current.focus()
     }
@@ -322,7 +331,15 @@ export default function ChatWidget({ embedded = false, onClose }) {
   }
 
   const clearChat = () => {
+    if (abortRef.current) {
+      abortRef.current.abort()
+      abortRef.current = null
+    }
     setMessages([])
+    setLoading(false)
+    setPendingAction(null)
+    setStagedImage(null)
+    setInput('')
   }
 
   // Floating Button (only in non-embedded mode)
@@ -369,7 +386,7 @@ export default function ChatWidget({ embedded = false, onClose }) {
         </div>
         <div className="flex items-center gap-1">
           {messages.length > 0 && (
-            <button onClick={clearChat} className="p-1.5 text-white/70 hover:text-white hover:bg-gray-600 rounded transition-colors" title="Chat leeren">
+            <button onClick={() => { if (window.confirm('Chat-Verlauf löschen?')) clearChat() }} className="p-1.5 text-white/70 hover:text-white hover:bg-gray-600 rounded transition-colors" title="Chat leeren">
               <Trash2 size={14} />
             </button>
           )}
@@ -378,7 +395,7 @@ export default function ChatWidget({ embedded = false, onClose }) {
               <Minimize2 size={14} />
             </button>
           )}
-          <button onClick={() => { if (embedded && onClose) onClose(); else { setIsOpen(false); setMessages([]) } }} className="p-1.5 text-white/70 hover:text-white hover:bg-gray-600 rounded transition-colors" title="Schließen">
+          <button onClick={() => { if (embedded && onClose) onClose(); else setIsOpen(false) }} className="p-1.5 text-white/70 hover:text-white hover:bg-gray-600 rounded transition-colors" title="Schließen">
             <X size={14} />
           </button>
         </div>
