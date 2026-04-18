@@ -195,6 +195,23 @@ Deno.serve(async (req: Request) => {
       data = validation.data;
     }
 
+    // Success-Filter auch fuer structured Payloads (source=nas/synology/backup)
+    // Ergaenzung zum Synology-native Filter weiter oben: beide Paths muessen
+    // success-only Meldungen raushalten. Bug: 2026-04-17 "Cloudbackup successful"
+    // landete in Bell weil structured Payload den native Filter umgangen hat.
+    if (data.source && /^(nas|synology|synology_.*|backup)/i.test(data.source)) {
+      const combined = `${data.title} ${data.body || ""}`;
+      const hasSuccess = /\b(successful|success|completed|finished)\b/i.test(combined);
+      const hasError = /\b(failed|failure|error|warning|critical|stopped|aborted|unable)\b/i.test(combined);
+      if (hasSuccess && !hasError) {
+        console.log(`[infra-alert] NAS/Synology success filtered (structured): ${data.title.substring(0, 100)}`);
+        return new Response(
+          JSON.stringify({ status: "filtered", reason: "success_message_structured" }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     console.log(
       `[infra-alert] ${data.source}: ${data.title} (${data.severity})`
     );
