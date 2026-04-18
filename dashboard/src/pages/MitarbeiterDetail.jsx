@@ -1550,70 +1550,24 @@ export default function MitarbeiterDetail() {
     setSaving(true)
 
     try {
-      // 1. Update personen
-      const personUpdate = { ...personForm }
-      delete personUpdate.id; delete personUpdate.created_at; delete personUpdate.updated_at
-      delete personUpdate.mitarbeiter_alt_id; delete personUpdate.w4a_kontakt_person_id
-      for (const k of Object.keys(personUpdate)) {
-        if (personUpdate[k] === '') personUpdate[k] = null
-      }
-      await supabase.from('personen').update(personUpdate).eq('id', person.id)
+      const zeichenSperre = (sperreAlteszeichen && oldZeichen) ? {
+        zeichen: oldZeichen,
+        grund: `Ehemaliges Zeichen von ${personForm.vorname} ${personForm.nachname}`,
+        ex_mitarbeiter_id: ma?.id || null,
+      } : null
 
-      // 1b. Altes Zeichen sperren (wenn User zugestimmt hat)
-      if (sperreAlteszeichen && oldZeichen) {
-        const { error: lockErr } = await supabase.from('zeichen_sperrliste').insert({
-          zeichen: oldZeichen,
-          grund: `Ehemaliges Zeichen von ${personForm.vorname} ${personForm.nachname}`,
-          quelle: 'historic',
-          ex_mitarbeiter_id: ma?.id || null,
-          gesperrt_ab: new Date().toISOString().slice(0, 10),
-        })
-        if (lockErr) console.warn('zeichen_sperrliste Insert fehlgeschlagen (evtl. schon gesperrt):', lockErr)
-        else BLOCKED_ZEICHEN.add(oldZeichen)
-      }
+      const { error } = await supabase.rpc('save_mitarbeiter_detail', {
+        p_person_id: person.id,
+        p_ma_daten_id: maDaten.id,
+        p_person: personForm,
+        p_ma_daten: maForm,
+        p_kontaktdaten: kontaktdaten,
+        p_adressen: adressen,
+        p_zeichen_sperre: zeichenSperre,
+      })
 
-      // 2. Update mitarbeiter_daten
-      const maUpdate = { ...maForm }
-      delete maUpdate.id; delete maUpdate.created_at; delete maUpdate.updated_at
-      delete maUpdate.person_id; delete maUpdate.mitarbeiter_alt_id
-      delete maUpdate.ressource_id; delete maUpdate.auth_user_id
-      delete maUpdate.vorgesetzter_id; delete maUpdate.urlaubsgenehmiger_id
-      for (const k of Object.keys(maUpdate)) {
-        if (maUpdate[k] === '') maUpdate[k] = null
-      }
-      await supabase.from('mitarbeiter_daten').update(maUpdate).eq('id', maDaten.id)
-
-      // 3. Save kontaktdaten (insert new, update existing, delete marked)
-      const kontaktOps = []
-      for (const k of kontaktdaten) {
-        if (k._deleted && k.id) {
-          kontaktOps.push(supabase.from('person_kontaktdaten').delete().eq('id', k.id))
-        } else if (k._new && !k._deleted) {
-          const { _new, ...row } = k
-          kontaktOps.push(supabase.from('person_kontaktdaten').insert({ ...row, person_id: person.id }))
-        } else if (k.id && !k._deleted) {
-          const { _new, _deleted, ...row } = k
-          delete row.created_at
-          kontaktOps.push(supabase.from('person_kontaktdaten').update(row).eq('id', k.id))
-        }
-      }
-      await Promise.all(kontaktOps)
-
-      // 4. Save adressen (insert new, update existing, delete marked)
-      const adressenOps = []
-      for (const a of adressen) {
-        if (a._deleted && a.id) {
-          adressenOps.push(supabase.from('person_adressen').delete().eq('id', a.id))
-        } else if (a._new && !a._deleted) {
-          const { _new, ...row } = a
-          adressenOps.push(supabase.from('person_adressen').insert({ ...row, person_id: person.id }))
-        } else if (a.id && !a._deleted) {
-          const { _new, _deleted, ...row } = a
-          delete row.created_at
-          adressenOps.push(supabase.from('person_adressen').update(row).eq('id', a.id))
-        }
-      }
-      await Promise.all(adressenOps)
+      if (error) throw error
+      if (zeichenSperre) BLOCKED_ZEICHEN.add(oldZeichen)
       toast.success('Gespeichert')
       setEditing(false)
       load()
