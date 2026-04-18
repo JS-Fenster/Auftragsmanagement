@@ -569,15 +569,11 @@ function StempelProtokollTab() {
 
   const handleKorrekturAction = async (korrekturId, action) => {
     const gfId = await getGfId()
-    await supabase.from('zeit_korrekturen').update({ status: action, genehmigt_von: gfId, genehmigt_am: new Date().toISOString() }).eq('id', korrekturId)
-    if (action === 'genehmigt') {
-      const k = korrekturen.find(k => k.id === korrekturId)
-      if (k) {
-        const upd = {}
-        if (k.neuer_zeitpunkt) upd.zeitpunkt = k.neuer_zeitpunkt
-        if (k.neuer_typ) upd.typ = k.neuer_typ
-        if (Object.keys(upd).length) { upd.quelle = 'korrektur'; await supabase.from('zeitstempel').update(upd).eq('id', k.zeitstempel_id) }
-      }
+    const { error } = await supabase.rpc('approve_correction', { p_korrektur_id: korrekturId, p_gf_id: gfId, p_action: action })
+    if (error) {
+      toast.error(action === 'genehmigt' ? 'Korrektur konnte nicht genehmigt werden' : 'Korrektur konnte nicht abgelehnt werden')
+    } else {
+      toast.success(action === 'genehmigt' ? 'Korrektur genehmigt' : 'Korrektur abgelehnt')
     }
     loadKorrekturen(); loadStempel()
   }
