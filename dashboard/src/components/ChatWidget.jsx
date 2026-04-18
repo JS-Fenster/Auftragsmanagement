@@ -183,7 +183,7 @@ export default function ChatWidget({ embedded = false, onClose }) {
     abortRef.current = controller
 
     // AM-197 JESS-P1a: User-JWT statt anon-Key -> Edge Function kann RLS-Policies respektieren
-    const { data: { session } } = await supabase.auth.getSession()
+    const { data: { session } } = await supabaseClient.auth.getSession()
     const accessToken = session?.access_token || supabaseAnonKey
 
     const resp = await fetch(LLM_CHAT_URL, {
