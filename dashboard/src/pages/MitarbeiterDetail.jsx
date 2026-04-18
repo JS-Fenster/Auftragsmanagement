@@ -1271,7 +1271,7 @@ function KontaktdatenSection({ kontaktdaten, setKontaktdaten, editing, personId 
         {kontaktdaten.map((k, idx) => {
           if (k._deleted) return null
           return (
-            <div key={k.id || `new-${idx}`} className="flex items-center gap-2">
+            <div key={k.id || `new-${idx}`} className="flex flex-wrap items-center gap-2">
               {editing ? (
                 <>
                   <select value={k.typ} onChange={e => updateRow(idx, 'typ', e.target.value)}
@@ -1281,7 +1281,7 @@ function KontaktdatenSection({ kontaktdaten, setKontaktdaten, editing, personId 
                     ))}
                   </select>
                   <input value={k.wert} onChange={e => updateRow(idx, 'wert', e.target.value)}
-                    placeholder="Wert (z.B. +49...)" className={inputCls + ' flex-1'} />
+                    placeholder="Wert (z.B. +49...)" className={inputCls + ' flex-1 min-w-[180px]'} />
                   <input value={k.label || ''} onChange={e => updateRow(idx, 'label', e.target.value)}
                     placeholder="z.B. Privat, Arbeit" className={inputCls + ' w-32 flex-shrink-0'} />
                   <label className="flex items-center gap-1 text-xs text-text-secondary flex-shrink-0 cursor-pointer">

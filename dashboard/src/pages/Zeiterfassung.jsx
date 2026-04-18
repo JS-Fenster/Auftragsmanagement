@@ -641,25 +641,36 @@ function StempelProtokollTab() {
             <div key={day}>
               <h3 className="text-xs font-semibold text-text-secondary mb-2 sticky top-0 bg-surface-main py-1">{formatDate(day + 'T12:00:00')}</h3>
               <div className="rounded-lg border border-border-default overflow-hidden">
-                <table className="w-full text-sm"><tbody>
+                <table className="w-full text-sm table-fixed">
+                  <colgroup>
+                    <col style={{ width: '80px' }} />
+                    <col style={{ width: '32px' }} />
+                    <col style={{ width: '140px' }} />
+                    <col style={{ width: '200px' }} />
+                    <col style={{ width: '200px' }} />
+                    <col />
+                    <col style={{ width: '90px' }} />
+                  </colgroup>
+                  <tbody>
                   {entries.map(s => {
                     const Icon = TYP_ICONS[s.typ] || Clock; const color = TYP_COLORS[s.typ] || '#6B7280'
                     return (
                       <tr key={s.id} className="border-t first:border-t-0 border-border-default hover:bg-surface-hover/50">
-                        <td className="px-4 py-2 w-20 text-right font-mono font-medium" style={{ color }}>{formatTime(s.zeitpunkt)}</td>
-                        <td className="px-3 py-2 w-8"><Icon size={14} style={{ color }} /></td>
-                        <td className="px-2 py-2 font-medium text-text-primary w-36">{TYP_LABELS[s.typ] || s.typ}</td>
-                        <td className="px-4 py-2 text-text-secondary">{s.mitarbeiter ? `${s.mitarbeiter.vorname} ${s.mitarbeiter.nachname}` : '-'}</td>
-                        <td className="px-4 py-2 text-xs text-text-muted">
+                        <td className="px-4 py-2 text-right font-mono font-medium" style={{ color }}>{formatTime(s.zeitpunkt)}</td>
+                        <td className="px-3 py-2"><Icon size={14} style={{ color }} /></td>
+                        <td className="px-2 py-2 font-medium text-text-primary truncate">{TYP_LABELS[s.typ] || s.typ}</td>
+                        <td className="px-4 py-2 text-text-secondary truncate">{s.mitarbeiter ? `${s.mitarbeiter.vorname} ${s.mitarbeiter.nachname}` : '-'}</td>
+                        <td className="px-4 py-2 text-xs text-text-muted truncate">
                           {QUELLE_LABELS[s.quelle] || s.quelle}
                           {s.quelle === 'nachgetragen' && <span className="ml-1 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-medium">Nachgetragen</span>}
                         </td>
-                        <td className="px-4 py-2 text-xs text-text-muted truncate max-w-[200px]">{s.notiz || ''}</td>
-                        <td className="px-2 py-2"><button onClick={() => openKorrektur(s)} className="text-[10px] text-text-muted hover:text-brand hover:underline">Korrektur</button></td>
+                        <td className="px-4 py-2 text-xs text-text-muted truncate">{s.notiz || ''}</td>
+                        <td className="px-2 py-2 text-right"><button onClick={() => openKorrektur(s)} className="text-[10px] text-text-muted hover:text-brand hover:underline">Korrektur</button></td>
                       </tr>
                     )
                   })}
-                </tbody></table>
+                  </tbody>
+                </table>
               </div>
             </div>
           ))}
