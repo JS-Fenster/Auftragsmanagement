@@ -47,13 +47,37 @@ function hostMatches(host: string, certName: string): boolean {
 
 type CrtResult = { kind: "ok"; expiry: Date } | { kind: "empty" } | { kind: "no_match" };
 
+async function crtShFetch(url: string): Promise<CrtShEntry[] | null> {
+  // 1x retry bei transient errors (crt.sh ist bekannt instabil).
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const resp = await fetch(url, { signal: AbortSignal.timeout(20000) });
+      if (resp.ok) return (await resp.json()) as CrtShEntry[];
+      // 5xx/timeout → als transient behandeln, NICHT throw.
+      if (resp.status >= 500 && attempt < 1) {
+        await new Promise(r => setTimeout(r, 2000));
+        continue;
+      }
+      // Non-2xx/non-5xx oder 5xx nach Retry → transient, skip (kein Cert-Fehler).
+      return null;
+    } catch (_err) {
+      // Timeout/Abort/Network → transient, retry once
+      if (attempt < 1) {
+        await new Promise(r => setTimeout(r, 2000));
+        continue;
+      }
+      return null;
+    }
+  }
+  return null;
+}
+
 async function fetchCrtShExpiry(host: string): Promise<CrtResult> {
   const url = `https://crt.sh/?q=${encodeURIComponent(host)}&output=json`;
-  const resp = await fetch(url, { signal: AbortSignal.timeout(20000) });
-  if (!resp.ok) throw new Error(`crt.sh HTTP ${resp.status}`);
-  const entries = (await resp.json()) as CrtShEntry[];
-  // Empty array = crt.sh rate-limited or temporary outage.
-  // Don't treat as error — keep existing expires_at, skip silently.
+  const entries = await crtShFetch(url);
+  // null = transient error (HTTP 5xx, timeout, network) → skip, keep existing expires_at
+  if (entries === null) return { kind: "empty" };
+  // Empty array = crt.sh rate-limited or no results → skip silently
   if (!Array.isArray(entries) || entries.length === 0) return { kind: "empty" };
 
   const now = Date.now();
