@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import {
   X, MapPin, Building2, AlertTriangle, Wrench, Star, Plus, Trash2,
-  Edit3, Save, Briefcase, ClipboardList, Receipt, Package, UserPlus
+  Edit3, Save, Briefcase, ClipboardList, Receipt, Package, UserPlus,
+  ChevronDown, ChevronRight, Landmark
 } from 'lucide-react'
 import {
   formatDate, formatEur, getDisplayName,
@@ -21,6 +22,12 @@ export default function KontaktDetailModal({ kontaktId, onClose }) {
   const [stammSaving, setStammSaving] = useState(false)
   const [addingDetailFor, setAddingDetailFor] = useState(null)
   const [addingPerson, setAddingPerson] = useState(false)
+
+  // Buchhaltung & Zahlung (Welle 1 Dokumentenkette)
+  const [buchhExpanded, setBuchhExpanded] = useState(false)
+  const [editBuchh, setEditBuchh] = useState(false)
+  const [buchhForm, setBuchhForm] = useState({})
+  const [buchhSaving, setBuchhSaving] = useState(false)
 
   // Related data
   const [relLoading, setRelLoading] = useState(true)
@@ -129,6 +136,52 @@ export default function KontaktDetailModal({ kontaktId, onClose }) {
     }).eq('id', kontakt.id)
     setStammSaving(false)
     setEditStamm(false)
+    loadKontakt()
+  }
+
+  // Buchhaltungs-Daten edit
+  const startEditBuchh = () => {
+    setBuchhForm({
+      ust_id: kontakt.ust_id || '',
+      steuernummer: kontakt.steuernummer || '',
+      iban: kontakt.iban || '',
+      bic: kontakt.bic || '',
+      bank_name: kontakt.bank_name || '',
+      kontoinhaber: kontakt.kontoinhaber || '',
+      debitoren_konto: kontakt.debitoren_konto || '',
+      kreditoren_konto: kontakt.kreditoren_konto || '',
+      default_zahlungsziel_tage: kontakt.default_zahlungsziel_tage ?? '',
+      default_skonto_prozent: kontakt.default_skonto_prozent ?? '',
+      default_skonto_tage: kontakt.default_skonto_tage ?? '',
+      leitweg_id: kontakt.leitweg_id || '',
+      rechnungs_email: kontakt.rechnungs_email || '',
+      bestell_email: kontakt.bestell_email || '',
+    })
+    setEditBuchh(true)
+  }
+
+  const saveBuchh = async () => {
+    setBuchhSaving(true)
+    const toNum = (v) => (v === '' || v == null) ? null : Number(v)
+    const toText = (v) => (v?.trim() || null)
+    await supabase.from('kontakte').update({
+      ust_id: toText(buchhForm.ust_id),
+      steuernummer: toText(buchhForm.steuernummer),
+      iban: toText(buchhForm.iban),
+      bic: toText(buchhForm.bic),
+      bank_name: toText(buchhForm.bank_name),
+      kontoinhaber: toText(buchhForm.kontoinhaber),
+      debitoren_konto: toText(buchhForm.debitoren_konto),
+      kreditoren_konto: toText(buchhForm.kreditoren_konto),
+      default_zahlungsziel_tage: toNum(buchhForm.default_zahlungsziel_tage),
+      default_skonto_prozent: toNum(buchhForm.default_skonto_prozent),
+      default_skonto_tage: toNum(buchhForm.default_skonto_tage),
+      leitweg_id: toText(buchhForm.leitweg_id),
+      rechnungs_email: toText(buchhForm.rechnungs_email),
+      bestell_email: toText(buchhForm.bestell_email),
+    }).eq('id', kontakt.id)
+    setBuchhSaving(false)
+    setEditBuchh(false)
     loadKontakt()
   }
 
@@ -282,6 +335,188 @@ export default function KontaktDetailModal({ kontaktId, onClose }) {
                 </div>
               )}
             </div>
+          )}
+        </div>
+
+        {/* Buchhaltung & Zahlung — kollabierbar */}
+        <div className="px-6 py-4 border-t border-border-light">
+          <div className="flex items-center justify-between mb-3">
+            <button
+              onClick={() => setBuchhExpanded(v => !v)}
+              className="flex items-center gap-2 text-sm font-semibold text-text-primary hover:text-brand transition-colors"
+            >
+              {buchhExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              <Landmark className="w-4 h-4 text-text-muted" />
+              Buchhaltung &amp; Zahlung
+              {!buchhExpanded && (kontakt.iban || kontakt.ust_id || kontakt.default_zahlungsziel_tage) && (
+                <span className="text-xs text-text-muted font-normal ml-1">(gepflegt)</span>
+              )}
+            </button>
+            {buchhExpanded && !editBuchh && (
+              <button onClick={startEditBuchh} className="flex items-center gap-1 text-xs text-brand hover:text-blue-800">
+                <Edit3 className="w-3.5 h-3.5" /> Bearbeiten
+              </button>
+            )}
+            {buchhExpanded && editBuchh && (
+              <div className="flex gap-2">
+                <button onClick={() => setEditBuchh(false)} className="text-xs text-text-secondary hover:text-text-primary">Abbrechen</button>
+                <button onClick={saveBuchh} disabled={buchhSaving}
+                  className="flex items-center gap-1 text-xs text-brand hover:text-blue-800 disabled:opacity-50">
+                  <Save className="w-3.5 h-3.5" /> {buchhSaving ? 'Speichere...' : 'Speichern'}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {buchhExpanded && (
+            editBuchh ? (
+              <div className="space-y-4">
+                {/* Steuer */}
+                <div>
+                  <p className="text-xs font-medium text-text-secondary uppercase tracking-wider mb-2">Steuer</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-text-secondary mb-1">USt-ID</label>
+                      <input value={buchhForm.ust_id} onChange={e => setBuchhForm(f => ({ ...f, ust_id: e.target.value }))}
+                        placeholder="DE123456789"
+                        className="w-full text-sm border border-border-default rounded px-3 py-1.5" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-text-secondary mb-1">Steuernummer</label>
+                      <input value={buchhForm.steuernummer} onChange={e => setBuchhForm(f => ({ ...f, steuernummer: e.target.value }))}
+                        className="w-full text-sm border border-border-default rounded px-3 py-1.5" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bankverbindung */}
+                <div>
+                  <p className="text-xs font-medium text-text-secondary uppercase tracking-wider mb-2">Bankverbindung</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs text-text-secondary mb-1">IBAN</label>
+                      <input value={buchhForm.iban} onChange={e => setBuchhForm(f => ({ ...f, iban: e.target.value.toUpperCase() }))}
+                        placeholder="DE12 3456 7890 1234 5678 90"
+                        className="w-full text-sm border border-border-default rounded px-3 py-1.5 font-mono" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-text-secondary mb-1">BIC</label>
+                      <input value={buchhForm.bic} onChange={e => setBuchhForm(f => ({ ...f, bic: e.target.value.toUpperCase() }))}
+                        className="w-full text-sm border border-border-default rounded px-3 py-1.5 font-mono" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-text-secondary mb-1">Bank</label>
+                      <input value={buchhForm.bank_name} onChange={e => setBuchhForm(f => ({ ...f, bank_name: e.target.value }))}
+                        placeholder="z.B. Sparkasse Amberg"
+                        className="w-full text-sm border border-border-default rounded px-3 py-1.5" />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs text-text-secondary mb-1">Kontoinhaber (falls abweichend)</label>
+                      <input value={buchhForm.kontoinhaber} onChange={e => setBuchhForm(f => ({ ...f, kontoinhaber: e.target.value }))}
+                        className="w-full text-sm border border-border-default rounded px-3 py-1.5" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Zahlungsbedingungen */}
+                <div>
+                  <p className="text-xs font-medium text-text-secondary uppercase tracking-wider mb-2">Zahlungsbedingungen (Default)</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs text-text-secondary mb-1">Zahlungsziel (Tage)</label>
+                      <input type="number" min="0" max="365"
+                        value={buchhForm.default_zahlungsziel_tage}
+                        onChange={e => setBuchhForm(f => ({ ...f, default_zahlungsziel_tage: e.target.value }))}
+                        placeholder="14"
+                        className="w-full text-sm border border-border-default rounded px-3 py-1.5" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-text-secondary mb-1">Skonto %</label>
+                      <input type="number" step="0.01" min="0" max="20"
+                        value={buchhForm.default_skonto_prozent}
+                        onChange={e => setBuchhForm(f => ({ ...f, default_skonto_prozent: e.target.value }))}
+                        placeholder="0.00"
+                        className="w-full text-sm border border-border-default rounded px-3 py-1.5" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-text-secondary mb-1">Skonto-Frist (Tage)</label>
+                      <input type="number" min="0" max="90"
+                        value={buchhForm.default_skonto_tage}
+                        onChange={e => setBuchhForm(f => ({ ...f, default_skonto_tage: e.target.value }))}
+                        placeholder="0"
+                        className="w-full text-sm border border-border-default rounded px-3 py-1.5" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* DATEV */}
+                <div>
+                  <p className="text-xs font-medium text-text-secondary uppercase tracking-wider mb-2">DATEV-Kontonummern</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-text-secondary mb-1">Debitoren-Konto (Kunden)</label>
+                      <input value={buchhForm.debitoren_konto} onChange={e => setBuchhForm(f => ({ ...f, debitoren_konto: e.target.value }))}
+                        placeholder="z.B. 10000-69999"
+                        className="w-full text-sm border border-border-default rounded px-3 py-1.5 font-mono" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-text-secondary mb-1">Kreditoren-Konto (Lieferant)</label>
+                      <input value={buchhForm.kreditoren_konto} onChange={e => setBuchhForm(f => ({ ...f, kreditoren_konto: e.target.value }))}
+                        placeholder="z.B. 70000-99999"
+                        className="w-full text-sm border border-border-default rounded px-3 py-1.5 font-mono" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Kommunikation */}
+                <div>
+                  <p className="text-xs font-medium text-text-secondary uppercase tracking-wider mb-2">E-Rechnung &amp; Kommunikation</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-text-secondary mb-1">Rechnungs-Email</label>
+                      <input type="email" value={buchhForm.rechnungs_email}
+                        onChange={e => setBuchhForm(f => ({ ...f, rechnungs_email: e.target.value }))}
+                        placeholder="buchhaltung@..."
+                        className="w-full text-sm border border-border-default rounded px-3 py-1.5" />
+                    </div>
+                    {kontakt.ist_lieferant && (
+                      <div>
+                        <label className="block text-xs text-text-secondary mb-1">Bestell-Email</label>
+                        <input type="email" value={buchhForm.bestell_email}
+                          onChange={e => setBuchhForm(f => ({ ...f, bestell_email: e.target.value }))}
+                          placeholder="einkauf@..."
+                          className="w-full text-sm border border-border-default rounded px-3 py-1.5" />
+                      </div>
+                    )}
+                    <div className={kontakt.ist_lieferant ? '' : 'sm:col-span-2'}>
+                      <label className="block text-xs text-text-secondary mb-1">Leitweg-ID (E-Rechnung B2G)</label>
+                      <input value={buchhForm.leitweg_id}
+                        onChange={e => setBuchhForm(f => ({ ...f, leitweg_id: e.target.value }))}
+                        placeholder="991-XXXXX-XX"
+                        className="w-full text-sm border border-border-default rounded px-3 py-1.5 font-mono" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                {kontakt.ust_id && <div><span className="text-text-secondary">USt-ID:</span> <span className="text-text-primary font-mono">{kontakt.ust_id}</span></div>}
+                {kontakt.steuernummer && <div><span className="text-text-secondary">Steuernr.:</span> <span className="text-text-primary font-mono">{kontakt.steuernummer}</span></div>}
+                {kontakt.iban && <div className="sm:col-span-2"><span className="text-text-secondary">IBAN:</span> <span className="text-text-primary font-mono">{kontakt.iban}</span>{kontakt.bic && <span className="text-text-muted ml-2 font-mono">BIC {kontakt.bic}</span>}</div>}
+                {kontakt.bank_name && <div><span className="text-text-secondary">Bank:</span> <span className="text-text-primary">{kontakt.bank_name}</span></div>}
+                {kontakt.kontoinhaber && <div><span className="text-text-secondary">Inhaber:</span> <span className="text-text-primary">{kontakt.kontoinhaber}</span></div>}
+                {kontakt.default_zahlungsziel_tage != null && <div><span className="text-text-secondary">Zahlungsziel:</span> <span className="text-text-primary">{kontakt.default_zahlungsziel_tage} Tage</span></div>}
+                {kontakt.default_skonto_prozent != null && kontakt.default_skonto_prozent > 0 && <div><span className="text-text-secondary">Skonto:</span> <span className="text-text-primary">{kontakt.default_skonto_prozent}% / {kontakt.default_skonto_tage} Tage</span></div>}
+                {kontakt.debitoren_konto && <div><span className="text-text-secondary">Debitor:</span> <span className="text-text-primary font-mono">{kontakt.debitoren_konto}</span></div>}
+                {kontakt.kreditoren_konto && <div><span className="text-text-secondary">Kreditor:</span> <span className="text-text-primary font-mono">{kontakt.kreditoren_konto}</span></div>}
+                {kontakt.rechnungs_email && <div className="sm:col-span-2"><span className="text-text-secondary">Rechnungs-Email:</span> <span className="text-text-primary">{kontakt.rechnungs_email}</span></div>}
+                {kontakt.bestell_email && <div className="sm:col-span-2"><span className="text-text-secondary">Bestell-Email:</span> <span className="text-text-primary">{kontakt.bestell_email}</span></div>}
+                {kontakt.leitweg_id && <div><span className="text-text-secondary">Leitweg-ID:</span> <span className="text-text-primary font-mono">{kontakt.leitweg_id}</span></div>}
+                {!kontakt.ust_id && !kontakt.iban && !kontakt.default_zahlungsziel_tage && !kontakt.debitoren_konto && !kontakt.rechnungs_email && (
+                  <div className="sm:col-span-2 text-text-muted italic">Noch keine Buchhaltungsdaten gepflegt — "Bearbeiten" klicken zum Hinzufügen.</div>
+                )}
+              </div>
+            )
           )}
         </div>
 
