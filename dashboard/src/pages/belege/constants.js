@@ -174,6 +174,22 @@ export async function generateBelegNummer(typ) {
 }
 
 /**
+ * Kontakt-Defaults laden (Welle 2 Etappe 5)
+ * Liefert Empfänger-Felder + Zahlungs-Defaults aus kontakte-Tabelle.
+ * Verwendung: Bei Kunden-Auswahl im BelegFormular oder als saveBeleg-Fallback.
+ */
+export async function loadKontaktDefaults(kontaktId) {
+  if (!kontaktId) return null
+  const { data, error } = await supabase
+    .from('kontakte')
+    .select('id, firma1, strasse, plz, ort, ust_id, leitweg_id, rechnungs_email, bestell_email, default_zahlungsziel_tage, default_skonto_prozent, default_skonto_tage, ist_privatkunde, ist_bauleister')
+    .eq('id', kontaktId)
+    .maybeSingle()
+  if (error || !data) return null
+  return data
+}
+
+/**
  * Beleg speichern (Insert oder Update) inkl. Positionen
  */
 export async function saveBeleg(beleg, positionen) {
@@ -189,6 +205,36 @@ export async function saveBeleg(beleg, positionen) {
       beleg.beleg_nummer = echteNr
     }
     // Bei Fehler: TEMP-Nummer bleibt bestehen, pg_cron heilt später
+  }
+
+  // Freeze-Check (Welle 2 Etappe 5): Bei UPDATE prüfen ob Beleg bereits eingefroren.
+  // Trigger fn_block_update_if_frozen blockt sowieso, aber lieber früh mit sauberer Meldung.
+  if (!isNew) {
+    const { data: existing } = await supabase
+      .from('belege')
+      .select('ist_eingefroren')
+      .eq('id', beleg.id)
+      .maybeSingle()
+    if (existing?.ist_eingefroren) {
+      return { error: { message: 'Beleg ist bereits an die Buchhaltung übermittelt (eingefroren) und kann nicht mehr geändert werden. Nutze Storno/Gutschrift für Korrekturen.' } }
+    }
+  }
+
+  // Kontakt-Defaults-Loader (Welle 2 Etappe 5): Bei neuem Beleg + Empfänger-Kontakt
+  // ungefüllte Felder aus kontakte ziehen. Überschreibt keine User-Eingaben.
+  if (isNew && beleg.empfaenger_kontakt_id) {
+    const kontakt = await loadKontaktDefaults(beleg.empfaenger_kontakt_id)
+    if (kontakt) {
+      if (!beleg.empfaenger_email)                   beleg.empfaenger_email = kontakt.rechnungs_email || null
+      if (!beleg.empfaenger_ust_id)                  beleg.empfaenger_ust_id = kontakt.ust_id || null
+      if (!beleg.leitweg_id)                         beleg.leitweg_id = kontakt.leitweg_id || null
+      if (beleg.zahlungsziel_tage == null || beleg.zahlungsziel_tage === 14) {
+        beleg.zahlungsziel_tage = kontakt.default_zahlungsziel_tage ?? 14
+      }
+      if (!beleg.skonto_prozent)                     beleg.skonto_prozent = kontakt.default_skonto_prozent ?? 0
+      if (!beleg.skonto_tage)                        beleg.skonto_tage = kontakt.default_skonto_tage ?? 0
+      if (beleg.empfaenger_ist_privatperson == null) beleg.empfaenger_ist_privatperson = !!kontakt.ist_privatkunde
+    }
   }
 
   // Summen berechnen
@@ -209,6 +255,26 @@ export async function saveBeleg(beleg, positionen) {
     empfaenger_strasse: beleg.empfaenger_strasse || null,
     empfaenger_plz: beleg.empfaenger_plz || null,
     empfaenger_ort: beleg.empfaenger_ort || null,
+    // Welle 2 Etappe 4.5: Empfänger-Erweiterung
+    empfaenger_email: beleg.empfaenger_email || null,
+    empfaenger_telefon: beleg.empfaenger_telefon || null,
+    empfaenger_ust_id: beleg.empfaenger_ust_id || null,
+    empfaenger_ansprechpartner_name: beleg.empfaenger_ansprechpartner_name || null,
+    empfaenger_ist_privatperson: beleg.empfaenger_ist_privatperson ?? null,
+    ist_erechnung: beleg.ist_erechnung ?? false,
+    leitweg_id: beleg.leitweg_id || null,
+    // Welle 2 Etappe 4.5: MUSS-10-Felder
+    unser_zeichen: beleg.unser_zeichen || null,
+    ihr_zeichen: beleg.ihr_zeichen || null,
+    kommission: beleg.kommission || null,
+    leistungszeitraum_von: beleg.leistungszeitraum_von || null,
+    leistungszeitraum_bis: beleg.leistungszeitraum_bis || null,
+    geplanter_liefertermin: beleg.geplanter_liefertermin || null,
+    tatsaechlicher_liefertermin: beleg.tatsaechlicher_liefertermin || null,
+    verantwortlicher_mitarbeiter_id: beleg.verantwortlicher_mitarbeiter_id || null,
+    eigene_bankverbindung_id: beleg.eigene_bankverbindung_id || null,
+    interne_notiz: beleg.interne_notiz || null,
+    // Bestehende Felder
     betreff: beleg.betreff || null,
     einleitungstext: beleg.einleitungstext || null,
     schlusstext: beleg.schlusstext || null,
@@ -257,6 +323,15 @@ export async function saveBeleg(beleg, positionen) {
       hoehe: p.hoehe ? parseFloat(p.hoehe) : null,
       gruppe: p.gruppe || null,
       sort_order: idx,
+      // Welle 2 Etappe 4.5: Hierarchie + BOM-Vorbereitung
+      parent_position_id: p.parent_position_id || null,
+      ist_summenzeile: !!p.ist_summenzeile,
+      ist_versteckt: !!p.ist_versteckt,
+      artikel_id: p.artikel_id || null,
+      leistungsart: p.leistungsart || null,
+      steuer_tatbestand_id: p.steuer_tatbestand_id || null,
+      rabatt_prozent: parseFloat(p.rabatt_prozent) || 0,
+      rabatt_betrag: parseFloat(p.rabatt_betrag) || 0,
     }))
 
     const posResult = await supabase.from('beleg_positionen').insert(posData)
