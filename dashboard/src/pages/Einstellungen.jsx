@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { format, formatDistanceToNow } from 'date-fns'
 import { de } from 'date-fns/locale'
-import { Plus, X, Save, Trash2, Settings2, Mail, Database, BookOpen, CheckCircle, XCircle, AlertCircle, Clock, Edit2 } from 'lucide-react'
+import { Plus, X, Save, Trash2, Settings2, Mail, Database, BookOpen, CheckCircle, XCircle, AlertCircle, Clock, Edit2, FileText } from 'lucide-react'
+import DokumentenketteTab from './einstellungen/DokumentenketteTab'
 
 // ---------------------------------------------------------------------------
 // Reusable OptionEditor – CRUD for einstellungen_optionen with given kategorie
@@ -358,6 +359,7 @@ function SystemTab() {
 const TABS = [
   { key: 'auftragstypen', label: 'Auftragstypen', icon: BookOpen },
   { key: 'kundentypen', label: 'Kundentypen', icon: BookOpen },
+  { key: 'dokumentenkette', label: 'Dokumentenkette', icon: FileText },
   { key: 'email', label: 'E-Mail Subscriptions', icon: Mail },
   { key: 'system', label: 'System', icon: Database },
 ]
@@ -407,6 +409,7 @@ export default function Einstellungen() {
       <div>
         {activeTab === 'auftragstypen' && <OptionEditor kategorie="auftragstyp" label="Auftragstypen" />}
         {activeTab === 'kundentypen' && <OptionEditor kategorie="kundentyp" label="Kundentypen" />}
+        {activeTab === 'dokumentenkette' && <DokumentenketteTab />}
         {activeTab === 'email' && <EmailSubscriptions />}
         {activeTab === 'system' && <SystemTab />}
       </div>
