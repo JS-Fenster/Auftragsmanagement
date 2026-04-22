@@ -521,8 +521,10 @@ export default function KontaktDetailModal({ kontaktId, onClose }) {
           )}
         </div>
 
-        {/* Bescheinigungen (§48b / USt-1-TG / NATO) */}
-        <BescheinigungenBlock kontaktId={kontakt.id} />
+        {/* Bescheinigungen (§48b / USt-1-TG / NATO) — nur bei Geschäftskunden, Privat nie relevant */}
+        {!kontakt.ist_privatkunde && (
+          <BescheinigungenBlock kontaktId={kontakt.id} istBauleister={!!kontakt.ist_bauleister} />
+        )}
 
         {/* Kontaktpersonen */}
         <div className="px-6 py-4 border-t border-border-light">

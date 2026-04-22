@@ -232,12 +232,14 @@ function BescheinigungRow({ b, onEdit, onDelete }) {
   )
 }
 
-export default function BescheinigungenBlock({ kontaktId }) {
-  const [expanded, setExpanded] = useState(true)
+export default function BescheinigungenBlock({ kontaktId, istBauleister = false }) {
   const [bescheinigungen, setBescheinigungen] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState(null)
+  // Default-expanded: nur wenn Bescheinigungen vorhanden oder als Bauleister markiert.
+  // Sonst collapsed, nimmt keinen Platz weg beim stinknormalen Geschäftskunden ohne Bauleister-Eigenschaft.
+  const [expanded, setExpanded] = useState(istBauleister)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -246,7 +248,11 @@ export default function BescheinigungenBlock({ kontaktId }) {
       .select('*')
       .eq('kontakt_id', kontaktId)
       .order('gueltig_bis', { ascending: false })
-    if (!error) setBescheinigungen(data || [])
+    if (!error) {
+      setBescheinigungen(data || [])
+      // Auto-expand wenn Bescheinigungen gefunden
+      if ((data || []).length > 0) setExpanded(true)
+    }
     setLoading(false)
   }, [kontaktId])
 
