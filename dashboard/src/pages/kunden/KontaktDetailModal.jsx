@@ -13,6 +13,7 @@ import {
 import ExpandableSection from './ExpandableSection'
 import AddDetailForm from './AddDetailForm'
 import AddPersonForm from './AddPersonForm'
+import BescheinigungenBlock from './BescheinigungenBlock'
 
 export default function KontaktDetailModal({ kontaktId, onClose }) {
   const [kontakt, setKontakt] = useState(null)
@@ -519,6 +520,9 @@ export default function KontaktDetailModal({ kontaktId, onClose }) {
             )
           )}
         </div>
+
+        {/* Bescheinigungen (§48b / USt-1-TG / NATO) */}
+        <BescheinigungenBlock kontaktId={kontakt.id} />
 
         {/* Kontaktpersonen */}
         <div className="px-6 py-4 border-t border-border-light">
