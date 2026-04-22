@@ -6,9 +6,10 @@
  *   - Steuertatbestände: pro Code editieren (Satz, Bagatellgrenze, PDF-Hinweis)
  *   - Eigene Bankverbindungen: CRUD (Volksbank + weitere)
  */
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Plus, Trash2, Edit2, Save, X, Hash, Percent, Landmark } from 'lucide-react'
+import { Plus, Trash2, Edit2, Save, X, Hash, Percent, Landmark, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { validateIBAN, validateBIC, normalizeIBAN, formatIBAN } from '../../lib/bankValidation'
 
 const SUBTABS = [
   { key: 'nummernkreise',       label: 'Nummernkreise',      icon: Hash },
@@ -288,17 +289,29 @@ function BankverbindungenPanel() {
 
   const startEdit = (row) => {
     setEditingId(row.id)
-    setEditForm({ ...row })
+    setEditForm({ ...row, iban: formatIBAN(row.iban || ''), bic: (row.bic || '').toUpperCase() })
   }
   const newRow = () => {
     setEditingId('new')
     setEditForm({ bezeichnung: '', bank_name: '', iban: '', bic: '', kontoinhaber: 'JS Fenster & Tueren GmbH', aktiv: true, ist_default: false, sort_order: (rows.length + 1) * 10 })
   }
+
+  // Live-Validation — memoized, läuft bei jedem Keystroke
+  const ibanCheck = useMemo(() => editForm.iban ? validateIBAN(editForm.iban) : null, [editForm.iban])
+  const bicCheck  = useMemo(() => editForm.bic  ? validateBIC(editForm.bic)   : null, [editForm.bic])
+  const canSave = (!editForm.iban || ibanCheck?.valid) && (!editForm.bic || bicCheck?.valid) && editForm.bezeichnung && editForm.bank_name
+
   const save = async () => {
+    // IBAN normalisieren (ohne Leerzeichen) für DB
+    const payload = {
+      ...editForm,
+      iban: editForm.iban ? normalizeIBAN(editForm.iban) : null,
+      bic:  editForm.bic  ? editForm.bic.replace(/\s+/g, '').toUpperCase() : null,
+    }
     if (editingId === 'new') {
-      await supabase.from('eigene_bankverbindungen').insert(editForm)
+      await supabase.from('eigene_bankverbindungen').insert(payload)
     } else {
-      await supabase.from('eigene_bankverbindungen').update(editForm).eq('id', editingId)
+      await supabase.from('eigene_bankverbindungen').update(payload).eq('id', editingId)
     }
     setEditingId(null)
     load()
@@ -316,14 +329,64 @@ function BankverbindungenPanel() {
     <tr className="bg-blue-50 border-b border-border-default">
       <td className="py-2 pr-3"><input value={editForm.bezeichnung} onChange={e => setEditForm({ ...editForm, bezeichnung: e.target.value })} placeholder="z.B. Volksbank Amberg" className="px-2 py-1 border rounded text-sm w-full" /></td>
       <td className="py-2 pr-3"><input value={editForm.bank_name} onChange={e => setEditForm({ ...editForm, bank_name: e.target.value })} className="px-2 py-1 border rounded text-sm w-full" /></td>
-      <td className="py-2 pr-3"><input value={editForm.iban || ''} onChange={e => setEditForm({ ...editForm, iban: e.target.value })} placeholder="DE…" className="px-2 py-1 border rounded text-sm w-full font-mono" /></td>
-      <td className="py-2 pr-3"><input value={editForm.bic || ''} onChange={e => setEditForm({ ...editForm, bic: e.target.value })} className="px-2 py-1 border rounded text-sm w-full font-mono" /></td>
+      <td className="py-2 pr-3">
+        <div className="relative">
+          <input
+            value={editForm.iban || ''}
+            onChange={e => setEditForm({ ...editForm, iban: e.target.value.toUpperCase() })}
+            onBlur={e => setEditForm({ ...editForm, iban: formatIBAN(e.target.value) })}
+            placeholder="DE89 3704 0044 0532 0130 00"
+            className={`px-2 py-1 border rounded text-sm w-full font-mono pr-7 ${
+              !editForm.iban ? '' : ibanCheck?.valid ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'
+            }`}
+          />
+          {editForm.iban && (
+            <span className="absolute right-2 top-1/2 -translate-y-1/2">
+              {ibanCheck?.valid
+                ? <CheckCircle2 className="h-4 w-4 text-green-600" />
+                : <AlertCircle className="h-4 w-4 text-red-600" />}
+            </span>
+          )}
+        </div>
+        {editForm.iban && !ibanCheck?.valid && (
+          <p className="text-xs text-red-600 mt-1">{ibanCheck?.error}</p>
+        )}
+      </td>
+      <td className="py-2 pr-3">
+        <div className="relative">
+          <input
+            value={editForm.bic || ''}
+            onChange={e => setEditForm({ ...editForm, bic: e.target.value.toUpperCase() })}
+            placeholder="COBADEFFXXX"
+            className={`px-2 py-1 border rounded text-sm w-full font-mono pr-7 ${
+              !editForm.bic ? '' : bicCheck?.valid ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'
+            }`}
+          />
+          {editForm.bic && (
+            <span className="absolute right-2 top-1/2 -translate-y-1/2">
+              {bicCheck?.valid
+                ? <CheckCircle2 className="h-4 w-4 text-green-600" />
+                : <AlertCircle className="h-4 w-4 text-red-600" />}
+            </span>
+          )}
+        </div>
+        {editForm.bic && !bicCheck?.valid && (
+          <p className="text-xs text-red-600 mt-1">{bicCheck?.error}</p>
+        )}
+      </td>
       <td className="py-2 pr-3"><input value={editForm.kontoinhaber} onChange={e => setEditForm({ ...editForm, kontoinhaber: e.target.value })} className="px-2 py-1 border rounded text-sm w-full" /></td>
       <td className="py-2 pr-3 text-center"><input type="checkbox" checked={editForm.ist_default} onChange={e => setEditForm({ ...editForm, ist_default: e.target.checked })} /></td>
       <td className="py-2 pr-3 text-center"><input type="checkbox" checked={editForm.aktiv} onChange={e => setEditForm({ ...editForm, aktiv: e.target.checked })} /></td>
       <td className="py-2 text-right">
         <div className="flex gap-1 justify-end">
-          <button onClick={save} className="p-1.5 text-green-600 hover:bg-green-50 rounded"><Save className="h-4 w-4" /></button>
+          <button
+            onClick={save}
+            disabled={!canSave}
+            className="p-1.5 text-green-600 hover:bg-green-50 rounded disabled:opacity-40 disabled:cursor-not-allowed"
+            title={canSave ? 'Speichern' : 'IBAN/BIC ungültig oder Pflichtfeld leer'}
+          >
+            <Save className="h-4 w-4" />
+          </button>
           <button onClick={() => setEditingId(null)} className="p-1.5 text-text-muted hover:bg-surface-hover rounded"><X className="h-4 w-4" /></button>
         </div>
       </td>
