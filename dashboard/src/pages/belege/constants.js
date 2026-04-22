@@ -162,7 +162,7 @@ export function calculateBelegSummen(positionen, rabattProzent = 0, mwstSatz = 1
  * Naechste Belegnummer via RPC generieren
  */
 export async function generateBelegNummer(typ) {
-  const { data, error } = await supabase.rpc('next_beleg_nummer', { p_typ: typ })
+  const { data, error } = await supabase.rpc('next_nummer', { p_typ: typ })
   if (error) {
     console.error('Fehler bei Belegnummer-Generierung:', error)
     // Fallback: Timestamp-basiert
