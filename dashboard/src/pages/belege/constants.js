@@ -179,6 +179,18 @@ export async function generateBelegNummer(typ) {
 export async function saveBeleg(beleg, positionen) {
   const isNew = !beleg.id
 
+  // Save-Time-Heilung: Wenn beleg_nummer eine TEMP-Nummer ist (Fallback bei RPC-Fehler
+  // in generateBelegNummer), versuche sie durch eine echte Nummer zu ersetzen.
+  // Funktioniert sobald Netz/DB wieder da ist. Safety-Net: pg_cron heal_temp_beleg_nummern
+  // läuft zusätzlich alle 15 min falls Beleg nie wieder geöffnet wird.
+  if (beleg.beleg_nummer && beleg.beleg_nummer.includes('-TEMP')) {
+    const { data: echteNr, error: heilErr } = await supabase.rpc('next_nummer', { p_typ: beleg.beleg_typ })
+    if (!heilErr && echteNr) {
+      beleg.beleg_nummer = echteNr
+    }
+    // Bei Fehler: TEMP-Nummer bleibt bestehen, pg_cron heilt später
+  }
+
   // Summen berechnen
   const summen = calculateBelegSummen(positionen, beleg.rabatt_prozent, beleg.mwst_satz)
 
