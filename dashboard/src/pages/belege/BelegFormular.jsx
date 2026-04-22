@@ -1,20 +1,32 @@
 /**
  * BelegFormular — Hauptformular fuer Beleg-Erstellung/-Bearbeitung
  *
- * Beinhaltet: Kopfdaten, Empfänger, Texte, Positionen, Zusammenfassung
- * Verwendet: BelegPositionenEditor, KundenSuchModal
+ * Tab-Layout (Welle 2 Etappe 6.1 — 2026-04-22):
+ *   Übersicht / Empfänger / Positionen / Texte / Zahlung / Vorschau & Aktion
+ * Oben Kern-Info-Leiste (Nummer · Typ · Status · Kunde · Brutto) permanent sichtbar.
+ *
+ * Verwendet: BelegPositionenEditor, BelegZahlungen, KundenSuchModal
  */
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Save, Loader2, Search, X, ChevronDown } from 'lucide-react'
+import { Save, Loader2, Search, FileText, User, List, AlignLeft, CreditCard, Eye } from 'lucide-react'
 import BelegPositionenEditor from './BelegPositionenEditor'
 import BelegZahlungen from './BelegZahlungen'
 import { KundenSuchModal } from '../budgetangebot/KundenSuche'
 import {
-  BELEG_TYPEN, BELEG_STATUS, BELEG_EINHEITEN, MWST_OPTIONEN, MWST_STANDARD,
+  BELEG_TYPEN, BELEG_STATUS, MWST_OPTIONEN, MWST_STANDARD,
   DEFAULT_TEXTE, formatEuro, calculateBelegSummen, generateBelegNummer, saveBeleg
 } from './constants'
 
 const RECHNUNGSTYPEN = ['rechnung', 'abschlagsrechnung', 'schlussrechnung', 'gutschrift']
+
+const TABS = [
+  { id: 'uebersicht', label: 'Übersicht',  icon: FileText },
+  { id: 'empfaenger', label: 'Empfänger',  icon: User },
+  { id: 'positionen', label: 'Positionen', icon: List },
+  { id: 'texte',      label: 'Texte',      icon: AlignLeft },
+  { id: 'zahlung',    label: 'Zahlung',    icon: CreditCard },
+  { id: 'vorschau',   label: 'Vorschau & Aktion', icon: Eye },
+]
 
 export default function BelegFormular({ beleg, positionen: initialPositionen, onSaved, onCancel }) {
   // ── State ────────────────────────────────────────────────
@@ -54,6 +66,7 @@ export default function BelegFormular({ beleg, positionen: initialPositionen, on
   const [showKundenSuche, setShowKundenSuche] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  const [activeTab, setActiveTab] = useState('uebersicht')
 
   // ── Belegnummer generieren (nur bei neuen Belegen) ────────
   useEffect(() => {
@@ -121,359 +134,423 @@ export default function BelegFormular({ beleg, positionen: initialPositionen, on
   const update = (field, value) => setFormData(prev => ({ ...prev, [field]: value }))
   const isRechnungstyp = RECHNUNGSTYPEN.includes(formData.beleg_typ)
 
+  // Kern-Info-Leiste: Empfänger-Kompakt-Label
+  const empfaengerLabel = formData.empfaenger_firma || formData.empfaenger_name || '—'
+  const statusLabel = BELEG_STATUS[formData.status]?.label || formData.status
+  const typLabel = BELEG_TYPEN[formData.beleg_typ]?.label || formData.beleg_typ
+
   // ── Render ────────────────────────────────────────────────
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
 
-      {/* Kopfdaten */}
-      <div className="bg-surface-card rounded-lg shadow-sm border border-border-default">
-        <div className="px-5 py-3 border-b border-border-default">
-          <h2 className="font-semibold text-text-primary">Kopfdaten</h2>
+      {/* Kern-Info-Leiste (sticky) */}
+      <div className="bg-surface-card rounded-lg shadow-sm border border-border-default px-5 py-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+        <div>
+          <span className="text-xs text-text-muted block">Beleg-Nr.</span>
+          <span className="font-semibold text-text-primary">{formData.beleg_nummer || '—'}</span>
         </div>
-        <div className="p-5 grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div>
-            <label className="text-xs font-medium text-text-secondary">Belegtyp *</label>
-            <select
-              value={formData.beleg_typ}
-              onChange={e => handleTypChange(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-            >
-              {Object.entries(BELEG_TYPEN).map(([k, v]) => (
-                <option key={k} value={k}>{v.label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-medium text-text-secondary">Beleg-Nr.</label>
-            <input
-              type="text"
-              value={formData.beleg_nummer}
-              onChange={e => update('beleg_nummer', e.target.value)}
-              className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm bg-surface-main focus:outline-none focus:ring-2 focus:ring-brand"
-              readOnly
-            />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-text-secondary">Datum *</label>
-            <input
-              type="date"
-              value={formData.datum}
-              onChange={e => update('datum', e.target.value)}
-              className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-text-secondary">Status</label>
-            <select
-              value={formData.status}
-              onChange={e => update('status', e.target.value)}
-              className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-            >
-              {Object.entries(BELEG_STATUS).map(([k, v]) => (
-                <option key={k} value={k}>{v.label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-medium text-text-secondary">Betreff</label>
-            <input
-              type="text"
-              value={formData.betreff}
-              onChange={e => update('betreff', e.target.value)}
-              className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-              placeholder="z.B. Fensteraustausch EG"
-            />
-          </div>
-          {formData.beleg_typ === 'angebot' && (
-            <div>
-              <label className="text-xs font-medium text-text-secondary">Gueltig bis</label>
-              <input
-                type="date"
-                value={formData.gueltig_bis}
-                onChange={e => update('gueltig_bis', e.target.value)}
-                className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-              />
+        <div>
+          <span className="text-xs text-text-muted block">Typ</span>
+          <span className="font-medium">{typLabel}</span>
+        </div>
+        <div>
+          <span className="text-xs text-text-muted block">Status</span>
+          <span className="font-medium">{statusLabel}</span>
+        </div>
+        <div className="flex-1 min-w-[150px]">
+          <span className="text-xs text-text-muted block">Empfänger</span>
+          <span className="font-medium truncate">{empfaengerLabel}</span>
+        </div>
+        <div className="text-right">
+          <span className="text-xs text-text-muted block">Brutto</span>
+          <span className="font-bold text-text-primary">{formatEuro(summen.brutto_summe)}</span>
+        </div>
+      </div>
+
+      {/* Tab-Navigation */}
+      <div className="bg-surface-card rounded-lg shadow-sm border border-border-default">
+        <div className="border-b border-border-default flex overflow-x-auto">
+          {TABS.map(tab => {
+            const Icon = tab.icon
+            const isActive = activeTab === tab.id
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
+                  isActive
+                    ? 'text-brand border-brand'
+                    : 'text-text-secondary border-transparent hover:text-text-primary hover:bg-surface-hover'
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                {tab.label}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Tab-Inhalt */}
+        <div className="p-5">
+
+          {/* Tab: Übersicht */}
+          {activeTab === 'uebersicht' && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <label className="text-xs font-medium text-text-secondary">Belegtyp *</label>
+                <select
+                  value={formData.beleg_typ}
+                  onChange={e => handleTypChange(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                >
+                  {Object.entries(BELEG_TYPEN).map(([k, v]) => (
+                    <option key={k} value={k}>{v.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-text-secondary">Beleg-Nr.</label>
+                <input
+                  type="text"
+                  value={formData.beleg_nummer}
+                  onChange={e => update('beleg_nummer', e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm bg-surface-main focus:outline-none focus:ring-2 focus:ring-brand"
+                  readOnly
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-text-secondary">Datum *</label>
+                <input
+                  type="date"
+                  value={formData.datum}
+                  onChange={e => update('datum', e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-text-secondary">Status</label>
+                <select
+                  value={formData.status}
+                  onChange={e => update('status', e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                >
+                  {Object.entries(BELEG_STATUS).map(([k, v]) => (
+                    <option key={k} value={k}>{v.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="md:col-span-2">
+                <label className="text-xs font-medium text-text-secondary">Betreff</label>
+                <input
+                  type="text"
+                  value={formData.betreff}
+                  onChange={e => update('betreff', e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                  placeholder="z.B. Fensteraustausch EG"
+                />
+              </div>
+              {formData.beleg_typ === 'angebot' && (
+                <div>
+                  <label className="text-xs font-medium text-text-secondary">Gültig bis</label>
+                  <input
+                    type="date"
+                    value={formData.gueltig_bis}
+                    onChange={e => update('gueltig_bis', e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                  />
+                </div>
+              )}
+              <div>
+                <label className="text-xs font-medium text-text-secondary">Kunden-Bestell-Nr.</label>
+                <input
+                  type="text"
+                  value={formData.kunden_bestellnummer}
+                  onChange={e => update('kunden_bestellnummer', e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                  placeholder="Optional"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-text-secondary">MwSt.-Satz (Default)</label>
+                <select
+                  value={formData.mwst_satz}
+                  onChange={e => update('mwst_satz', parseFloat(e.target.value))}
+                  className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                >
+                  {MWST_OPTIONEN.map(o => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-text-muted mt-1">Wird in Etappe 6 durch Tatbestand pro Position ersetzt.</p>
+              </div>
             </div>
           )}
-          <div>
-            <label className="text-xs font-medium text-text-secondary">Kunden-Bestell-Nr.</label>
-            <input
-              type="text"
-              value={formData.kunden_bestellnummer}
-              onChange={e => update('kunden_bestellnummer', e.target.value)}
-              className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-              placeholder="Optional"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-text-secondary">MwSt.-Satz</label>
-            <select
-              value={formData.mwst_satz}
-              onChange={e => update('mwst_satz', parseFloat(e.target.value))}
-              className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-            >
-              {MWST_OPTIONEN.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
 
-      {/* Empfänger */}
-      <div className="bg-surface-card rounded-lg shadow-sm border border-border-default">
-        <div className="px-5 py-3 border-b border-border-default flex items-center justify-between">
-          <h2 className="font-semibold text-text-primary">Empfänger</h2>
-          <button
-            onClick={() => setShowKundenSuche(true)}
-            className="text-sm text-brand hover:text-brand-dark flex items-center gap-1"
-          >
-            <Search className="h-4 w-4" /> Kunde suchen
-          </button>
-        </div>
-        <div className="p-5 grid grid-cols-2 md:grid-cols-3 gap-4">
-          <div className="md:col-span-2">
-            <label className="text-xs font-medium text-text-secondary">Firma</label>
-            <input
-              type="text"
-              value={formData.empfaenger_firma}
-              onChange={e => update('empfaenger_firma', e.target.value)}
-              className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-text-secondary">Ansprechpartner</label>
-            <input
-              type="text"
-              value={formData.empfaenger_name}
-              onChange={e => update('empfaenger_name', e.target.value)}
-              className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="text-xs font-medium text-text-secondary">Straße</label>
-            <input
-              type="text"
-              value={formData.empfaenger_strasse}
-              onChange={e => update('empfaenger_strasse', e.target.value)}
-              className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-            />
-          </div>
-          <div className="grid grid-cols-3 gap-2">
+          {/* Tab: Empfänger */}
+          {activeTab === 'empfaenger' && (
             <div>
-              <label className="text-xs font-medium text-text-secondary">PLZ</label>
-              <input
-                type="text"
-                value={formData.empfaenger_plz}
-                onChange={e => update('empfaenger_plz', e.target.value)}
-                className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-              />
-            </div>
-            <div className="col-span-2">
-              <label className="text-xs font-medium text-text-secondary">Ort</label>
-              <input
-                type="text"
-                value={formData.empfaenger_ort}
-                onChange={e => update('empfaenger_ort', e.target.value)}
-                className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Einleitungstext */}
-      <div className="bg-surface-card rounded-lg shadow-sm border border-border-default">
-        <div className="px-5 py-3 border-b border-border-default">
-          <h2 className="font-semibold text-text-primary">Einleitungstext</h2>
-        </div>
-        <div className="p-5">
-          <textarea
-            value={formData.einleitungstext}
-            onChange={e => update('einleitungstext', e.target.value)}
-            rows={3}
-            className="w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"
-          />
-        </div>
-      </div>
-
-      {/* Positionen */}
-      <div className="bg-surface-card rounded-lg shadow-sm border border-border-default">
-        <div className="px-5 py-3 border-b border-border-default">
-          <h2 className="font-semibold text-text-primary">Positionen</h2>
-        </div>
-        <div className="p-5">
-          <BelegPositionenEditor positionen={positionen} setPositionen={setPositionen} />
-        </div>
-      </div>
-
-      {/* Zusammenfassung */}
-      <div className="bg-surface-card rounded-lg shadow-sm border border-border-default">
-        <div className="px-5 py-3 border-b border-border-default">
-          <h2 className="font-semibold text-text-primary">Zusammenfassung</h2>
-        </div>
-        <div className="p-5">
-          <div className="max-w-sm ml-auto space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-text-secondary">Netto</span>
-              <span>{formatEuro(summen.netto_summe)}</span>
-            </div>
-            {formData.rabatt_prozent > 0 && (
-              <div className="flex justify-between text-sm text-red-600">
-                <span>Rabatt ({formData.rabatt_prozent}%)</span>
-                <span>- {formatEuro(summen.rabatt_betrag)}</span>
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm text-text-muted">Rechnungs-/Angebotsempfänger. Bei Freeze wird dieser Stand eingefroren (GoBD).</p>
+                <button
+                  onClick={() => setShowKundenSuche(true)}
+                  className="text-sm text-brand hover:text-brand-dark flex items-center gap-1"
+                >
+                  <Search className="h-4 w-4" /> Kunde suchen
+                </button>
               </div>
-            )}
-            {formData.rabatt_prozent > 0 && (
-              <div className="flex justify-between text-sm">
-                <span className="text-text-secondary">Netto nach Rabatt</span>
-                <span>{formatEuro(summen.netto_nach_rabatt)}</span>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="md:col-span-2">
+                  <label className="text-xs font-medium text-text-secondary">Firma</label>
+                  <input
+                    type="text"
+                    value={formData.empfaenger_firma}
+                    onChange={e => update('empfaenger_firma', e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-text-secondary">Ansprechpartner / Name</label>
+                  <input
+                    type="text"
+                    value={formData.empfaenger_name}
+                    onChange={e => update('empfaenger_name', e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="text-xs font-medium text-text-secondary">Straße</label>
+                  <input
+                    type="text"
+                    value={formData.empfaenger_strasse}
+                    onChange={e => update('empfaenger_strasse', e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-xs font-medium text-text-secondary">PLZ</label>
+                    <input
+                      type="text"
+                      value={formData.empfaenger_plz}
+                      onChange={e => update('empfaenger_plz', e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-xs font-medium text-text-secondary">Ort</label>
+                    <input
+                      type="text"
+                      value={formData.empfaenger_ort}
+                      onChange={e => update('empfaenger_ort', e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                    />
+                  </div>
+                </div>
               </div>
-            )}
-            <div className="flex justify-between text-sm">
-              <span className="text-text-secondary">MwSt. ({formData.mwst_satz}%)</span>
-              <span>{formatEuro(summen.mwst_betrag)}</span>
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
+                Etappe 6.2/6.3 folgt: Firma/Privat-Toggle, Email, Telefon, USt-ID, Leitweg-ID.
+              </div>
             </div>
-            <div className="flex justify-between text-base font-bold border-t border-border-default pt-2">
-              <span>Brutto</span>
-              <span>{formatEuro(summen.brutto_summe)}</span>
-            </div>
-            <div className="pt-2">
-              <label className="text-xs font-medium text-text-secondary">Rabatt (%)</label>
-              <input
-                type="number"
-                value={formData.rabatt_prozent}
-                onChange={e => update('rabatt_prozent', parseFloat(e.target.value) || 0)}
-                className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-                min="0" max="100" step="0.5"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
+          )}
 
-      {/* Zahlungsbedingungen (nur bei Rechnungstypen) */}
-      {isRechnungstyp && (
-        <div className="bg-surface-card rounded-lg shadow-sm border border-border-default">
-          <div className="px-5 py-3 border-b border-border-default">
-            <h2 className="font-semibold text-text-primary">Zahlungsbedingungen</h2>
-          </div>
-          <div className="p-5 grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="md:col-span-2">
-              <label className="text-xs font-medium text-text-secondary">Bedingungen</label>
-              <input
-                type="text"
-                value={formData.zahlungsbedingungen}
-                onChange={e => update('zahlungsbedingungen', e.target.value)}
-                className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-                placeholder="z.B. 14 Tage netto, 2% Skonto bei Zahlung innerhalb 7 Tagen"
-              />
+          {/* Tab: Positionen */}
+          {activeTab === 'positionen' && (
+            <div className="space-y-6">
+              <BelegPositionenEditor positionen={positionen} setPositionen={setPositionen} />
+              <div className="border-t border-border-default pt-5">
+                <h3 className="font-semibold text-text-primary mb-3">Zusammenfassung</h3>
+                <div className="max-w-sm ml-auto space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-text-secondary">Netto</span>
+                    <span>{formatEuro(summen.netto_summe)}</span>
+                  </div>
+                  {formData.rabatt_prozent > 0 && (
+                    <div className="flex justify-between text-sm text-red-600">
+                      <span>Rabatt ({formData.rabatt_prozent}%)</span>
+                      <span>- {formatEuro(summen.rabatt_betrag)}</span>
+                    </div>
+                  )}
+                  {formData.rabatt_prozent > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-text-secondary">Netto nach Rabatt</span>
+                      <span>{formatEuro(summen.netto_nach_rabatt)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm">
+                    <span className="text-text-secondary">MwSt. ({formData.mwst_satz}%)</span>
+                    <span>{formatEuro(summen.mwst_betrag)}</span>
+                  </div>
+                  <div className="flex justify-between text-base font-bold border-t border-border-default pt-2">
+                    <span>Brutto</span>
+                    <span>{formatEuro(summen.brutto_summe)}</span>
+                  </div>
+                  <div className="pt-2">
+                    <label className="text-xs font-medium text-text-secondary">Rabatt gesamt (%)</label>
+                    <input
+                      type="number"
+                      value={formData.rabatt_prozent}
+                      onChange={e => update('rabatt_prozent', parseFloat(e.target.value) || 0)}
+                      className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                      min="0" max="100" step="0.5"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="text-xs font-medium text-text-secondary">Zahlungsziel (Tage)</label>
-              <input
-                type="number"
-                value={formData.zahlungsziel_tage}
-                onChange={e => update('zahlungsziel_tage', parseInt(e.target.value) || 14)}
-                className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-                min="0"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
+          )}
+
+          {/* Tab: Texte */}
+          {activeTab === 'texte' && (
+            <div className="space-y-5">
               <div>
-                <label className="text-xs font-medium text-text-secondary">Skonto %</label>
-                <input
-                  type="number"
-                  value={formData.skonto_prozent}
-                  onChange={e => update('skonto_prozent', parseFloat(e.target.value) || 0)}
-                  className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-                  min="0" max="10" step="0.5"
+                <label className="text-sm font-medium text-text-primary block mb-2">Einleitungstext</label>
+                <textarea
+                  value={formData.einleitungstext}
+                  onChange={e => update('einleitungstext', e.target.value)}
+                  rows={4}
+                  className="w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-text-secondary">Skonto Tage</label>
-                <input
-                  type="number"
-                  value={formData.skonto_tage}
-                  onChange={e => update('skonto_tage', parseInt(e.target.value) || 0)}
-                  className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-                  min="0"
+                <label className="text-sm font-medium text-text-primary block mb-2">Schlusstext</label>
+                <textarea
+                  value={formData.schlusstext}
+                  onChange={e => update('schlusstext', e.target.value)}
+                  rows={4}
+                  className="w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"
                 />
               </div>
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
+                Etappe 6.8 folgt: Rich-Text-Editor (Fettdruck, Absätze, Aufzählungen) + Interne Notiz (nicht auf PDF).
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* Zahlungseingaenge (nur bei Rechnungstypen, gespeichert, nicht Entwurf) */}
-      {isRechnungstyp && formData.id && formData.status !== 'entwurf' && (
-        <div className="bg-surface-card rounded-lg shadow-sm border border-border-default">
-          <div className="px-5 py-3 border-b border-border-default">
-            <h2 className="font-semibold text-text-primary">Zahlungseingaenge</h2>
-          </div>
-          <div className="p-5">
-            <BelegZahlungen
-              belegId={formData.id}
-              bruttoSumme={summen.brutto_summe}
-              status={formData.status}
-            />
-          </div>
-        </div>
-      )}
+          {/* Tab: Zahlung */}
+          {activeTab === 'zahlung' && (
+            <div className="space-y-6">
+              {isRechnungstyp ? (
+                <>
+                  <div>
+                    <h3 className="font-semibold text-text-primary mb-3">Zahlungsbedingungen</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="md:col-span-2">
+                        <label className="text-xs font-medium text-text-secondary">Bedingungen</label>
+                        <input
+                          type="text"
+                          value={formData.zahlungsbedingungen}
+                          onChange={e => update('zahlungsbedingungen', e.target.value)}
+                          className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                          placeholder="z.B. 14 Tage netto, 2% Skonto bei Zahlung innerhalb 7 Tagen"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-text-secondary">Zahlungsziel (Tage)</label>
+                        <input
+                          type="number"
+                          value={formData.zahlungsziel_tage}
+                          onChange={e => update('zahlungsziel_tage', parseInt(e.target.value) || 14)}
+                          className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                          min="0"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs font-medium text-text-secondary">Skonto %</label>
+                          <input
+                            type="number"
+                            value={formData.skonto_prozent}
+                            onChange={e => update('skonto_prozent', parseFloat(e.target.value) || 0)}
+                            className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                            min="0" max="10" step="0.5"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-text-secondary">Skonto Tage</label>
+                          <input
+                            type="number"
+                            value={formData.skonto_tage}
+                            onChange={e => update('skonto_tage', parseInt(e.target.value) || 0)}
+                            className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                            min="0"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
-      {/* Abschlagsrechnung-Details */}
-      {formData.beleg_typ === 'abschlagsrechnung' && (
-        <div className="bg-surface-card rounded-lg shadow-sm border border-border-default">
-          <div className="px-5 py-3 border-b border-border-default">
-            <h2 className="font-semibold text-text-primary">Abschlagsrechnung</h2>
-          </div>
-          <div className="p-5 grid grid-cols-3 gap-4">
-            <div>
-              <label className="text-xs font-medium text-text-secondary">Abschlagsnummer</label>
-              <input
-                type="number"
-                value={formData.abschlags_nr || ''}
-                onChange={e => update('abschlags_nr', parseInt(e.target.value) || null)}
-                className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-                placeholder="1, 2, 3..."
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-text-secondary">Anteil (%)</label>
-              <input
-                type="number"
-                value={formData.abschlags_prozent || ''}
-                onChange={e => update('abschlags_prozent', parseFloat(e.target.value) || null)}
-                className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-                min="0" max="100" step="1"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-text-secondary">Festbetrag</label>
-              <input
-                type="number"
-                value={formData.abschlags_betrag || ''}
-                onChange={e => update('abschlags_betrag', parseFloat(e.target.value) || null)}
-                className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-                step="0.01"
-              />
-            </div>
-          </div>
-        </div>
-      )}
+                  {formData.beleg_typ === 'abschlagsrechnung' && (
+                    <div>
+                      <h3 className="font-semibold text-text-primary mb-3">Abschlagsrechnung</h3>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <label className="text-xs font-medium text-text-secondary">Abschlagsnummer</label>
+                          <input
+                            type="number"
+                            value={formData.abschlags_nr || ''}
+                            onChange={e => update('abschlags_nr', parseInt(e.target.value) || null)}
+                            className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                            placeholder="1, 2, 3..."
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-text-secondary">Anteil (%)</label>
+                          <input
+                            type="number"
+                            value={formData.abschlags_prozent || ''}
+                            onChange={e => update('abschlags_prozent', parseFloat(e.target.value) || null)}
+                            className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                            min="0" max="100" step="1"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-text-secondary">Festbetrag</label>
+                          <input
+                            type="number"
+                            value={formData.abschlags_betrag || ''}
+                            onChange={e => update('abschlags_betrag', parseFloat(e.target.value) || null)}
+                            className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                            step="0.01"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
-      {/* Schlusstext */}
-      <div className="bg-surface-card rounded-lg shadow-sm border border-border-default">
-        <div className="px-5 py-3 border-b border-border-default">
-          <h2 className="font-semibold text-text-primary">Schlusstext</h2>
-        </div>
-        <div className="p-5">
-          <textarea
-            value={formData.schlusstext}
-            onChange={e => update('schlusstext', e.target.value)}
-            rows={3}
-            className="w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"
-          />
+                  {formData.id && formData.status !== 'entwurf' && (
+                    <div>
+                      <h3 className="font-semibold text-text-primary mb-3">Zahlungseingänge</h3>
+                      <BelegZahlungen
+                        belegId={formData.id}
+                        bruttoSumme={summen.brutto_summe}
+                        status={formData.status}
+                      />
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-text-muted">Zahlungsbedingungen sind nur bei Rechnungstypen relevant (Rechnung, Abschlag, Schluss, Gutschrift).</p>
+              )}
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
+                Etappe 6.2 folgt: Eigene Bankverbindung (Dropdown wenn mehrere).
+              </div>
+            </div>
+          )}
+
+          {/* Tab: Vorschau & Aktion */}
+          {activeTab === 'vorschau' && (
+            <div className="space-y-5">
+              <div className="p-6 bg-surface-main border-2 border-dashed border-border-default rounded-lg text-center text-text-muted">
+                <Eye className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">Live-PDF-Vorschau kommt in Etappe 6.10.</p>
+                <p className="text-xs mt-1">Aktuell: Beleg speichern, dann in BelegVorschau ansehen.</p>
+              </div>
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
+                Etappe 6.9 folgt: Button "An Buchhaltung übermitteln" (Freeze via RPC <code>freeze_beleg</code>). Nach Freeze wird der Beleg read-only, nur Status + Mahnstufe bleiben änderbar.
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
 
