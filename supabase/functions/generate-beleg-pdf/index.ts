@@ -47,6 +47,11 @@ interface Beleg {
   empfaenger_strasse: string | null;
   empfaenger_plz: string | null;
   empfaenger_ort: string | null;
+  empfaenger_ust_id: string | null;
+  empfaenger_ansprechpartner_name: string | null;
+  empfaenger_ist_privatperson: boolean | null;
+  leitweg_id: string | null;
+  ist_erechnung: boolean | null;
   betreff: string | null;
   einleitungstext: string | null;
   schlusstext: string | null;
@@ -67,6 +72,14 @@ interface Beleg {
   abschlags_betrag: number | null;
   parent_id: string | null;
   pdf_html: string | null;
+  // Welle 2 Etappe 4.5: MUSS-10-Felder
+  unser_zeichen: string | null;
+  ihr_zeichen: string | null;
+  kommission: string | null;
+  leistungszeitraum_von: string | null;
+  leistungszeitraum_bis: string | null;
+  geplanter_liefertermin: string | null;
+  tatsaechlicher_liefertermin: string | null;
 }
 
 interface BelegPosition {
@@ -81,6 +94,18 @@ interface BelegPosition {
   breite: number | null;
   hoehe: number | null;
   gruppe: string | null;
+  // Welle 2 Etappe 4.5
+  parent_position_id: string | null;
+  ist_summenzeile: boolean | null;
+  ist_versteckt: boolean | null;
+  leistungsart: string | null;
+  steuer_tatbestand_id: string | null;
+  rabatt_prozent: number | null;
+  rabatt_betrag: number | null;
+  // Joined von steuer_tatbestaende
+  steuer_tatbestand_code?: string | null;
+  steuer_tatbestand_satz?: number | null;
+  steuer_tatbestand_pdf_hinweis?: string | null;
 }
 
 interface ParentBeleg {
@@ -254,6 +279,7 @@ function generateHTML(
       ${renderEinleitung(beleg)}
       ${renderPositionenTable(positionen)}
       ${renderSummary(beleg)}
+      ${renderSteuerHinweise(positionen)}
       ${renderZahlungsbedingungen(beleg, istRechnung)}
       ${renderSchlusstext(beleg)}
       ${renderClosing()}
@@ -391,6 +417,36 @@ function renderDocTitle(beleg: Beleg, typLabel: string, datum: string): string {
     infoRows.push(`<strong style="color:${BRAND.dunkel};">Abschlag Nr.:</strong> ${beleg.abschlags_nr}`);
   }
 
+  // Welle 2: Unser / Ihr Zeichen
+  if (beleg.unser_zeichen) {
+    infoRows.push(`<strong style="color:${BRAND.dunkel};">Unser Zeichen:</strong> ${escapeHtml(beleg.unser_zeichen)}`);
+  }
+  if (beleg.ihr_zeichen) {
+    infoRows.push(`<strong style="color:${BRAND.dunkel};">Ihr Zeichen:</strong> ${escapeHtml(beleg.ihr_zeichen)}`);
+  }
+
+  // Welle 2: Kommission (Bauvorhaben-Kennung Kunde)
+  if (beleg.kommission) {
+    infoRows.push(`<strong style="color:${BRAND.dunkel};">Kommission:</strong> ${escapeHtml(beleg.kommission)}`);
+  }
+
+  // Welle 2: Leistungszeitraum (§14 UStG Pflichtangabe bei Rechnungen)
+  if (beleg.leistungszeitraum_von && beleg.leistungszeitraum_bis) {
+    infoRows.push(`<strong style="color:${BRAND.dunkel};">Leistungszeitraum:</strong> ${formatDatum(beleg.leistungszeitraum_von)} – ${formatDatum(beleg.leistungszeitraum_bis)}`);
+  } else if (beleg.leistungszeitraum_von) {
+    infoRows.push(`<strong style="color:${BRAND.dunkel};">Leistungsbeginn:</strong> ${formatDatum(beleg.leistungszeitraum_von)}`);
+  }
+
+  // Welle 2: Geplanter Liefertermin
+  if (beleg.geplanter_liefertermin) {
+    infoRows.push(`<strong style="color:${BRAND.dunkel};">Geplanter LT:</strong> ${formatDatum(beleg.geplanter_liefertermin)}`);
+  }
+
+  // Welle 2: Leitweg-ID bei E-Rechnung
+  if (beleg.leitweg_id) {
+    infoRows.push(`<strong style="color:${BRAND.dunkel};">Leitweg-ID:</strong> ${escapeHtml(beleg.leitweg_id)}`);
+  }
+
   return `
     <table style="width:100%;border-collapse:collapse;margin-bottom:12px;">
       <tr>
@@ -437,6 +493,9 @@ function renderPositionenTable(positionen: BelegPosition[]): string {
   let currentGroup = "";
 
   for (const pos of positionen) {
+    // Welle 2: versteckte Sub-Positionen (BOM-Komponenten) erscheinen NICHT im Kunden-PDF
+    if (pos.ist_versteckt) continue;
+
     // Group header
     if (pos.gruppe && pos.gruppe !== currentGroup) {
       currentGroup = pos.gruppe;
@@ -530,6 +589,32 @@ function renderSummary(beleg: Beleg): string {
           </tr>
         </tbody>
       </table>
+    </div>`;
+}
+
+/**
+ * Welle 2 Etappe 8: Steuer-Pflichthinweise (§13b / §4 Nr. 1 / §4 Nr. 7 etc.)
+ *
+ * Sammelt unique pdf_hinweis-Texte aller sichtbaren Positionen (ist_versteckt=false)
+ * mit nicht-Standard-Tatbestand und rendert sie als Pflichtblock unter der Summary.
+ *
+ * §14 UStG verlangt den Hinweis bei Steuerbefreiung / Reverse Charge.
+ */
+function renderSteuerHinweise(positionen: BelegPosition[]): string {
+  const hinweise = new Set<string>();
+  for (const pos of positionen) {
+    if (pos.ist_versteckt) continue;
+    const h = pos.steuer_tatbestand_pdf_hinweis;
+    if (h) hinweise.add(h);
+  }
+  if (hinweise.size === 0) return "";
+
+  const lines = Array.from(hinweise).map((h) => escapeHtml(h)).join("<br>");
+
+  return `
+    <div style="background:#fffbeb;border:1px solid #fde68a;border-left:3px solid #f59e0b;padding:10px 14px;margin:12px 0;font-size:11px;color:${BRAND.dunkel};border-radius:0 3px 3px 0;">
+      <strong style="color:#b45309;">Steuerhinweise (§14 UStG)</strong><br>
+      ${lines}
     </div>`;
 }
 
@@ -666,10 +751,10 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Fetch positionen
-    const { data: positionen, error: posError } = await supabase
+    // Fetch positionen mit joined Steuer-Tatbestand (fuer §13b/§4-Pflichthinweise)
+    const { data: positionenRaw, error: posError } = await supabase
       .from("beleg_positionen")
-      .select("*")
+      .select(`*, steuer_tatbestand:steuer_tatbestaende(code, satz_prozent, pdf_hinweis)`)
       .eq("beleg_id", belegId)
       .order("sort_order", { ascending: true })
       .order("pos_nr", { ascending: true });
@@ -681,6 +766,14 @@ Deno.serve(async (req: Request) => {
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
+
+    // Flachziehen steuer_tatbestand-Fields fuer Template-Verwendung
+    const positionen: BelegPosition[] = (positionenRaw || []).map((p: any) => ({
+      ...p,
+      steuer_tatbestand_code: p.steuer_tatbestand?.code ?? null,
+      steuer_tatbestand_satz: p.steuer_tatbestand?.satz_prozent ?? null,
+      steuer_tatbestand_pdf_hinweis: p.steuer_tatbestand?.pdf_hinweis ?? null,
+    }));
 
     // Fetch parent beleg if exists
     let parentBeleg: ParentBeleg | null = null;
