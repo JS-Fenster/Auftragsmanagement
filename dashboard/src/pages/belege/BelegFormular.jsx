@@ -1,7 +1,7 @@
 /**
  * BelegFormular — Hauptformular fuer Beleg-Erstellung/-Bearbeitung
  *
- * Beinhaltet: Kopfdaten, Empfaenger, Texte, Positionen, Zusammenfassung
+ * Beinhaltet: Kopfdaten, Empfänger, Texte, Positionen, Zusammenfassung
  * Verwendet: BelegPositionenEditor, KundenSuchModal
  */
 import { useState, useEffect, useCallback, useMemo } from 'react'
@@ -220,10 +220,10 @@ export default function BelegFormular({ beleg, positionen: initialPositionen, on
         </div>
       </div>
 
-      {/* Empfaenger */}
+      {/* Empfänger */}
       <div className="bg-surface-card rounded-lg shadow-sm border border-border-default">
         <div className="px-5 py-3 border-b border-border-default flex items-center justify-between">
-          <h2 className="font-semibold text-text-primary">Empfaenger</h2>
+          <h2 className="font-semibold text-text-primary">Empfänger</h2>
           <button
             onClick={() => setShowKundenSuche(true)}
             className="text-sm text-brand hover:text-brand-dark flex items-center gap-1"
