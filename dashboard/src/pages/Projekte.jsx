@@ -86,7 +86,11 @@ export default function Projekte() {
       if (filterPrio) query = query.eq('prioritaet', filterPrio)
       if (filterTyp) query = query.eq('typ', filterTyp)
       if (searchTerm) {
-        query = query.or(`titel.ilike.%${searchTerm}%,projekt_nummer.ilike.%${searchTerm}%,notizen.ilike.%${searchTerm}%`)
+        // Tokenize: jedes Wort muss irgendwo matchen (AND ueber Tokens, OR ueber Felder)
+        const tokens = searchTerm.trim().split(/\s+/).filter(t => t.length >= 2)
+        for (const t of tokens) {
+          query = query.or(`titel.ilike.%${t}%,projekt_nummer.ilike.%${t}%,notizen.ilike.%${t}%`)
+        }
       }
 
       const { data, error } = await query
@@ -440,11 +444,16 @@ function NewProjectModal({ onClose, onCreated }) {
   useEffect(() => {
     if (kontaktSuche.length < 2) { setKontaktResults([]); return }
     const timer = setTimeout(async () => {
-      const { data } = await supabase
+      // Tokenize: "Koller Kuemmersbruck" -> beide muessen irgendwo matchen
+      const tokens = kontaktSuche.trim().split(/\s+/).filter(t => t.length >= 2)
+      let q = supabase
         .from('kontakte')
         .select('id, firma1, firma2, ort, kontakt_personen!kontakt_personen_kontakt_id_fkey(vorname, nachname, ist_hauptkontakt)')
-        .or(`firma1.ilike.%${kontaktSuche}%,firma2.ilike.%${kontaktSuche}%`)
         .limit(10)
+      for (const t of tokens) {
+        q = q.or(`firma1.ilike.%${t}%,firma2.ilike.%${t}%,ort.ilike.%${t}%,plz.ilike.%${t}%`)
+      }
+      const { data } = await q
       setKontaktResults(data || [])
     }, 300)
     return () => clearTimeout(timer)

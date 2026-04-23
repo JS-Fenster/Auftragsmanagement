@@ -56,57 +56,64 @@ export default function Kunden() {
 
     const search = async () => {
       setLoading(true)
-      const term = `%${debouncedTerm}%`
 
-      // Strategy: 3 parallel queries, then merge by kontakt.id
-      const [kontakteRes, personenRes, detailsRes] = await Promise.all([
-        // 1. Search kontakte by firma/ort/plz
-        supabase.from('kontakte')
-          .select('id, firma1, firma2, strasse, plz, ort, erp_kunden_code, ist_kunde, ist_lieferant, typ, kontakt_personen!kontakt_id(id, anrede, vorname, nachname, rolle, ist_hauptkontakt, kontakt_details(id, typ, label, wert, ist_primaer))')
-          .or(`firma1.ilike.${term},firma2.ilike.${term},ort.ilike.${term},plz.ilike.${term}`)
-          .limit(100),
-        // 2. Search kontakt_personen by name
-        supabase.from('kontakt_personen')
-          .select('kontakt_id, vorname, nachname')
-          .or(`vorname.ilike.${term},nachname.ilike.${term}`)
-          .limit(50),
-        // 3. Search kontakt_details by value (phone/email)
-        supabase.from('kontakt_details')
-          .select('kontakt_person_id, wert, kontakt_personen!inner(kontakt_id)')
-          .ilike('wert', term)
-          .limit(50),
-      ])
-
-      if (cancelled) return
-
-      // Build a Map of kontakt_id -> kontakt from first query
-      const kontaktMap = new Map()
-      for (const k of (kontakteRes.data || [])) {
-        kontaktMap.set(k.id, k)
+      // Tokenize: "Koller Kuemmersbruck" -> ["Koller", "Kuemmersbruck"].
+      // Jeder Token muss irgendwo matchen (kontakte.firma1/2/ort/plz ODER
+      // person.vorname/nachname ODER kontakt_details.wert). Ueber Tokens
+      // wird AND gebildet durch Schnittmenge der kontakt_id-Sets.
+      const tokens = debouncedTerm.trim().split(/\s+/).filter(t => t.length >= 2)
+      if (tokens.length === 0) {
+        setResults([])
+        setLoading(false)
+        return
       }
 
-      // Collect kontakt IDs from person/detail searches that we need to load
-      const missingIds = new Set()
-      for (const p of (personenRes.data || [])) {
-        if (!kontaktMap.has(p.kontakt_id)) missingIds.add(p.kontakt_id)
-      }
-      for (const d of (detailsRes.data || [])) {
-        const kid = d.kontakt_personen?.kontakt_id
-        if (kid && !kontaktMap.has(kid)) missingIds.add(kid)
-      }
-
-      // Load missing kontakte in batch
-      if (missingIds.size > 0) {
-        const { data: extraKontakte } = await supabase.from('kontakte')
-          .select('id, firma1, firma2, strasse, plz, ort, erp_kunden_code, ist_kunde, ist_lieferant, typ, kontakt_personen!kontakt_id(id, anrede, vorname, nachname, rolle, ist_hauptkontakt, kontakt_details(id, typ, label, wert, ist_primaer))')
-          .in('id', Array.from(missingIds))
-        for (const k of (extraKontakte || [])) {
-          kontaktMap.set(k.id, k)
+      // Pro Token: alle matching kontakt_ids ueber die 3 Suchdimensionen
+      const idSetsPerToken = await Promise.all(tokens.map(async (token) => {
+        const term = `%${token}%`
+        const [kontakteRes, personenRes, detailsRes] = await Promise.all([
+          supabase.from('kontakte').select('id')
+            .or(`firma1.ilike.${term},firma2.ilike.${term},ort.ilike.${term},plz.ilike.${term}`)
+            .limit(500),
+          supabase.from('kontakt_personen').select('kontakt_id')
+            .or(`vorname.ilike.${term},nachname.ilike.${term}`)
+            .limit(500),
+          supabase.from('kontakt_details').select('kontakt_personen!inner(kontakt_id)')
+            .ilike('wert', term)
+            .limit(500),
+        ])
+        const ids = new Set()
+        for (const k of (kontakteRes.data || [])) ids.add(k.id)
+        for (const p of (personenRes.data || [])) ids.add(p.kontakt_id)
+        for (const d of (detailsRes.data || [])) {
+          const kid = d.kontakt_personen?.kontakt_id
+          if (kid) ids.add(kid)
         }
-      }
+        return ids
+      }))
 
       if (cancelled) return
-      setResults(Array.from(kontaktMap.values()))
+
+      // AND-Schnittmenge aller Token-Sets
+      const matchingIds = idSetsPerToken.reduce((acc, set) => {
+        if (acc === null) return set
+        return new Set([...acc].filter(id => set.has(id)))
+      }, null) || new Set()
+
+      if (matchingIds.size === 0) {
+        setResults([])
+        setLoading(false)
+        return
+      }
+
+      // Volle Kontakt-Daten fuer die matchenden IDs laden (eine Batch-Abfrage)
+      const { data: kontakte } = await supabase.from('kontakte')
+        .select('id, firma1, firma2, strasse, plz, ort, erp_kunden_code, ist_kunde, ist_lieferant, typ, kontakt_personen!kontakt_id(id, anrede, vorname, nachname, rolle, ist_hauptkontakt, kontakt_details(id, typ, label, wert, ist_primaer))')
+        .in('id', Array.from(matchingIds))
+        .limit(200)
+
+      if (cancelled) return
+      setResults(kontakte || [])
       setLoading(false)
     }
 
