@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { searchKontakteIds } from '../lib/search'
 import { Search, X, Plus } from 'lucide-react'
 import KundenListe from './kunden/KundenListe'
 import KontaktDetailModal from './kunden/KontaktDetailModal'
@@ -57,48 +58,9 @@ export default function Kunden() {
     const search = async () => {
       setLoading(true)
 
-      // Tokenize: "Koller Kuemmersbruck" -> ["Koller", "Kuemmersbruck"].
-      // Jeder Token muss irgendwo matchen (kontakte.firma1/2/ort/plz ODER
-      // person.vorname/nachname ODER kontakt_details.wert). Ueber Tokens
-      // wird AND gebildet durch Schnittmenge der kontakt_id-Sets.
-      const tokens = debouncedTerm.trim().split(/\s+/).filter(t => t.length >= 2)
-      if (tokens.length === 0) {
-        setResults([])
-        setLoading(false)
-        return
-      }
-
-      // Pro Token: alle matching kontakt_ids ueber die 3 Suchdimensionen
-      const idSetsPerToken = await Promise.all(tokens.map(async (token) => {
-        const term = `%${token}%`
-        const [kontakteRes, personenRes, detailsRes] = await Promise.all([
-          supabase.from('kontakte').select('id')
-            .or(`firma1.ilike.${term},firma2.ilike.${term},ort.ilike.${term},plz.ilike.${term}`)
-            .limit(500),
-          supabase.from('kontakt_personen').select('kontakt_id')
-            .or(`vorname.ilike.${term},nachname.ilike.${term}`)
-            .limit(500),
-          supabase.from('kontakt_details').select('kontakt_personen!inner(kontakt_id)')
-            .ilike('wert', term)
-            .limit(500),
-        ])
-        const ids = new Set()
-        for (const k of (kontakteRes.data || [])) ids.add(k.id)
-        for (const p of (personenRes.data || [])) ids.add(p.kontakt_id)
-        for (const d of (detailsRes.data || [])) {
-          const kid = d.kontakt_personen?.kontakt_id
-          if (kid) ids.add(kid)
-        }
-        return ids
-      }))
-
+      // Zentrale Suche: matchende kontakt_ids holen, dann Full-Select als Batch
+      const matchingIds = await searchKontakteIds(debouncedTerm)
       if (cancelled) return
-
-      // AND-Schnittmenge aller Token-Sets
-      const matchingIds = idSetsPerToken.reduce((acc, set) => {
-        if (acc === null) return set
-        return new Set([...acc].filter(id => set.has(id)))
-      }, null) || new Set()
 
       if (matchingIds.size === 0) {
         setResults([])
@@ -106,7 +68,6 @@ export default function Kunden() {
         return
       }
 
-      // Volle Kontakt-Daten fuer die matchenden IDs laden (eine Batch-Abfrage)
       const { data: kontakte } = await supabase.from('kontakte')
         .select('id, firma1, firma2, strasse, plz, ort, erp_kunden_code, ist_kunde, ist_lieferant, typ, kontakt_personen!kontakt_id(id, anrede, vorname, nachname, rolle, ist_hauptkontakt, kontakt_details(id, typ, label, wert, ist_primaer))')
         .in('id', Array.from(matchingIds))

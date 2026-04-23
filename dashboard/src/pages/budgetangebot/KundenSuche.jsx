@@ -1,74 +1,39 @@
 /**
  * Budgetangebot - Kundensuche + Suchmodal
  *
- * Wann lesen: Wenn du die Kundensuche/Autocomplete oder das Suchmodal aendern musst.
- * Enthaelt: searchKontakte() (Supabase-Query), KundenSuchModal (Overlay)
+ * Wann lesen: Wenn du das Suchmodal aendern musst oder die searchKontakte-
+ * Such-Logik anpassen musst.
+ *
+ * Die Such-Logik selbst ist in `lib/search.js` zentralisiert. Diese Datei
+ * haelt den Transform auf das "display format" (display_name, telefon,
+ * email etc.) und das Modal. searchKontakte() bleibt als duenner Wrapper
+ * exportiert — die beiden Consumer (TerminForm, Budgetangebot) brauchen
+ * das display-Format.
  */
 import { useState, useRef, useEffect } from 'react'
 import { Search, Users, Loader2, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { searchKontakteIds } from '../../lib/search'
 
 // ── Kunden-Suche Helper ─────────────────────────────────
 
+const KONTAKTE_SELECT = 'id, firma1, firma2, strasse, plz, ort, erp_kunden_code, kontakt_personen!kontakt_id(id, vorname, nachname, ist_hauptkontakt, kontakt_details(typ, wert, ist_primaer))'
+
+/**
+ * Sucht Kontakte und transformiert sie ins Display-Format fuer Autocomplete /
+ * Budget-Angebot / Termin-Form. Such-Logik (Tokenisierung, Multi-Feld-OR,
+ * AND-Schnittmenge) liegt in `lib/search.js`.
+ */
 export async function searchKontakte(term) {
-  if (!term || term.trim().length < 2) return []
+  const ids = await searchKontakteIds(term)
+  if (ids.size === 0) return []
 
-  // Multi-Term: "Andreas Kropfersricht" → ['andreas', 'kropfersricht']
-  const terms = term.trim().split(/\s+/).filter(t => t.length >= 2)
-  if (terms.length === 0) return []
+  const { data: kontakte } = await supabase.from('kontakte')
+    .select(KONTAKTE_SELECT)
+    .in('id', Array.from(ids))
+    .limit(80)
 
-  const KONTAKTE_SELECT = 'id, firma1, firma2, strasse, plz, ort, erp_kunden_code, kontakt_personen!kontakt_id(id, vorname, nachname, ist_hauptkontakt, kontakt_details(typ, wert, ist_primaer))'
-
-  // Build OR filters covering ALL terms across all fields
-  const kontakteOr = terms.flatMap(t => {
-    const p = `%${t}%`
-    return [`firma1.ilike.${p}`, `firma2.ilike.${p}`, `ort.ilike.${p}`, `plz.ilike.${p}`, `strasse.ilike.${p}`]
-  }).join(',')
-
-  const personenOr = terms.flatMap(t => {
-    const p = `%${t}%`
-    return [`vorname.ilike.${p}`, `nachname.ilike.${p}`]
-  }).join(',')
-
-  // For details, search each term
-  const detailsOr = terms.map(t => `%${t}%`)
-
-  const queries = [
-    supabase.from('kontakte').select(KONTAKTE_SELECT).or(kontakteOr).limit(80),
-    supabase.from('kontakt_personen').select('kontakt_id, vorname, nachname').or(personenOr).limit(50),
-  ]
-  // kontakt_details: ilike only accepts one pattern, so search with first term
-  // (multi-term filtering happens client-side)
-  queries.push(
-    supabase.from('kontakt_details')
-      .select('kontakt_person_id, wert, kontakt_personen!inner(kontakt_id)')
-      .ilike('wert', detailsOr[0])
-      .limit(50)
-  )
-
-  const [kontakteRes, personenRes, detailsRes] = await Promise.all(queries)
-
-  const kontaktMap = new Map()
-  for (const k of (kontakteRes.data || [])) kontaktMap.set(k.id, k)
-
-  const missingIds = new Set()
-  for (const p of (personenRes.data || [])) {
-    if (!kontaktMap.has(p.kontakt_id)) missingIds.add(p.kontakt_id)
-  }
-  for (const d of (detailsRes.data || [])) {
-    const kid = d.kontakt_personen?.kontakt_id
-    if (kid && !kontaktMap.has(kid)) missingIds.add(kid)
-  }
-
-  if (missingIds.size > 0) {
-    const { data: extra } = await supabase.from('kontakte')
-      .select(KONTAKTE_SELECT)
-      .in('id', Array.from(missingIds))
-    for (const k of (extra || [])) kontaktMap.set(k.id, k)
-  }
-
-  // Transform to display format
-  const results = Array.from(kontaktMap.values()).map(k => {
+  return (kontakte || []).map(k => {
     const personen = k.kontakt_personen || []
     const haupt = personen.find(p => p.ist_hauptkontakt) || personen[0]
     const allDetails = personen.flatMap(p => p.kontakt_details || [])
@@ -92,21 +57,7 @@ export async function searchKontakte(term) {
       email,
       personen: personen.map(p => ({ vorname: p.vorname || '', nachname: p.nachname || '' })),
     }
-  })
-
-  // Client-side AND-Filter: JEDES Suchwort muss irgendwo im Kontakt vorkommen
-  if (terms.length > 1) {
-    return results.filter(r => {
-      const haystack = [
-        r.display_name, r.firma, r.firma2, r.strasse, r.ort, r.plz,
-        r.telefon, r.email,
-        ...r.personen.map(p => `${p.vorname} ${p.nachname}`),
-      ].join(' ').toLowerCase()
-      return terms.every(t => haystack.includes(t.toLowerCase()))
-    }).slice(0, 50)
-  }
-
-  return results.slice(0, 50)
+  }).slice(0, 50)
 }
 
 // ── Kunden-Suchmodal ────────────────────────────────────

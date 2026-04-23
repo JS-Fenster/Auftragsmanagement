@@ -16,6 +16,39 @@
 
 ---
 
+## Suchfelder — PFLICHT: zentrale lib nutzen
+
+Alle Kontakt- und Projekt-Suchen im Dashboard MUESSEN ueber
+`dashboard/src/lib/search.js` laufen. **Kein eigener `.or(firma1.ilike...)`
+in neuen Komponenten.** Grund: Multi-Wort-Queries ("Koller Kuemmersbruck")
+muessen tokenisiert werden (AND ueber Tokens, OR ueber Felder/Tabellen) —
+die Logik ist komplex genug, dass jede parallele Implementierung den
+gleichen Bug wieder einbaut. Siehe KB-Learnings zum 2026-04-23 Bug (eine
+doppelt implementierte Suche fand "Koller Kuemmersbruck" nicht obwohl 6
+Kontakte matchten).
+
+**API:**
+- `searchKontakte(term, { limit, select })` — vollstaendige Kontakt-Datensaetze
+- `searchKontakteIds(term)` — nur kontakt_ids als Set (fuer Spezial-Selects)
+- `searchProjekte(term, { limit, select, fields })` — Projekt-Suche
+- `applyTokenFilter(query, term, fields)` — Token-OR-Logik an bestehenden
+  Query-Builder anhaengen (fuer Faelle mit kombinierten Status/Typ-Filtern)
+
+**Aktive Caller** (alle nutzen `lib/search.js`):
+- `components/CommandPalette.jsx` — Ctrl+K Modal
+- `pages/Kunden.jsx` — Kontakte-Seite
+- `pages/budgetangebot/KundenSuche.jsx` — Auswahl-Modal (transformiert zu Display-Format)
+- `pages/Projekte.jsx` — Projekt-Liste + Kunden-Picker
+- `components/TerminForm.jsx` + `pages/Budgetangebot.jsx` — indirekt via KundenSuche
+
+**Wenn du ein neues Suchfeld baust:**
+1. Importiere aus `../lib/search` (oder Pfad anpassen)
+2. NIEMALS `.from('kontakte').or('firma1.ilike...')` direkt schreiben
+3. Wenn der Anwendungsfall nicht passt: `lib/search.js` erweitern, nicht
+   eigene Logik parallel bauen
+
+---
+
 ## Projektstruktur
 
 ```
