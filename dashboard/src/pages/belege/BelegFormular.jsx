@@ -12,6 +12,7 @@ import { Save, Loader2, Search, FileText, User, List, AlignLeft, CreditCard, Eye
 import BelegPositionenEditor from './BelegPositionenEditor'
 import BelegZahlungen from './BelegZahlungen'
 import { KundenSuchModal } from '../budgetangebot/KundenSuche'
+import { supabase } from '../../lib/supabase'
 import {
   BELEG_TYPEN, BELEG_STATUS, MWST_OPTIONEN, MWST_STANDARD,
   DEFAULT_TEXTE, formatEuro, calculateBelegSummen, generateBelegNummer, saveBeleg
@@ -60,6 +61,17 @@ export default function BelegFormular({ beleg, positionen: initialPositionen, on
     abschlags_prozent: beleg?.abschlags_prozent || null,
     abschlags_betrag: beleg?.abschlags_betrag || null,
     parent_id: beleg?.parent_id || null,
+    // Welle 2 Etappe 6.2: MUSS-Felder UI
+    unser_zeichen: beleg?.unser_zeichen || '',
+    ihr_zeichen: beleg?.ihr_zeichen || '',
+    kommission: beleg?.kommission || '',
+    leistungszeitraum_von: beleg?.leistungszeitraum_von || '',
+    leistungszeitraum_bis: beleg?.leistungszeitraum_bis || '',
+    geplanter_liefertermin: beleg?.geplanter_liefertermin || '',
+    tatsaechlicher_liefertermin: beleg?.tatsaechlicher_liefertermin || null,
+    verantwortlicher_mitarbeiter_id: beleg?.verantwortlicher_mitarbeiter_id || null,
+    eigene_bankverbindung_id: beleg?.eigene_bankverbindung_id || null,
+    interne_notiz: beleg?.interne_notiz || '',
   }))
 
   const [positionen, setPositionen] = useState(initialPositionen || [])
@@ -67,6 +79,8 @@ export default function BelegFormular({ beleg, positionen: initialPositionen, on
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState('uebersicht')
+  const [mitarbeiterListe, setMitarbeiterListe] = useState([])
+  const [bankverbindungen, setBankverbindungen] = useState([])
 
   // ── Belegnummer generieren (nur bei neuen Belegen) ────────
   useEffect(() => {
@@ -75,6 +89,34 @@ export default function BelegFormular({ beleg, positionen: initialPositionen, on
         setFormData(prev => ({ ...prev, beleg_nummer: nr }))
       })
     }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Dropdowns laden (Welle 2 Etappe 6.2) ─────────────────
+  useEffect(() => {
+    let cancelled = false
+    async function loadDropdowns() {
+      const [maRes, bankRes] = await Promise.all([
+        supabase
+          .from('mitarbeiter')
+          .select('id, vorname, nachname, rolle')
+          .eq('status', 'aktiv')
+          .order('nachname').order('vorname'),
+        supabase
+          .from('eigene_bankverbindungen')
+          .select('id, bezeichnung, iban, bank_name, ist_default')
+          .order('sort_order'),
+      ])
+      if (cancelled) return
+      setMitarbeiterListe(maRes.data || [])
+      setBankverbindungen(bankRes.data || [])
+      // Default-Bankverbindung bei neuem Beleg auto-auswählen
+      if (!formData.id && !formData.eigene_bankverbindung_id) {
+        const def = (bankRes.data || []).find(b => b.ist_default)
+        if (def) setFormData(prev => ({ ...prev, eigene_bankverbindung_id: def.id }))
+      }
+    }
+    loadDropdowns()
+    return () => { cancelled = true }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Typ-Wechsel: Default-Texte + neue Nummer ─────────────
@@ -283,6 +325,98 @@ export default function BelegFormular({ beleg, positionen: initialPositionen, on
                 </select>
                 <p className="text-xs text-text-muted mt-1">Wird in Etappe 6 durch Tatbestand pro Position ersetzt.</p>
               </div>
+
+              {/* Referenzen (MUSS-Felder) */}
+              <div className="md:col-span-4 border-t border-border-default pt-4 mt-2">
+                <h3 className="text-sm font-semibold text-text-primary mb-3">Referenzen</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <label className="text-xs font-medium text-text-secondary">Unser Zeichen</label>
+                    <input
+                      type="text"
+                      value={formData.unser_zeichen}
+                      onChange={e => update('unser_zeichen', e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                      placeholder="z.B. AS/2026-042"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-text-secondary">Ihr Zeichen</label>
+                    <input
+                      type="text"
+                      value={formData.ihr_zeichen}
+                      onChange={e => update('ihr_zeichen', e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                      placeholder="Referenz des Kunden"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-text-secondary">Kommission / BV</label>
+                    <input
+                      type="text"
+                      value={formData.kommission}
+                      onChange={e => update('kommission', e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                      placeholder="z.B. BV Müller, EG-West"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-text-secondary">Verantwortlich (intern)</label>
+                    <select
+                      value={formData.verantwortlicher_mitarbeiter_id || ''}
+                      onChange={e => update('verantwortlicher_mitarbeiter_id', e.target.value || null)}
+                      className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                    >
+                      <option value="">— keiner —</option>
+                      {mitarbeiterListe.map(m => (
+                        <option key={m.id} value={m.id}>
+                          {m.vorname} {m.nachname}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Termine (Leistung/Lieferung) */}
+              <div className="md:col-span-4 border-t border-border-default pt-4 mt-2">
+                <h3 className="text-sm font-semibold text-text-primary mb-1">Leistung &amp; Lieferung</h3>
+                <p className="text-xs text-text-muted mb-3">
+                  Leistungszeitraum ist bei Rechnungen ohne Einzelleistungsdatum pflichtig (§14 UStG).
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <label className="text-xs font-medium text-text-secondary">Leistungszeitraum von</label>
+                    <input
+                      type="date"
+                      value={formData.leistungszeitraum_von}
+                      onChange={e => update('leistungszeitraum_von', e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-text-secondary">Leistungszeitraum bis</label>
+                    <input
+                      type="date"
+                      value={formData.leistungszeitraum_bis}
+                      onChange={e => update('leistungszeitraum_bis', e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-text-secondary">Geplanter Liefertermin</label>
+                    <input
+                      type="date"
+                      value={formData.geplanter_liefertermin}
+                      onChange={e => update('geplanter_liefertermin', e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                    />
+                  </div>
+                  <div className="text-xs text-text-muted self-end pb-1">
+                    Tatsächlicher Liefertermin wird nach Auslieferung über die Belegliste gesetzt.
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
@@ -420,8 +554,26 @@ export default function BelegFormular({ beleg, positionen: initialPositionen, on
                   className="w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"
                 />
               </div>
+              <div className="border-t border-border-default pt-5">
+                <label className="text-sm font-medium text-text-primary block mb-1">
+                  Interne Notiz
+                  <span className="ml-2 text-xs font-normal text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-0.5">
+                    nicht auf PDF
+                  </span>
+                </label>
+                <p className="text-xs text-text-muted mb-2">
+                  Nur intern sichtbar — nicht Teil des Beleg-PDFs für den Kunden.
+                </p>
+                <textarea
+                  value={formData.interne_notiz}
+                  onChange={e => update('interne_notiz', e.target.value)}
+                  rows={4}
+                  className="w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"
+                  placeholder="z.B. Kunde zahlt zögerlich, Nachfassen am..."
+                />
+              </div>
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
-                Etappe 6.8 folgt: Rich-Text-Editor (Fettdruck, Absätze, Aufzählungen) + Interne Notiz (nicht auf PDF).
+                Etappe 6.8 folgt: Rich-Text-Editor für Einleitung/Schluss (Fettdruck, Absätze, Aufzählungen).
               </div>
             </div>
           )}
@@ -429,9 +581,36 @@ export default function BelegFormular({ beleg, positionen: initialPositionen, on
           {/* Tab: Zahlung */}
           {activeTab === 'zahlung' && (
             <div className="space-y-6">
+              {/* Eigene Bankverbindung (immer sichtbar, auch für nicht-Rechnungstypen — Vorausangabe auf Angebot/AB moeglich) */}
+              <div>
+                <h3 className="font-semibold text-text-primary mb-3">Eigene Bankverbindung</h3>
+                <div className="max-w-xl">
+                  <label className="text-xs font-medium text-text-secondary">
+                    Auf welches Konto zahlen?
+                  </label>
+                  <select
+                    value={formData.eigene_bankverbindung_id || ''}
+                    onChange={e => update('eigene_bankverbindung_id', e.target.value || null)}
+                    className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                  >
+                    <option value="">— keine Auswahl —</option>
+                    {bankverbindungen.map(b => (
+                      <option key={b.id} value={b.id}>
+                        {b.bezeichnung} — {b.iban}
+                      </option>
+                    ))}
+                  </select>
+                  {bankverbindungen.length === 0 && (
+                    <p className="text-xs text-amber-700 mt-1">
+                      Keine Bankverbindungen hinterlegt. Anlegen unter Einstellungen → Dokumentenkette.
+                    </p>
+                  )}
+                </div>
+              </div>
+
               {isRechnungstyp ? (
                 <>
-                  <div>
+                  <div className="border-t border-border-default pt-5">
                     <h3 className="font-semibold text-text-primary mb-3">Zahlungsbedingungen</h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div className="md:col-span-2">
@@ -529,11 +708,10 @@ export default function BelegFormular({ beleg, positionen: initialPositionen, on
                   )}
                 </>
               ) : (
-                <p className="text-sm text-text-muted">Zahlungsbedingungen sind nur bei Rechnungstypen relevant (Rechnung, Abschlag, Schluss, Gutschrift).</p>
+                <p className="text-sm text-text-muted border-t border-border-default pt-5">
+                  Zahlungsbedingungen sind nur bei Rechnungstypen relevant (Rechnung, Abschlag, Schluss, Gutschrift).
+                </p>
               )}
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
-                Etappe 6.2 folgt: Eigene Bankverbindung (Dropdown wenn mehrere).
-              </div>
             </div>
           )}
 
