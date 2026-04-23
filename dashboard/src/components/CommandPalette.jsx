@@ -72,18 +72,31 @@ export default function CommandPalette() {
         a.label.toLowerCase().includes(q.toLowerCase())
       )
 
+      // Tokenize: jeder Begriff muss irgendwo matchen (AND ueber Tokens,
+      // OR ueber Felder). Behebt Multi-Wort-Suche wie "Koller Kuemmersbruck"
+      // oder "Nitzek Kuemmersbruck" die sonst als ein String gegen firma1
+      // gematcht wuerden und nie treffen.
+      // Tokens mit Supabase-sensitiven Zeichen defensiv escapen.
+      const escape = (s) => s.replace(/[,()]/g, '')
+      const tokens = q.split(/\s+/).filter(t => t.length >= 2).map(escape)
+
+      let projektQuery = supabase
+        .from('projekte')
+        .select('id, projekt_nummer, titel, status')
+        .limit(5)
+      let kontaktQuery = supabase
+        .from('kontakte')
+        .select('id, firma1, firma2, ort')
+        .limit(5)
+      for (const t of tokens) {
+        projektQuery = projektQuery.or(`titel.ilike.%${t}%,projekt_nummer.ilike.%${t}%`)
+        kontaktQuery = kontaktQuery.or(`firma1.ilike.%${t}%,firma2.ilike.%${t}%,ort.ilike.%${t}%`)
+      }
+
       // Search projekte + kontakte in parallel
       const [projektRes, kontaktRes] = await Promise.all([
-        supabase
-          .from('projekte')
-          .select('id, projekt_nummer, titel, status')
-          .or(`titel.ilike.%${q}%,projekt_nummer.ilike.%${q}%`)
-          .limit(5),
-        supabase
-          .from('kontakte')
-          .select('id, firma1, firma2, ort')
-          .or(`firma1.ilike.%${q}%,firma2.ilike.%${q}%`)
-          .limit(5),
+        projektQuery,
+        kontaktQuery,
       ])
 
       setResults({
