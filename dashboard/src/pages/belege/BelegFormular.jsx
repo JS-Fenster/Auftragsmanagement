@@ -29,7 +29,7 @@ const TABS = [
   { id: 'vorschau',   label: 'Vorschau & Aktion', icon: Eye },
 ]
 
-export default function BelegFormular({ beleg, positionen: initialPositionen, onSaved, onCancel }) {
+export default function BelegFormular({ beleg, positionen: initialPositionen, onSaved, onCancel, onTypChange }) {
   // ── State ────────────────────────────────────────────────
   const [formData, setFormData] = useState(() => ({
     id: beleg?.id || null,
@@ -100,6 +100,7 @@ export default function BelegFormular({ beleg, positionen: initialPositionen, on
           .from('mitarbeiter')
           .select('id, vorname, nachname, rolle')
           .eq('status', 'aktiv')
+          .in('rolle', ['buero', 'geschaeftsfuehrung'])
           .order('nachname').order('vorname'),
         supabase
           .from('eigene_bankverbindungen')
@@ -131,7 +132,8 @@ export default function BelegFormular({ beleg, positionen: initialPositionen, on
       schlusstext: defaults.schluss || prev.schlusstext,
       gueltig_bis: newTyp === 'angebot' ? prev.gueltig_bis : '',
     }))
-  }, [])
+    onTypChange?.(newTyp)
+  }, [onTypChange])
 
   // ── Kunden-Auswahl ────────────────────────────────────────
   const handleKundeSelect = useCallback((kontakt) => {
@@ -312,18 +314,21 @@ export default function BelegFormular({ beleg, positionen: initialPositionen, on
                   placeholder="Optional"
                 />
               </div>
-              <div>
-                <label className="text-xs font-medium text-text-secondary">MwSt.-Satz (Default)</label>
-                <select
-                  value={formData.mwst_satz}
-                  onChange={e => update('mwst_satz', parseFloat(e.target.value))}
-                  className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-                >
-                  {MWST_OPTIONEN.map(o => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-                <p className="text-xs text-text-muted mt-1">Wird in Etappe 6 durch Tatbestand pro Position ersetzt.</p>
+              {/* MwSt-Default (temporaer bis Etappe 6.6 Tatbestand pro Position) — eigene Zeile fuer stabiles Layout */}
+              <div className="md:col-span-4">
+                <div className="md:w-1/4">
+                  <label className="text-xs font-medium text-text-secondary">MwSt.-Satz (Default)</label>
+                  <select
+                    value={formData.mwst_satz}
+                    onChange={e => update('mwst_satz', parseFloat(e.target.value))}
+                    className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                  >
+                    {MWST_OPTIONEN.map(o => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-text-muted mt-1">Wird in Etappe 6.6 durch Tatbestand pro Position ersetzt.</p>
+                </div>
               </div>
 
               {/* Referenzen (MUSS-Felder) */}
@@ -351,7 +356,7 @@ export default function BelegFormular({ beleg, positionen: initialPositionen, on
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-text-secondary">Kommission / BV</label>
+                    <label className="text-xs font-medium text-text-secondary">Kommission / Bauvorhaben</label>
                     <input
                       type="text"
                       value={formData.kommission}
@@ -482,7 +487,7 @@ export default function BelegFormular({ beleg, positionen: initialPositionen, on
                 </div>
               </div>
               <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
-                Etappe 6.2/6.3 folgt: Firma/Privat-Toggle, Email, Telefon, USt-ID, Leitweg-ID.
+                Etappe 6.3 folgt: Firma/Privat-Toggle, Email, Telefon, USt-ID, Leitweg-ID.
               </div>
             </div>
           )}

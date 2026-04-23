@@ -224,6 +224,7 @@ export default function BelegErstellen() {
           positionen={positionen}
           onSaved={handleSaved}
           onCancel={() => navigate(-1)}
+          onTypChange={(newTyp) => setBeleg(prev => prev ? { ...prev, beleg_typ: newTyp } : prev)}
         />
       )}
     </div>
